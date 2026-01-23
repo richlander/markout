@@ -32,6 +32,16 @@ public sealed class MdfSourceGenerator : IIncrementalGenerator
             // Generate type infos for any types referenced by the context
             foreach (var type in contextMeta.Types)
             {
+                // Report diagnostics for this type
+                foreach (var diagnostic in type.Diagnostics)
+                {
+                    var diag = Diagnostic.Create(
+                        diagnostic.Descriptor,
+                        diagnostic.Location,
+                        diagnostic.MessageArgs);
+                    ctx.ReportDiagnostic(diag);
+                }
+
                 if (generatedTypes.Add(type.FullTypeName))
                 {
                     var typeSource = SerializerEmitter.EmitTypeInfo(type);

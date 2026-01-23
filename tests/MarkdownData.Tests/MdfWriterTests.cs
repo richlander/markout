@@ -38,7 +38,8 @@ public class MdfWriterTests
         var writer = new MdfWriter();
         writer.WriteField("Name", "Newtonsoft.Json");
 
-        Assert.Equal("Name: Newtonsoft.Json\n", writer.ToString());
+        // Note: WriteField adds two trailing spaces for markdown hard line break
+        Assert.Equal("Name: Newtonsoft.Json  \n", writer.ToString());
     }
 
     [Fact]
@@ -47,7 +48,7 @@ public class MdfWriterTests
         var writer = new MdfWriter();
         writer.WriteField("Signed", true);
 
-        Assert.Equal("Signed: yes\n", writer.ToString());
+        Assert.Equal("Signed: yes  \n", writer.ToString());
     }
 
     [Fact]
@@ -56,7 +57,7 @@ public class MdfWriterTests
         var writer = new MdfWriter();
         writer.WriteField("Signed", false);
 
-        Assert.Equal("Signed: no\n", writer.ToString());
+        Assert.Equal("Signed: no  \n", writer.ToString());
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public class MdfWriterTests
         var writer = new MdfWriter();
         writer.WriteField("Count", 42);
 
-        Assert.Equal("Count: 42\n", writer.ToString());
+        Assert.Equal("Count: 42  \n", writer.ToString());
     }
 
     [Fact]
@@ -74,7 +75,7 @@ public class MdfWriterTests
         var writer = new MdfWriter();
         writer.WriteField("Version", 3.14);
 
-        Assert.Equal("Version: 3.14\n", writer.ToString());
+        Assert.Equal("Version: 3.14  \n", writer.ToString());
     }
 
     [Fact]
@@ -149,12 +150,12 @@ public class MdfWriterTests
         var expected = """
             # Package
 
-            Name: Test
-            Version: 1.0.0
+            Name: Test  
+            Version: 1.0.0  
 
             ## Dependencies
 
-            Count: 5
+            Count: 5  
 
             """;
         Assert.Equal(expected, writer.ToString());

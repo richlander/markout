@@ -14,6 +14,27 @@ public sealed class MdfWriter
     private bool _inTable;
 
     /// <summary>
+    /// Gets or sets whether field names should be rendered in bold.
+    /// When true, field names are wrapped in ** for markdown bold formatting.
+    /// </summary>
+    public bool BoldFieldNames { get; set; }
+
+    private void WriteFieldName(string key)
+    {
+        if (BoldFieldNames)
+        {
+            _sb.Append("**");
+            _sb.Append(key);
+            _sb.Append(":** ");
+        }
+        else
+        {
+            _sb.Append(key);
+            _sb.Append(": ");
+        }
+    }
+
+    /// <summary>
     /// Writes a heading at the specified level.
     /// </summary>
     /// <param name="level">Heading level (1-6).</param>
@@ -58,108 +79,130 @@ public sealed class MdfWriter
 
     /// <summary>
     /// Writes a key-value field with a string value.
+    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public void WriteField(string key, string? value)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.Append(": ");
-        _sb.AppendLine(value ?? string.Empty);
+        WriteFieldName(key);
+        _sb.Append(value ?? string.Empty);
+        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a boolean value (yes/no).
+    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public void WriteField(string key, bool value)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.Append(": ");
-        _sb.AppendLine(value ? "yes" : "no");
+        WriteFieldName(key);
+        _sb.Append(value ? "yes" : "no");
+        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with an integer value.
+    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public void WriteField(string key, int value)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.Append(": ");
-        _sb.AppendLine(value.ToString(CultureInfo.InvariantCulture));
+        WriteFieldName(key);
+        _sb.Append(value.ToString(CultureInfo.InvariantCulture));
+        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a long value.
+    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public void WriteField(string key, long value)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.Append(": ");
-        _sb.AppendLine(value.ToString(CultureInfo.InvariantCulture));
+        WriteFieldName(key);
+        _sb.Append(value.ToString(CultureInfo.InvariantCulture));
+        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a double value.
+    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public void WriteField(string key, double value)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.Append(": ");
-        _sb.AppendLine(value.ToString(CultureInfo.InvariantCulture));
+        WriteFieldName(key);
+        _sb.Append(value.ToString(CultureInfo.InvariantCulture));
+        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a decimal value.
+    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public void WriteField(string key, decimal value)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.Append(": ");
-        _sb.AppendLine(value.ToString(CultureInfo.InvariantCulture));
+        WriteFieldName(key);
+        _sb.Append(value.ToString(CultureInfo.InvariantCulture));
+        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a DateTime value (ISO 8601 format).
+    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public void WriteField(string key, DateTime value)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.Append(": ");
-        _sb.AppendLine(value.ToString("O", CultureInfo.InvariantCulture));
+        WriteFieldName(key);
+        _sb.Append(value.ToString("O", CultureInfo.InvariantCulture));
+        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a DateTimeOffset value (ISO 8601 format).
+    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public void WriteField(string key, DateTimeOffset value)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.Append(": ");
-        _sb.AppendLine(value.ToString("O", CultureInfo.InvariantCulture));
+        WriteFieldName(key);
+        _sb.Append(value.ToString("O", CultureInfo.InvariantCulture));
+        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
     /// <summary>
-    /// Writes an array field with string items.
+    /// Writes an array field with string items as a markdown list.
+    /// Always has a blank line before and after for proper markdown rendering.
     /// </summary>
     public void WriteArray(string key, IEnumerable<string>? items)
     {
+        // Always ensure blank line before array if there's prior content
+        if (_hasContent)
+            _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
-        _sb.Append(key);
-        _sb.AppendLine(":");
+
+        if (BoldFieldNames)
+        {
+            _sb.Append("**");
+            _sb.Append(key);
+            _sb.AppendLine(":**");
+        }
+        else
+        {
+            _sb.Append(key);
+            _sb.AppendLine(":");
+        }
 
         if (items != null)
         {

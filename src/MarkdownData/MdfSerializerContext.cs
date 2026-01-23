@@ -8,6 +8,12 @@ namespace MarkdownData;
 public abstract class MdfSerializerContext
 {
     /// <summary>
+    /// Gets or sets whether field names should be rendered in bold.
+    /// When true, field names are wrapped in ** for markdown bold formatting.
+    /// </summary>
+    public bool BoldFieldNames { get; set; }
+
+    /// <summary>
     /// Gets the type info for the specified type, or null if not registered.
     /// </summary>
     /// <typeparam name="T">The type to get info for.</typeparam>
@@ -30,7 +36,7 @@ public abstract class MdfSerializerContext
                 $"Add [MdfContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MdfWriter();
+        var writer = new MdfWriter { BoldFieldNames = BoldFieldNames };
         typeInfo.Serialize(writer, value);
         return writer.ToString();
     }

@@ -27,10 +27,20 @@ internal static class TypeParser
         if (symbol is not INamedTypeSymbol typeSymbol)
             return null;
 
-        if (!HasAttribute(typeSymbol, MdfSerializableAttribute))
+        var serializableAttr = typeSymbol.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MdfSerializableAttribute);
+
+        if (serializableAttr == null)
             return null;
 
-        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation);
+        string? titleProperty = null;
+        foreach (var named in serializableAttr.NamedArguments)
+        {
+            if (named.Key == "TitleProperty" && named.Value.Value is string tp)
+                titleProperty = tp;
+        }
+
+        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty);
     }
 
     public static ContextMetadata? ParseContext(
@@ -56,7 +66,8 @@ internal static class TypeParser
             if (attr.ConstructorArguments.Length > 0 &&
                 attr.ConstructorArguments[0].Value is INamedTypeSymbol typeArg)
             {
-                var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation);
+                // Pass the generator context for diagnostics
+                var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation, null, null);
                 if (typeMeta != null)
                     types.Add(typeMeta);
             }
@@ -69,9 +80,32 @@ internal static class TypeParser
         return new ContextMetadata(ns, classSymbol.Name, types);
     }
 
-    private static TypeMetadata? ParseTypeSymbol(INamedTypeSymbol typeSymbol, Compilation compilation)
+    private static TypeMetadata? ParseTypeSymbol(
+        INamedTypeSymbol typeSymbol, 
+        Compilation compilation, 
+        GeneratorSyntaxContext? generatorContext,
+        string? titleProperty = null)
     {
+        // If titleProperty not passed, try to get it from the type's [MdfSerializable] attribute
+        if (titleProperty == null)
+        {
+            var serializableAttr = typeSymbol.GetAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MdfSerializableAttribute);
+            if (serializableAttr != null)
+            {
+                foreach (var named in serializableAttr.NamedArguments)
+                {
+                    if (named.Key == "TitleProperty" && named.Value.Value is string tp)
+                        titleProperty = tp;
+                }
+            }
+        }
+
+        // Check if this type is used in a List<T> (table context)
+        bool isInTableContext = IsUsedInList(typeSymbol, compilation);
+
         var properties = new List<PropertyMetadata>();
+        var diagnostics = new List<DiagnosticInfo>();
 
         foreach (var member in typeSymbol.GetMembers())
         {
@@ -84,7 +118,7 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation);
+            var propMeta = ParseProperty(prop, compilation, isInTableContext, diagnostics);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
@@ -98,10 +132,16 @@ internal static class TypeParser
             typeSymbol.Name,
             typeSymbol.ToDisplayString(),
             properties,
-            typeSymbol.IsValueType);
+            typeSymbol.IsValueType,
+            titleProperty,
+            diagnostics);
     }
 
-    private static PropertyMetadata? ParseProperty(IPropertySymbol prop, Compilation compilation)
+    private static PropertyMetadata? ParseProperty(
+        IPropertySymbol prop, 
+        Compilation compilation,
+        bool isInTableContext,
+        List<DiagnosticInfo> diagnostics)
     {
         var isIgnored = HasAttribute(prop, MdfIgnoreAttribute);
         var isSection = HasAttribute(prop, MdfSectionAttribute);
@@ -133,7 +173,22 @@ internal static class TypeParser
             mdfName = customName;
         }
 
-        var (kind, elementTypeName, elementProperties) = DeterminePropertyKind(prop.Type, compilation);
+        var (kind, elementTypeName, elementProperties) = DeterminePropertyKind(prop.Type, compilation, diagnostics);
+
+        // Validate if in table context and collect diagnostics
+        if (isInTableContext && !isIgnored && !isSection)
+        {
+            if (!IsScalarKind(kind))
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    DiagnosticDescriptors.NonScalarPropertyInTable,
+                    prop.Locations.FirstOrDefault(),
+                    prop.Name,
+                    prop.ContainingType.Name,
+                    GetKindDisplayName(kind)
+                ));
+            }
+        }
 
         return new PropertyMetadata(
             prop.Name,
@@ -149,7 +204,7 @@ internal static class TypeParser
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties)
-        DeterminePropertyKind(ITypeSymbol type, Compilation compilation)
+        DeterminePropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null)
     {
         var typeName = type.ToDisplayString();
 
@@ -170,12 +225,12 @@ internal static class TypeParser
             SpecialType.System_Int64 => (PropertyKind.Int64, null, null),
             SpecialType.System_Double => (PropertyKind.Double, null, null),
             SpecialType.System_Decimal => (PropertyKind.Decimal, null, null),
-            _ => DetermineComplexPropertyKind(type, compilation)
+            _ => DetermineComplexPropertyKind(type, compilation, diagnostics)
         };
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties)
-        DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation)
+        DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null)
     {
         var typeName = type.ToDisplayString();
 
@@ -192,7 +247,7 @@ internal static class TypeParser
             if (elementType.SpecialType == SpecialType.System_String)
                 return (PropertyKind.StringArray, null, null);
 
-            var elementProps = GetTypeProperties(elementType, compilation);
+            var elementProps = GetTypeProperties(elementType, compilation, true, diagnostics);
             return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps);
         }
 
@@ -222,7 +277,7 @@ internal static class TypeParser
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null);
 
-                    var elementProps = GetTypeProperties(elementType, compilation);
+                    var elementProps = GetTypeProperties(elementType, compilation, true, diagnostics);
                     return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps);
                 }
             }
@@ -231,7 +286,7 @@ internal static class TypeParser
         // Nested object
         if (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct)
         {
-            var props = GetTypeProperties(type, compilation);
+            var props = GetTypeProperties(type, compilation, false, diagnostics);
             if (props.Count > 0)
                 return (PropertyKind.NestedObject, null, props);
         }
@@ -239,9 +294,14 @@ internal static class TypeParser
         return (PropertyKind.Other, null, null);
     }
 
-    private static IReadOnlyList<PropertyMetadata> GetTypeProperties(ITypeSymbol type, Compilation compilation)
+    private static IReadOnlyList<PropertyMetadata> GetTypeProperties(
+        ITypeSymbol type, 
+        Compilation compilation,
+        bool isInTableContext = false,
+        List<DiagnosticInfo>? diagnostics = null)
     {
         var properties = new List<PropertyMetadata>();
+        diagnostics ??= new List<DiagnosticInfo>();
 
         if (type is not INamedTypeSymbol namedType)
             return properties;
@@ -257,12 +317,97 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation);
+            var propMeta = ParseProperty(prop, compilation, isInTableContext, diagnostics);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
 
         return properties;
+    }
+
+    private static bool IsUsedInList(INamedTypeSymbol type, Compilation compilation)
+    {
+        // Search through all syntax trees to find property declarations
+        foreach (var syntaxTree in compilation.SyntaxTrees)
+        {
+            var semanticModel = compilation.GetSemanticModel(syntaxTree);
+            var root = syntaxTree.GetRoot();
+            
+            foreach (var node in root.DescendantNodes())
+            {
+                if (node is PropertyDeclarationSyntax propDecl)
+                {
+                    var propSymbol = semanticModel.GetDeclaredSymbol(propDecl) as IPropertySymbol;
+                    if (propSymbol != null && IsGenericListOf(propSymbol.Type, type))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    private static bool IsGenericListOf(ITypeSymbol propertyType, INamedTypeSymbol targetType)
+    {
+        if (propertyType is not INamedTypeSymbol namedType)
+            return false;
+
+        // Check if it's a generic type
+        if (!namedType.IsGenericType && namedType.TypeArguments.Length == 0)
+            return false;
+
+        // Check direct type arguments (List<TargetType>, IEnumerable<TargetType>, etc.)
+        if (namedType.TypeArguments.Length > 0)
+        {
+            var firstArg = namedType.TypeArguments[0];
+            if (SymbolEqualityComparer.Default.Equals(firstArg, targetType))
+                return true;
+        }
+
+        // Check through all interfaces for IEnumerable<TargetType>
+        foreach (var iface in namedType.AllInterfaces)
+        {
+            if (iface.TypeArguments.Length > 0 &&
+                SymbolEqualityComparer.Default.Equals(iface.TypeArguments[0], targetType))
+            {
+                var ifaceTypeName = iface.OriginalDefinition.ToDisplayString();
+                if (ifaceTypeName == "System.Collections.Generic.IEnumerable<T>" ||
+                    ifaceTypeName == "System.Collections.Generic.ICollection<T>" ||
+                    ifaceTypeName == "System.Collections.Generic.IList<T>")
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsScalarKind(PropertyKind kind)
+    {
+        return kind is 
+            PropertyKind.String or 
+            PropertyKind.Boolean or 
+            PropertyKind.Int32 or 
+            PropertyKind.Int64 or 
+            PropertyKind.Double or 
+            PropertyKind.Decimal or 
+            PropertyKind.DateTime or 
+            PropertyKind.DateTimeOffset;
+    }
+
+    private static string GetKindDisplayName(PropertyKind kind)
+    {
+        return kind switch
+        {
+            PropertyKind.StringArray => "a string array",
+            PropertyKind.ComplexArray => "an array of complex objects",
+            PropertyKind.NestedObject => "a complex object",
+            PropertyKind.Other => "a non-scalar type",
+            _ => kind.ToString().ToLowerInvariant()
+        };
     }
 
     private static bool HasAttribute(ISymbol symbol, string attributeName)

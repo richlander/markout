@@ -35,6 +35,18 @@ internal static class SerializerEmitter
         sb.AppendLine("        if (value == null) return;");
         sb.AppendLine();
 
+        // Emit title (H1) if TitleProperty is set
+        if (!string.IsNullOrEmpty(type.TitleProperty))
+        {
+            var titleProp = type.Properties.FirstOrDefault(p => p.Name == type.TitleProperty);
+            if (titleProp != null)
+            {
+                sb.AppendLine($"        if (value.{titleProp.Name} != null)");
+                sb.AppendLine($"            writer.WriteHeading(1, value.{titleProp.Name});");
+                sb.AppendLine();
+            }
+        }
+
         EmitPropertySerializations(sb, type.Properties, "value", 2);
 
         sb.AppendLine("    }");
@@ -116,18 +128,27 @@ internal static class SerializerEmitter
             if (prop.IsSection)
             {
                 var sectionName = prop.SectionName ?? prop.MdfName;
-                sb.AppendLine($"{indent}writer.WriteHeading({prop.SectionLevel}, \"{EscapeString(sectionName)}\");");
 
                 if (prop.Kind == PropertyKind.ComplexArray && prop.ElementProperties != null)
                 {
-                    EmitTableSerialization(sb, prop, propAccess, indentLevel);
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                    sb.AppendLine($"{indent}{{");
+                    sb.AppendLine($"{indent}    writer.WriteHeading({prop.SectionLevel}, \"{EscapeString(sectionName)}\");");
+                    EmitTableSerialization(sb, prop, propAccess, indentLevel + 1);
+                    sb.AppendLine($"{indent}}}");
                 }
                 else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
                 {
                     sb.AppendLine($"{indent}if ({propAccess} != null)");
                     sb.AppendLine($"{indent}{{");
+                    sb.AppendLine($"{indent}    writer.WriteHeading({prop.SectionLevel}, \"{EscapeString(sectionName)}\");");
                     EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1);
                     sb.AppendLine($"{indent}}}");
+                }
+                else
+                {
+                    // For other types, just write the heading unconditionally
+                    sb.AppendLine($"{indent}writer.WriteHeading({prop.SectionLevel}, \"{EscapeString(sectionName)}\");");
                 }
                 continue;
             }

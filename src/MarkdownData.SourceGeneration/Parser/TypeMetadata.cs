@@ -1,7 +1,25 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.CodeAnalysis;
 
 namespace MarkdownData.SourceGeneration.Parser;
+
+/// <summary>
+/// Stores diagnostic information to be reported during source generation.
+/// </summary>
+internal sealed class DiagnosticInfo
+{
+    public DiagnosticDescriptor Descriptor { get; }
+    public Location? Location { get; }
+    public object[] MessageArgs { get; }
+
+    public DiagnosticInfo(DiagnosticDescriptor descriptor, Location? location, params object[] messageArgs)
+    {
+        Descriptor = descriptor;
+        Location = location;
+        MessageArgs = messageArgs;
+    }
+}
 
 /// <summary>
 /// Metadata about a type marked with [MdfSerializable].
@@ -13,19 +31,25 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public string FullTypeName { get; }
     public IReadOnlyList<PropertyMetadata> Properties { get; }
     public bool IsValueType { get; }
+    public string? TitleProperty { get; }
+    public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
     public TypeMetadata(
         string @namespace,
         string typeName,
         string fullTypeName,
         IReadOnlyList<PropertyMetadata> properties,
-        bool isValueType)
+        bool isValueType,
+        string? titleProperty = null,
+        IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
         Namespace = @namespace;
         TypeName = typeName;
         FullTypeName = fullTypeName;
         Properties = properties;
         IsValueType = isValueType;
+        TitleProperty = titleProperty;
+        Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
 
     public bool Equals(TypeMetadata? other)
