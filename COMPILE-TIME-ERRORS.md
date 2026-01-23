@@ -5,7 +5,7 @@
 **dotnet-inspector compiles without error** even though it has the problematic pattern:
 
 ```csharp
-[MdfSerializable]
+[MarkOutSerializable]
 public class DependencyGroup {
     string TargetFramework { get; set; }
     List<PackageDependency> Dependencies { get; set; }  // ❌ Currently allowed!
@@ -128,11 +128,11 @@ private static bool IsScalarKind(PropertyKind kind)
 
 ```csharp
 private static readonly DiagnosticDescriptor NonScalarInTableRule = new(
-    id: "MDF001",
+    id: "MARKOUT001",
     title: "Non-scalar property in table row",
     messageFormat: "Property '{0}' in '{1}' is {2} and cannot be rendered in a table cell. " +
-                   "Use [MdfIgnore], [MdfSection], or transform the data. " +
-                   "See: https://docs.mdf.dev/errors/MDF001",
+                   "Use [MarkOutIgnore], [MarkOutSection], or transform the data. " +
+                   "See: https://docs.mdf.dev/errors/MARKOUT001",
     category: "MarkdownData.Design",
     defaultSeverity: DiagnosticSeverity.Error,
     isEnabledByDefault: true,
@@ -142,7 +142,7 @@ private static readonly DiagnosticDescriptor NonScalarInTableRule = new(
 );
 
 private static readonly DiagnosticDescriptor DictionaryPropertyRule = new(
-    id: "MDF003",
+    id: "MARKOUT003",
     title: "Dictionary property not supported",
     messageFormat: "Property '{0}' is Dictionary<TKey, TValue> which is not supported. " +
                    "Convert to List<KeyValueItem> or use separate properties.",
@@ -156,23 +156,23 @@ private static readonly DiagnosticDescriptor DictionaryPropertyRule = new(
 
 | Code   | Title | Severity | Description |
 |--------|-------|----------|-------------|
-| MDF001 | Non-scalar property in table row | ERROR | List<T> or complex object in table cell |
-| MDF002 | Complex object property in table | ERROR | Multi-property class in table cell |
-| MDF003 | Dictionary not supported | ERROR | Dictionary<TKey, TValue> property |
+| MARKOUT001 | Non-scalar property in table row | ERROR | List<T> or complex object in table cell |
+| MARKOUT002 | Complex object property in table | ERROR | Multi-property class in table cell |
+| MARKOUT003 | Dictionary not supported | ERROR | Dictionary<TKey, TValue> property |
 
 ## After Implementation
 
 Once implemented, dotnet-inspector would **fail to compile** with:
 
 ```
-error MDF001: Property 'Dependencies' in 'DependencyGroup' is List<PackageDependency> 
+error MARKOUT001: Property 'Dependencies' in 'DependencyGroup' is List<PackageDependency> 
 and cannot be rendered in a table cell.
 
-Use [MdfIgnore], [MdfSection], or transform the data.
+Use [MarkOutIgnore], [MarkOutSection], or transform the data.
 
 Solutions:
   1. PIVOT: Transform to comparison table
-     [MdfIgnore]
+     [MarkOutIgnore]
      public List<DependencyGroup> DependencyGroups { get; set; }
      
      [MdfSection(Name = "Dependencies")]
@@ -180,7 +180,7 @@ Solutions:
          => PivotDependencies(DependencyGroups);
   
   2. IGNORE: Exclude from output
-     [MdfIgnore]
+     [MarkOutIgnore]
      public List<PackageDependency> Dependencies { get; set; }
      
      public int DependencyCount => Dependencies?.Count ?? 0;

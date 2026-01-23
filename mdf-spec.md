@@ -1,4 +1,4 @@
-# MDF: Markdown Data Format
+# MarkOut: Markdown Data Format
 
 A human-friendly, machine-readable format for structured data. MDF extends Markdown conventions to support key-value fields and typed data while remaining natural to read and write.
 

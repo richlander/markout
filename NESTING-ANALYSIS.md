@@ -11,7 +11,7 @@ We created **61 tests** across six test files:
 3. **FormatExamplesTests.cs** - Visual examples showing actual MDF output
 4. **ListRenderingStrategyTests.cs** - Alternative strategies for List<T> with non-scalars
 5. **PivotTableTests.cs** - Pivot table solutions for nested lists ⭐ **Key insight**
-6. **MdfWriterTests.cs** - Low-level writer tests
+6. **MarkOutWriterTests.cs** - Low-level writer tests
 7. **SerializerTests.cs** - Basic serialization tests
 
 ## What Works Well
@@ -168,7 +168,7 @@ class Package {
 ```csharp
 class Package {
     // Keep original for programmatic access
-    [MdfIgnore]
+    [MarkOutIgnore]
     public List<DependencyGroup> DependencyGroups { get; set; }
     
     // Provide pivoted view for MDF
@@ -266,7 +266,7 @@ class InspectionResult {
 }
 ```
 
-**Current Solution:** The `DependencyGroups` uses `[MdfIgnore]` on the nested `Dependencies` property, or flattens the structure in dotnet-inspector's output.
+**Current Solution:** The `DependencyGroups` uses `[MarkOutIgnore]` on the nested `Dependencies` property, or flattens the structure in dotnet-inspector's output.
 
 ## Design Implications
 

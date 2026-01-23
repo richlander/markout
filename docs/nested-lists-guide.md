@@ -12,7 +12,7 @@ Throughout this guide, we'll use a product catalog with regions and products:
 public class Catalog
 {
     public string StoreName { get; set; }
-    public List<Region> Regions { get; set; }  // ❌ This will trigger MDF001
+    public List<Region> Regions { get; set; }  // ❌ This will trigger MARKOUT001
 }
 
 public class Region
@@ -40,8 +40,8 @@ public class Product
 If you try to serialize `Catalog` with the structure above, you'll see:
 
 ```
-error MDF001: Property 'Products' in type 'Region' is an array of complex 
-objects and cannot be rendered in a table cell. Use [MdfIgnore], [MdfSection], 
+error MARKOUT001: Property 'Products' in type 'Region' is an array of complex 
+objects and cannot be rendered in a table cell. Use [MarkOutIgnore], [MarkOutSection], 
 or transform the data.
 ```
 
@@ -123,7 +123,7 @@ public class CatalogWithSections
     public List<Product> AsiaProducts { get; set; }
 }
 
-[MdfSerializable]
+[MarkOutSerializable]
 public class Product
 {
     public string Name { get; set; }
@@ -298,18 +298,18 @@ The same principles apply to any nested structure:
 
 ## What if I Just Want It to Work?
 
-If you're getting the MDF001 error and just want to compile:
+If you're getting the MARKOUT001 error and just want to compile:
 
-**Quick fix:** Add `[MdfIgnore]` to the nested list property
+**Quick fix:** Add `[MarkOutIgnore]` to the nested list property
 
 ```csharp
-[MdfSerializable]
+[MarkOutSerializable]
 public class Region
 {
     public string Name { get; set; }
     public string Currency { get; set; }
     
-    [MdfIgnore]  // ⚠️ This HIDES ALL PRODUCT DATA!
+    [MarkOutIgnore]  // ⚠️ This HIDES ALL PRODUCT DATA!
     public List<Product> Products { get; set; }
 }
 ```

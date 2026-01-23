@@ -269,7 +269,7 @@ What does the reader want to know?
 ```csharp
 class Package {
     // Keep original for code
-    [MdfIgnore]
+    [MarkOutIgnore]
     public List<DependencyGroup> DependencyGroups { get; set; }
     
     // Provide pivoted view for MDF
