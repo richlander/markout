@@ -12,4 +12,10 @@ public sealed class MdfSerializableAttribute : Attribute
     /// The property value will be rendered as an H1 heading at the start of the output.
     /// </summary>
     public string? TitleProperty { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of the property to use as the document description.
+    /// The property value will be rendered as a paragraph after the title.
+    /// </summary>
+    public string? DescriptionProperty { get; set; }
 }

@@ -32,6 +32,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public IReadOnlyList<PropertyMetadata> Properties { get; }
     public bool IsValueType { get; }
     public string? TitleProperty { get; }
+    public string? DescriptionProperty { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
     public TypeMetadata(
@@ -41,6 +42,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         IReadOnlyList<PropertyMetadata> properties,
         bool isValueType,
         string? titleProperty = null,
+        string? descriptionProperty = null,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
         Namespace = @namespace;
@@ -49,6 +51,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         Properties = properties;
         IsValueType = isValueType;
         TitleProperty = titleProperty;
+        DescriptionProperty = descriptionProperty;
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
 

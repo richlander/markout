@@ -47,6 +47,18 @@ internal static class SerializerEmitter
             }
         }
 
+        // Emit description paragraph if DescriptionProperty is set
+        if (!string.IsNullOrEmpty(type.DescriptionProperty))
+        {
+            var descProp = type.Properties.FirstOrDefault(p => p.Name == type.DescriptionProperty);
+            if (descProp != null)
+            {
+                sb.AppendLine($"        if (value.{descProp.Name} != null)");
+                sb.AppendLine($"            writer.WriteParagraph(value.{descProp.Name});");
+                sb.AppendLine();
+            }
+        }
+
         EmitPropertySerializations(sb, type.Properties, "value", 2);
 
         sb.AppendLine("    }");

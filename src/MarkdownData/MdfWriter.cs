@@ -78,6 +78,21 @@ public sealed class MdfWriter
     }
 
     /// <summary>
+    /// Writes a paragraph of text.
+    /// </summary>
+    /// <param name="text">The paragraph text.</param>
+    public void WriteParagraph(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        EnsureBlankLineIfNeeded();
+        _sb.AppendLine(text);
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    /// <summary>
     /// Writes a key-value field with a string value.
     /// Uses trailing spaces for markdown hard line break.
     /// </summary>

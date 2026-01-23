@@ -34,13 +34,16 @@ internal static class TypeParser
             return null;
 
         string? titleProperty = null;
+        string? descriptionProperty = null;
         foreach (var named in serializableAttr.NamedArguments)
         {
             if (named.Key == "TitleProperty" && named.Value.Value is string tp)
                 titleProperty = tp;
+            else if (named.Key == "DescriptionProperty" && named.Value.Value is string dp)
+                descriptionProperty = dp;
         }
 
-        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty);
+        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, descriptionProperty);
     }
 
     public static ContextMetadata? ParseContext(
@@ -81,13 +84,14 @@ internal static class TypeParser
     }
 
     private static TypeMetadata? ParseTypeSymbol(
-        INamedTypeSymbol typeSymbol, 
-        Compilation compilation, 
+        INamedTypeSymbol typeSymbol,
+        Compilation compilation,
         GeneratorSyntaxContext? generatorContext,
-        string? titleProperty = null)
+        string? titleProperty = null,
+        string? descriptionProperty = null)
     {
-        // If titleProperty not passed, try to get it from the type's [MdfSerializable] attribute
-        if (titleProperty == null)
+        // If titleProperty/descriptionProperty not passed, try to get them from the type's [MdfSerializable] attribute
+        if (titleProperty == null || descriptionProperty == null)
         {
             var serializableAttr = typeSymbol.GetAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MdfSerializableAttribute);
@@ -96,7 +100,9 @@ internal static class TypeParser
                 foreach (var named in serializableAttr.NamedArguments)
                 {
                     if (named.Key == "TitleProperty" && named.Value.Value is string tp)
-                        titleProperty = tp;
+                        titleProperty ??= tp;
+                    else if (named.Key == "DescriptionProperty" && named.Value.Value is string dp)
+                        descriptionProperty ??= dp;
                 }
             }
         }
@@ -134,6 +140,7 @@ internal static class TypeParser
             properties,
             typeSymbol.IsValueType,
             titleProperty,
+            descriptionProperty,
             diagnostics);
     }
 
