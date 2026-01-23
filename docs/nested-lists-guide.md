@@ -4,240 +4,297 @@ When you have nested data structures like `List<Group>` where each `Group` conta
 
 **Instead of treating this as a limitation, think of it as a design question:** *What insight does your reader need?*
 
+## The Example: Product Catalog
+
+Throughout this guide, we'll use a product catalog with regions and products:
+
+```csharp
+public class Catalog
+{
+    public string StoreName { get; set; }
+    public List<Region> Regions { get; set; }  // ❌ This will trigger MDF001
+}
+
+public class Region
+{
+    public string Name { get; set; }           // e.g., "North America"
+    public string Currency { get; set; }       // e.g., "USD"
+    public List<Product> Products { get; set; } // ❌ Nested list!
+}
+
+public class Product
+{
+    public string Name { get; set; }
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
+}
+```
+
+**Sample Data:**
+- **North America** (USD): Laptop ($1299, 45 units), Mouse ($29, 150 units)
+- **Europe** (EUR): Laptop (€1199, 30 units), Mouse (€25, 200 units), Keyboard (€89, 75 units)
+- **Asia** (JPY): Laptop (¥145000, 20 units), Keyboard (¥9800, 100 units)
+
 ## Understanding the Error
 
-If you try to serialize a type with nested lists, you'll see:
+If you try to serialize `Catalog` with the structure above, you'll see:
 
 ```
-error MDF001: Property 'Dependencies' in type 'DependencyGroup' is an array 
-of complex objects and cannot be rendered in a table cell. Use [MdfIgnore], 
-[MdfSection], or transform the data.
+error MDF001: Property 'Products' in type 'Region' is an array of complex 
+objects and cannot be rendered in a table cell. Use [MdfIgnore], [MdfSection], 
+or transform the data.
 ```
 
 This error prevents your code from producing useless `ToString()` output like:
 ```markdown
-| net6.0 | System.Collections.Generic.List`1[Dependency] |
+| North America | USD | System.Collections.Generic.List`1[Product] |
 ```
+
+**What data gets lost?** Without transformation, you'd see the regions but ALL product information (names, prices, stock) would be invisible!
+
+---
 
 ## The Four Solutions
 
-Choose the strategy that best answers your reader's question:
+Choose the strategy that best answers your reader's question about our product catalog.
 
-### 1. **Pivot Table** - "How do items compare across groups?"
+### Strategy 1: **Pivot Table** - "How do product prices compare across regions?"
 
-**Use when:** You want to see the same items across different groups (frameworks, platforms, tiers)
+**Reader Question:** "Is the Laptop cheaper in Europe or North America?"
 
-**Transform your data from:**
+**Transform your data:**
 ```csharp
-List<DependencyGroup> {
-    { Framework: "net6.0", Dependencies: [...] },
-    { Framework: "net8.0", Dependencies: [...] }
-}
-```
+// Instead of List<Region> with nested List<Product>
+// Create a matrix where products are rows, regions are columns
+var priceMatrix = catalog.Regions
+    .SelectMany(r => r.Products.Select(p => new { Region = r.Name, p.Name, p.Price, r.Currency }))
+    .GroupBy(x => x.Name)
+    .Select(g => new ProductPriceMatrix
+    {
+        ProductName = g.Key,
+        NorthAmerica = FormatPrice(g, "North America"),
+        Europe = FormatPrice(g, "Europe"),
+        Asia = FormatPrice(g, "Asia")
+    })
+    .ToList();
 
-**To:**
-```csharp
-List<DependencyMatrix> {
-    { Package: "System.Memory", Net6: "4.5.5", Net8: "4.5.5" },
-    { Package: "System.Text.Json", Net6: "6.0.0", Net8: "" }
+string FormatPrice(IGrouping<string, ...> group, string region)
+{
+    var item = group.FirstOrDefault(x => x.Region == region);
+    return item != null ? $"{item.Price} {item.Currency}" : "-";
 }
 ```
 
 **Result:**
 ```markdown
-## Dependencies
+## Product Prices by Region
 
-| Package          | net6.0 | net8.0 |
-|------------------|--------|--------|
-| System.Memory    | 4.5.5  | 4.5.5  |
-| System.Text.Json | 6.0.0  |        |
+| Product  | North America | Europe      | Asia         |
+|----------|---------------|-------------|--------------|
+| Laptop   | $1299 USD     | €1199 EUR   | ¥145000 JPY  |
+| Mouse    | $29 USD       | €25 EUR     | -            |
+| Keyboard | -             | €89 EUR     | ¥9800 JPY    |
 ```
 
-**Code Example:**
-```csharp
-// Transform before serialization
-var matrix = dependencies
-    .SelectMany(g => g.Dependencies.Select(d => new { g.Framework, d.Package, d.Version }))
-    .GroupBy(x => x.Package)
-    .Select(g => new DependencyMatrix
-    {
-        Package = g.Key,
-        Net6 = g.FirstOrDefault(x => x.Framework == "net6.0")?.Version ?? "",
-        Net8 = g.FirstOrDefault(x => x.Framework == "net8.0")?.Version ?? ""
-    })
-    .ToList();
-```
-
-**Best for:** Version matrices, feature comparison, cross-platform compatibility
+**What you see:** Price comparison across regions at a glance  
+**What's hidden:** Stock levels (but could add with another pivot table)  
+**Best for:** Comparing the same items across 2-6 groups
 
 ---
 
-### 2. **Multiple Tables** - "What's in each group?"
+### Strategy 2: **Multiple Tables** - "What products are available in each region?"
 
-**Use when:** Readers examine one group at a time, groups are independent units
+**Reader Question:** "What can I buy in Europe?" or "Show me the Asia catalog"
 
 **Structure your type:**
 ```csharp
-[MdfSerializable(TitleProperty = nameof(PackageName))]
-public class PackageInfo
+[MdfSerializable(TitleProperty = nameof(StoreName))]
+public class CatalogWithSections
 {
-    public string PackageName { get; set; }
+    public string StoreName { get; set; }
     
-    [MdfSection(Name = "Dependencies (net6.0)")]
-    public List<Dependency> Net6Dependencies { get; set; }
+    [MdfSection(Name = "North America (USD)")]
+    public List<Product> NorthAmericaProducts { get; set; }
     
-    [MdfSection(Name = "Dependencies (net8.0)")]
-    public List<Dependency> Net8Dependencies { get; set; }
+    [MdfSection(Name = "Europe (EUR)")]
+    public List<Product> EuropeProducts { get; set; }
+    
+    [MdfSection(Name = "Asia (JPY)")]
+    public List<Product> AsiaProducts { get; set; }
 }
 
 [MdfSerializable]
-public class Dependency
-{
-    public string Name { get; set; }
-    public string Version { get; set; }
-}
-```
-
-**Result:**
-```markdown
-# Newtonsoft.Json
-
-## Dependencies (net6.0)
-
-| Name             | Version |
-|------------------|---------|
-| System.Memory    | 4.5.5   |
-| System.Text.Json | 6.0.0   |
-
-## Dependencies (net8.0)
-
-| Name             | Version |
-|------------------|---------|
-| System.Memory    | 4.5.5   |
-| Microsoft.CSharp | 4.7.0   |
-```
-
-**Best for:** Build configurations, test suites, API versions (2-5 groups)
-
----
-
-### 3. **Multiple Lists** - "Give me a quick scan"
-
-**Use when:** Items are simple (just names), readers want quick overview
-
-**Structure your type:**
-```csharp
-[MdfSerializable(TitleProperty = nameof(Name))]
 public class Product
 {
     public string Name { get; set; }
-    
-    [MdfSection(Name = "Free Tier Features")]
-    public List<string> FreeFeatures { get; set; }
-    
-    [MdfSection(Name = "Pro Tier Features")]
-    public List<string> ProFeatures { get; set; }
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
 }
 ```
 
 **Result:**
 ```markdown
-# Cloud Storage Service
+# Global Electronics Store
 
-## Free Tier Features
+## North America (USD)
 
-- 10GB storage
-- Basic sharing
-- Web access
+| Name   | Price | Stock |
+|--------|-------|-------|
+| Laptop | 1299  | 45    |
+| Mouse  | 29    | 150   |
 
-## Pro Tier Features
+## Europe (EUR)
 
-- Unlimited storage
-- Advanced sharing
-- Desktop sync
-- Priority support
+| Name     | Price | Stock |
+|----------|-------|-------|
+| Laptop   | 1199  | 30    |
+| Mouse    | 25    | 200   |
+| Keyboard | 89    | 75    |
+
+## Asia (JPY)
+
+| Name     | Price  | Stock |
+|----------|--------|-------|
+| Laptop   | 145000 | 20    |
+| Keyboard | 9800   | 100   |
 ```
 
-**Best for:** Feature lists, simple categorization, quick reference
+**What you see:** Complete product details for each region  
+**What's hidden:** Nothing! All data is visible, organized by region  
+**Best for:** Examining one group at a time, 2-5 groups with detailed items
 
 ---
 
-### 4. **Flatten the Structure** - "Show me all items with their group"
+### Strategy 3: **Multiple Lists** - "What products are in each region?"
 
-**Use when:** You want a single searchable table with group as a column
+**Reader Question:** "Quick scan - what's available where?"
 
-**Transform from:**
+**Structure your type:**
 ```csharp
-List<DependencyGroup> {
-    { Framework: "net6.0", Dependencies: [...] },
-    { Framework: "net8.0", Dependencies: [...] }
-}
-```
-
-**To:**
-```csharp
-List<FlatDependency> {
-    { Framework: "net6.0", Package: "System.Memory", Version: "4.5.5" },
-    { Framework: "net6.0", Package: "System.Text.Json", Version: "6.0.0" },
-    { Framework: "net8.0", Package: "System.Memory", Version: "4.5.5" }
+[MdfSerializable(TitleProperty = nameof(StoreName))]
+public class CatalogWithLists
+{
+    public string StoreName { get; set; }
+    
+    [MdfSection(Name = "North America")]
+    public List<string> NorthAmericaProducts { get; set; }
+    
+    [MdfSection(Name = "Europe")]
+    public List<string> EuropeProducts { get; set; }
+    
+    [MdfSection(Name = "Asia")]
+    public List<string> AsiaProducts { get; set; }
 }
 ```
 
 **Result:**
 ```markdown
-## Dependencies
+# Global Electronics Store
 
-| Framework | Package          | Version |
-|-----------|------------------|---------|
-| net6.0    | System.Memory    | 4.5.5   |
-| net6.0    | System.Text.Json | 6.0.0   |
-| net8.0    | System.Memory    | 4.5.5   |
+## North America
+
+- Laptop
+- Mouse
+
+## Europe
+
+- Laptop
+- Mouse
+- Keyboard
+
+## Asia
+
+- Laptop
+- Keyboard
 ```
 
-**Code Example:**
+**What you see:** Quick overview of product availability  
+**What's hidden:** Prices, stock levels, currency - all the detail!  
+**Best for:** Simple items (just names), quick scanning, overview
+
+---
+
+### Strategy 4: **Flatten the Structure** - "Show me all products with their region"
+
+**Reader Question:** "Give me one searchable/sortable table of everything"
+
+**Transform your data:**
 ```csharp
-var flat = groups
-    .SelectMany(g => g.Items.Select(i => new FlatItem
+// Flatten into a single list where region becomes a column
+var flatProducts = catalog.Regions
+    .SelectMany(r => r.Products.Select(p => new FlatProduct
     {
-        Group = g.Name,
-        ItemName = i.Name,
-        ItemValue = i.Value
+        Region = r.Name,
+        Currency = r.Currency,
+        ProductName = p.Name,
+        Price = p.Price,
+        Stock = p.Stock
     }))
     .ToList();
 ```
 
-**Best for:** Searchable/sortable data, when group is just a category
+**Result:**
+```markdown
+## Global Product Inventory
+
+| Region        | Currency | Product  | Price  | Stock |
+|---------------|----------|----------|--------|-------|
+| North America | USD      | Laptop   | 1299   | 45    |
+| North America | USD      | Mouse    | 29     | 150   |
+| Europe        | EUR      | Laptop   | 1199   | 30    |
+| Europe        | EUR      | Mouse    | 25     | 200   |
+| Europe        | EUR      | Keyboard | 89     | 75    |
+| Asia          | JPY      | Laptop   | 145000 | 20    |
+| Asia          | JPY      | Keyboard | 9800   | 100   |
+```
+
+**What you see:** All data in one searchable/sortable table  
+**What's hidden:** Nothing - but grouping/scanning by region is harder  
+**Best for:** Searchable/filterable logs, when region is just metadata
 
 ---
 
-## Quick Decision Guide
+## Quick Decision Guide for Our Product Catalog
 
-Ask yourself: **"What question will my reader ask?"**
+| Reader Question | Strategy | What You See | What's Hidden |
+|----------------|----------|--------------|---------------|
+| "Is Laptop cheaper in Europe?" | **Pivot** | Price comparison grid | Stock levels |
+| "What can I buy in Asia?" | **Multiple Tables** | Complete Asia catalog | Cross-region comparison |
+| "What's available where?" | **Multiple Lists** | Product names by region | Prices, stock, currency |
+| "Find all Keyboards" | **Flatten** | Sortable inventory | Visual grouping by region |
 
-| Reader Question | Strategy | Best When |
-|----------------|----------|-----------|
-| "How does item X differ across groups?" | **Pivot Table** | Comparing same items across 2-6 groups |
-| "What's in group Y?" | **Multiple Tables** | 2-5 groups, items have 2-3 properties |
-| "What are all the Z items?" | **Multiple Lists** | Simple string items, quick scan |
-| "Show me everything, I'll search/sort" | **Flatten** | Need searchability, group is just metadata |
+---
 
-## Common Patterns
+## Applying This to Your Domain
 
-### Pattern: NuGet Dependencies
-**Reader needs:** Version compatibility across frameworks  
-**Solution:** Pivot Table (packages × frameworks)
+The same principles apply to any nested structure:
 
-### Pattern: Build Results
-**Reader needs:** What succeeded/failed in each config  
-**Solution:** Multiple Tables (one per configuration)
+### NuGet Dependencies (dotnet-inspector)
+**Original:** `List<DependencyGroup>` with nested `List<Dependency>`
+- **Pivot:** Package × Framework version matrix (compare versions across frameworks) ✓ Best choice
+- **Multiple Tables:** Dependencies per framework (complete package info per framework)
+- **Multiple Lists:** Package names per framework (quick overview of what's needed)
+- **Flatten:** Framework as column in package table (searchable dependency list)
 
-### Pattern: Feature Availability
-**Reader needs:** Quick comparison of what's in each tier  
-**Solution:** Multiple Lists (one per tier)
+**See Example:** `tests/MarkdownData.Tests/NestedStructureTests.cs` - `Serialize_PackageWithDependencyGroups_CreatesTables()`
 
-### Pattern: Test Results
-**Reader needs:** Detailed test info with suite/category  
-**Solution:** Flatten (suite as a column in single table)
+### Build Configurations
+**Original:** `List<BuildConfig>` with nested `List<Project>`
+- **Pivot:** Project × Config status matrix (see what built where)
+- **Multiple Tables:** Projects per config (detailed build results) ✓ Best choice
+- **Multiple Lists:** Project names per config (quick status)
+- **Flatten:** Config as column in project table (searchable logs)
+
+**See Example:** `tests/MarkdownData.Tests/BuildResultsTests.cs` - `Serialize_BuildResult_GroupsByConfiguration()`
+
+### Feature Tiers
+**Original:** `List<Tier>` with nested `List<Feature>`
+- **Pivot:** Feature × Tier availability matrix (which tiers have what features)
+- **Multiple Tables:** Features per tier (complete feature details)
+- **Multiple Lists:** Feature names per tier (quick comparison) ✓ Best choice
+- **Flatten:** Tier as column in feature table (searchable)
+
+---
 
 ## What if I Just Want It to Work?
 
@@ -247,20 +304,48 @@ If you're getting the MDF001 error and just want to compile:
 
 ```csharp
 [MdfSerializable]
-public class DependencyGroup
+public class Region
 {
-    public string TargetFramework { get; set; }
+    public string Name { get; set; }
+    public string Currency { get; set; }
     
-    [MdfIgnore]  // Hides this from serialization
-    public List<Dependency> Packages { get; set; }
+    [MdfIgnore]  // ⚠️ This HIDES ALL PRODUCT DATA!
+    public List<Product> Products { get; set; }
 }
 ```
 
-**But remember:** This just hides the data. Choose a transformation strategy to actually show it!
+**Result:**
+```markdown
+## Regions
 
-## More Examples
+| Name          | Currency |
+|---------------|----------|
+| North America | USD      |
+| Europe        | EUR      |
+| Asia          | JPY      |
+```
 
-See the test suite for working code examples:
-- `tests/MarkdownData.Tests/PivotTableTests.cs` - Pivot transformations
-- `tests/MarkdownData.Tests/RenderingStrategyTests.cs` - All four strategies
-- `tests/MarkdownData.Tests/ListRenderingStrategyTests.cs` - Comparison examples
+**WARNING:** You'll see regions but **ALL product information is lost!** (Names, prices, stock - everything)
+
+This is why you should choose one of the four transformation strategies instead.
+
+---
+
+## Working Code Examples
+
+All four strategies are implemented with the product catalog example:
+
+**Main Demo:** `tests/MarkdownData.Tests/RenderingStrategyTests.cs`
+- `Strategy1_PivotTable_ComparesAcrossGroups()` - Pivot transformation with full code
+- `Strategy2_MultipleTables_ShowsCompleteGroupDetails()` - Multiple tables approach
+- `Strategy3_MultipleLists_ProvidesQuickOverview()` - Multiple lists approach  
+- `Strategy4_Flatten_CreatesSearchableTable()` - Flatten transformation
+- `DecisionMatrix_DocumentsWhenToUseEachStrategy()` - Complete comparison with guidance
+
+**Additional Examples:**
+- `tests/MarkdownData.Tests/PivotTableTests.cs` - More pivot transformations
+- `tests/MarkdownData.Tests/NestedStructureTests.cs` - NuGet dependency patterns
+- `tests/MarkdownData.Tests/BuildResultsTests.cs` - Build configuration patterns
+- `tests/MarkdownData.Tests/ListRenderingStrategyTests.cs` - Before/after comparisons
+
+Run `dotnet test --logger "console;verbosity=detailed"` to see the actual Markdown output in test logs!
