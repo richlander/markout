@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>MarkOut</RootNamespace>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
     <IsRoslynComponent>true</IsRoslynComponent>
     <Description>Source generator for MarkOut (Markdown Output) serialization</Description>
   </PropertyGroup>

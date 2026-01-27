@@ -39,7 +39,9 @@ public class Shoe
     public string Category { get; set; } = "";
     public decimal Price { get; set; }
     public bool InStock { get; set; }
+    [MarkOutIgnoreInTable]
     public List<Feature>? Features { get; set; }
+    [MarkOutIgnoreInTable]
     public List<Review>? Reviews { get; set; }
 }
 
