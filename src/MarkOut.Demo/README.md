@@ -2,6 +2,16 @@
 
 A demonstration app showing MarkOut's capabilities for rendering C# objects as Markdown.
 
+## Viewing Output
+
+The markdown renders correctly when written to a file:
+
+```bash
+dotnet run -- simple > output/simple.md
+```
+
+**Note:** Copy/paste from a terminal loses trailing spaces. MarkOut uses two trailing spaces to force `<br/>` line breaks in fields—these are stripped by most terminal emulators during copy operations.
+
 ## Data Source
 
 All demos use a single JSON file (`Data/shoes.json`) containing Altra running shoe data:
