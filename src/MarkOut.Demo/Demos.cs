@@ -158,7 +158,7 @@ public static class Demos
         var writer = new MarkOutWriter(output);
         
         writer.WriteHeading(1, "Altra Running Shoes");
-        writer.WriteParagraph("This demo shows List<List<T>> rendered as a tree. Each shoe shows its reviews, which would be unsupported in table format.");
+        writer.WriteParagraph("This demo shows `List<List<T>>` rendered as a tree. Each shoe shows its reviews, which would be unsupported in table format.");
         
         writer.WriteHeading(2, "Products with Reviews");
         writer.WriteCodeBlockStart();
