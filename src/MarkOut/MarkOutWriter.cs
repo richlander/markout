@@ -13,6 +13,8 @@ public sealed class MarkOutWriter
     private bool _needsBlankLine;
     private bool _hasContent;
     private bool _inTable;
+    private int _currentSection;
+    private bool _sectionExcluded;
 
     /// <summary>
     /// Creates a writer that builds output in memory.
@@ -49,9 +51,33 @@ public sealed class MarkOutWriter
     public bool BoldFieldNames { get; set; }
 
     /// <summary>
+    /// Gets or sets the sections to include (1-based, H2 boundaries).
+    /// If set, only these sections are written. If null, all sections are included.
+    /// </summary>
+    public HashSet<int>? IncludeSections { get; set; }
+
+    /// <summary>
+    /// Gets or sets the sections to exclude (1-based, H2 boundaries).
+    /// These sections are skipped even if in IncludeSections.
+    /// </summary>
+    public HashSet<int>? ExcludeSections { get; set; }
+
+    /// <summary>
     /// Flushes any buffered output to the underlying stream.
     /// </summary>
     public void Flush() => _writer.Flush();
+
+    private bool IsSectionIncluded()
+    {
+        // Content before first H2 (section 0) is always included
+        if (_currentSection == 0)
+            return true;
+        if (IncludeSections?.Count > 0 && !IncludeSections.Contains(_currentSection))
+            return false;
+        if (ExcludeSections?.Contains(_currentSection) == true)
+            return false;
+        return true;
+    }
 
     private void WriteFieldName(string key)
     {
@@ -89,6 +115,16 @@ public sealed class MarkOutWriter
         if (level < 1 || level > 6)
             throw new ArgumentOutOfRangeException(nameof(level), "Heading level must be between 1 and 6.");
 
+        // H2 starts a new section
+        if (level == 2)
+        {
+            _currentSection++;
+            _sectionExcluded = !IsSectionIncluded();
+        }
+
+        if (_sectionExcluded)
+            return;
+
         // Always add blank line before heading if there's content
         if (_hasContent)
         {
@@ -117,7 +153,7 @@ public sealed class MarkOutWriter
     /// <param name="text">The paragraph text.</param>
     public void WriteParagraph(string? text)
     {
-        if (string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text) || _sectionExcluded)
             return;
 
         EnsureBlankLineIfNeeded();
@@ -131,6 +167,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteCodeBlockStart(string? language = null)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         _writer.Write("```");
         if (!string.IsNullOrEmpty(language))
@@ -144,6 +183,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteCodeBlockEnd()
     {
+        if (_sectionExcluded)
+            return;
+
         _writer.WriteLine("```");
         _needsBlankLine = true;
     }
@@ -154,6 +196,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteField(string key, string? value)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.Write(value ?? string.Empty);
@@ -167,6 +212,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteField(string key, bool value)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.Write(value ? "yes" : "no");
@@ -180,6 +228,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteField(string key, int value)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.Write(value.ToString(CultureInfo.InvariantCulture));
@@ -193,6 +244,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteField(string key, long value)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.Write(value.ToString(CultureInfo.InvariantCulture));
@@ -206,6 +260,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteField(string key, double value)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.Write(value.ToString(CultureInfo.InvariantCulture));
@@ -219,6 +276,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteField(string key, decimal value)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.Write(value.ToString(CultureInfo.InvariantCulture));
@@ -232,6 +292,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteField(string key, DateTime value)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.Write(value.ToString("O", CultureInfo.InvariantCulture));
@@ -245,6 +308,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteField(string key, DateTimeOffset value)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.Write(value.ToString("O", CultureInfo.InvariantCulture));
@@ -258,6 +324,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteArray(string key, IEnumerable<string>? items)
     {
+        if (_sectionExcluded)
+            return;
+
         // Always ensure blank line before array if there's prior content
         if (_hasContent)
             _needsBlankLine = true;
@@ -284,6 +353,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteArray(IEnumerable<string>? items)
     {
+        if (_sectionExcluded)
+            return;
+
         if (_hasContent)
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
@@ -311,6 +383,12 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteTableStart(params string[] headers)
     {
+        if (_sectionExcluded)
+        {
+            _inTable = true; // Track state even when excluded
+            return;
+        }
+
         if (headers.Length == 0)
             throw new ArgumentException("At least one header is required.", nameof(headers));
 
@@ -346,6 +424,9 @@ public sealed class MarkOutWriter
         if (!_inTable)
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
 
+        if (_sectionExcluded)
+            return;
+
         _writer.Write('|');
         foreach (var value in values)
         {
@@ -362,7 +443,8 @@ public sealed class MarkOutWriter
     public void WriteTableEnd()
     {
         _inTable = false;
-        _needsBlankLine = true;
+        if (!_sectionExcluded)
+            _needsBlankLine = true;
     }
 
     /// <summary>
@@ -370,6 +452,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteSimplePair(string name, string value, int nameWidth = 32)
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         _writer.Write(name.PadRight(nameWidth));
         _writer.WriteLine(value);
@@ -383,6 +468,9 @@ public sealed class MarkOutWriter
     /// <param name="prefix">The prefix for tree structure (e.g., "├─ ", "│  ").</param>
     public void WriteTreeNode(string text, string prefix = "")
     {
+        if (_sectionExcluded)
+            return;
+
         EnsureBlankLineIfNeeded();
         _writer.Write(prefix);
         _writer.WriteLine(text);
@@ -394,7 +482,7 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteTree(IEnumerable<TreeNode>? nodes)
     {
-        if (nodes == null) return;
+        if (nodes == null || _sectionExcluded) return;
         
         var nodeList = nodes.ToList();
         for (int i = 0; i < nodeList.Count; i++)
@@ -425,6 +513,9 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteBlankLine()
     {
+        if (_sectionExcluded)
+            return;
+
         _writer.WriteLine();
         _needsBlankLine = false;
     }

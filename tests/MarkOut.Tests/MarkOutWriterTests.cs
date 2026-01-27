@@ -170,4 +170,112 @@ public class MarkOutWriterTests
 
         Assert.StartsWith("Published: 2024-01-15T10:30:00", writer.ToString());
     }
+
+    [Fact]
+    public void IncludeSections_FiltersToSpecifiedSections()
+    {
+        var writer = new MarkOutWriter();
+        writer.IncludeSections = new HashSet<int> { 1 };
+
+        writer.WriteHeading(1, "Title");
+        writer.WriteParagraph("Intro");
+        writer.WriteHeading(2, "First");    // Section 1 - included
+        writer.WriteField("A", "1");
+        writer.WriteHeading(2, "Second");   // Section 2 - excluded
+        writer.WriteField("B", "2");
+        writer.WriteHeading(2, "Third");    // Section 3 - excluded
+        writer.WriteField("C", "3");
+
+        var expected = """
+            # Title
+
+            Intro
+
+            ## First
+
+            A: 1  
+
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void ExcludeSections_SkipsSpecifiedSections()
+    {
+        var writer = new MarkOutWriter();
+        writer.ExcludeSections = new HashSet<int> { 2 };
+
+        writer.WriteHeading(1, "Title");
+        writer.WriteHeading(2, "First");    // Section 1 - included
+        writer.WriteField("A", "1");
+        writer.WriteHeading(2, "Second");   // Section 2 - excluded
+        writer.WriteField("B", "2");
+        writer.WriteHeading(2, "Third");    // Section 3 - included
+        writer.WriteField("C", "3");
+
+        var expected = """
+            # Title
+
+            ## First
+
+            A: 1  
+
+            ## Third
+
+            C: 3  
+
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void SectionFiltering_ContentBeforeFirstH2_AlwaysIncluded()
+    {
+        var writer = new MarkOutWriter();
+        writer.IncludeSections = new HashSet<int> { 2 };
+
+        writer.WriteHeading(1, "Title");
+        writer.WriteParagraph("This is before any H2");
+        writer.WriteHeading(2, "First");    // Section 1 - excluded
+        writer.WriteField("A", "1");
+        writer.WriteHeading(2, "Second");   // Section 2 - included
+        writer.WriteField("B", "2");
+
+        var expected = """
+            # Title
+
+            This is before any H2
+
+            ## Second
+
+            B: 2  
+
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void SectionFiltering_TableSpanningExcludedSection_NotWritten()
+    {
+        var writer = new MarkOutWriter();
+        writer.ExcludeSections = new HashSet<int> { 1 };
+
+        writer.WriteHeading(1, "Title");
+        writer.WriteHeading(2, "Data");     // Section 1 - excluded
+        writer.WriteTableStart("Name", "Value");
+        writer.WriteTableRow("Foo", "Bar");
+        writer.WriteTableEnd();
+        writer.WriteHeading(2, "Other");    // Section 2 - included
+        writer.WriteField("X", "Y");
+
+        var expected = """
+            # Title
+
+            ## Other
+
+            X: Y  
+
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
 }
