@@ -21,6 +21,13 @@ public abstract class MarkOutSerializerContext
     public abstract MarkOutTypeInfo<T>? GetTypeInfo<T>();
 
     /// <summary>
+    /// Gets schema information describing how a type will be rendered.
+    /// </summary>
+    /// <typeparam name="T">The type to describe.</typeparam>
+    /// <returns>The schema info, or null if the type is not registered.</returns>
+    public abstract MarkOutSchemaInfo? GetSchemaInfo<T>();
+
+    /// <summary>
     /// Serializes a value using this context.
     /// </summary>
     /// <typeparam name="T">The type to serialize.</typeparam>
@@ -39,5 +46,26 @@ public abstract class MarkOutSerializerContext
         var writer = new MarkOutWriter { BoldFieldNames = BoldFieldNames };
         typeInfo.Serialize(writer, value);
         return writer.ToString();
+    }
+
+    /// <summary>
+    /// Serializes a value to the specified TextWriter.
+    /// </summary>
+    /// <typeparam name="T">The type to serialize.</typeparam>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="output">The TextWriter to write to.</param>
+    public void Serialize<T>(T value, TextWriter output)
+    {
+        var typeInfo = GetTypeInfo<T>();
+        if (typeInfo == null)
+        {
+            throw new InvalidOperationException(
+                $"Type '{typeof(T).FullName}' is not registered in this serializer context. " +
+                $"Add [MarkOutContext(typeof({typeof(T).Name}))] to your context class.");
+        }
+
+        var writer = new MarkOutWriter(output) { BoldFieldNames = BoldFieldNames };
+        typeInfo.Serialize(writer, value);
+        writer.Flush();
     }
 }

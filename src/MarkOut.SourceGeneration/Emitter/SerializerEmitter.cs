@@ -59,7 +59,7 @@ internal static class SerializerEmitter
             }
         }
 
-        EmitPropertySerializations(sb, type.Properties, "value", 2);
+        EmitPropertySerializations(sb, type.Properties, "value", 2, 2);
 
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -110,9 +110,164 @@ internal static class SerializerEmitter
 
         sb.AppendLine("        return null;");
         sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetSchemaInfo<T> implementation
+        sb.AppendLine("    public override global::MarkOut.MarkOutSchemaInfo? GetSchemaInfo<T>()");
+        sb.AppendLine("    {");
+
+        foreach (var type in context.Types)
+        {
+            sb.AppendLine($"        if (typeof(T) == typeof({type.FullTypeName}))");
+            sb.AppendLine($"            return {type.TypeName}Schema;");
+        }
+
+        sb.AppendLine("        return null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Schema properties for each type
+        foreach (var type in context.Types)
+        {
+            EmitSchemaProperty(sb, type);
+        }
+
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    private static void EmitSchemaProperty(StringBuilder sb, TypeMetadata type)
+    {
+        sb.AppendLine($"    private static global::MarkOut.MarkOutSchemaInfo? _{type.TypeName}Schema;");
+        sb.AppendLine($"    public static global::MarkOut.MarkOutSchemaInfo {type.TypeName}Schema => _{type.TypeName}Schema ??= new()");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        TypeName = \"{type.TypeName}\",");
+        sb.AppendLine($"        AsDocument = new global::MarkOut.MarkOutPropertySchema[]");
+        sb.AppendLine("        {");
+        EmitSchemaProperties(sb, type.Properties, false, 3);
+        sb.AppendLine("        },");
+        sb.AppendLine($"        AsTableItem = new global::MarkOut.MarkOutPropertySchema[]");
+        sb.AppendLine("        {");
+        EmitSchemaProperties(sb, type.Properties, true, 3);
+        sb.AppendLine("        }");
+        sb.AppendLine("    };");
+        sb.AppendLine();
+    }
+
+    private static void EmitSchemaProperties(StringBuilder sb, IReadOnlyList<PropertyMetadata> properties, bool inTableContext, int indentLevel)
+    {
+        var indent = new string(' ', indentLevel * 4);
+
+        foreach (var prop in properties)
+        {
+            var rendering = GetRenderingDescription(prop, inTableContext);
+            
+            sb.AppendLine($"{indent}new()");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    Name = \"{prop.Name}\",");
+            sb.AppendLine($"{indent}    DisplayName = \"{EscapeString(prop.MdfName)}\",");
+            sb.AppendLine($"{indent}    TypeName = \"{EscapeString(GetSimpleTypeName(prop.TypeName))}\",");
+            sb.AppendLine($"{indent}    Rendering = \"{EscapeString(rendering)}\",");
+            
+            // Only show children for non-ignored properties in document context
+            if (prop.ElementProperties != null && prop.ElementProperties.Count > 0 && !inTableContext && !prop.IsIgnored)
+            {
+                sb.AppendLine($"{indent}    Children = new global::MarkOut.MarkOutPropertySchema[]");
+                sb.AppendLine($"{indent}    {{");
+                // For sections, show child properties as they would render
+                var childInTable = prop.Kind == PropertyKind.ComplexArray && !prop.ElementHasNestedContent;
+                EmitSchemaProperties(sb, prop.ElementProperties, childInTable, indentLevel + 2);
+                sb.AppendLine($"{indent}    }}");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    Children = global::System.Array.Empty<global::MarkOut.MarkOutPropertySchema>()");
+            }
+            
+            sb.AppendLine($"{indent}}},");
+        }
+    }
+
+    private static string GetRenderingDescription(PropertyMetadata prop, bool inTableContext)
+    {
+        if (inTableContext)
+        {
+            if (prop.IsIgnored)
+                return "Ignored";
+            
+            if (prop.IsIgnoredInTable)
+                return "Ignored";
+            
+            // In table context, only scalars work
+            if (IsScalarKind(prop.Kind))
+                return "Column" + (prop.Name != prop.MdfName ? $" \"{prop.MdfName}\"" : "");
+            
+            // Unsupported patterns are skipped
+            if (prop.IsUnsupportedInTable)
+                return "Skipped (unsupported)";
+            
+            return "Column";
+        }
+
+        if (prop.IsIgnored)
+            return "Ignored";
+
+        // Document context - [MarkOutIgnoreInTable] has no effect here
+        if (prop.IsSection)
+        {
+            var sectionName = prop.SectionName ?? prop.MdfName;
+            if (prop.Kind == PropertyKind.ComplexArray)
+            {
+                if (prop.ElementHasNestedContent)
+                    return $"H{prop.SectionLevel} Section \"{sectionName}\" (subsections)";
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (table)";
+            }
+            if (prop.Kind == PropertyKind.NestedObject)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (fields)";
+            return $"H{prop.SectionLevel} Section \"{sectionName}\"";
+        }
+
+        return prop.Kind switch
+        {
+            PropertyKind.String => "Field",
+            PropertyKind.Boolean => "Field (yes/no)",
+            PropertyKind.Int32 or PropertyKind.Int64 => "Field",
+            PropertyKind.Double or PropertyKind.Decimal => "Field",
+            PropertyKind.DateTime or PropertyKind.DateTimeOffset => "Field (ISO 8601)",
+            PropertyKind.StringArray => "Bullet list",
+            PropertyKind.ComplexArray => prop.ElementHasNestedContent 
+                ? "Subsections" 
+                : "Table",
+            PropertyKind.NestedObject => "Fields",
+            _ => "Field"
+        };
+    }
+
+    private static string GetSimpleTypeName(string fullTypeName)
+    {
+        // Simplify common type names
+        return fullTypeName
+            .Replace("System.Collections.Generic.List<", "List<")
+            .Replace("System.String", "string")
+            .Replace("System.Int32", "int")
+            .Replace("System.Int64", "long")
+            .Replace("System.Boolean", "bool")
+            .Replace("System.Decimal", "decimal")
+            .Replace("System.Double", "double");
+    }
+
+    private static bool IsScalarKind(PropertyKind kind)
+    {
+        return kind is
+            PropertyKind.String or
+            PropertyKind.Boolean or
+            PropertyKind.Int32 or
+            PropertyKind.Int64 or
+            PropertyKind.Double or
+            PropertyKind.Decimal or
+            PropertyKind.DateTime or
+            PropertyKind.DateTimeOffset;
     }
 
     private static string GetTypeInfoClassName(TypeMetadata type)
@@ -126,7 +281,9 @@ internal static class SerializerEmitter
         StringBuilder sb,
         IReadOnlyList<PropertyMetadata> properties,
         string valueExpr,
-        int indentLevel)
+        int indentLevel,
+        int baseHeadingLevel = 2,
+        int nestingDepth = 0)
     {
         var indent = new string(' ', indentLevel * 4);
 
@@ -136,6 +293,11 @@ internal static class SerializerEmitter
                 continue;
 
             var propAccess = $"{valueExpr}.{prop.Name}";
+            // For sections: use the larger of baseHeadingLevel or the explicit SectionLevel
+            // This ensures nested sections don't go "up" in heading hierarchy
+            var effectiveSectionLevel = prop.IsSection 
+                ? System.Math.Max(prop.SectionLevel, baseHeadingLevel) 
+                : baseHeadingLevel;
 
             if (prop.IsSection)
             {
@@ -145,22 +307,40 @@ internal static class SerializerEmitter
                 {
                     sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
                     sb.AppendLine($"{indent}{{");
-                    sb.AppendLine($"{indent}    writer.WriteHeading({prop.SectionLevel}, \"{EscapeString(sectionName)}\");");
-                    EmitTableSerialization(sb, prop, propAccess, indentLevel + 1);
+                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
+                    
+                    if (prop.ElementHasNestedContent)
+                    {
+                        // Render as subsection-per-item
+                        EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel, nestingDepth);
+                    }
+                    else
+                    {
+                        // Render as table
+                        EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                    }
+                    sb.AppendLine($"{indent}}}");
+                }
+                else if (prop.Kind == PropertyKind.StringArray)
+                {
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Any())");
+                    sb.AppendLine($"{indent}{{");
+                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
+                    sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
                     sb.AppendLine($"{indent}}}");
                 }
                 else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
                 {
                     sb.AppendLine($"{indent}if ({propAccess} != null)");
                     sb.AppendLine($"{indent}{{");
-                    sb.AppendLine($"{indent}    writer.WriteHeading({prop.SectionLevel}, \"{EscapeString(sectionName)}\");");
-                    EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1);
+                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
+                    EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth);
                     sb.AppendLine($"{indent}}}");
                 }
                 else
                 {
                     // For other types, just write the heading unconditionally
-                    sb.AppendLine($"{indent}writer.WriteHeading({prop.SectionLevel}, \"{EscapeString(sectionName)}\");");
+                    sb.AppendLine($"{indent}writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
                 }
                 continue;
             }
@@ -198,8 +378,15 @@ internal static class SerializerEmitter
                     {
                         sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Any())");
                         sb.AppendLine($"{indent}{{");
-                        sb.AppendLine($"{indent}    writer.WriteHeading(2, \"{EscapeString(prop.MdfName)}\");");
-                        EmitTableSerialization(sb, prop, propAccess, indentLevel + 1);
+                        sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EscapeString(prop.MdfName)}\");");
+                        if (prop.ElementHasNestedContent)
+                        {
+                            EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, baseHeadingLevel, nestingDepth);
+                        }
+                        else
+                        {
+                            EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                        }
                         sb.AppendLine($"{indent}}}");
                     }
                     break;
@@ -209,8 +396,8 @@ internal static class SerializerEmitter
                     {
                         sb.AppendLine($"{indent}if ({propAccess} != null)");
                         sb.AppendLine($"{indent}{{");
-                        sb.AppendLine($"{indent}    writer.WriteHeading(2, \"{EscapeString(prop.MdfName)}\");");
-                        EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1);
+                        sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EscapeString(prop.MdfName)}\");");
+                        EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth);
                         sb.AppendLine($"{indent}}}");
                     }
                     break;
@@ -228,32 +415,88 @@ internal static class SerializerEmitter
         StringBuilder sb,
         PropertyMetadata prop,
         string propAccess,
-        int indentLevel)
+        int indentLevel,
+        int nestingDepth = 0)
     {
         if (prop.ElementProperties == null || prop.ElementProperties.Count == 0)
             return;
 
         var indent = new string(' ', indentLevel * 4);
         var visibleProps = prop.ElementProperties.Where(p => !p.IsIgnored).ToList();
+        var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
 
         // Build header array
         var headers = string.Join(", ", visibleProps.Select(p => $"\"{EscapeString(p.MdfName)}\""));
         sb.AppendLine($"{indent}writer.WriteTableStart({headers});");
 
-        sb.AppendLine($"{indent}foreach (var item in {propAccess})");
+        sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
         sb.AppendLine($"{indent}{{");
 
         // Build row values
         var values = new List<string>();
         foreach (var elemProp in visibleProps)
         {
-            var value = GetTableCellValue(elemProp, "item");
+            var value = GetTableCellValue(elemProp, itemVar);
             values.Add(value);
         }
 
         sb.AppendLine($"{indent}    writer.WriteTableRow({string.Join(", ", values)});");
         sb.AppendLine($"{indent}}}");
         sb.AppendLine($"{indent}writer.WriteTableEnd();");
+    }
+
+    private static void EmitSubsectionPerItemSerialization(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        int indentLevel,
+        int parentSectionLevel = 2,
+        int nestingDepth = 0)
+    {
+        if (prop.ElementProperties == null || prop.ElementProperties.Count == 0)
+            return;
+
+        var indent = new string(' ', indentLevel * 4);
+        var subsectionLevel = parentSectionLevel + 1;
+        var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
+
+        sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
+        sb.AppendLine($"{indent}{{");
+
+        // Write subsection heading using TitleProperty or first string property
+        if (!string.IsNullOrEmpty(prop.ElementTitleProperty))
+        {
+            sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
+            sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty});");
+        }
+        else
+        {
+            // Try to find a suitable property for the heading
+            var titleProp = prop.ElementProperties.FirstOrDefault(p => 
+                !p.IsIgnored && p.Kind == PropertyKind.String && 
+                (p.Name == "Name" || p.Name == "Title" || p.Name == "Id"));
+            
+            if (titleProp != null)
+            {
+                sb.AppendLine($"{indent}    if ({itemVar}.{titleProp.Name} != null)");
+                sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{titleProp.Name});");
+            }
+            else
+            {
+                // Fallback: use first string property
+                var firstString = prop.ElementProperties.FirstOrDefault(p => !p.IsIgnored && p.Kind == PropertyKind.String);
+                if (firstString != null)
+                {
+                    sb.AppendLine($"{indent}    if ({itemVar}.{firstString.Name} != null)");
+                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{firstString.Name});");
+                }
+            }
+        }
+
+        // Emit property serializations for each item, at a deeper level
+        EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1);
+
+        sb.AppendLine($"{indent}}}");
     }
 
     private static string GetTableCellValue(PropertyMetadata prop, string itemExpr)

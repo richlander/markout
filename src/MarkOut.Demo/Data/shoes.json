@@ -1,0 +1,118 @@
+{
+  "catalog": {
+    "name": "Altra Running Shoes",
+    "description": "Zero-drop running shoes designed for natural movement."
+  },
+  "shoes": [
+    {
+      "id": "torin-7",
+      "model": "Torin 7",
+      "category": "Road",
+      "price": 149.99,
+      "inStock": true,
+      "features": [
+        { "name": "Stack Height", "value": "28mm" },
+        { "name": "Heel-to-Toe Drop", "value": "0mm" },
+        { "name": "Cushion", "value": "Moderate" },
+        { "name": "Terrain", "value": "Road / Light Trail" }
+      ],
+      "reviews": [
+        { "author": "Alice", "rating": 5, "comment": "Great cushioning for long runs!" },
+        { "author": "Bob", "rating": 4, "comment": "Comfortable but runs a bit warm." }
+      ]
+    },
+    {
+      "id": "escalante-4",
+      "model": "Escalante 4",
+      "category": "Road",
+      "price": 139.99,
+      "inStock": true,
+      "features": [
+        { "name": "Stack Height", "value": "24mm" },
+        { "name": "Heel-to-Toe Drop", "value": "0mm" },
+        { "name": "Cushion", "value": "Light" },
+        { "name": "Terrain", "value": "Road" }
+      ],
+      "reviews": [
+        { "author": "Charlie", "rating": 5, "comment": "Fast and light, perfect for racing." }
+      ]
+    },
+    {
+      "id": "lone-peak-8",
+      "model": "Lone Peak 8",
+      "category": "Trail",
+      "price": 144.99,
+      "inStock": true,
+      "features": [
+        { "name": "Stack Height", "value": "25mm" },
+        { "name": "Heel-to-Toe Drop", "value": "0mm" },
+        { "name": "Cushion", "value": "Moderate" },
+        { "name": "Terrain", "value": "Technical Trail" }
+      ],
+      "reviews": [
+        { "author": "Diana", "rating": 5, "comment": "Best trail shoe ever!" },
+        { "author": "Eve", "rating": 5, "comment": "Incredible grip on technical terrain." },
+        { "author": "Frank", "rating": 4, "comment": "Took a few miles to break in." },
+        { "author": "Rich", "rating": 5, "comment": "Trail tested on Chuckanut 50k!" }
+      ]
+    },
+    {
+      "id": "olympus-6",
+      "model": "Olympus 6",
+      "category": "Trail",
+      "price": 179.99,
+      "inStock": false,
+      "features": [
+        { "name": "Stack Height", "value": "33mm" },
+        { "name": "Heel-to-Toe Drop", "value": "0mm" },
+        { "name": "Cushion", "value": "Max" },
+        { "name": "Terrain", "value": "Trail / Ultra" }
+      ],
+      "reviews": [
+        { "author": "Grace", "rating": 5, "comment": "Max cushion for ultras!" }
+      ]
+    },
+    {
+      "id": "timp-5",
+      "model": "Timp 5",
+      "category": "Trail",
+      "price": 159.99,
+      "inStock": true,
+      "features": [
+        { "name": "Stack Height", "value": "29mm" },
+        { "name": "Heel-to-Toe Drop", "value": "0mm" },
+        { "name": "Cushion", "value": "Moderate" },
+        { "name": "Terrain", "value": "Trail" }
+      ],
+      "reviews": [
+        { "author": "Hank", "rating": 4, "comment": "Versatile trail runner." }
+      ]
+    },
+    {
+      "id": "rivera-4",
+      "model": "Rivera 4",
+      "category": "Road",
+      "price": 129.99,
+      "inStock": true,
+      "features": [
+        { "name": "Stack Height", "value": "26mm" },
+        { "name": "Heel-to-Toe Drop", "value": "0mm" },
+        { "name": "Cushion", "value": "Light" },
+        { "name": "Terrain", "value": "Road" }
+      ],
+      "reviews": [
+        { "author": "Ivy", "rating": 4, "comment": "Great value." }
+      ]
+    }
+  ],
+  "inventory": [
+    { "shoeId": "torin-7", "size": "8", "black": 12, "green": 8, "red": 5 },
+    { "shoeId": "torin-7", "size": "9", "black": 18, "green": 15, "red": 10 },
+    { "shoeId": "torin-7", "size": "10", "black": 22, "green": 12, "red": 8 },
+    { "shoeId": "torin-7", "size": "11", "black": 15, "green": 6, "red": 4 },
+    { "shoeId": "torin-7", "size": "12", "black": 8, "green": 3, "red": 2 },
+    { "shoeId": "lone-peak-8", "size": "9", "black": 10, "green": 5, "red": 3 },
+    { "shoeId": "lone-peak-8", "size": "10", "black": 15, "green": 8, "red": 6 },
+    { "shoeId": "lone-peak-8", "size": "11", "black": 12, "green": 4, "red": 2 }
+  ]
+}

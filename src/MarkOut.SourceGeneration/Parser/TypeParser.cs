@@ -15,6 +15,7 @@ internal static class TypeParser
     private const string MarkOutContextAttribute = "MarkOut.MarkOutContextAttribute";
     private const string MarkOutPropertyNameAttribute = "MarkOut.MarkOutPropertyNameAttribute";
     private const string MarkOutIgnoreAttribute = "MarkOut.MarkOutIgnoreAttribute";
+    private const string MarkOutIgnoreInTableAttribute = "MarkOut.MarkOutIgnoreInTableAttribute";
     private const string MarkOutSectionAttribute = "MarkOut.MarkOutSectionAttribute";
 
     public static TypeMetadata? ParseSerializableType(
@@ -151,6 +152,7 @@ internal static class TypeParser
         List<DiagnosticInfo> diagnostics)
     {
         var isIgnored = HasAttribute(prop, MarkOutIgnoreAttribute);
+        var isIgnoredInTable = HasAttribute(prop, MarkOutIgnoreInTableAttribute);
         var isSection = HasAttribute(prop, MarkOutSectionAttribute);
         var sectionLevel = 2;
         string? sectionName = null;
@@ -180,21 +182,21 @@ internal static class TypeParser
             mdfName = customName;
         }
 
-        var (kind, elementTypeName, elementProperties) = DeterminePropertyKind(prop.Type, compilation, diagnostics);
+        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty) = DeterminePropertyKind(prop.Type, compilation, diagnostics);
 
-        // Validate if in table context and collect diagnostics
-        if (isInTableContext && !isIgnored && !isSection)
+        // Determine if property is unsupported in table context
+        bool isUnsupportedInTable = !isIgnored && !isSection && !IsScalarKind(kind);
+
+        // Emit warning for unsupported properties without [MarkOutIgnoreInTable]
+        if (isUnsupportedInTable && !isIgnoredInTable)
         {
-            if (!IsScalarKind(kind))
-            {
-                diagnostics.Add(new DiagnosticInfo(
-                    DiagnosticDescriptors.NonScalarPropertyInTable,
-                    prop.Locations.FirstOrDefault(),
-                    prop.Name,
-                    prop.ContainingType.Name,
-                    GetKindDisplayName(kind)
-                ));
-            }
+            diagnostics.Add(new DiagnosticInfo(
+                DiagnosticDescriptors.UnsupportedPropertyInTable,
+                prop.Locations.FirstOrDefault(),
+                prop.Name,
+                prop.ContainingType.Name,
+                GetKindDisplayName(kind)
+            ));
         }
 
         return new PropertyMetadata(
@@ -203,14 +205,18 @@ internal static class TypeParser
             prop.Type.ToDisplayString(),
             kind,
             isIgnored,
+            isIgnoredInTable,
+            isUnsupportedInTable,
             isSection,
             sectionLevel,
             sectionName,
             elementTypeName,
-            elementProperties);
+            elementProperties,
+            hasNestedContent,
+            elementTitleProperty);
     }
 
-    private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties)
+    private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty)
         DeterminePropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null)
     {
         var typeName = type.ToDisplayString();
@@ -226,36 +232,38 @@ internal static class TypeParser
         // Primitives
         return type.SpecialType switch
         {
-            SpecialType.System_String => (PropertyKind.String, null, null),
-            SpecialType.System_Boolean => (PropertyKind.Boolean, null, null),
-            SpecialType.System_Int32 => (PropertyKind.Int32, null, null),
-            SpecialType.System_Int64 => (PropertyKind.Int64, null, null),
-            SpecialType.System_Double => (PropertyKind.Double, null, null),
-            SpecialType.System_Decimal => (PropertyKind.Decimal, null, null),
+            SpecialType.System_String => (PropertyKind.String, null, null, false, null),
+            SpecialType.System_Boolean => (PropertyKind.Boolean, null, null, false, null),
+            SpecialType.System_Int32 => (PropertyKind.Int32, null, null, false, null),
+            SpecialType.System_Int64 => (PropertyKind.Int64, null, null, false, null),
+            SpecialType.System_Double => (PropertyKind.Double, null, null, false, null),
+            SpecialType.System_Decimal => (PropertyKind.Decimal, null, null, false, null),
             _ => DetermineComplexPropertyKind(type, compilation, diagnostics)
         };
     }
 
-    private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties)
+    private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty)
         DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null)
     {
         var typeName = type.ToDisplayString();
 
         // DateTime types
         if (typeName == "System.DateTime")
-            return (PropertyKind.DateTime, null, null);
+            return (PropertyKind.DateTime, null, null, false, null);
         if (typeName == "System.DateTimeOffset")
-            return (PropertyKind.DateTimeOffset, null, null);
+            return (PropertyKind.DateTimeOffset, null, null, false, null);
 
         // Check for arrays
         if (type is IArrayTypeSymbol arrayType)
         {
             var elementType = arrayType.ElementType;
             if (elementType.SpecialType == SpecialType.System_String)
-                return (PropertyKind.StringArray, null, null);
+                return (PropertyKind.StringArray, null, null, false, null);
 
             var elementProps = GetTypeProperties(elementType, compilation, true, diagnostics);
-            return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps);
+            var hasNested = HasNestedContent(elementProps);
+            var titleProp = GetTitleProperty(elementType);
+            return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, titleProp);
         }
 
         // Check for IEnumerable<T> / List<T> / etc.
@@ -282,10 +290,12 @@ internal static class TypeParser
                 if (elementType != null)
                 {
                     if (elementType.SpecialType == SpecialType.System_String)
-                        return (PropertyKind.StringArray, null, null);
+                        return (PropertyKind.StringArray, null, null, false, null);
 
                     var elementProps = GetTypeProperties(elementType, compilation, true, diagnostics);
-                    return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps);
+                    var hasNested = HasNestedContent(elementProps);
+                    var titleProp = GetTitleProperty(elementType);
+                    return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, titleProp);
                 }
             }
         }
@@ -295,10 +305,36 @@ internal static class TypeParser
         {
             var props = GetTypeProperties(type, compilation, false, diagnostics);
             if (props.Count > 0)
-                return (PropertyKind.NestedObject, null, props);
+                return (PropertyKind.NestedObject, null, props, false, null);
         }
 
-        return (PropertyKind.Other, null, null);
+        return (PropertyKind.Other, null, null, false, null);
+    }
+
+    private static bool HasNestedContent(IReadOnlyList<PropertyMetadata>? props)
+    {
+        if (props == null) return false;
+        return props.Any(p => !p.IsIgnored && 
+            (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray));
+    }
+
+    private static string? GetTitleProperty(ITypeSymbol type)
+    {
+        if (type is not INamedTypeSymbol namedType) return null;
+        
+        var serializableAttr = namedType.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkOutSerializableAttribute);
+        
+        if (serializableAttr != null)
+        {
+            foreach (var named in serializableAttr.NamedArguments)
+            {
+                if (named.Key == "TitleProperty" && named.Value.Value is string tp)
+                    return tp;
+            }
+        }
+        
+        return null;
     }
 
     private static IReadOnlyList<PropertyMetadata> GetTypeProperties(

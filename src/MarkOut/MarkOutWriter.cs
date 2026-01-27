@@ -8,10 +8,39 @@ namespace MarkOut;
 /// </summary>
 public sealed class MarkOutWriter
 {
-    private readonly StringBuilder _sb = new();
+    private readonly TextWriter _writer;
+    private readonly bool _ownsWriter;
     private bool _needsBlankLine;
     private bool _hasContent;
     private bool _inTable;
+
+    /// <summary>
+    /// Creates a writer that builds output in memory.
+    /// Use ToString() to get the result.
+    /// </summary>
+    public MarkOutWriter() : this(new StringWriter(), ownsWriter: true)
+    {
+    }
+
+    /// <summary>
+    /// Creates a writer that writes to the specified TextWriter.
+    /// </summary>
+    public MarkOutWriter(TextWriter writer) : this(writer, ownsWriter: false)
+    {
+    }
+
+    /// <summary>
+    /// Creates a writer that writes to the specified Stream.
+    /// </summary>
+    public MarkOutWriter(Stream stream) : this(new StreamWriter(stream, Encoding.UTF8, leaveOpen: true), ownsWriter: true)
+    {
+    }
+
+    private MarkOutWriter(TextWriter writer, bool ownsWriter)
+    {
+        _writer = writer;
+        _ownsWriter = ownsWriter;
+    }
 
     /// <summary>
     /// Gets or sets whether field names should be rendered in bold.
@@ -19,18 +48,23 @@ public sealed class MarkOutWriter
     /// </summary>
     public bool BoldFieldNames { get; set; }
 
+    /// <summary>
+    /// Flushes any buffered output to the underlying stream.
+    /// </summary>
+    public void Flush() => _writer.Flush();
+
     private void WriteFieldName(string key)
     {
         if (BoldFieldNames)
         {
-            _sb.Append("**");
-            _sb.Append(key);
-            _sb.Append(":** ");
+            _writer.Write("**");
+            _writer.Write(key);
+            _writer.Write(":** ");
         }
         else
         {
-            _sb.Append(key);
-            _sb.Append(": ");
+            _writer.Write(key);
+            _writer.Write(": ");
         }
     }
 
@@ -58,21 +92,21 @@ public sealed class MarkOutWriter
         // Always add blank line before heading if there's content
         if (_hasContent)
         {
-            _sb.AppendLine();
+            _writer.WriteLine();
         }
 
-        _sb.Append('#', level);
-        _sb.Append(' ');
-        _sb.Append(text);
+        _writer.Write(new string('#', level));
+        _writer.Write(' ');
+        _writer.Write(text);
 
         if (!string.IsNullOrEmpty(context))
         {
-            _sb.Append(" (");
-            _sb.Append(context);
-            _sb.Append(')');
+            _writer.Write(" (");
+            _writer.Write(context);
+            _writer.Write(')');
         }
 
-        _sb.AppendLine();
+        _writer.WriteLine();
         _needsBlankLine = true;
         _hasContent = true;
     }
@@ -87,9 +121,31 @@ public sealed class MarkOutWriter
             return;
 
         EnsureBlankLineIfNeeded();
-        _sb.AppendLine(text);
+        _writer.WriteLine(text);
         _needsBlankLine = true;
         _hasContent = true;
+    }
+
+    /// <summary>
+    /// Starts a code block with optional language specifier.
+    /// </summary>
+    public void WriteCodeBlockStart(string? language = null)
+    {
+        EnsureBlankLineIfNeeded();
+        _writer.Write("```");
+        if (!string.IsNullOrEmpty(language))
+            _writer.Write(language);
+        _writer.WriteLine();
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Ends a code block.
+    /// </summary>
+    public void WriteCodeBlockEnd()
+    {
+        _writer.WriteLine("```");
+        _needsBlankLine = true;
     }
 
     /// <summary>
@@ -100,8 +156,8 @@ public sealed class MarkOutWriter
     {
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _sb.Append(value ?? string.Empty);
-        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.Write(value ?? string.Empty);
+        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
@@ -113,8 +169,8 @@ public sealed class MarkOutWriter
     {
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _sb.Append(value ? "yes" : "no");
-        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.Write(value ? "yes" : "no");
+        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
@@ -126,8 +182,8 @@ public sealed class MarkOutWriter
     {
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _sb.Append(value.ToString(CultureInfo.InvariantCulture));
-        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.Write(value.ToString(CultureInfo.InvariantCulture));
+        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
@@ -139,8 +195,8 @@ public sealed class MarkOutWriter
     {
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _sb.Append(value.ToString(CultureInfo.InvariantCulture));
-        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.Write(value.ToString(CultureInfo.InvariantCulture));
+        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
@@ -152,8 +208,8 @@ public sealed class MarkOutWriter
     {
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _sb.Append(value.ToString(CultureInfo.InvariantCulture));
-        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.Write(value.ToString(CultureInfo.InvariantCulture));
+        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
@@ -165,8 +221,8 @@ public sealed class MarkOutWriter
     {
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _sb.Append(value.ToString(CultureInfo.InvariantCulture));
-        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.Write(value.ToString(CultureInfo.InvariantCulture));
+        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
@@ -178,8 +234,8 @@ public sealed class MarkOutWriter
     {
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _sb.Append(value.ToString("O", CultureInfo.InvariantCulture));
-        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.Write(value.ToString("O", CultureInfo.InvariantCulture));
+        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
@@ -191,8 +247,8 @@ public sealed class MarkOutWriter
     {
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _sb.Append(value.ToString("O", CultureInfo.InvariantCulture));
-        _sb.AppendLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.Write(value.ToString("O", CultureInfo.InvariantCulture));
+        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
 
@@ -209,22 +265,40 @@ public sealed class MarkOutWriter
 
         if (BoldFieldNames)
         {
-            _sb.Append("**");
-            _sb.Append(key);
-            _sb.AppendLine(":**");
+            _writer.Write("**");
+            _writer.Write(key);
+            _writer.WriteLine(":**");
         }
         else
         {
-            _sb.Append(key);
-            _sb.AppendLine(":");
+            _writer.Write(key);
+            _writer.WriteLine(":");
         }
 
+        WriteBulletItems(items);
+    }
+
+    /// <summary>
+    /// Writes string items as a markdown bullet list (no label).
+    /// Use after a heading when the section title serves as the label.
+    /// </summary>
+    public void WriteArray(IEnumerable<string>? items)
+    {
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        WriteBulletItems(items);
+    }
+
+    private void WriteBulletItems(IEnumerable<string>? items)
+    {
         if (items != null)
         {
             foreach (var item in items)
             {
-                _sb.Append("- ");
-                _sb.AppendLine(item);
+                _writer.Write("- ");
+                _writer.WriteLine(item);
             }
         }
 
@@ -244,23 +318,23 @@ public sealed class MarkOutWriter
         _inTable = true;
 
         // Header row
-        _sb.Append('|');
+        _writer.Write('|');
         foreach (var header in headers)
         {
-            _sb.Append(' ');
-            _sb.Append(header);
-            _sb.Append(" |");
+            _writer.Write(' ');
+            _writer.Write(header);
+            _writer.Write(" |");
         }
-        _sb.AppendLine();
+        _writer.WriteLine();
 
         // Separator row
-        _sb.Append('|');
+        _writer.Write('|');
         foreach (var header in headers)
         {
-            _sb.Append('-', header.Length + 2);
-            _sb.Append('|');
+            _writer.Write(new string('-', header.Length + 2));
+            _writer.Write('|');
         }
-        _sb.AppendLine();
+        _writer.WriteLine();
         _hasContent = true;
     }
 
@@ -272,14 +346,14 @@ public sealed class MarkOutWriter
         if (!_inTable)
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
 
-        _sb.Append('|');
+        _writer.Write('|');
         foreach (var value in values)
         {
-            _sb.Append(' ');
-            _sb.Append(value);
-            _sb.Append(" |");
+            _writer.Write(' ');
+            _writer.Write(value);
+            _writer.Write(" |");
         }
-        _sb.AppendLine();
+        _writer.WriteLine();
     }
 
     /// <summary>
@@ -297,9 +371,53 @@ public sealed class MarkOutWriter
     public void WriteSimplePair(string name, string value, int nameWidth = 32)
     {
         EnsureBlankLineIfNeeded();
-        _sb.Append(name.PadRight(nameWidth));
-        _sb.AppendLine(value);
+        _writer.Write(name.PadRight(nameWidth));
+        _writer.WriteLine(value);
         _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a tree node with optional prefix for hierarchy.
+    /// </summary>
+    /// <param name="text">The node text.</param>
+    /// <param name="prefix">The prefix for tree structure (e.g., "├─ ", "│  ").</param>
+    public void WriteTreeNode(string text, string prefix = "")
+    {
+        EnsureBlankLineIfNeeded();
+        _writer.Write(prefix);
+        _writer.WriteLine(text);
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a tree structure from a list of TreeNode objects.
+    /// </summary>
+    public void WriteTree(IEnumerable<TreeNode>? nodes)
+    {
+        if (nodes == null) return;
+        
+        var nodeList = nodes.ToList();
+        for (int i = 0; i < nodeList.Count; i++)
+        {
+            var isLast = i == nodeList.Count - 1;
+            WriteTreeNodeRecursive(nodeList[i], "", isLast);
+        }
+    }
+
+    private void WriteTreeNodeRecursive(TreeNode node, string prefix, bool isLast)
+    {
+        var connector = isLast ? "└─ " : "├─ ";
+        WriteTreeNode(node.Label, prefix + connector);
+        
+        if (node.Children != null && node.Children.Count > 0)
+        {
+            var childPrefix = prefix + (isLast ? "   " : "│  ");
+            for (int i = 0; i < node.Children.Count; i++)
+            {
+                var isChildLast = i == node.Children.Count - 1;
+                WriteTreeNodeRecursive(node.Children[i], childPrefix, isChildLast);
+            }
+        }
     }
 
     /// <summary>
@@ -307,23 +425,26 @@ public sealed class MarkOutWriter
     /// </summary>
     public void WriteBlankLine()
     {
-        _sb.AppendLine();
+        _writer.WriteLine();
         _needsBlankLine = false;
     }
 
     /// <summary>
     /// Returns the generated MDF content.
+    /// Only valid when using the default constructor (in-memory writer).
     /// </summary>
     public override string ToString()
     {
-        return _sb.ToString();
+        if (_writer is StringWriter sw)
+            return sw.ToString();
+        return base.ToString() ?? "";
     }
 
     private void EnsureBlankLineIfNeeded()
     {
         if (_needsBlankLine)
         {
-            _sb.AppendLine();
+            _writer.WriteLine();
             _needsBlankLine = false;
         }
     }

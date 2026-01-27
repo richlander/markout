@@ -9,20 +9,18 @@ internal static class DiagnosticDescriptors
 {
     private const string Category = "MarkOut.Design";
 
-    public static readonly DiagnosticDescriptor NonScalarPropertyInTable = new(
+    public static readonly DiagnosticDescriptor UnsupportedPropertyInTable = new(
         id: "MARKOUT001",
-        title: "Non-scalar property in table row",
-        messageFormat: "Property '{0}' in type '{1}' is {2} and cannot be rendered in a table cell. " +
-                       "Use [MarkOutIgnore], [MarkOutSection], or transform the data. " +
-                       "See: https://github.com/your-repo/mdf/docs/errors/MARKOUT001",
+        title: "Unsupported property in table context",
+        messageFormat: "Property '{0}' in type '{1}' is {2} and will be skipped in table context. " +
+                       "Add [MarkOutIgnoreInTable] to silence this warning.",
         category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
+        defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "Properties that are collections or complex objects cannot be rendered in Markdown table cells. " +
-                     "They will show as useless ToString() output. You must explicitly choose how to handle them: " +
-                     "use [MarkOutIgnore] to exclude them, use [MarkOutSection] to render in a separate section, " +
-                     "or transform your data (e.g., pivot table, flatten, or provide aggregate values).",
-        helpLinkUri: "https://github.com/your-repo/mdf/docs/strategies/nested-lists"
+                     "They will be skipped when the type is rendered as a table row. " +
+                     "Add [MarkOutIgnoreInTable] to acknowledge this and silence the warning, " +
+                     "or use [MarkOutSection] to render in a separate section."
     );
 
     public static readonly DiagnosticDescriptor ComplexObjectPropertyInTable = new(
@@ -31,7 +29,7 @@ internal static class DiagnosticDescriptors
         messageFormat: "Property '{0}' in type '{1}' is a complex object and cannot be rendered in a table cell. " +
                        "Use [MarkOutIgnore], flatten the properties, or provide a summary value.",
         category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
+        defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "Complex objects with multiple properties cannot be meaningfully rendered in table cells. " +
                      "Consider flattening the structure by moving properties to the parent type, " +

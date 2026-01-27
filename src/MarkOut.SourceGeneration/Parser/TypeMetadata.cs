@@ -76,11 +76,15 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string TypeName { get; }
     public PropertyKind Kind { get; }
     public bool IsIgnored { get; }
+    public bool IsIgnoredInTable { get; }
+    public bool IsUnsupportedInTable { get; }
     public bool IsSection { get; }
     public int SectionLevel { get; }
     public string? SectionName { get; }
     public string? ElementTypeName { get; }
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
+    public bool ElementHasNestedContent { get; }
+    public string? ElementTitleProperty { get; }
 
     public PropertyMetadata(
         string name,
@@ -88,22 +92,30 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string typeName,
         PropertyKind kind,
         bool isIgnored = false,
+        bool isIgnoredInTable = false,
+        bool isUnsupportedInTable = false,
         bool isSection = false,
         int sectionLevel = 2,
         string? sectionName = null,
         string? elementTypeName = null,
-        IReadOnlyList<PropertyMetadata>? elementProperties = null)
+        IReadOnlyList<PropertyMetadata>? elementProperties = null,
+        bool elementHasNestedContent = false,
+        string? elementTitleProperty = null)
     {
         Name = name;
         MdfName = mdfName;
         TypeName = typeName;
         Kind = kind;
         IsIgnored = isIgnored;
+        IsIgnoredInTable = isIgnoredInTable;
+        IsUnsupportedInTable = isUnsupportedInTable;
         IsSection = isSection;
         SectionLevel = sectionLevel;
         SectionName = sectionName;
         ElementTypeName = elementTypeName;
         ElementProperties = elementProperties;
+        ElementHasNestedContent = elementHasNestedContent;
+        ElementTitleProperty = elementTitleProperty;
     }
 
     public bool Equals(PropertyMetadata? other)
