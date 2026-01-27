@@ -9,6 +9,9 @@
     <NoWarn>$(NoWarn);RS2008</NoWarn>
     <IsRoslynComponent>true</IsRoslynComponent>
     <Description>Source generator for Markout (Markdown Output) serialization</Description>
+    <!-- Disable AOT compatibility analysis for netstandard2.0 target -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OfficialBuild)' == 'true'">
