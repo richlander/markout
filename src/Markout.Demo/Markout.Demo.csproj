@@ -13,8 +13,8 @@
     <Authors>Richard Lander</Authors>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>markout-demo</ToolCommandName>
-    <VersionPrefix>0.1.0</VersionPrefix>
-    <PackageId>MarkOut.Demo</PackageId>
+    <VersionPrefix>0.1.1</VersionPrefix>
+    <PackageId>Markout.Demo</PackageId>
     <Description>Demo app showcasing Markout markdown serialization capabilities</Description>
   </PropertyGroup>
 
