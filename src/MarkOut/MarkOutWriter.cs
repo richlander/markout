@@ -9,7 +9,6 @@ namespace MarkOut;
 public sealed class MarkOutWriter
 {
     private readonly TextWriter _writer;
-    private readonly bool _ownsWriter;
     private bool _needsBlankLine;
     private bool _hasContent;
     private bool _inTable;
@@ -20,28 +19,23 @@ public sealed class MarkOutWriter
     /// Creates a writer that builds output in memory.
     /// Use ToString() to get the result.
     /// </summary>
-    public MarkOutWriter() : this(new StringWriter(), ownsWriter: true)
+    public MarkOutWriter() : this(new StringWriter())
     {
     }
 
     /// <summary>
     /// Creates a writer that writes to the specified TextWriter.
     /// </summary>
-    public MarkOutWriter(TextWriter writer) : this(writer, ownsWriter: false)
+    public MarkOutWriter(TextWriter writer)
     {
+        _writer = writer;
     }
 
     /// <summary>
     /// Creates a writer that writes to the specified Stream.
     /// </summary>
-    public MarkOutWriter(Stream stream) : this(new StreamWriter(stream, Encoding.UTF8, leaveOpen: true), ownsWriter: true)
+    public MarkOutWriter(Stream stream) : this(new StreamWriter(stream, Encoding.UTF8, leaveOpen: true))
     {
-    }
-
-    private MarkOutWriter(TextWriter writer, bool ownsWriter)
-    {
-        _writer = writer;
-        _ownsWriter = ownsWriter;
     }
 
     /// <summary>
