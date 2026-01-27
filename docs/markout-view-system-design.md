@@ -1,10 +1,10 @@
-# MarkOut View System Design
+# Markout View System Design
 
 ## Philosophy
 
-The MarkOut view system is designed for LLM consumption. Our core insight is that **it's more efficient to offer more sections and make them filterable** than to create multiple bespoke views for different use cases.
+The Markout view system is designed for LLM consumption. Our core insight is that **it's more efficient to offer more sections and make them filterable** than to create multiple bespoke views for different use cases.
 
-Traditional CLI output forces a choice between verbosity (comprehensive but token-heavy) and terseness (efficient but incomplete). The MarkOut approach resolves this tension by:
+Traditional CLI output forces a choice between verbosity (comprehensive but token-heavy) and terseness (efficient but incomplete). The Markout approach resolves this tension by:
 
 1. **Generating all sections** at the appropriate verbosity level
 2. **Letting consumers filter** to exactly what they need
@@ -73,7 +73,7 @@ private string[] GetSectionsForVerbosity() => _verbosity switch
 };
 
 // Apply section filtering
-private string RenderMarkOut()
+private string RenderMarkout()
 {
     var sections = GetSectionsForVerbosity();
     var filtered = sections

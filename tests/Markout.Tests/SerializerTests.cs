@@ -1,0 +1,140 @@
+using Markout;
+using Xunit;
+
+namespace Markout.Tests;
+
+[MarkoutSerializable]
+public class Package
+{
+    public string? Name { get; set; }
+    public string? Version { get; set; }
+    public bool Signed { get; set; }
+    public List<string>? Frameworks { get; set; }
+    public List<Assembly>? Assemblies { get; set; }
+}
+
+[MarkoutSerializable]
+public class Assembly
+{
+    public string? File { get; set; }
+    public string? Arch { get; set; }
+    public bool Signed { get; set; }
+    public bool Deterministic { get; set; }
+}
+
+[MarkoutSerializable]
+public class SimpleRecord
+{
+    public string? Title { get; set; }
+
+    [MarkoutPropertyName("Display Name")]
+    public string? Name { get; set; }
+
+    [MarkoutIgnore]
+    public string? Secret { get; set; }
+
+    public int Count { get; set; }
+}
+
+[MarkoutContext(typeof(Package))]
+[MarkoutContext(typeof(SimpleRecord))]
+public partial class TestMarkoutContext : MarkoutSerializerContext
+{
+}
+
+public class SerializerTests
+{
+    [Fact]
+    public void Serialize_SimpleRecord_UsesCustomPropertyName()
+    {
+        var record = new SimpleRecord
+        {
+            Title = "My Title",
+            Name = "Test Name",
+            Secret = "Should be ignored",
+            Count = 42
+        };
+
+        var mdf = MarkoutSerializer.Serialize(record, TestMarkoutContext.Default);
+
+        Assert.Contains("Title: My Title", mdf);
+        Assert.Contains("Display Name: Test Name", mdf);
+        Assert.Contains("Count: 42", mdf);
+        Assert.DoesNotContain("Secret", mdf);
+        Assert.DoesNotContain("Should be ignored", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Package_WithScalarFields()
+    {
+        var package = new Package
+        {
+            Name = "Newtonsoft.Json",
+            Version = "13.0.3",
+            Signed = true
+        };
+
+        var mdf = MarkoutSerializer.Serialize(package, TestMarkoutContext.Default);
+
+        Assert.Contains("Name: Newtonsoft.Json", mdf);
+        Assert.Contains("Version: 13.0.3", mdf);
+        Assert.Contains("Signed: yes", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Package_WithStringArray()
+    {
+        var package = new Package
+        {
+            Name = "Test",
+            Frameworks = new List<string> { "netstandard2.0", "net6.0", "net8.0" }
+        };
+
+        var mdf = MarkoutSerializer.Serialize(package, TestMarkoutContext.Default);
+
+        Assert.Contains("Frameworks:", mdf);
+        Assert.Contains("- netstandard2.0", mdf);
+        Assert.Contains("- net6.0", mdf);
+        Assert.Contains("- net8.0", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Package_WithComplexArray()
+    {
+        var package = new Package
+        {
+            Name = "Test",
+            Assemblies = new List<Assembly>
+            {
+                new Assembly { File = "Foo.dll", Arch = "AnyCPU", Signed = true, Deterministic = true },
+                new Assembly { File = "Bar.dll", Arch = "x64", Signed = false, Deterministic = false }
+            }
+        };
+
+        var mdf = MarkoutSerializer.Serialize(package, TestMarkoutContext.Default);
+
+        // Should have a table
+        Assert.Contains("| File |", mdf);
+        Assert.Contains("| Foo.dll |", mdf);
+        Assert.Contains("| Bar.dll |", mdf);
+    }
+
+    [Fact]
+    public void Serialize_WithContext_Default()
+    {
+        var record = new SimpleRecord { Title = "Hello" };
+
+        var mdf = TestMarkoutContext.Default.Serialize(record);
+
+        Assert.Contains("Title: Hello", mdf);
+    }
+
+    [Fact]
+    public void Serialize_UnregisteredType_ThrowsException()
+    {
+        var context = TestMarkoutContext.Default;
+
+        Assert.Throws<InvalidOperationException>(() =>
+            context.Serialize(new object()));
+    }
+}

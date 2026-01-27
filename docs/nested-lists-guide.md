@@ -41,7 +41,7 @@ If you try to serialize `Catalog` with the structure above, you'll see:
 
 ```
 error MARKOUT001: Property 'Products' in type 'Region' is an array of complex 
-objects and cannot be rendered in a table cell. Use [MarkOutIgnore], [MarkOutSection], 
+objects and cannot be rendered in a table cell. Use [MarkoutIgnore], [MarkoutSection], 
 or transform the data.
 ```
 
@@ -123,7 +123,7 @@ public class CatalogWithSections
     public List<Product> AsiaProducts { get; set; }
 }
 
-[MarkOutSerializable]
+[MarkoutSerializable]
 public class Product
 {
     public string Name { get; set; }
@@ -300,16 +300,16 @@ The same principles apply to any nested structure:
 
 If you're getting the MARKOUT001 error and just want to compile:
 
-**Quick fix:** Add `[MarkOutIgnore]` to the nested list property
+**Quick fix:** Add `[MarkoutIgnore]` to the nested list property
 
 ```csharp
-[MarkOutSerializable]
+[MarkoutSerializable]
 public class Region
 {
     public string Name { get; set; }
     public string Currency { get; set; }
     
-    [MarkOutIgnore]  // ⚠️ This HIDES ALL PRODUCT DATA!
+    [MarkoutIgnore]  // ⚠️ This HIDES ALL PRODUCT DATA!
     public List<Product> Products { get; set; }
 }
 ```

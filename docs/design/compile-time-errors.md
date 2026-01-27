@@ -2,14 +2,14 @@
 
 ## Overview
 
-MarkOut detects common serialization mistakes at compile time rather than producing useless output at runtime. This prevents issues like nested lists rendering as `ToString()` garbage.
+Markout detects common serialization mistakes at compile time rather than producing useless output at runtime. This prevents issues like nested lists rendering as `ToString()` garbage.
 
 ## The Problem
 
 Without compile-time validation, this code would silently produce useless output:
 
 ```csharp
-[MarkOutSerializable]
+[MarkoutSerializable]
 public class DependencyGroup
 {
     public string Framework { get; set; }
@@ -41,13 +41,13 @@ The source generator detects when a type will be rendered in a table (because it
 **Message:**
 ```
 error MARKOUT001: Property 'Packages' in type 'DependencyGroup' is an array 
-of complex objects and cannot be rendered in a table cell. Use [MarkOutIgnore], 
-[MarkOutSection], or transform the data.
+of complex objects and cannot be rendered in a table cell. Use [MarkoutIgnore], 
+[MarkoutSection], or transform the data.
 ```
 
 **Solutions:**
-1. Use `[MarkOutIgnore]` to hide the property (but data is lost!)
-2. Use `[MarkOutSection]` to render it separately (if appropriate)
+1. Use `[MarkoutIgnore]` to hide the property (but data is lost!)
+2. Use `[MarkoutSection]` to render it separately (if appropriate)
 3. Transform the data using one of the 4 strategies (see nested-lists-guide.md)
 
 **Example Fix:**
@@ -79,9 +79,9 @@ Not yet implemented. Would detect `Dictionary<TKey, TValue>` and suggest convers
 
 ### Detection Algorithm
 
-1. **Find table contexts**: Search all syntax trees for properties of type `List<T>` where `T` is marked `[MarkOutSerializable]`
+1. **Find table contexts**: Search all syntax trees for properties of type `List<T>` where `T` is marked `[MarkoutSerializable]`
 2. **Validate properties**: For each property of `T`, check if it's scalar
-3. **Exempt marked properties**: Properties with `[MarkOutIgnore]` or `[MarkOutSection]` are skipped
+3. **Exempt marked properties**: Properties with `[MarkoutIgnore]` or `[MarkoutSection]` are skipped
 4. **Report diagnostics**: Non-scalar properties without exemption → MARKOUT001
 
 ### Scalar Types
@@ -98,13 +98,13 @@ The `TypeParser` class performs validation during type metadata collection:
 - `IsUsedInList()` determines if a type appears in table context
 - `IsScalarKind()` validates PropertyKind
 - Diagnostics stored in `TypeMetadata.Diagnostics`
-- `MarkOutSourceGenerator` reports diagnostics before code generation
+- `MarkoutSourceGenerator` reports diagnostics before code generation
 
 **Key Files:**
-- `src/MarkOut.SourceGeneration/DiagnosticDescriptors.cs` - Error definitions
-- `src/MarkOut.SourceGeneration/Parser/TypeParser.cs` - Detection logic
-- `src/MarkOut.SourceGeneration/Parser/TypeMetadata.cs` - Diagnostic storage
-- `src/MarkOut.SourceGeneration/MarkOutSourceGenerator.cs` - Reporting
+- `src/Markout.SourceGeneration/DiagnosticDescriptors.cs` - Error definitions
+- `src/Markout.SourceGeneration/Parser/TypeParser.cs` - Detection logic
+- `src/Markout.SourceGeneration/Parser/TypeMetadata.cs` - Diagnostic storage
+- `src/Markout.SourceGeneration/MarkoutSourceGenerator.cs` - Reporting
 
 ## Design Rationale
 

@@ -1,13 +1,13 @@
-# MarkOut: Markdown Output Format
+# Markout: Markdown Output Format
 
-A human-friendly, machine-readable format for structured data. MarkOut extends Markdown conventions to support key-value fields and typed data while remaining natural to read and write.
+A human-friendly, machine-readable format for structured data. Markout extends Markdown conventions to support key-value fields and typed data while remaining natural to read and write.
 
 ## Design Principles
 
 1. **Looks like notes** - Someone unfamiliar with the format should be able to read and write it naturally
 2. **Unambiguous types** - You can determine the data type by looking at the syntax
-3. **Markdown-compatible** - Valid MarkOut is largely valid Markdown (renders reasonably)
-4. **Round-trippable** - Can serialize to MarkOut and deserialize back without data loss
+3. **Markdown-compatible** - Valid Markout is largely valid Markdown (renders reasonably)
+4. **Round-trippable** - Can serialize to Markout and deserialize back without data loss
 
 ## Grammar
 

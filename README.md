@@ -1,8 +1,8 @@
-# MarkOut
+# Markout
 
 **Human-readable structured data serialization to Markdown**
 
-MarkOut serializes .NET objects to clean, readable Markdown format. Perfect for logs, reports, documentation, and any output that humans need to read.
+Markout serializes .NET objects to clean, readable Markdown format. Perfect for logs, reports, documentation, and any output that humans need to read.
 
 ## Features
 
@@ -15,9 +15,9 @@ MarkOut serializes .NET objects to clean, readable Markdown format. Perfect for 
 ## Quick Start
 
 ```csharp
-using MarkOut;
+using Markout;
 
-[MarkOutSerializable]
+[MarkoutSerializable]
 public class BuildResult
 {
     public string Project { get; set; }
@@ -25,8 +25,8 @@ public class BuildResult
     public int Duration { get; set; }
 }
 
-[MarkOutContext(typeof(BuildResult))]
-public partial class MyContext : MarkOutSerializerContext { }
+[MarkoutContext(typeof(BuildResult))]
+public partial class MyContext : MarkoutSerializerContext { }
 
 // Serialize
 var result = new BuildResult 
@@ -49,8 +49,8 @@ Duration: 1234
 ## Installation
 
 ```bash
-dotnet add package MarkOut
-dotnet add package MarkOut.SourceGeneration
+dotnet add package Markout
+dotnet add package Markout.SourceGeneration
 ```
 
 ## Common Patterns
@@ -58,7 +58,7 @@ dotnet add package MarkOut.SourceGeneration
 ### List as Table
 
 ```csharp
-[MarkOutSerializable]
+[MarkoutSerializable]
 public class TestResult
 {
     public string Name { get; set; }
@@ -67,7 +67,7 @@ public class TestResult
 }
 
 var results = new List<TestResult> { ... };
-var markdown = MarkOutSerializer.Serialize(results, MyContext.Default);
+var markdown = MarkoutSerializer.Serialize(results, MyContext.Default);
 ```
 
 **Output:**
@@ -82,17 +82,17 @@ var markdown = MarkOutSerializer.Serialize(results, MyContext.Default);
 ### Nested Objects as Sections
 
 ```csharp
-[MarkOutSerializable(TitleProperty = nameof(Name))]
+[MarkoutSerializable(TitleProperty = nameof(Name))]
 public class Project
 {
     public string Name { get; set; }
     public string Version { get; set; }
     
-    [MarkOutSection(Name = "Dependencies")]
+    [MarkoutSection(Name = "Dependencies")]
     public List<Dependency> Dependencies { get; set; }
 }
 
-[MarkOutSerializable]
+[MarkoutSerializable]
 public class Dependency
 {
     public string Package { get; set; }
@@ -117,19 +117,20 @@ Version: 1.0.0
 
 ## Attributes
 
-- **`[MarkOutSerializable]`** - Marks a type for serialization
-- **`[MarkOutPropertyName("...")]`** - Custom property display name
-- **`[MarkOutIgnore]`** - Excludes a property from output
-- **`[MarkOutSection(Name = "...")]`** - Renders property as H2 section
-- **`[MarkOutContext(typeof(...))]`** - Registers types for source generation
+- **`[MarkoutSerializable]`** - Marks a type for serialization
+- **`[MarkoutPropertyName("...")]`** - Custom property display name
+- **`[MarkoutIgnore]`** - Excludes a property from output
+- **`[MarkoutSection(Name = "...")]`** - Renders property as H2 section
+- **`[MarkoutContext(typeof(...))]`** - Registers types for source generation
 
 ## Nested Lists
 
-If you have `List<Group>` where `Group` contains `List<Item>`, you'll get a compile error:
+If you have `List<Group>` where `Group` contains `List<Item>`, you'll get a compile-time warning:
 
 ```
-error MARKOUT001: Property 'Items' in type 'Group' is an array of complex 
-objects and cannot be rendered in a table cell.
+warning MARKOUT001: Property 'Items' in type 'Group' is an array of complex 
+objects and will be skipped in table context. Add [MarkoutIgnoreInTable] to 
+silence this warning.
 ```
 
 This is intentional! Markdown tables can't contain lists. Choose a transformation strategy:
@@ -143,7 +144,7 @@ This is intentional! Markdown tables can't contain lists. Choose a transformatio
 
 ## Real-World Usage
 
-MarkOut was created for [dotnet-inspector](https://github.com/user/dotnet-inspector) to generate readable inspection reports. It excels at:
+Markout was created for [dotnet-inspector](https://github.com/user/dotnet-inspector) to generate readable inspection reports. It excels at:
 
 - Build/test results
 - Dependency reports
