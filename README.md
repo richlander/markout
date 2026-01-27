@@ -50,8 +50,9 @@ Duration: 1234
 
 ```bash
 dotnet add package Markout
-dotnet add package Markout.SourceGeneration
 ```
+
+The package includes the source generator - no additional packages needed.
 
 ## Common Patterns
 

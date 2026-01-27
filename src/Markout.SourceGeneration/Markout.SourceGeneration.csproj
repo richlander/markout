@@ -9,17 +9,11 @@
     <NoWarn>$(NoWarn);RS2008</NoWarn>
     <IsRoslynComponent>true</IsRoslynComponent>
     <Description>Source generator for Markout (Markdown Output) serialization</Description>
+    <!-- This is packaged as part of Markout package, not separately -->
+    <IsPackable>false</IsPackable>
     <!-- Disable AOT compatibility analysis for netstandard2.0 target -->
     <IsAotCompatible>false</IsAotCompatible>
     <EnableAotAnalyzer>false</EnableAotAnalyzer>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(OfficialBuild)' == 'true'">
-    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-    <DebugType>embedded</DebugType>
-    <Deterministic>true</Deterministic>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

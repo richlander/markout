@@ -6,7 +6,8 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>Markout</RootNamespace>
-    <Description>A source-generated serializer for Markout</Description>
+    <Description>A source-generated Markdown serializer for .NET</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OfficialBuild)' == 'true'">
@@ -16,5 +17,24 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
+
+  <!-- Include source generator in this package -->
+  <ItemGroup>
+    <ProjectReference Include="..\Markout.SourceGeneration\Markout.SourceGeneration.csproj"
+                      PrivateAssets="all"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Analyzer" />
+  </ItemGroup>
+
+  <!-- Pack the source generator into analyzers folder -->
+  <ItemGroup>
+    <None Include="$(ArtifactsPath)\bin\Markout.SourceGeneration\$(Configuration.ToLowerInvariant())\Markout.SourceGeneration.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\README.md"
+          Pack="true"
+          PackagePath="\" />
+  </ItemGroup>
 
 </Project>
