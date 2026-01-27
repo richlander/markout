@@ -1,7 +1,7 @@
 namespace Markout;
 
 /// <summary>
-/// Marks a type for MDF source generation.
+/// Marks a type for Markout source generation.
 /// Types marked with this attribute will have serialization code generated at compile time.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]

@@ -206,7 +206,7 @@ public class PivotTableTests
         _output.WriteLine("  - Single table, easy to scan");
         _output.WriteLine("  - Shows version differences across frameworks");
         _output.WriteLine("  - Natural Excel/pivot table representation");
-        _output.WriteLine("  - Works with current MDF implementation!");
+        _output.WriteLine("  - Works with current Markout implementation!");
         _output.WriteLine("");
         _output.WriteLine("❌ Cons:");
         _output.WriteLine("  - Requires knowing frameworks at design time");
@@ -300,7 +300,7 @@ public class PivotTableTests
         _output.WriteLine("");
         _output.WriteLine("SOLUTION OPTIONS:");
         _output.WriteLine("");
-        _output.WriteLine("1. Use Dictionary<string, string> (not supported in MDF tables)");
+        _output.WriteLine("1. Use Dictionary<string, string> (not supported in Markout tables)");
         _output.WriteLine("");
         _output.WriteLine("2. Helper method to generate flat class:");
         _output.WriteLine("   DependencyVersionMatrix CreateMatrix(List<string> frameworks) {");
@@ -379,7 +379,7 @@ public class PivotTableTests
         _output.WriteLine("      [MarkoutIgnore]");
         _output.WriteLine("      public List<DependencyGroup> DependencyGroups;");
         _output.WriteLine("");
-        _output.WriteLine("      // Pivoted view for MDF serialization");
+        _output.WriteLine("      // Pivoted view for Markout serialization");
         _output.WriteLine("      [MarkoutSection(Name = \"Dependencies\")]");
         _output.WriteLine("      public List<DependencyVersionMatrix>? DependencyMatrix");
         _output.WriteLine("      {");
@@ -390,7 +390,7 @@ public class PivotTableTests
         _output.WriteLine("");
         _output.WriteLine("This gives you:");
         _output.WriteLine("  ✅ Original nested structure for code");
-        _output.WriteLine("  ✅ Pivoted table for MDF output");
+        _output.WriteLine("  ✅ Pivoted table for Markout output");
         _output.WriteLine("  ✅ Clear, readable output");
         _output.WriteLine("");
     }

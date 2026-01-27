@@ -184,7 +184,7 @@ public partial class NestedTestContext : MarkoutSerializerContext
 
 /// <summary>
 /// Tests for nested data structures: objects containing lists, lists containing objects with lists, etc.
-/// These tests help define and validate the limits of nesting in the MDF format.
+/// These tests help define and validate the limits of nesting in the Markout format.
 /// </summary>
 public class NestedStructureTests
 {
@@ -304,7 +304,7 @@ public class NestedStructureTests
     {
         var project = new Project
         {
-            Name = "MDF Library",
+            Name = "Markout Library",
             Version = "1.0.0",
             Team = new TeamInfo
             {
@@ -321,7 +321,7 @@ public class NestedStructureTests
         var mdf = MarkoutSerializer.Serialize(project, NestedTestContext.Default);
 
         // Title and top-level fields
-        Assert.Contains("# MDF Library", mdf);
+        Assert.Contains("# Markout Library", mdf);
         Assert.Contains("Version: 1.0.0", mdf);
         
         // Nested object section

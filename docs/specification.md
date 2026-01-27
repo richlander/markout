@@ -219,7 +219,7 @@ When parsing, types are inferred as:
 
 ## Comparison with Other Formats
 
-| Feature | JSON | YAML | TOML | MDF |
+| Feature | JSON | YAML | TOML | Markout |
 |---------|------|------|------|-----|
 | Human-writable | ✗ | ~ | ~ | ✓ |
 | Unambiguous types | ✓ | ✗ | ✓ | ✓ |

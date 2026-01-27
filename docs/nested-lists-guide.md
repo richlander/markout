@@ -1,6 +1,6 @@
-# Working with Nested Lists in MDF
+# Working with Nested Lists in Markout
 
-When you have nested data structures like `List<Group>` where each `Group` contains another `List<Item>`, MDF can't represent them directly in a single table. This is because Markdown tables are inherently two-dimensional and can't contain lists in cells.
+When you have nested data structures like `List<Group>` where each `Group` contains another `List<Item>`, Markout can't represent them directly in a single table. This is because Markdown tables are inherently two-dimensional and can't contain lists in cells.
 
 **Instead of treating this as a limitation, think of it as a design question:** *What insight does your reader need?*
 

@@ -1,7 +1,7 @@
 namespace Markout;
 
 /// <summary>
-/// Renders a property as a section (## heading) in MDF output.
+/// Renders a property as a section (## heading) in Markout output.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
 public sealed class MarkoutSectionAttribute : Attribute

@@ -1,7 +1,7 @@
 namespace Markout;
 
 /// <summary>
-/// Specifies which types should be included in an MDF serializer context.
+/// Specifies which types should be included in an Markout serializer context.
 /// Apply this attribute to a partial class that derives from MarkoutSerializerContext.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]

@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>Markout</RootNamespace>
-    <Description>A source-generated serializer for MDF (Markdown Data Format)</Description>
+    <Description>A source-generated serializer for Markout</Description>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OfficialBuild)' == 'true'">

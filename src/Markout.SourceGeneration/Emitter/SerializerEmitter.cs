@@ -6,7 +6,7 @@ using Markout.SourceGeneration.Parser;
 namespace Markout.SourceGeneration.Emitter;
 
 /// <summary>
-/// Emits source code for MDF serialization.
+/// Emits source code for Markout serialization.
 /// </summary>
 internal static class SerializerEmitter
 {

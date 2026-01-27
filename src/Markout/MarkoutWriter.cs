@@ -4,7 +4,7 @@ using System.Text;
 namespace Markout;
 
 /// <summary>
-/// Low-level writer for generating MDF (Markdown Data Format) output.
+/// Low-level writer for generating Markout output.
 /// </summary>
 public sealed class MarkoutWriter
 {
@@ -515,7 +515,7 @@ public sealed class MarkoutWriter
     }
 
     /// <summary>
-    /// Returns the generated MDF content.
+    /// Returns the generated Markdown content.
     /// Only valid when using the default constructor (in-memory writer).
     /// </summary>
     public override string ToString()

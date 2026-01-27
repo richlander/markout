@@ -32,7 +32,7 @@ public abstract class MarkoutSerializerContext
     /// </summary>
     /// <typeparam name="T">The type to serialize.</typeparam>
     /// <param name="value">The value to serialize.</param>
-    /// <returns>The MDF string representation.</returns>
+    /// <returns>The Markdown string representation.</returns>
     public string Serialize<T>(T value)
     {
         var typeInfo = GetTypeInfo<T>();

@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 namespace Markout.SourceGeneration;
 
 /// <summary>
-/// Diagnostic descriptors for MDF source generator errors and warnings.
+/// Diagnostic descriptors for Markout source generator errors and warnings.
 /// </summary>
 internal static class DiagnosticDescriptors
 {
@@ -39,12 +39,12 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor DictionaryProperty = new(
         id: "MARKOUT003",
         title: "Dictionary property not supported",
-        messageFormat: "Property '{0}' is Dictionary<TKey, TValue> which is not supported in MDF. " +
+        messageFormat: "Property '{0}' is Dictionary<TKey, TValue> which is not supported in Markout. " +
                        "Convert to List<KeyValueItem> or use separate properties.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Dictionary types cannot be serialized in MDF format. " +
+        description: "Dictionary types cannot be serialized in Markout format. " +
                      "Convert to a List<T> where T has Key and Value properties, " +
                      "or if keys are known at design time, use separate scalar properties."
     );

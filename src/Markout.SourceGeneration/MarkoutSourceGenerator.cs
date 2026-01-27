@@ -8,7 +8,7 @@ using Markout.SourceGeneration.Emitter;
 namespace Markout.SourceGeneration;
 
 /// <summary>
-/// Incremental source generator for MDF serialization.
+/// Incremental source generator for Markout serialization.
 /// </summary>
 [Generator]
 public sealed class MarkoutSourceGenerator : IIncrementalGenerator

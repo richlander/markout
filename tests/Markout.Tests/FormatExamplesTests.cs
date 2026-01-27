@@ -5,7 +5,7 @@ using Xunit.Abstractions;
 namespace Markout.Tests;
 
 /// <summary>
-/// Tests that output actual MDF examples to demonstrate the format and identify nesting limitations.
+/// Tests that output actual Markout examples to demonstrate the format and identify nesting limitations.
 /// These tests write to xUnit output so you can see what the actual format looks like.
 /// </summary>
 public class FormatExamplesTests
