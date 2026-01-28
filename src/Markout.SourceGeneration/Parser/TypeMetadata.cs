@@ -32,6 +32,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public IReadOnlyList<PropertyMetadata> Properties { get; }
     public bool IsValueType { get; }
     public string? TitleProperty { get; }
+    public string? TitleContextProperty { get; }
     public string? DescriptionProperty { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
@@ -42,6 +43,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         IReadOnlyList<PropertyMetadata> properties,
         bool isValueType,
         string? titleProperty = null,
+        string? titleContextProperty = null,
         string? descriptionProperty = null,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
@@ -51,6 +53,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         Properties = properties;
         IsValueType = isValueType;
         TitleProperty = titleProperty;
+        TitleContextProperty = titleContextProperty;
         DescriptionProperty = descriptionProperty;
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
@@ -85,6 +88,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
     public bool ElementHasNestedContent { get; }
     public string? ElementTitleProperty { get; }
+    public string? BoolTrueValue { get; }
+    public string? BoolFalseValue { get; }
 
     public PropertyMetadata(
         string name,
@@ -100,7 +105,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? elementTypeName = null,
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
         bool elementHasNestedContent = false,
-        string? elementTitleProperty = null)
+        string? elementTitleProperty = null,
+        string? boolTrueValue = null,
+        string? boolFalseValue = null)
     {
         Name = name;
         MdfName = mdfName;
@@ -116,6 +123,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         ElementProperties = elementProperties;
         ElementHasNestedContent = elementHasNestedContent;
         ElementTitleProperty = elementTitleProperty;
+        BoolTrueValue = boolTrueValue;
+        BoolFalseValue = boolFalseValue;
     }
 
     public bool Equals(PropertyMetadata? other)

@@ -14,6 +14,13 @@ public sealed class MarkoutSerializableAttribute : Attribute
     public string? TitleProperty { get; set; }
 
     /// <summary>
+    /// Gets or sets the name of a property to append to the title in parentheses.
+    /// For example, if TitleProperty is "Name" and TitleContextProperty is "Version",
+    /// the heading will be rendered as "# Name (Version)".
+    /// </summary>
+    public string? TitleContextProperty { get; set; }
+
+    /// <summary>
     /// Gets or sets the name of the property to use as the document description.
     /// The property value will be rendered as a paragraph after the title.
     /// </summary>

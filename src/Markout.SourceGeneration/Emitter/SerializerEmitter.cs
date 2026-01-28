@@ -39,10 +39,24 @@ internal static class SerializerEmitter
         if (!string.IsNullOrEmpty(type.TitleProperty))
         {
             var titleProp = type.Properties.FirstOrDefault(p => p.Name == type.TitleProperty);
+            var contextProp = !string.IsNullOrEmpty(type.TitleContextProperty)
+                ? type.Properties.FirstOrDefault(p => p.Name == type.TitleContextProperty)
+                : null;
+
             if (titleProp != null)
             {
-                sb.AppendLine($"        if (value.{titleProp.Name} != null)");
-                sb.AppendLine($"            writer.WriteHeading(1, value.{titleProp.Name});");
+                if (contextProp != null)
+                {
+                    // Title with context: WriteHeading(1, title, context)
+                    sb.AppendLine($"        if (value.{titleProp.Name} != null)");
+                    sb.AppendLine($"            writer.WriteHeading(1, value.{titleProp.Name}, value.{contextProp.Name});");
+                }
+                else
+                {
+                    // Title only
+                    sb.AppendLine($"        if (value.{titleProp.Name} != null)");
+                    sb.AppendLine($"            writer.WriteHeading(1, value.{titleProp.Name});");
+                }
                 sb.AppendLine();
             }
         }
@@ -353,7 +367,15 @@ internal static class SerializerEmitter
                     break;
 
                 case PropertyKind.Boolean:
-                    sb.AppendLine($"{indent}writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess});");
+                    if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
+                    {
+                        // Custom bool format
+                        sb.AppendLine($"{indent}writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\");");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"{indent}writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess});");
+                    }
                     break;
 
                 case PropertyKind.Int32:
@@ -502,6 +524,11 @@ internal static class SerializerEmitter
     private static string GetTableCellValue(PropertyMetadata prop, string itemExpr)
     {
         var propAccess = $"{itemExpr}.{prop.Name}";
+
+        if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
+        {
+            return $"{propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\"";
+        }
 
         return prop.Kind switch
         {

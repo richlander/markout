@@ -14,6 +14,18 @@ public abstract class MarkoutSerializerContext
     public bool BoldFieldNames { get; set; }
 
     /// <summary>
+    /// Gets or sets the sections to include (1-based, H2 boundaries).
+    /// If set, only these sections are written. If null, all sections are included.
+    /// </summary>
+    public HashSet<int>? IncludeSections { get; set; }
+
+    /// <summary>
+    /// Gets or sets the sections to exclude (1-based, H2 boundaries).
+    /// These sections are skipped even if in IncludeSections.
+    /// </summary>
+    public HashSet<int>? ExcludeSections { get; set; }
+
+    /// <summary>
     /// Gets the type info for the specified type, or null if not registered.
     /// </summary>
     /// <typeparam name="T">The type to get info for.</typeparam>
@@ -43,7 +55,12 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MarkoutWriter { BoldFieldNames = BoldFieldNames };
+        var writer = new MarkoutWriter
+        {
+            BoldFieldNames = BoldFieldNames,
+            IncludeSections = IncludeSections,
+            ExcludeSections = ExcludeSections
+        };
         typeInfo.Serialize(writer, value);
         return writer.ToString();
     }
@@ -64,7 +81,12 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MarkoutWriter(output) { BoldFieldNames = BoldFieldNames };
+        var writer = new MarkoutWriter(output)
+        {
+            BoldFieldNames = BoldFieldNames,
+            IncludeSections = IncludeSections,
+            ExcludeSections = ExcludeSections
+        };
         typeInfo.Serialize(writer, value);
         writer.Flush();
     }

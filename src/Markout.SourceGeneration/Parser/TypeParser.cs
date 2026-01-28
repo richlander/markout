@@ -17,6 +17,7 @@ internal static class TypeParser
     private const string MarkoutIgnoreAttribute = "Markout.MarkoutIgnoreAttribute";
     private const string MarkoutIgnoreInTableAttribute = "Markout.MarkoutIgnoreInTableAttribute";
     private const string MarkoutSectionAttribute = "Markout.MarkoutSectionAttribute";
+    private const string MarkoutBoolFormatAttribute = "Markout.MarkoutBoolFormatAttribute";
 
     public static TypeMetadata? ParseSerializableType(
         GeneratorSyntaxContext context,
@@ -35,16 +36,19 @@ internal static class TypeParser
             return null;
 
         string? titleProperty = null;
+        string? titleContextProperty = null;
         string? descriptionProperty = null;
         foreach (var named in serializableAttr.NamedArguments)
         {
             if (named.Key == "TitleProperty" && named.Value.Value is string tp)
                 titleProperty = tp;
+            else if (named.Key == "TitleContextProperty" && named.Value.Value is string tcp)
+                titleContextProperty = tcp;
             else if (named.Key == "DescriptionProperty" && named.Value.Value is string dp)
                 descriptionProperty = dp;
         }
 
-        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, descriptionProperty);
+        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, titleContextProperty, descriptionProperty);
     }
 
     public static ContextMetadata? ParseContext(
@@ -71,7 +75,7 @@ internal static class TypeParser
                 attr.ConstructorArguments[0].Value is INamedTypeSymbol typeArg)
             {
                 // Pass the generator context for diagnostics
-                var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation, null, null);
+                var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation, null, null, null, null);
                 if (typeMeta != null)
                     types.Add(typeMeta);
             }
@@ -89,10 +93,11 @@ internal static class TypeParser
         Compilation compilation,
         GeneratorSyntaxContext? generatorContext,
         string? titleProperty = null,
+        string? titleContextProperty = null,
         string? descriptionProperty = null)
     {
         // If titleProperty/descriptionProperty not passed, try to get them from the type's [MarkoutSerializable] attribute
-        if (titleProperty == null || descriptionProperty == null)
+        if (titleProperty == null || titleContextProperty == null || descriptionProperty == null)
         {
             var serializableAttr = typeSymbol.GetAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutSerializableAttribute);
@@ -102,6 +107,8 @@ internal static class TypeParser
                 {
                     if (named.Key == "TitleProperty" && named.Value.Value is string tp)
                         titleProperty ??= tp;
+                    else if (named.Key == "TitleContextProperty" && named.Value.Value is string tcp)
+                        titleContextProperty ??= tcp;
                     else if (named.Key == "DescriptionProperty" && named.Value.Value is string dp)
                         descriptionProperty ??= dp;
                 }
@@ -141,6 +148,7 @@ internal static class TypeParser
             properties,
             typeSymbol.IsValueType,
             titleProperty,
+            titleContextProperty,
             descriptionProperty,
             diagnostics);
     }
@@ -182,6 +190,19 @@ internal static class TypeParser
             mdfName = customName;
         }
 
+        // Parse [MarkoutBoolFormat] attribute
+        string? boolTrueValue = null;
+        string? boolFalseValue = null;
+        var boolFormatAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutBoolFormatAttribute);
+        if (boolFormatAttr?.ConstructorArguments.Length >= 2)
+        {
+            if (boolFormatAttr.ConstructorArguments[0].Value is string tv)
+                boolTrueValue = tv;
+            if (boolFormatAttr.ConstructorArguments[1].Value is string fv)
+                boolFalseValue = fv;
+        }
+
         var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty) = DeterminePropertyKind(prop.Type, compilation, diagnostics);
 
         // Determine if property is unsupported in table context
@@ -213,7 +234,9 @@ internal static class TypeParser
             elementTypeName,
             elementProperties,
             hasNestedContent,
-            elementTitleProperty);
+            elementTitleProperty,
+            boolTrueValue,
+            boolFalseValue);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty)

@@ -137,4 +137,186 @@ public class SerializerTests
         Assert.Throws<InvalidOperationException>(() =>
             context.Serialize(new object()));
     }
+
+    [Fact]
+    public void Serialize_WithIncludeSections_OnlyRendersSpecifiedSections()
+    {
+        var package = new PackageWithSections
+        {
+            Name = "TestPackage",
+            Version = "1.0.0",
+            Dependencies = new List<SimpleDep>
+            {
+                new() { Id = "Dep1", Version = "1.0" }
+            },
+            Assemblies = new List<SimpleAsm>
+            {
+                new() { Name = "Test.dll", Arch = "x64" }
+            }
+        };
+
+        var context = new SectionTestContext { IncludeSections = new HashSet<int> { 1 } };
+        var mdf = context.Serialize(package);
+
+        // Section 1 (Dependencies) should be included
+        Assert.Contains("## Dependencies", mdf);
+        Assert.Contains("Dep1", mdf);
+
+        // Section 2 (Assemblies) should be excluded
+        Assert.DoesNotContain("## Assemblies", mdf);
+        Assert.DoesNotContain("Test.dll", mdf);
+    }
+
+    [Fact]
+    public void Serialize_WithExcludeSections_SkipsSpecifiedSections()
+    {
+        var package = new PackageWithSections
+        {
+            Name = "TestPackage",
+            Version = "1.0.0",
+            Dependencies = new List<SimpleDep>
+            {
+                new() { Id = "Dep1", Version = "1.0" }
+            },
+            Assemblies = new List<SimpleAsm>
+            {
+                new() { Name = "Test.dll", Arch = "x64" }
+            }
+        };
+
+        var context = new SectionTestContext { ExcludeSections = new HashSet<int> { 1 } };
+        var mdf = context.Serialize(package);
+
+        // Section 1 (Dependencies) should be excluded
+        Assert.DoesNotContain("## Dependencies", mdf);
+        Assert.DoesNotContain("Dep1", mdf);
+
+        // Section 2 (Assemblies) should be included
+        Assert.Contains("## Assemblies", mdf);
+        Assert.Contains("Test.dll", mdf);
+    }
+
+    [Fact]
+    public void Serialize_WithTitleContextProperty_RendersTitleWithContext()
+    {
+        var package = new PackageWithTitleContext
+        {
+            Name = "Newtonsoft.Json",
+            Version = "13.0.3",
+            Description = "Popular JSON library"
+        };
+
+        var context = new SectionTestContext();
+        var mdf = context.Serialize(package);
+
+        // Should have title with version in parentheses
+        Assert.Contains("# Newtonsoft.Json (13.0.3)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_WithBoolFormatAttribute_UsesCustomTrueFalse()
+    {
+        var audit = new AuditRecord
+        {
+            Name = "Test.dll",
+            IsDeterministic = true,
+            HasSourceLink = false
+        };
+
+        var context = new BoolFormatTestContext();
+        var mdf = context.Serialize(audit);
+
+        // Should use custom symbols instead of yes/no
+        Assert.Contains("IsDeterministic: ✓", mdf);
+        Assert.Contains("HasSourceLink: ✗", mdf);
+    }
+
+    [Fact]
+    public void Serialize_WithBoolFormatInTable_UsesCustomSymbols()
+    {
+        var report = new AuditReport
+        {
+            Title = "Build Audit",
+            Audits = new List<AuditRecord>
+            {
+                new() { Name = "Foo.dll", IsDeterministic = true, HasSourceLink = true },
+                new() { Name = "Bar.dll", IsDeterministic = false, HasSourceLink = false }
+            }
+        };
+
+        var context = new BoolFormatTestContext();
+        var mdf = context.Serialize(report);
+
+        // Table should use custom symbols
+        Assert.Contains("| ✓ |", mdf);
+        Assert.Contains("| ✗ |", mdf);
+    }
+}
+
+[MarkoutSerializable]
+public class PackageWithSections
+{
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+
+    [MarkoutSection(Name = "Dependencies")]
+    public List<SimpleDep>? Dependencies { get; set; }
+
+    [MarkoutSection(Name = "Assemblies")]
+    public List<SimpleAsm>? Assemblies { get; set; }
+}
+
+[MarkoutSerializable]
+public class SimpleDep
+{
+    public string Id { get; set; } = "";
+    public string Version { get; set; } = "";
+}
+
+[MarkoutSerializable]
+public class SimpleAsm
+{
+    public string Name { get; set; } = "";
+    public string Arch { get; set; } = "";
+}
+
+[MarkoutContext(typeof(PackageWithSections))]
+[MarkoutContext(typeof(PackageWithTitleContext))]
+public partial class SectionTestContext : MarkoutSerializerContext
+{
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name), TitleContextProperty = nameof(Version))]
+public class PackageWithTitleContext
+{
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+    public string? Description { get; set; }
+}
+
+[MarkoutSerializable]
+public class AuditRecord
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutBoolFormat("✓", "✗")]
+    public bool IsDeterministic { get; set; }
+
+    [MarkoutBoolFormat("✓", "✗")]
+    public bool HasSourceLink { get; set; }
+}
+
+[MarkoutSerializable]
+public class AuditReport
+{
+    public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Audits")]
+    public List<AuditRecord>? Audits { get; set; }
+}
+
+[MarkoutContext(typeof(AuditRecord))]
+[MarkoutContext(typeof(AuditReport))]
+public partial class BoolFormatTestContext : MarkoutSerializerContext
+{
 }
