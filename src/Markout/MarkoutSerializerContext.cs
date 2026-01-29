@@ -5,6 +5,12 @@ namespace Markout;
 /// Derive from this class and apply [MarkoutContext(typeof(MyType))] attributes
 /// to generate serialization code for your types.
 /// </summary>
+/// <example>
+///   <code lang="cs" source="../../samples/Serialization/BasicUsage.cs" region="ProductViewObject" title="Context definition" />
+///   <code lang="cs" source="../../samples/Serialization/SectionFiltering.cs" region="FilterViaContext" title="Context configuration" />
+/// </example>
+/// <seealso href="../../samples/Serialization/BasicUsage.cs">Context usage examples</seealso>
+/// <seealso href="../../samples/Serialization/SectionFiltering.cs">Section filtering via context</seealso>
 public abstract class MarkoutSerializerContext
 {
     /// <summary>

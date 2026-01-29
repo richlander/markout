@@ -3,6 +3,10 @@ namespace Markout;
 /// <summary>
 /// Represents a node in a tree structure for hierarchical rendering.
 /// </summary>
+/// <example>
+///   <code lang="cs" source="../../samples/Serialization/WriterUsage.cs" region="WriteTree" title="Tree rendering" />
+/// </example>
+/// <seealso href="../../samples/Serialization/WriterUsage.cs">Tree rendering example</seealso>
 public class TreeNode
 {
     /// <summary>

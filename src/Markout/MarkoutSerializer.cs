@@ -3,6 +3,11 @@ namespace Markout;
 /// <summary>
 /// Static entry point for Markout serialization.
 /// </summary>
+/// <example>
+///   <code lang="cs" source="../../samples/Serialization/BasicUsage.cs" region="SerializeSimpleType" title="Basic serialization" />
+///   <code lang="cs" source="../../samples/Serialization/BasicUsage.cs" region="WriteToStream" title="Writing to streams" />
+/// </example>
+/// <seealso href="../../samples/Serialization/BasicUsage.cs">Basic serialization usage</seealso>
 public static class MarkoutSerializer
 {
     /// <summary>

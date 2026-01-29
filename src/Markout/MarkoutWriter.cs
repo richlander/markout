@@ -6,6 +6,13 @@ namespace Markout;
 /// <summary>
 /// Low-level writer for generating Markout output.
 /// </summary>
+/// <example>
+///   <code lang="cs" source="../../samples/Serialization/WriterUsage.cs" region="UseMarkoutWriter" title="Basic writer usage" />
+///   <code lang="cs" source="../../samples/Serialization/WriterUsage.cs" region="WriteTable" title="Table output" />
+///   <code lang="cs" source="../../samples/Serialization/WriterUsage.cs" region="WriteTree" title="Tree output" />
+/// </example>
+/// <seealso href="../../samples/Serialization/WriterUsage.cs">Direct writer usage examples</seealso>
+/// <seealso href="../../samples/Serialization/SectionFiltering.cs">Section filtering examples</seealso>
 public sealed class MarkoutWriter
 {
     private readonly TextWriter _writer;

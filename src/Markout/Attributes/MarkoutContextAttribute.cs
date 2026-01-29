@@ -4,6 +4,7 @@ namespace Markout;
 /// Specifies which types should be included in an Markout serializer context.
 /// Apply this attribute to a partial class that derives from MarkoutSerializerContext.
 /// </summary>
+/// <seealso href="../../../samples/Serialization/BasicUsage.cs">Context attribute usage</seealso>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
 public sealed class MarkoutContextAttribute : Attribute
 {
