@@ -67,13 +67,13 @@ internal static class SerializerEmitter
             var descProp = type.Properties.FirstOrDefault(p => p.Name == type.DescriptionProperty);
             if (descProp != null)
             {
-                sb.AppendLine($"        if (value.{descProp.Name} != null)");
+                sb.AppendLine($"        if (writer.IncludeDescription && value.{descProp.Name} != null)");
                 sb.AppendLine($"            writer.WriteParagraph(value.{descProp.Name});");
                 sb.AppendLine();
             }
         }
 
-        EmitPropertySerializations(sb, type.Properties, "value", 2, 2);
+        EmitPropertySerializations(sb, type.Properties, "value", 2, 2, 0, type.RenderScalars);
 
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -231,6 +231,8 @@ internal static class SerializerEmitter
         if (prop.IsSection)
         {
             var sectionName = prop.SectionName ?? prop.MdfName;
+            if (prop.Kind == PropertyKind.FieldCollection)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (field table)";
             if (prop.Kind == PropertyKind.ComplexArray)
             {
                 if (prop.ElementHasNestedContent)
@@ -253,6 +255,7 @@ internal static class SerializerEmitter
             PropertyKind.ComplexArray => prop.ElementHasNestedContent 
                 ? "Subsections" 
                 : "Table",
+            PropertyKind.FieldCollection => "Compact fields",
             PropertyKind.NestedObject => "Fields",
             _ => "Field"
         };
@@ -297,13 +300,19 @@ internal static class SerializerEmitter
         string valueExpr,
         int indentLevel,
         int baseHeadingLevel = 2,
-        int nestingDepth = 0)
+        int nestingDepth = 0,
+        bool renderScalars = true)
     {
         var indent = new string(' ', indentLevel * 4);
 
         foreach (var prop in properties)
         {
             if (prop.IsIgnored)
+                continue;
+
+            // Skip non-section properties if RenderScalars is false
+            // Only render sections and field collections when RenderScalars is false
+            if (!renderScalars && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
                 continue;
 
             var propAccess = $"{valueExpr}.{prop.Name}";
@@ -317,7 +326,16 @@ internal static class SerializerEmitter
             {
                 var sectionName = prop.SectionName ?? prop.MdfName;
 
-                if (prop.Kind == PropertyKind.ComplexArray && prop.ElementProperties != null)
+                if (prop.Kind == PropertyKind.FieldCollection)
+                {
+                    // List<MarkoutField> or IReadOnlyList<MarkoutField> with [MarkoutSection] renders as field table
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                    sb.AppendLine($"{indent}{{");
+                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
+                    sb.AppendLine($"{indent}    writer.WriteFieldTable({propAccess});");
+                    sb.AppendLine($"{indent}}}");
+                }
+                else if (prop.Kind == PropertyKind.ComplexArray && prop.ElementProperties != null)
                 {
                     sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
                     sb.AppendLine($"{indent}{{");
@@ -393,6 +411,12 @@ internal static class SerializerEmitter
                 case PropertyKind.StringArray:
                     sb.AppendLine($"{indent}if ({propAccess} != null)");
                     sb.AppendLine($"{indent}    writer.WriteArray(\"{EscapeString(prop.MdfName)}\", {propAccess});");
+                    break;
+
+                case PropertyKind.FieldCollection:
+                    // List<MarkoutField> or IReadOnlyList<MarkoutField> - renders as compact line
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                    sb.AppendLine($"{indent}    writer.WriteCompactFields({propAccess});");
                     break;
 
                 case PropertyKind.ComplexArray:

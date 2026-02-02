@@ -64,6 +64,12 @@ public sealed class MarkoutWriter
     public HashSet<int>? ExcludeSections { get; set; }
 
     /// <summary>
+    /// Gets or sets whether to include the description paragraph.
+    /// When false, the description is suppressed. Default is true.
+    /// </summary>
+    public bool IncludeDescription { get; set; } = true;
+
+    /// <summary>
     /// Flushes any buffered output to the underlying stream.
     /// </summary>
     public void Flush() => _writer.Flush();
@@ -334,27 +340,50 @@ public sealed class MarkoutWriter
     /// </code>
     /// </example>
     public void WriteCompactFields(params MarkoutField[] fields)
+        => WriteCompactFields((IReadOnlyList<MarkoutField>)fields);
+
+    /// <summary>
+    /// Writes multiple key-value fields on a single line, separated by pipes.
+    /// Useful for compact summary lines with essential metadata.
+    /// </summary>
+    /// <param name="fields">Fields to write.</param>
+    public void WriteCompactFields(IReadOnlyList<MarkoutField> fields)
     {
-        if (fields.Length == 0 || _sectionExcluded)
+        if (_sectionExcluded || fields.Count == 0)
             return;
 
         EnsureBlankLineIfNeeded();
 
-        bool first = true;
-        foreach (var field in fields)
+        for (int i = 0; i < fields.Count; i++)
         {
-            if (!first)
+            if (i > 0)
                 _writer.Write(" | ");
-            first = false;
 
-            _writer.Write(field.Key);
+            _writer.Write(fields[i].Key);
             _writer.Write(": ");
-            _writer.Write(field.Value ?? string.Empty);
+            _writer.Write(fields[i].Value ?? string.Empty);
         }
 
         _writer.WriteLine();
         _needsBlankLine = true;
         _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes fields as a two-column Property/Value table.
+    /// </summary>
+    /// <param name="fields">Fields to write as table rows.</param>
+    public void WriteFieldTable(IReadOnlyList<MarkoutField> fields)
+    {
+        if (fields.Count == 0)
+            return;
+        
+        WriteTableStart("Property", "Value");
+        for (int i = 0; i < fields.Count; i++)
+        {
+            WriteTableRow(fields[i].Key, fields[i].Value ?? string.Empty);
+        }
+        WriteTableEnd();
     }
 
     /// <summary>
@@ -457,6 +486,7 @@ public sealed class MarkoutWriter
 
     /// <summary>
     /// Writes a table row with the given values.
+    /// Pipe characters in values are automatically escaped.
     /// </summary>
     public void WriteTableRow(params string[] values)
     {
@@ -470,10 +500,24 @@ public sealed class MarkoutWriter
         foreach (var value in values)
         {
             _writer.Write(' ');
-            _writer.Write(value);
+            _writer.Write(EscapeTableCell(value));
             _writer.Write(" |");
         }
         _writer.WriteLine();
+    }
+
+    private static string EscapeTableCell(string value)
+    {
+        // Escape pipe characters and newlines in table cells
+        if (value.Contains('|') || value.Contains('\n') || value.Contains('\r'))
+        {
+            return value
+                .Replace("|", "\\|")
+                .Replace("\r\n", " ")
+                .Replace("\n", " ")
+                .Replace("\r", " ");
+        }
+        return value;
     }
 
     /// <summary>
@@ -484,6 +528,22 @@ public sealed class MarkoutWriter
         _inTable = false;
         if (!_sectionExcluded)
             _needsBlankLine = true;
+    }
+
+    /// <summary>
+    /// Writes a complete table with headers and rows.
+    /// </summary>
+    /// <param name="headers">Column headers.</param>
+    /// <param name="rows">Row data. Each row should have the same number of columns as headers.</param>
+    public void WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
+    {
+        var headerArray = headers as string[] ?? headers.ToArray();
+        WriteTableStart(headerArray);
+        foreach (var row in rows)
+        {
+            WriteTableRow(row);
+        }
+        WriteTableEnd();
     }
 
     /// <summary>

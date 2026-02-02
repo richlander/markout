@@ -25,4 +25,11 @@ public sealed class MarkoutSerializableAttribute : Attribute
     /// The property value will be rendered as a paragraph after the title.
     /// </summary>
     public string? DescriptionProperty { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether scalar properties should be automatically rendered as fields.
+    /// When false, only properties marked with [MarkoutSection] or IEnumerable&lt;MarkoutField&gt;
+    /// properties are rendered. Default is true.
+    /// </summary>
+    public bool RenderScalars { get; set; } = true;
 }

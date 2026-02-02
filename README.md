@@ -135,10 +135,42 @@ Version: 1.0.0
 ## Attributes
 
 - **`[MarkoutSerializable]`** - Marks a type for serialization
+  - `TitleProperty` - Property to use as H1 title
+  - `DescriptionProperty` - Property to render as paragraph after title
+  - `RenderScalars` - When `false`, only sections and field collections render (default: `true`)
 - **`[MarkoutPropertyName("...")]`** - Custom property display name
 - **`[MarkoutIgnore]`** - Excludes a property from output
+- **`[MarkoutIgnoreInTable]`** - Excludes a property only in table context (silences MARKOUT001 warning)
 - **`[MarkoutSection(Name = "...")]`** - Renders property as H2 section
+- **`[MarkoutBoolFormat]`** - Custom true/false display values
 - **`[MarkoutContext(typeof(...))]`** - Registers types for source generation
+
+## Field Collections
+
+For dynamic metadata, use `List<MarkoutField>` properties:
+
+```csharp
+[MarkoutSerializable(RenderScalars = false)]
+public class PackageInfo
+{
+    public string Name { get; set; }
+    
+    // Renders as: Type: Library | TFM: net8.0 | Updated: 2026-01-15
+    public List<MarkoutField> Summary => GetSummaryFields();
+    
+    // Renders as H2 section with Property/Value table
+    [MarkoutSection(Name = "Metadata")]
+    public List<MarkoutField> Metadata => GetMetadataFields();
+    
+    private List<MarkoutField> GetSummaryFields() =>
+    [
+        new("Type", PackageType),
+        MarkoutField.Create("Updated", LastUpdated)
+    ];
+}
+```
+
+Field collections must use `List<MarkoutField>`, `IReadOnlyList<MarkoutField>`, or `MarkoutField[]` (not `IEnumerable<MarkoutField>`) to avoid double-enumeration issues.
 
 ## Nested Lists
 
@@ -161,7 +193,7 @@ This is intentional! Markdown tables can't contain lists. Choose a transformatio
 
 ## Real-World Usage
 
-Markout was created for [dotnet-inspector](https://github.com/user/dotnet-inspector) to generate readable inspection reports. It excels at:
+Markout was created for [dotnet-inspect](https://github.com/richlander/dotnet-inspect) to generate readable inspection reports. It excels at:
 
 - Build/test results
 - Dependency reports

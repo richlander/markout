@@ -38,6 +38,7 @@ internal static class TypeParser
         string? titleProperty = null;
         string? titleContextProperty = null;
         string? descriptionProperty = null;
+        bool renderScalars = true;
         foreach (var named in serializableAttr.NamedArguments)
         {
             if (named.Key == "TitleProperty" && named.Value.Value is string tp)
@@ -46,9 +47,11 @@ internal static class TypeParser
                 titleContextProperty = tcp;
             else if (named.Key == "DescriptionProperty" && named.Value.Value is string dp)
                 descriptionProperty = dp;
+            else if (named.Key == "RenderScalars" && named.Value.Value is bool rs)
+                renderScalars = rs;
         }
 
-        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, titleContextProperty, descriptionProperty);
+        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, titleContextProperty, descriptionProperty, renderScalars);
     }
 
     public static ContextMetadata? ParseContext(
@@ -94,10 +97,11 @@ internal static class TypeParser
         GeneratorSyntaxContext? generatorContext,
         string? titleProperty = null,
         string? titleContextProperty = null,
-        string? descriptionProperty = null)
+        string? descriptionProperty = null,
+        bool? renderScalars = null)
     {
         // If titleProperty/descriptionProperty not passed, try to get them from the type's [MarkoutSerializable] attribute
-        if (titleProperty == null || titleContextProperty == null || descriptionProperty == null)
+        if (titleProperty == null || titleContextProperty == null || descriptionProperty == null || renderScalars == null)
         {
             var serializableAttr = typeSymbol.GetAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutSerializableAttribute);
@@ -111,9 +115,14 @@ internal static class TypeParser
                         titleContextProperty ??= tcp;
                     else if (named.Key == "DescriptionProperty" && named.Value.Value is string dp)
                         descriptionProperty ??= dp;
+                    else if (named.Key == "RenderScalars" && named.Value.Value is bool rs)
+                        renderScalars ??= rs;
                 }
             }
         }
+
+        // Default to true if not specified
+        renderScalars ??= true;
 
         // Check if this type is used in a List<T> (table context)
         bool isInTableContext = IsUsedInList(typeSymbol, compilation);
@@ -150,6 +159,7 @@ internal static class TypeParser
             titleProperty,
             titleContextProperty,
             descriptionProperty,
+            renderScalars.Value,
             diagnostics);
     }
 
@@ -280,6 +290,11 @@ internal static class TypeParser
         if (type is IArrayTypeSymbol arrayType)
         {
             var elementType = arrayType.ElementType;
+            
+            // Check for MarkoutField[] - renders as compact line or field table
+            if (elementType.ToDisplayString() == "Markout.MarkoutField")
+                return (PropertyKind.FieldCollection, null, null, false, null);
+            
             if (elementType.SpecialType == SpecialType.System_String)
                 return (PropertyKind.StringArray, null, null, false, null);
 
@@ -312,6 +327,21 @@ internal static class TypeParser
 
                 if (elementType != null)
                 {
+                    // Check for List<MarkoutField> or IReadOnlyList<MarkoutField> - renders as compact line or field table
+                    // Requires materialized collection to avoid double-enumeration issues
+                    if (elementType.ToDisplayString() == "Markout.MarkoutField")
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.FieldCollection, null, null, false, null);
+                        }
+                        // IEnumerable<MarkoutField> without materialization is not supported
+                        // User should use List<MarkoutField> or IReadOnlyList<MarkoutField>
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null);
 

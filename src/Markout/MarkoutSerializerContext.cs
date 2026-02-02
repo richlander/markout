@@ -32,6 +32,13 @@ public abstract class MarkoutSerializerContext
     public HashSet<int>? ExcludeSections { get; set; }
 
     /// <summary>
+    /// Gets or sets whether to include the description paragraph.
+    /// When false, the description (from DescriptionProperty) is suppressed.
+    /// Default is true.
+    /// </summary>
+    public bool IncludeDescription { get; set; } = true;
+
+    /// <summary>
     /// Gets the type info for the specified type, or null if not registered.
     /// </summary>
     /// <typeparam name="T">The type to get info for.</typeparam>
@@ -65,7 +72,8 @@ public abstract class MarkoutSerializerContext
         {
             BoldFieldNames = BoldFieldNames,
             IncludeSections = IncludeSections,
-            ExcludeSections = ExcludeSections
+            ExcludeSections = ExcludeSections,
+            IncludeDescription = IncludeDescription
         };
         typeInfo.Serialize(writer, value);
         return writer.ToString();
@@ -91,7 +99,8 @@ public abstract class MarkoutSerializerContext
         {
             BoldFieldNames = BoldFieldNames,
             IncludeSections = IncludeSections,
-            ExcludeSections = ExcludeSections
+            ExcludeSections = ExcludeSections,
+            IncludeDescription = IncludeDescription
         };
         typeInfo.Serialize(writer, value);
         writer.Flush();
