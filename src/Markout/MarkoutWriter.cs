@@ -320,6 +320,44 @@ public sealed class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes multiple key-value fields on a single line, separated by pipes.
+    /// Useful for compact summary lines with essential metadata.
+    /// </summary>
+    /// <param name="fields">Fields to write.</param>
+    /// <example>
+    /// <code>
+    /// writer.WriteCompactFields(
+    ///     new MarkoutField("Type", "Library"),
+    ///     new MarkoutField("TFM", "net8.0"),
+    ///     new MarkoutField("Updated", "2026-01-15"));
+    /// // Output: Type: Library | TFM: net8.0 | Updated: 2026-01-15
+    /// </code>
+    /// </example>
+    public void WriteCompactFields(params MarkoutField[] fields)
+    {
+        if (fields.Length == 0 || _sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+
+        bool first = true;
+        foreach (var field in fields)
+        {
+            if (!first)
+                _writer.Write(" | ");
+            first = false;
+
+            _writer.Write(field.Key);
+            _writer.Write(": ");
+            _writer.Write(field.Value ?? string.Empty);
+        }
+
+        _writer.WriteLine();
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    /// <summary>
     /// Writes an array field with string items as a markdown list.
     /// Always has a blank line before and after for proper markdown rendering.
     /// </summary>

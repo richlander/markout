@@ -52,6 +52,23 @@ Signed: yes
 Count: 42
 ```
 
+### Compact Fields
+
+For triage or summary lines where multiple fields fit naturally on one line:
+
+```
+Type: Library | TFM: net8.0 | Updated: 2026-01-15
+```
+
+- Multiple `Key: value` pairs on a single line
+- Separated by ` | ` (space-pipe-space)
+- Use for quick-scan metadata (verbosity levels, status lines)
+- Not suitable for long values or URLs
+
+**When to use compact vs standard fields:**
+- Use **compact** for summary/triage information at the top of output
+- Use **standard** (one per line) for detailed metadata with longer values
+
 ### Boolean Values
 
 ```

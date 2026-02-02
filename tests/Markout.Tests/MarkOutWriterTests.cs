@@ -278,4 +278,82 @@ public class MarkoutWriterTests
             """;
         Assert.Equal(expected, writer.ToString());
     }
+
+    [Fact]
+    public void WriteCompactFields_SingleField_WritesSinglePair()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCompactFields(new MarkoutField("Type", "Library"));
+
+        Assert.Equal("Type: Library\n", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCompactFields_MultipleFields_WritesPipeSeparated()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCompactFields(
+            new MarkoutField("Type", "Library"),
+            new MarkoutField("TFM", "net8.0"),
+            new MarkoutField("Updated", "2026-01-15"));
+
+        Assert.Equal("Type: Library | TFM: net8.0 | Updated: 2026-01-15\n", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCompactFields_EmptyFields_WritesNothing()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCompactFields();
+
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCompactFields_NullValue_WritesEmptyString()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCompactFields(
+            new MarkoutField("Status", null),
+            new MarkoutField("Count", "5"));
+
+        Assert.Equal("Status:  | Count: 5\n", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCompactFields_AfterHeading_AddsBlankLine()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteHeading(1, "Package 1.0.0");
+        writer.WriteCompactFields(
+            new MarkoutField("Type", "Library"),
+            new MarkoutField("TFM", "net8.0"));
+
+        var expected = """
+            # Package 1.0.0
+
+            Type: Library | TFM: net8.0
+
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void MarkoutField_CreateWithBool_RendersYesNo()
+    {
+        var field = MarkoutField.Create("Active", true);
+        Assert.Equal("Active", field.Key);
+        Assert.Equal("yes", field.Value);
+
+        var field2 = MarkoutField.Create("Active", false);
+        Assert.Equal("no", field2.Value);
+    }
+
+    [Fact]
+    public void MarkoutField_CreateWithInt_RendersNumber()
+    {
+        var field = MarkoutField.Create("Count", 42);
+        Assert.Equal("Count", field.Key);
+        Assert.Equal("42", field.Value);
+    }
 }

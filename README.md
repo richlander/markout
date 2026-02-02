@@ -2,7 +2,23 @@
 
 **Human-readable structured data serialization to Markdown**
 
-Markout serializes .NET objects to clean, readable Markdown format. Perfect for logs, reports, documentation, and any output that humans need to read.
+Markout serializes .NET objects to clean, readable Markdown format. Perfect for logs, reports, documentation, and any output that humans and LLMs need to read.
+
+## Why Markdown for Structured Output?
+
+CLI tools need to produce output that works for multiple audiences: humans reading in terminals, scripts parsing programmatically, and increasingly, LLMs consuming tool output. Each format has tradeoffs:
+
+| Format | Human-Readable | Machine-Parseable | LLM-Friendly | Challenges |
+|--------|---------------|-------------------|--------------|------------|
+| **Terminal text** | ✓ Good | ✗ Poor | ~ Moderate | Custom formatting, non-uniform delimiters, animation artifacts, ANSI codes |
+| **JSON** | ✗ Poor | ✓ Excellent | ~ Moderate | Verbose, hard to scan, quotes everywhere, nested structures hard to follow |
+| **Markdown** | ✓ Excellent | ✓ Good | ✓ Excellent | Limited nesting in tables, requires careful structure |
+
+**Terminal loggers** (like the dotnet CLI's animated output) optimize for interactive human use but produce output that's difficult to parse. Custom spacing, non-uniform separators, and ANSI escape codes make programmatic consumption fragile.
+
+**JSON** is perfectly machine-parseable but painful to read. Deeply nested structures, required quoting, and lack of visual hierarchy make it poor for human consumption. LLMs can parse JSON, but the token overhead is significant.
+
+**Markdown** hits the sweet spot: tables are scannable by humans, headings provide natural hierarchy, and the format is both well-defined enough for parsing and natural enough for LLMs to understand without special handling.
 
 ## Features
 
