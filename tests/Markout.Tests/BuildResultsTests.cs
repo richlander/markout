@@ -117,9 +117,11 @@ public class DiagnosticsInfo
     public int Errors { get; set; }
     
     [MarkoutPropertyName("Warning Codes")]
+    [MarkoutIgnoreInTable]
     public List<string>? WarningCodes { get; set; }
     
     [MarkoutPropertyName("Error Codes")]
+    [MarkoutIgnoreInTable]
     public List<string>? ErrorCodes { get; set; }
 }
 
