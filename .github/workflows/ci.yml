@@ -68,10 +68,9 @@ jobs:
           }
           EOF
           
-          # Get available demos dynamically
-          demos=$(dotnet run --project src/Markout.Demo --no-build)
-          echo "Available demos:"
-          echo "$demos"
+          # Get available demos dynamically (filter to just demo names)
+          demos=$(dotnet run --project src/Markout.Demo --no-build | grep -E '^\s+\w+$' | tr -d ' ')
+          echo "Available demos: $demos"
           
           # Run each demo and lint output
           for demo in $demos; do
