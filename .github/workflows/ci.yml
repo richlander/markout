@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Build
+        run: dotnet build
+
+      - name: Run demos and validate output
+        run: |
+          set -e
+          
+          # Run each demo and save output
+          for demo in simple sections list table nested pivot tree schema; do
+            dotnet run --project src/Markout.Demo --no-build -- $demo > "demo-${demo}.md"
+          done
+          
+          # Validate expected content via grep
+          echo "Validating demo outputs..."
+          
+          # simple: should have product title and fields
+          grep -q "# Altra Torin 7" demo-simple.md
+          grep -q "Category: Road" demo-simple.md
+          grep -q "Price: 149.99" demo-simple.md
+          
+          # sections: should have specs table and reviews
+          grep -q "# Altra Lone Peak 8" demo-sections.md
+          grep -q "## Specifications" demo-sections.md
+          grep -q "## Customer Reviews" demo-sections.md
+          grep -q "| Stack Height | 25mm |" demo-sections.md
+          
+          # list: should have bullet list of models
+          grep -q "## Available Models" demo-list.md
+          grep -q "- Torin 7" demo-list.md
+          grep -q "- Escalante 4" demo-list.md
+          
+          # table: should have table with headers
+          grep -q "| Model | Category | Price | In Stock |" demo-table.md
+          grep -q "| Torin 7 | Road | 149.99 | yes |" demo-table.md
+          
+          # nested: should have nested sections
+          grep -q "### Torin 7" demo-nested.md
+          grep -q "#### Features" demo-nested.md
+          grep -q "#### Reviews" demo-nested.md
+          
+          # pivot: should have size/color inventory
+          grep -q "## Inventory by Size" demo-pivot.md
+          grep -q "| Size | Black | Green | Red |" demo-pivot.md
+          
+          # tree: should have tree structure in code block
+          grep -q "## Products with Reviews" demo-tree.md
+          grep -q "├─ Torin 7" demo-tree.md
+          
+          # schema: should have type schemas
+          grep -q "## Shoe" demo-schema.md
+          grep -q "as document" demo-schema.md
+          grep -q "in table" demo-schema.md
+          
+          echo "All grep validations passed!"
+
+      - name: Run markdownlint on demo outputs
+        run: |
+          # Create markdownlint config
+          # Disabled rules:
+          #   MD013 - Long lines OK (tool output isn't wrapped)
+          #   MD024 - Duplicate headings OK (nested docs repeat Features/Reviews)
+          #   MD032 - Lists without surrounding blank lines OK (compact output)
+          #   MD034 - Bare URLs OK (source links like https://github.com/...)
+          #   MD040 - Code block language OK (tree/schema output)
+          #   MD060 - Table column style OK (Markout uses compact tables)
+          cat > .markdownlint-smoke.json << 'EOF'
+          {
+            "MD013": false,
+            "MD024": false,
+            "MD032": false,
+            "MD034": false,
+            "MD040": false,
+            "MD060": false
+          }
+          EOF
+          
+          # Lint all demo outputs
+          markdownlint demo-*.md --config .markdownlint-smoke.json
+          
+          echo "Markdownlint passed!"
