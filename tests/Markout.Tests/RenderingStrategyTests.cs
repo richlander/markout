@@ -80,12 +80,15 @@ public class PackageWithMultipleLists
     public string PackageName { get; set; } = "";
     
     [MarkoutPropertyName("Dependencies (net6.0)")]
+    [MarkoutIgnoreInTable]
     public List<string>? Net6Dependencies { get; set; }
     
     [MarkoutPropertyName("Dependencies (net8.0)")]
+    [MarkoutIgnoreInTable]
     public List<string>? Net8Dependencies { get; set; }
     
     [MarkoutPropertyName("Dependencies (netstandard2.0)")]
+    [MarkoutIgnoreInTable]
     public List<string>? NetStandardDependencies { get; set; }
 }
 

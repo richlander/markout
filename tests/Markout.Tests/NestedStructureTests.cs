@@ -29,7 +29,9 @@ public class Person
     public class Team
     {
         public string Name { get; set; } = "";
+        [MarkoutIgnoreInTable]
         public List<string>? Tags { get; set; }
+        [MarkoutIgnoreInTable]
         public List<Member>? Members { get; set; }
     }
 
@@ -57,6 +59,7 @@ public class Person
     {
         public string? Lead { get; set; }
         public int Size { get; set; }
+        [MarkoutIgnoreInTable]
         public List<Contributor>? Contributors { get; set; }
     }
 
@@ -154,6 +157,7 @@ public class Person
         [MarkoutSection(Name = "Dependencies")]
         public List<Dependency>? Dependencies { get; set; }
         
+        [MarkoutIgnoreInTable]
         public List<string>? Features { get; set; }
     }
 
