@@ -51,23 +51,6 @@ jobs:
         run: |
           set -e
           
-          # Create markdownlint config
-          # Disabled rules:
-          #   MD013 - Long lines OK (tool output isn't wrapped)
-          #   MD024 - Duplicate headings OK (nested docs repeat Features/Reviews)
-          #   MD032 - Lists without surrounding blank lines OK (compact output)
-          #   MD034 - Bare URLs OK (source links like https://github.com/...)
-          #   MD040 - Code block language OK (tree/schema output)
-          cat > .markdownlint-smoke.json << 'EOF'
-          {
-            "MD013": false,
-            "MD024": false,
-            "MD032": false,
-            "MD034": false,
-            "MD040": false
-          }
-          EOF
-          
           # Get available demos dynamically (filter to just demo names)
           demos=$(dotnet run --project src/Markout.Demo --no-build | grep -E '^\s+\w+$' | tr -d ' ')
           echo "Available demos: $demos"
@@ -77,7 +60,7 @@ jobs:
             echo "Running demo: $demo"
             output="demo-${demo}.md"
             dotnet run --project src/Markout.Demo --no-build -- $demo > "$output"
-            markdownlint "$output" --config .markdownlint-smoke.json
+            markdownlint "$output"
           done
           
           echo "All demos passed markdownlint!"

@@ -24,6 +24,12 @@ jobs:
       - name: Test
         run: dotnet test -c Release --no-build --verbosity normal
 
+      - name: Smoke test
+        run: |
+          npm install -g markdownlint-cli
+          dotnet run --project src/Markout.Demo -c Release --no-build -- nested > smoke-test.md
+          markdownlint smoke-test.md
+
       - name: Pack
         run: dotnet pack -c Release -p:OfficialBuild=true --no-build
 
