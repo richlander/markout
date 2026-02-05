@@ -1,41 +1,39 @@
-name: Release
+name: Publish
 
 on:
-  push:
-    branches: [ release ]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'CI workflow run ID to publish from'
+        required: true
+      confirm:
+        description: 'Type "publish" to confirm NuGet release'
+        required: true
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'publish'
     steps:
-      - uses: actions/checkout@v4
+      - name: Download packages from CI run
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: packages
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List packages
+        run: ls -la packages/
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build -c Release -p:OfficialBuild=true --no-restore
-
-      - name: Test
-        run: dotnet test -c Release --no-build --verbosity normal
-
-      - name: Smoke test
-        run: |
-          npm install -g markdownlint-cli
-          dotnet run --project src/Markout.Demo -c Release --no-build -- nested > smoke-test.md
-          markdownlint smoke-test.md
-
-      - name: Pack
-        run: dotnet pack -c Release -p:OfficialBuild=true --no-build
-
       - name: Publish to NuGet
         run: |
-          dotnet nuget push artifacts/package/release/*.nupkg \
+          dotnet nuget push packages/*.nupkg \
             --api-key ${{ secrets.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
