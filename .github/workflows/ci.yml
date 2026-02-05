@@ -58,15 +58,13 @@ jobs:
           #   MD032 - Lists without surrounding blank lines OK (compact output)
           #   MD034 - Bare URLs OK (source links like https://github.com/...)
           #   MD040 - Code block language OK (tree/schema output)
-          #   MD060 - Table column style OK (Markout uses compact tables)
           cat > .markdownlint-smoke.json << 'EOF'
           {
             "MD013": false,
             "MD024": false,
             "MD032": false,
             "MD034": false,
-            "MD040": false,
-            "MD060": false
+            "MD040": false
           }
           EOF
           

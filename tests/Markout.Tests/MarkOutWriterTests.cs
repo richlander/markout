@@ -114,7 +114,7 @@ public class MarkoutWriterTests
 
         var expected = """
             | File | Arch | Signed |
-            |------|------|--------|
+            | ---- | ---- | ------ |
             | Foo.dll | AnyCPU | yes |
             | Bar.dll | x64 | no |
 

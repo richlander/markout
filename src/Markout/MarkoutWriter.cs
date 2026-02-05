@@ -410,8 +410,9 @@ public sealed class MarkoutWriter
         _writer.Write('|');
         foreach (var header in headers)
         {
-            _writer.Write(new string('-', header.Length + 2));
-            _writer.Write('|');
+            _writer.Write(' ');
+            _writer.Write(new string('-', header.Length));
+            _writer.Write(" |");
         }
         _writer.WriteLine();
         _hasContent = true;
