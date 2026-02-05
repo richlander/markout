@@ -39,6 +39,7 @@ internal static class TypeParser
         string? titleContextProperty = null;
         string? descriptionProperty = null;
         bool renderScalars = true;
+        int fieldLayout = 0; // OneLine
         foreach (var named in serializableAttr.NamedArguments)
         {
             if (named.Key == "TitleProperty" && named.Value.Value is string tp)
@@ -49,9 +50,11 @@ internal static class TypeParser
                 descriptionProperty = dp;
             else if (named.Key == "RenderScalars" && named.Value.Value is bool rs)
                 renderScalars = rs;
+            else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
+                fieldLayout = fl;
         }
 
-        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, titleContextProperty, descriptionProperty, renderScalars);
+        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, titleContextProperty, descriptionProperty, renderScalars, fieldLayout);
     }
 
     public static ContextMetadata? ParseContext(
@@ -98,10 +101,11 @@ internal static class TypeParser
         string? titleProperty = null,
         string? titleContextProperty = null,
         string? descriptionProperty = null,
-        bool? renderScalars = null)
+        bool? renderScalars = null,
+        int? fieldLayout = null)
     {
         // If titleProperty/descriptionProperty not passed, try to get them from the type's [MarkoutSerializable] attribute
-        if (titleProperty == null || titleContextProperty == null || descriptionProperty == null || renderScalars == null)
+        if (titleProperty == null || titleContextProperty == null || descriptionProperty == null || renderScalars == null || fieldLayout == null)
         {
             var serializableAttr = typeSymbol.GetAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutSerializableAttribute);
@@ -117,12 +121,16 @@ internal static class TypeParser
                         descriptionProperty ??= dp;
                     else if (named.Key == "RenderScalars" && named.Value.Value is bool rs)
                         renderScalars ??= rs;
+                    else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
+                        fieldLayout ??= fl;
                 }
             }
         }
 
         // Default to true if not specified
         renderScalars ??= true;
+        // Default to OneLine (0)
+        fieldLayout ??= 0;
 
         // Check if this type is used in a List<T> (table context)
         bool isInTableContext = IsUsedInList(typeSymbol, compilation);
@@ -160,6 +168,7 @@ internal static class TypeParser
             titleContextProperty,
             descriptionProperty,
             renderScalars.Value,
+            fieldLayout.Value,
             diagnostics);
     }
 
