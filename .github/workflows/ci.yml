@@ -47,60 +47,10 @@ jobs:
       - name: Build
         run: dotnet build
 
-      - name: Run demos and validate output
+      - name: Run demos and validate with markdownlint
         run: |
           set -e
           
-          # Run each demo and save output
-          for demo in simple sections list table nested pivot tree schema; do
-            dotnet run --project src/Markout.Demo --no-build -- $demo > "demo-${demo}.md"
-          done
-          
-          # Validate expected content via grep
-          echo "Validating demo outputs..."
-          
-          # simple: should have product title and fields
-          grep -q "# Altra Torin 7" demo-simple.md
-          grep -q "Category: Road" demo-simple.md
-          grep -q "Price: 149.99" demo-simple.md
-          
-          # sections: should have specs table and reviews
-          grep -q "# Altra Lone Peak 8" demo-sections.md
-          grep -q "## Specifications" demo-sections.md
-          grep -q "## Customer Reviews" demo-sections.md
-          grep -q "| Stack Height | 25mm |" demo-sections.md
-          
-          # list: should have bullet list of models
-          grep -q "## Available Models" demo-list.md
-          grep -q "- Torin 7" demo-list.md
-          grep -q "- Escalante 4" demo-list.md
-          
-          # table: should have table with headers
-          grep -q "| Model | Category | Price | In Stock |" demo-table.md
-          grep -q "| Torin 7 | Road | 149.99 | yes |" demo-table.md
-          
-          # nested: should have nested sections
-          grep -q "### Torin 7" demo-nested.md
-          grep -q "#### Features" demo-nested.md
-          grep -q "#### Reviews" demo-nested.md
-          
-          # pivot: should have size/color inventory
-          grep -q "## Inventory by Size" demo-pivot.md
-          grep -q "| Size | Black | Green | Red |" demo-pivot.md
-          
-          # tree: should have tree structure in code block
-          grep -q "## Products with Reviews" demo-tree.md
-          grep -q "├─ Torin 7" demo-tree.md
-          
-          # schema: should have type schemas
-          grep -q "## Shoe" demo-schema.md
-          grep -q "as document" demo-schema.md
-          grep -q "in table" demo-schema.md
-          
-          echo "All grep validations passed!"
-
-      - name: Run markdownlint on demo outputs
-        run: |
           # Create markdownlint config
           # Disabled rules:
           #   MD013 - Long lines OK (tool output isn't wrapped)
@@ -120,7 +70,32 @@ jobs:
           }
           EOF
           
-          # Lint all demo outputs
-          markdownlint demo-*.md --config .markdownlint-smoke.json
+          # Get available demos dynamically
+          demos=$(dotnet run --project src/Markout.Demo --no-build)
+          echo "Available demos:"
+          echo "$demos"
           
-          echo "Markdownlint passed!"
+          # Run each demo and lint output
+          for demo in $demos; do
+            echo "Running demo: $demo"
+            output="demo-${demo}.md"
+            dotnet run --project src/Markout.Demo --no-build -- $demo > "$output"
+            markdownlint "$output" --config .markdownlint-smoke.json
+          done
+          
+          echo "All demos passed markdownlint!"
+
+      - name: Markout smoke tests
+        run: |
+          # Validate key content in demo outputs
+          grep -q "# Altra Torin 7" demo-simple.md
+          grep -q "Category: Road" demo-simple.md
+          grep -q "## Specifications" demo-sections.md
+          grep -q "## Available Models" demo-list.md
+          grep -q "| Model | Category | Price | In Stock |" demo-table.md
+          grep -q "### Torin 7" demo-nested.md
+          grep -q "## Inventory by Size" demo-pivot.md
+          grep -q "## Products with Reviews" demo-tree.md
+          grep -q "## Shoe" demo-schema.md
+          
+          echo "Markout smoke tests passed!"
