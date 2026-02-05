@@ -102,7 +102,7 @@ Frameworks:
 ```
 
 - Key followed by colon with **no value on the same line**
-- Array items on subsequent lines, each prefixed with `- `
+- Array items on subsequent lines, each prefixed with `-`
 - Items are left-aligned (no indentation)
 - Empty array: key line with no items following
 

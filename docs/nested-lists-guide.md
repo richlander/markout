@@ -46,6 +46,7 @@ or transform the data.
 ```
 
 This error prevents your code from producing useless `ToString()` output like:
+
 ```markdown
 | North America | USD | System.Collections.Generic.List`1[Product] |
 ```
@@ -63,6 +64,7 @@ Choose the strategy that best answers your reader's question about our product c
 **Reader Question:** "Is the Laptop cheaper in Europe or North America?"
 
 **Transform your data:**
+
 ```csharp
 // Instead of List<Region> with nested List<Product>
 // Create a matrix where products are rows, regions are columns
@@ -86,6 +88,7 @@ string FormatPrice(IGrouping<string, ...> group, string region)
 ```
 
 **Result:**
+
 ```markdown
 ## Product Prices by Region
 
@@ -107,6 +110,7 @@ string FormatPrice(IGrouping<string, ...> group, string region)
 **Reader Question:** "What can I buy in Europe?" or "Show me the Asia catalog"
 
 **Structure your type:**
+
 ```csharp
 [MdfSerializable(TitleProperty = nameof(StoreName))]
 public class CatalogWithSections
@@ -133,6 +137,7 @@ public class Product
 ```
 
 **Result:**
+
 ```markdown
 # Global Electronics Store
 
@@ -170,6 +175,7 @@ public class Product
 **Reader Question:** "Quick scan - what's available where?"
 
 **Structure your type:**
+
 ```csharp
 [MdfSerializable(TitleProperty = nameof(StoreName))]
 public class CatalogWithLists
@@ -188,6 +194,7 @@ public class CatalogWithLists
 ```
 
 **Result:**
+
 ```markdown
 # Global Electronics Store
 
@@ -219,6 +226,7 @@ public class CatalogWithLists
 **Reader Question:** "Give me one searchable/sortable table of everything"
 
 **Transform your data:**
+
 ```csharp
 // Flatten into a single list where region becomes a column
 var flatProducts = catalog.Regions
@@ -234,6 +242,7 @@ var flatProducts = catalog.Regions
 ```
 
 **Result:**
+
 ```markdown
 ## Global Product Inventory
 
@@ -270,6 +279,7 @@ var flatProducts = catalog.Regions
 The same principles apply to any nested structure:
 
 ### NuGet Dependencies (dotnet-inspector)
+
 **Original:** `List<DependencyGroup>` with nested `List<Dependency>`
 - **Pivot:** Package × Framework version matrix (compare versions across frameworks) ✓ Best choice
 - **Multiple Tables:** Dependencies per framework (complete package info per framework)
@@ -279,6 +289,7 @@ The same principles apply to any nested structure:
 **See Example:** `tests/MarkdownData.Tests/NestedStructureTests.cs` - `Serialize_PackageWithDependencyGroups_CreatesTables()`
 
 ### Build Configurations
+
 **Original:** `List<BuildConfig>` with nested `List<Project>`
 - **Pivot:** Project × Config status matrix (see what built where)
 - **Multiple Tables:** Projects per config (detailed build results) ✓ Best choice
@@ -288,6 +299,7 @@ The same principles apply to any nested structure:
 **See Example:** `tests/MarkdownData.Tests/BuildResultsTests.cs` - `Serialize_BuildResult_GroupsByConfiguration()`
 
 ### Feature Tiers
+
 **Original:** `List<Tier>` with nested `List<Feature>`
 - **Pivot:** Feature × Tier availability matrix (which tiers have what features)
 - **Multiple Tables:** Features per tier (complete feature details)
@@ -315,6 +327,7 @@ public class Region
 ```
 
 **Result:**
+
 ```markdown
 ## Regions
 

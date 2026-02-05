@@ -1,0 +1,170 @@
+[
+  {
+    "name": "Ryan Gosling",
+    "birthplace": "London, Ontario",
+    "birthYear": 1980,
+    "citizenship": ["Canadian", "American"],
+    "shows": ["The Notebook", "Drive", "Blade Runner 2049", "La La Land", "Barbie"]
+  },
+  {
+    "name": "Ryan Reynolds",
+    "birthplace": "Vancouver, British Columbia",
+    "birthYear": 1976,
+    "citizenship": ["Canadian", "American"],
+    "shows": ["Deadpool", "Free Guy", "The Proposal", "Detective Pikachu", "The Adam Project"]
+  },
+  {
+    "name": "Rachel McAdams",
+    "birthplace": "London, Ontario",
+    "birthYear": 1978,
+    "citizenship": ["Canadian"],
+    "shows": ["The Notebook", "Mean Girls", "Spotlight", "Doctor Strange", "Game Night"]
+  },
+  {
+    "name": "Rachel Skarsten",
+    "birthplace": "Toronto, Ontario",
+    "birthYear": 1985,
+    "citizenship": ["Canadian", "Norwegian"],
+    "shows": ["Lost Girl", "Batwoman", "Reign", "Birds of Prey"]
+  },
+  {
+    "name": "Keanu Reeves",
+    "birthplace": "Beirut, Lebanon",
+    "birthYear": 1964,
+    "citizenship": ["Canadian", "American", "British"],
+    "shows": ["The Matrix", "John Wick", "Speed", "Bill & Ted's Excellent Adventure", "Constantine"]
+  },
+  {
+    "name": "Carrie-Anne Moss",
+    "birthplace": "Burnaby, British Columbia",
+    "birthYear": 1967,
+    "citizenship": ["Canadian"],
+    "shows": ["The Matrix", "Memento", "Jessica Jones", "The Matrix Reloaded", "The Matrix Resurrections"]
+  },
+  {
+    "name": "Shohreh Aghdashloo",
+    "birthplace": "Tehran, Iran",
+    "birthYear": 1952,
+    "citizenship": ["Canadian", "American", "Iranian"],
+    "shows": ["The Expanse", "House of Sand and Fog", "X-Men: The Last Stand", "Star Trek Beyond"]
+  },
+  {
+    "name": "Cara Gee",
+    "birthplace": "Calgary, Alberta",
+    "birthYear": 1983,
+    "citizenship": ["Canadian"],
+    "shows": ["The Expanse", "Strange Empire", "Tribal"]
+  },
+  {
+    "name": "Shawn Doyle",
+    "birthplace": "Wabush, Newfoundland",
+    "birthYear": 1968,
+    "citizenship": ["Canadian"],
+    "shows": ["The Expanse", "Big Love", "Fargo", "Hannibal"]
+  },
+  {
+    "name": "Elias Toufexis",
+    "birthplace": "Montreal, Quebec",
+    "birthYear": 1975,
+    "citizenship": ["Canadian", "American"],
+    "shows": ["The Expanse", "Deus Ex: Human Revolution", "Smallville", "The Strain"]
+  },
+  {
+    "name": "Kathleen Robertson",
+    "birthplace": "Hamilton, Ontario",
+    "birthYear": 1973,
+    "citizenship": ["Canadian"],
+    "shows": ["The Expanse", "Beverly Hills, 90210", "Murder in the First", "Boss"]
+  },
+  {
+    "name": "Frankie Adams",
+    "birthplace": "Savai'i, Samoa",
+    "birthYear": 1994,
+    "citizenship": ["New Zealand", "Samoan"],
+    "shows": ["The Expanse", "Shortland Street", "Mortal Engines"]
+  },
+  {
+    "name": "Athena Karkanis",
+    "birthplace": "Lethbridge, Alberta",
+    "birthYear": 1981,
+    "citizenship": ["Canadian"],
+    "shows": ["The Expanse", "Manifest", "Low Winter Sun", "The Border"]
+  },
+  {
+    "name": "Andrew Rotilio",
+    "birthplace": "Toronto, Ontario",
+    "birthYear": 1983,
+    "citizenship": ["Canadian"],
+    "shows": ["The Expanse", "Designated Survivor", "Nikita"]
+  },
+  {
+    "name": "Sandrine Holt",
+    "birthplace": "London, England",
+    "birthYear": 1972,
+    "citizenship": ["Canadian", "British"],
+    "shows": ["The Expanse", "House of Cards", "Homeland", "Underworld Awakening"]
+  },
+  {
+    "name": "Eugene Levy",
+    "birthplace": "Hamilton, Ontario",
+    "birthYear": 1946,
+    "citizenship": ["Canadian"],
+    "shows": ["Schitt's Creek", "American Pie", "Best in Show", "A Mighty Wind", "SCTV"]
+  },
+  {
+    "name": "Dan Levy",
+    "birthplace": "Toronto, Ontario",
+    "birthYear": 1983,
+    "citizenship": ["Canadian"],
+    "shows": ["Schitt's Creek", "Happiest Season", "The Great Canadian Baking Show"]
+  },
+  {
+    "name": "Catherine O'Hara",
+    "birthplace": "Toronto, Ontario",
+    "birthYear": 1954,
+    "citizenship": ["Canadian", "American"],
+    "shows": ["Schitt's Creek", "Home Alone", "Beetlejuice", "Best in Show", "SCTV"]
+  },
+  {
+    "name": "Annie Murphy",
+    "birthplace": "Ottawa, Ontario",
+    "birthYear": 1986,
+    "citizenship": ["Canadian"],
+    "shows": ["Schitt's Creek", "Kevin Can F**k Himself", "Russian Doll"]
+  },
+  {
+    "name": "Emily Hampshire",
+    "birthplace": "Montreal, Quebec",
+    "birthYear": 1981,
+    "citizenship": ["Canadian"],
+    "shows": ["Schitt's Creek", "12 Monkeys", "Station Eleven"]
+  },
+  {
+    "name": "Mackenzie Davis",
+    "birthplace": "Vancouver, British Columbia",
+    "birthYear": 1987,
+    "citizenship": ["Canadian"],
+    "shows": ["Station Eleven", "Halt and Catch Fire", "Blade Runner 2049", "Terminator: Dark Fate", "The Martian"]
+  },
+  {
+    "name": "Tatiana Maslany",
+    "birthplace": "Regina, Saskatchewan",
+    "birthYear": 1985,
+    "citizenship": ["Canadian"],
+    "shows": ["Orphan Black", "She-Hulk", "Station Eleven", "Perry Mason"]
+  },
+  {
+    "name": "Sandra Oh",
+    "birthplace": "Nepean, Ontario",
+    "birthYear": 1971,
+    "citizenship": ["Canadian", "American"],
+    "shows": ["Grey's Anatomy", "Killing Eve", "Sideways", "The Chair", "Under the Tuscan Sun"]
+  },
+  {
+    "name": "Elliot Page",
+    "birthplace": "Halifax, Nova Scotia",
+    "birthYear": 1987,
+    "citizenship": ["Canadian"],
+    "shows": ["Juno", "Inception", "The Umbrella Academy", "X-Men: Days of Future Past", "Whip It"]
+  }
+]

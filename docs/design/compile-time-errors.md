@@ -18,6 +18,7 @@ public class DependencyGroup
 ```
 
 **Output without validation:**
+
 ```markdown
 | Framework | Packages                                              |
 |-----------|-------------------------------------------------------|
@@ -39,6 +40,7 @@ The source generator detects when a type will be rendered in a table (because it
 **Trigger:** Property with complex type (List, custom object) in a type used in `List<T>`
 
 **Message:**
+
 ```
 error MARKOUT001: Property 'Packages' in type 'DependencyGroup' is an array 
 of complex objects and cannot be rendered in a table cell. Use [MarkoutIgnore], 
@@ -51,6 +53,7 @@ of complex objects and cannot be rendered in a table cell. Use [MarkoutIgnore],
 3. Transform the data using one of the 4 strategies (see nested-lists-guide.md)
 
 **Example Fix:**
+
 ```csharp
 // Option 1: Pivot transformation (recommended for dependencies)
 var matrix = groups

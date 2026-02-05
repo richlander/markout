@@ -20,6 +20,12 @@ CLI tools need to produce output that works for multiple audiences: humans readi
 
 **Markdown** hits the sweet spot: tables are scannable by humans, headings provide natural hierarchy, and the format is both well-defined enough for parsing and natural enough for LLMs to understand without special handling.
 
+### Data Shape vs. Data Results
+
+JSON serialization is typically oriented on pure data shape—mirroring the structure of objects and their relationships. Markout can do that too. However, much of the time what's desired is serializing a *data result*: a transformed, filtered, or aggregated view of data tailored for a specific query or report.
+
+We call this approach a **pivot table**. Instead of dumping raw object graphs, you project your data into view models designed for human consumption—flattening nested structures, joining related data, and presenting exactly what the reader needs to see.
+
 ## Features
 
 - **Tables** - `List<T>` serializes to Markdown tables
@@ -30,36 +36,59 @@ CLI tools need to produce output that works for multiple audiences: humans readi
 
 ## Quick Start
 
+This example from [samples/CanadianContent](samples/CanadianContent) shows actors with their filmography:
+
 ```csharp
 using Markout;
 
-[MarkoutSerializable]
-public class BuildResult
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ActorFilmography
 {
-    public string Project { get; set; }
-    public bool Success { get; set; }
-    public int Duration { get; set; }
+    [MarkoutIgnore]
+    public string Title { get; set; } = "";
+    public string Birthplace { get; set; } = "";
+    
+    [MarkoutPropertyName("Born")]
+    public int BirthYear { get; set; }
+
+    [MarkoutSection(Name = "Filmography")]
+    public List<ShowRow>? Filmography { get; set; }
 }
 
-[MarkoutContext(typeof(BuildResult))]
-public partial class MyContext : MarkoutSerializerContext { }
+[MarkoutSerializable]
+public class ShowRow
+{
+    public string Title { get; set; } = "";
+    public string Type { get; set; } = "";
+    public string Years { get; set; } = "";
+
+    [MarkoutPropertyName("Filmed In")]
+    public string FilmingLocation { get; set; } = "";
+}
+
+[MarkoutContext(typeof(ActorFilmography))]
+[MarkoutContext(typeof(ShowRow))]
+public partial class CanConContext : MarkoutSerializerContext { }
 
 // Serialize
-var result = new BuildResult 
-{ 
-    Project = "MyApp", 
-    Success = true, 
-    Duration = 1234 
-};
-
-var markdown = MyContext.Default.Serialize(result);
+MarkoutSerializer.Serialize(actor, Console.Out, CanConContext.Default);
 ```
 
 **Output:**
+
 ```markdown
-Project: MyApp
-Success: yes
-Duration: 1234
+# Ryan Gosling
+
+Birthplace: London, Ontario  
+Born: 1980  
+
+## Filmography
+
+| Title | Type | Years | Filmed In |
+| ----- | ---- | ----- | --------- |
+| The Notebook | Movie | 2004 | Filmed in South Carolina |
+| Blade Runner 2049 | Movie | 2017 | Filmed in Budapest |
+| Barbie | Movie | 2023 | Filmed in London |
 ```
 
 ## Installation
@@ -74,62 +103,97 @@ The package includes the source generator - no additional packages needed.
 
 ### List as Table
 
+From [samples/CanadianContent](samples/CanadianContent) — querying shows filmed in Toronto:
+
 ```csharp
-[MarkoutSerializable]
-public class TestResult
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class LocationSearchResult
 {
-    public string Name { get; set; }
-    public bool Passed { get; set; }
-    public int Duration { get; set; }
+    [MarkoutIgnore]
+    public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Results")]
+    public List<ShowRow>? Results { get; set; }
 }
 
-var results = new List<TestResult> { ... };
-var markdown = MarkoutSerializer.Serialize(results, MyContext.Default);
+[MarkoutSerializable]
+public class ShowRow
+{
+    public string Title { get; set; } = "";
+    public string Type { get; set; } = "";
+    public string Years { get; set; } = "";
+
+    [MarkoutPropertyName("Filmed In")]
+    public string FilmingLocation { get; set; } = "";
+}
 ```
 
 **Output:**
+
 ```markdown
-| Name           | Passed | Duration |
-|----------------|--------|----------|
-| Login_Works    | yes    | 145      |
-| Logout_Works   | yes    | 89       |
-| Invalid_Fails  | no     | 234      |
+# Shows Filmed in Toronto
+
+## Results
+
+| Title | Type | Years | Filmed In |
+| ----- | ---- | ----- | --------- |
+| The Expanse | TV Series | 2015-2022 | Filmed in Toronto |
+| Station Eleven | TV Miniseries | 2021-2022 | Filmed in Toronto |
+| Lost Girl | TV Series | 2010-2016 | Filmed in Toronto |
+| Orphan Black | TV Series | 2013-2017 | Filmed in Toronto |
+| The Umbrella Academy | TV Series | 2019-2023 | Filmed in Toronto |
 ```
 
 ### Nested Objects as Sections
 
+From [samples/DotNetReleases](samples/DotNetReleases) — fetching .NET release info from GitHub:
+
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name))]
-public class Project
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ReleasesView
 {
-    public string Name { get; set; }
-    public string Version { get; set; }
+    [MarkoutIgnore]
+    public string Title { get; set; } = "";
     
-    [MarkoutSection(Name = "Dependencies")]
-    public List<Dependency> Dependencies { get; set; }
+    [MarkoutPropertyName("Latest Major")]
+    public string? LatestMajor { get; set; }
+    
+    [MarkoutPropertyName("Latest LTS")]
+    public string? LatestLtsMajor { get; set; }
+    
+    [MarkoutSection(Name = "All Releases")]
+    public List<ReleaseRow>? Releases { get; set; }
 }
 
 [MarkoutSerializable]
-public class Dependency
+public class ReleaseRow
 {
-    public string Package { get; set; }
-    public string Version { get; set; }
+    public string Version { get; set; } = "";
+    public string Type { get; set; } = "";
+    public bool Supported { get; set; }
 }
+
+// Serialize to console
+MarkoutSerializer.Serialize(view, Console.Out, ReleasesContext.Default);
 ```
 
 **Output:**
+
 ```markdown
-# MyApp 1.0.0
+# .NET Releases
 
-Name: MyApp
-Version: 1.0.0
+Latest Major: 10.0  
+Latest LTS: 10.0  
 
-## Dependencies
+## All Releases
 
-| Package         | Version |
-|-----------------|---------|
-| Newtonsoft.Json | 13.0.3  |
-| Serilog         | 3.1.1   |
+| Version | Type | Supported |
+| ------- | ---- | --------- |
+| 10.0 | lts | yes |
+| 9.0 | sts | yes |
+| 8.0 | lts | yes |
+| 7.0 | sts | no |
+| 6.0 | lts | no |
 ```
 
 ## Attributes
@@ -190,6 +254,12 @@ This is intentional! Markdown tables can't contain lists. Choose a transformatio
 4. **Flatten** - Single table with group as a column
 
 📖 **See [Nested Lists Guide](docs/nested-lists-guide.md)** for complete examples and code
+
+## Samples
+
+- **[CanadianContent](samples/CanadianContent)** - Query Canadian actors and shows with searchable filters (file-based app)
+- **[DotNetReleases](samples/DotNetReleases)** - Fetch and display .NET release information from GitHub (file-based app)
+- **[Serialization](samples/Serialization)** - Basic usage patterns, section filtering, and MarkoutWriter examples
 
 ## Real-World Usage
 

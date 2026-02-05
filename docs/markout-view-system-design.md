@@ -102,6 +102,7 @@ We use indices rather than names because:
 4. **Discoverable** - Run once, count the sections
 
 The mapping is documented in help text and `llms.txt`:
+
 ```
 1=Summary  2=Projects  3=Errors  4=Warnings  5=ErrorTypes
 ```
@@ -174,6 +175,7 @@ Filtering advantages:
 ### Adding a New Section
 
 1. Create the section renderer:
+
 ```csharp
 private string NewSection()
 {
@@ -190,9 +192,9 @@ private string NewSection()
 }
 ```
 
-2. Add to appropriate verbosity levels in `GetSectionsForVerbosity()`
+1. Add to appropriate verbosity levels in `GetSectionsForVerbosity()`
 
-3. Update the section index documentation
+2. Update the section index documentation
 
 ### Adding a New Verbosity Level
 
