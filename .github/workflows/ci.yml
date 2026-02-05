@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Build
+        run: dotnet build
+
+      - name: Run demos and validate with markdownlint
+        run: |
+          set -e
+          
+          # Create markdownlint config
+          # Disabled rules:
+          #   MD013 - Long lines OK (tool output isn't wrapped)
+          #   MD024 - Duplicate headings OK (nested docs repeat Features/Reviews)
+          #   MD032 - Lists without surrounding blank lines OK (compact output)
+          #   MD034 - Bare URLs OK (source links like https://github.com/...)
+          #   MD040 - Code block language OK (tree/schema output)
+          cat > .markdownlint-smoke.json << 'EOF'
+          {
+            "MD013": false,
+            "MD024": false,
+            "MD032": false,
+            "MD034": false,
+            "MD040": false
+          }
+          EOF
+          
+          # Get available demos dynamically (filter to just demo names)
+          demos=$(dotnet run --project src/Markout.Demo --no-build | grep -E '^\s+\w+$' | tr -d ' ')
+          echo "Available demos: $demos"
+          
+          # Run each demo and lint output
+          for demo in $demos; do
+            echo "Running demo: $demo"
+            output="demo-${demo}.md"
+            dotnet run --project src/Markout.Demo --no-build -- $demo > "$output"
+            markdownlint "$output" --config .markdownlint-smoke.json
+          done
+          
+          echo "All demos passed markdownlint!"
+
+      - name: Markout smoke tests
+        run: |
+          # Validate key content in demo outputs
+          grep -q "# Altra Torin 7" demo-simple.md
+          grep -q "Category: Road" demo-simple.md
+          grep -q "## Specifications" demo-sections.md
+          grep -q "## Available Models" demo-list.md
+          grep -q "| Model | Category | Price | In Stock |" demo-table.md
+          grep -q "### Torin 7" demo-nested.md
+          grep -q "## Inventory by Size" demo-pivot.md
+          grep -q "## Products with Reviews" demo-tree.md
+          grep -q "## Shoe" demo-schema.md
+          
+          echo "Markout smoke tests passed!"
