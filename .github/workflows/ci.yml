@@ -21,10 +21,19 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore
+        run: dotnet build -c Release -p:OfficialBuild=true --no-restore
 
       - name: Test
-        run: dotnet test --no-build --verbosity normal
+        run: dotnet test -c Release --no-build --verbosity normal
+
+      - name: Pack
+        run: dotnet pack -c Release -p:OfficialBuild=true --no-build
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: artifacts/package/release/*.nupkg
 
   smoke-test:
     runs-on: ubuntu-latest
