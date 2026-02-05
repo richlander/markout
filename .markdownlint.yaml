@@ -1,0 +1,19 @@
+# Markout tool characteristics
+# These are inherent to how Markout generates markdown
+
+# Long lines OK (Markout doesn't wrap output)
+MD013: false
+
+# Lists without surrounding blank lines OK (compact output)
+MD032: false
+
+# Bare URLs OK (source links like https://github.com/...)
+MD034: false
+
+# Code block language OK (tree/schema output uses plain blocks)
+MD040: false
+
+# Domain-specific (depends on serialized data structure)
+
+# Duplicate headings OK (nested docs may repeat section names like Features/Reviews)
+MD024: false
