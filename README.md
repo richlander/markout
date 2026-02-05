@@ -75,6 +75,7 @@ MarkoutSerializer.Serialize(actor, Console.Out, CanConContext.Default);
 ```
 
 **Output:**
+
 ```markdown
 # Ryan Gosling
 
@@ -128,6 +129,7 @@ public class ShowRow
 ```
 
 **Output:**
+
 ```markdown
 # Shows Filmed in Toronto
 
@@ -176,6 +178,7 @@ MarkoutSerializer.Serialize(view, Console.Out, ReleasesContext.Default);
 ```
 
 **Output:**
+
 ```markdown
 # .NET Releases
 

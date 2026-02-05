@@ -13,7 +13,18 @@ MD034: false
 # Code block language OK (tree/schema output uses plain blocks)
 MD040: false
 
+# Table column style OK (Markout uses compact style without padding)
+MD060: false
+
 # Domain-specific (depends on serialized data structure)
 
 # Duplicate headings OK (nested docs may repeat section names like Features/Reviews)
 MD024: false
+
+# Documentation style choices
+
+# Inline HTML OK (generic type syntax like <T> in docs)
+MD033: false
+
+# Emphasis as heading OK (bold tagline in README)
+MD036: false
