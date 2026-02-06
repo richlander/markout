@@ -35,7 +35,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public string? TitleContextProperty { get; }
     public string? DescriptionProperty { get; }
     public bool RenderScalars { get; }
-    public int FieldLayout { get; }
+    public FieldLayoutKind FieldLayout { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
     public TypeMetadata(
@@ -48,7 +48,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         string? titleContextProperty = null,
         string? descriptionProperty = null,
         bool renderScalars = true,
-        int fieldLayout = 0,
+        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
         Namespace = @namespace;
@@ -81,7 +81,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
 internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
 {
     public string Name { get; }
-    public string MdfName { get; }
+    public string DisplayName { get; }
     public string TypeName { get; }
     public PropertyKind Kind { get; }
     public bool IsIgnored { get; }
@@ -116,7 +116,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? boolFalseValue = null)
     {
         Name = name;
-        MdfName = mdfName;
+        DisplayName = mdfName;
         TypeName = typeName;
         Kind = kind;
         IsIgnored = isIgnored;
@@ -148,6 +148,18 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             return (Name?.GetHashCode() ?? 0) * 397 ^ (TypeName?.GetHashCode() ?? 0);
         }
     }
+}
+
+/// <summary>
+/// How scalar fields are laid out in generated code.
+/// Values mirror the runtime Markout.FieldLayout enum.
+/// </summary>
+internal enum FieldLayoutKind
+{
+    OneLine = 0,
+    LineBreaks = 1,
+    LineBreaksDoubleSpace = 2,
+    List = 3
 }
 
 /// <summary>

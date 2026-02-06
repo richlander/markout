@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet run
-#:package Markout@0.1.7
+#:package Markout@0.2.0
 // CanCon. It's the law!
 
 using System.Text.Json;

@@ -13,12 +13,12 @@ public sealed class MarkoutSchemaInfo
     /// <summary>
     /// Schema when rendered as a document root.
     /// </summary>
-    public IReadOnlyList<MarkoutPropertySchema> AsDocument { get; init; } = Array.Empty<MarkoutPropertySchema>();
+    public IReadOnlyList<MarkoutPropertySchema> AsDocument { get; init; } = [];
     
     /// <summary>
     /// Schema when rendered as a table row (inside List&lt;T&gt;).
     /// </summary>
-    public IReadOnlyList<MarkoutPropertySchema> AsTableItem { get; init; } = Array.Empty<MarkoutPropertySchema>();
+    public IReadOnlyList<MarkoutPropertySchema> AsTableItem { get; init; } = [];
     
     /// <summary>
     /// Formats the schema as a tree structure for display.
@@ -97,5 +97,5 @@ public sealed class MarkoutPropertySchema
     /// <summary>
     /// Child properties (for nested objects or list elements).
     /// </summary>
-    public IReadOnlyList<MarkoutPropertySchema> Children { get; init; } = Array.Empty<MarkoutPropertySchema>();
+    public IReadOnlyList<MarkoutPropertySchema> Children { get; init; } = [];
 }

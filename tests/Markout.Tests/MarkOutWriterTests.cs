@@ -174,8 +174,7 @@ public class MarkoutWriterTests
     [Fact]
     public void IncludeSections_FiltersToSpecifiedSections()
     {
-        var writer = new MarkoutWriter();
-        writer.IncludeSections = new HashSet<int> { 1 };
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = new HashSet<int> { 1 } });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Intro");
@@ -202,8 +201,7 @@ public class MarkoutWriterTests
     [Fact]
     public void ExcludeSections_SkipsSpecifiedSections()
     {
-        var writer = new MarkoutWriter();
-        writer.ExcludeSections = new HashSet<int> { 2 };
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = new HashSet<int> { 2 } });
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "First");    // Section 1 - included
@@ -231,8 +229,7 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_ContentBeforeFirstH2_AlwaysIncluded()
     {
-        var writer = new MarkoutWriter();
-        writer.IncludeSections = new HashSet<int> { 2 };
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = new HashSet<int> { 2 } });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("This is before any H2");
@@ -257,8 +254,7 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_TableSpanningExcludedSection_NotWritten()
     {
-        var writer = new MarkoutWriter();
-        writer.ExcludeSections = new HashSet<int> { 1 };
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = new HashSet<int> { 1 } });
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "Data");     // Section 1 - excluded
@@ -438,6 +434,35 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void WriteFieldNoBreak_Double_WritesNumber()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteFieldNoBreak("Score", 9.5);
+
+        Assert.Equal("Score: 9.5\n", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteFieldNoBreak_DateTime_WritesIso8601()
+    {
+        var writer = new MarkoutWriter();
+        var date = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+        writer.WriteFieldNoBreak("Created", date);
+
+        Assert.StartsWith("Created: 2024-06-15T12:00:00", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteFieldNoBreak_DateTimeOffset_WritesIso8601()
+    {
+        var writer = new MarkoutWriter();
+        var date = new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        writer.WriteFieldNoBreak("Modified", date);
+
+        Assert.StartsWith("Modified: 2024-06-15T12:00:00", writer.ToString());
+    }
+
+    [Fact]
     public void MarkoutWriterOptions_Default_HasExpectedValues()
     {
         var options = new MarkoutWriterOptions();
@@ -447,5 +472,25 @@ public class MarkoutWriterTests
         Assert.False(options.BoldFieldNames);
         Assert.Null(options.IncludeSections);
         Assert.Null(options.ExcludeSections);
+    }
+
+    [Fact]
+    public void MarkoutWriterOptions_Default_IsReadOnly()
+    {
+        Assert.True(MarkoutWriterOptions.Default.IsReadOnly);
+        Assert.Throws<InvalidOperationException>(() => MarkoutWriterOptions.Default.BoldFieldNames = true);
+    }
+
+    [Fact]
+    public void MarkoutWriterOptions_MakeReadOnly_PreventsModification()
+    {
+        var options = new MarkoutWriterOptions { BoldFieldNames = true };
+        options.MakeReadOnly();
+
+        Assert.Throws<InvalidOperationException>(() => options.BoldFieldNames = false);
+        Assert.Throws<InvalidOperationException>(() => options.IncludeIcons = false);
+        Assert.Throws<InvalidOperationException>(() => options.IncludeDescription = false);
+        Assert.Throws<InvalidOperationException>(() => options.IncludeSections = new HashSet<int> { 1 });
+        Assert.Throws<InvalidOperationException>(() => options.ExcludeSections = new HashSet<int> { 2 });
     }
 }
