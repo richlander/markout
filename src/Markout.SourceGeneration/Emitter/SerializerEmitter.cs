@@ -331,6 +331,7 @@ internal static class SerializerEmitter
             PropertyKind.Int32 or PropertyKind.Int64 => "Field",
             PropertyKind.Double or PropertyKind.Decimal => "Field",
             PropertyKind.DateTime or PropertyKind.DateTimeOffset => "Field (ISO 8601)",
+            PropertyKind.Enum => "Field (enum)",
             PropertyKind.StringArray => "Bullet list",
             PropertyKind.ComplexArray => prop.ElementHasNestedContent 
                 ? "Subsections" 
@@ -365,7 +366,8 @@ internal static class SerializerEmitter
             PropertyKind.Double or
             PropertyKind.Decimal or
             PropertyKind.DateTime or
-            PropertyKind.DateTimeOffset;
+            PropertyKind.DateTimeOffset or
+            PropertyKind.Enum;
     }
 
     private static string GetTypeInfoClassName(TypeMetadata type)
@@ -743,6 +745,7 @@ internal static class SerializerEmitter
                 => $"{access}.ToString(System.Globalization.CultureInfo.InvariantCulture)",
             PropertyKind.DateTime or PropertyKind.DateTimeOffset
                 => $"{access}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
+            PropertyKind.Enum => $"{access}.ToString()",
             _ => $"{propAccess}?.ToString() ?? \"\""
         };
     }
@@ -868,6 +871,7 @@ internal static class SerializerEmitter
                 => $"{propAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture)",
             PropertyKind.DateTime or PropertyKind.DateTimeOffset
                 => $"{propAccess}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
+            PropertyKind.Enum => $"{propAccess}.ToString()",
             _ => $"{propAccess}?.ToString() ?? \"\""
         };
     }

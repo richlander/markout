@@ -285,6 +285,10 @@ internal static class TypeParser
         if (typeName == "System.DateTimeOffset")
             return (PropertyKind.DateTimeOffset, null, null, false, null, false);
 
+        // Enum types
+        if (type.TypeKind == TypeKind.Enum)
+            return (PropertyKind.Enum, null, null, false, null, false);
+
         // Check for arrays
         if (type is IArrayTypeSymbol arrayType)
         {
@@ -455,7 +459,8 @@ internal static class TypeParser
             PropertyKind.Double or 
             PropertyKind.Decimal or 
             PropertyKind.DateTime or 
-            PropertyKind.DateTimeOffset;
+            PropertyKind.DateTimeOffset or
+            PropertyKind.Enum;
     }
 
     private static string GetKindDisplayName(PropertyKind kind)

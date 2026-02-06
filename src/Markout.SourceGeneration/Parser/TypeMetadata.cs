@@ -244,6 +244,7 @@ internal enum PropertyKind
     Decimal,
     DateTime,
     DateTimeOffset,
+    Enum,
     StringArray,
     ComplexArray,
     NestedObject,

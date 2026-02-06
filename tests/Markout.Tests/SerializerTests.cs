@@ -378,6 +378,35 @@ public class SerializerTests
         Assert.NotNull(prop!.GetMethod);
         Assert.Null(prop.SetMethod);
     }
+
+    [Fact]
+    public void Serialize_EnumProperty_RendersEnumName()
+    {
+        var task = new TaskItem { Name = "Build", Priority = Priority.High };
+        var mdf = MarkoutSerializer.Serialize(task, EnumTestContext.Default);
+
+        Assert.Contains("Priority: High", mdf);
+        Assert.Contains("Name: Build", mdf);
+    }
+
+    [Fact]
+    public void Serialize_NullableEnum_SuppressesWhenNull()
+    {
+        var task = new TaskItem { Name = "Build", Priority = Priority.Low, OptionalPriority = null };
+        var mdf = MarkoutSerializer.Serialize(task, EnumTestContext.Default);
+
+        Assert.Contains("Priority: Low", mdf);
+        Assert.DoesNotContain("OptionalPriority", mdf);
+    }
+
+    [Fact]
+    public void Serialize_NullableEnum_RendersWhenSet()
+    {
+        var task = new TaskItem { Name = "Build", Priority = Priority.Low, OptionalPriority = Priority.Critical };
+        var mdf = MarkoutSerializer.Serialize(task, EnumTestContext.Default);
+
+        Assert.Contains("Critical", mdf);
+    }
 }
 
 [MarkoutSerializable]
@@ -503,3 +532,19 @@ public class RenderScalarsWarningTest
     // No [MarkoutSection] or FieldCollection properties - output will be empty
 }
 #pragma warning restore MARKOUT004
+
+// Enum support types
+public enum Priority { Low, Medium, High, Critical }
+
+[MarkoutSerializable]
+public class TaskItem
+{
+    public string? Name { get; set; }
+    public Priority Priority { get; set; }
+    public Priority? OptionalPriority { get; set; }
+}
+
+[MarkoutContext(typeof(TaskItem))]
+public partial class EnumTestContext : MarkoutSerializerContext
+{
+}
