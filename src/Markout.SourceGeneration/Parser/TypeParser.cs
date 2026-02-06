@@ -21,6 +21,8 @@ internal static class TypeParser
     private const string MarkoutFormatAttribute = "Markout.MarkoutFormatAttribute";
     private const string MarkoutJoinAttribute = "Markout.MarkoutJoinAttribute";
 
+    private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
+
     public static ContextMetadata? ParseContext(
         GeneratorAttributeSyntaxContext context,
         CancellationToken cancellationToken)
@@ -47,11 +49,30 @@ internal static class TypeParser
             }
         }
 
+        // Parse [MarkoutContextOptions] attribute
+        bool? boldFieldNames = null;
+        bool? includeIcons = null;
+        bool? includeDescription = null;
+        var optionsAttr = classSymbol.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutContextOptionsAttribute);
+        if (optionsAttr != null)
+        {
+            foreach (var named in optionsAttr.NamedArguments)
+            {
+                if (named.Key == "BoldFieldNames" && named.Value.Value is bool bf)
+                    boldFieldNames = bf;
+                else if (named.Key == "IncludeIcons" && named.Value.Value is bool ii)
+                    includeIcons = ii;
+                else if (named.Key == "IncludeDescription" && named.Value.Value is bool id)
+                    includeDescription = id;
+            }
+        }
+
         var ns = classSymbol.ContainingNamespace.IsGlobalNamespace
             ? string.Empty
             : classSymbol.ContainingNamespace.ToDisplayString();
 
-        return new ContextMetadata(ns, classSymbol.Name, types);
+        return new ContextMetadata(ns, classSymbol.Name, types, boldFieldNames, includeIcons, includeDescription);
     }
 
     private static TypeMetadata? ParseTypeSymbol(

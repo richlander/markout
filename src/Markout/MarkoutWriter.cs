@@ -396,8 +396,7 @@ public sealed class MarkoutWriter
             if (i > 0)
                 _writer.Write(" | ");
 
-            _writer.Write(fields[i].Key);
-            _writer.Write(": ");
+            WriteFieldName(fields[i].Key);
             _writer.Write(fields[i].Value ?? string.Empty);
         }
 
@@ -423,8 +422,7 @@ public sealed class MarkoutWriter
             if (i > 0)
                 _writer.Write(" | ");
 
-            _writer.Write(fields[i].Key);
-            _writer.Write(": ");
+            WriteFieldName(fields[i].Key);
             _writer.Write(fields[i].Value ?? string.Empty);
         }
 

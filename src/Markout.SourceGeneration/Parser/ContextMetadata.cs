@@ -11,12 +11,19 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
     public string Namespace { get; }
     public string ClassName { get; }
     public IReadOnlyList<TypeMetadata> Types { get; }
+    public bool? BoldFieldNames { get; }
+    public bool? IncludeIcons { get; }
+    public bool? IncludeDescription { get; }
 
-    public ContextMetadata(string @namespace, string className, IReadOnlyList<TypeMetadata> types)
+    public ContextMetadata(string @namespace, string className, IReadOnlyList<TypeMetadata> types,
+        bool? boldFieldNames = null, bool? includeIcons = null, bool? includeDescription = null)
     {
         Namespace = @namespace;
         ClassName = className;
         Types = types;
+        BoldFieldNames = boldFieldNames;
+        IncludeIcons = includeIcons;
+        IncludeDescription = includeDescription;
     }
 
     public bool Equals(ContextMetadata? other)
@@ -25,6 +32,9 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
         if (ReferenceEquals(this, other)) return true;
         return Namespace == other.Namespace &&
                ClassName == other.ClassName &&
+               BoldFieldNames == other.BoldFieldNames &&
+               IncludeIcons == other.IncludeIcons &&
+               IncludeDescription == other.IncludeDescription &&
                SequenceEqual(Types, other.Types);
     }
 
@@ -34,6 +44,9 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
         unchecked
         {
             var hash = (Namespace?.GetHashCode() ?? 0) * 397 ^ (ClassName?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (BoldFieldNames?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (IncludeIcons?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (IncludeDescription?.GetHashCode() ?? 0);
             foreach (var type in Types)
                 hash = hash * 397 ^ type.GetHashCode();
             return hash;

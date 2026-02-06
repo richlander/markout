@@ -44,6 +44,19 @@ public partial class TestMarkoutContext : MarkoutSerializerContext
 {
 }
 
+[MarkoutSerializable]
+public class BoldRecord
+{
+    public string? Label { get; set; }
+    public int Value { get; set; }
+}
+
+[MarkoutContextOptions(BoldFieldNames = true)]
+[MarkoutContext(typeof(BoldRecord))]
+public partial class BoldContext : MarkoutSerializerContext
+{
+}
+
 public class SerializerTests
 {
     [Fact]
@@ -377,6 +390,21 @@ public class SerializerTests
         Assert.NotNull(prop);
         Assert.NotNull(prop!.GetMethod);
         Assert.Null(prop.SetMethod);
+    }
+
+    [Fact]
+    public void ContextOptions_BoldFieldNames_AppliedToDefault()
+    {
+        var context = BoldContext.Default;
+        Assert.True(context.Options.BoldFieldNames);
+    }
+
+    [Fact]
+    public void ContextOptions_BoldFieldNames_RendersInOutput()
+    {
+        var record = new BoldRecord { Label = "Test", Value = 1 };
+        var mdf = MarkoutSerializer.Serialize(record, BoldContext.Default);
+        Assert.Contains("**Label:**", mdf);
     }
 
     [Fact]
