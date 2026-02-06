@@ -159,6 +159,12 @@ internal static class SerializerEmitter
             EmitSchemaProperty(sb, type);
         }
 
+        // Section name constants for each type that has sections
+        foreach (var type in context.Types)
+        {
+            EmitSectionConstants(sb, type);
+        }
+
         sb.AppendLine("}");
 
         return sb.ToString();
@@ -214,6 +220,60 @@ internal static class SerializerEmitter
             
             sb.AppendLine($"{indent}}},");
         }
+    }
+
+    private static void EmitSectionConstants(StringBuilder sb, TypeMetadata type)
+    {
+        var sectionProps = type.Properties
+            .Where(p => p.IsSection && !p.IsIgnored)
+            .ToList();
+
+        if (sectionProps.Count == 0)
+            return;
+
+        sb.AppendLine($"    public static class {type.TypeName}Sections");
+        sb.AppendLine("    {");
+
+        var usedNames = new HashSet<string>();
+        foreach (var prop in sectionProps)
+        {
+            var sectionName = prop.SectionName ?? prop.DisplayName;
+            var constName = NormalizeSectionName(sectionName);
+
+            // Ensure uniqueness by appending a suffix if needed
+            var uniqueName = constName;
+            var suffix = 2;
+            while (!usedNames.Add(uniqueName))
+            {
+                uniqueName = constName + suffix;
+                suffix++;
+            }
+
+            sb.AppendLine($"        public const string {uniqueName} = \"{EscapeString(sectionName)}\";");
+        }
+
+        sb.AppendLine("    }");
+        sb.AppendLine();
+    }
+
+    private static string NormalizeSectionName(string name)
+    {
+        // Replace non-alphanumeric characters with spaces, then PascalCase join
+        var cleaned = new StringBuilder(name.Length);
+        foreach (var ch in name)
+        {
+            cleaned.Append(char.IsLetterOrDigit(ch) ? ch : ' ');
+        }
+
+        var parts = cleaned.ToString().Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+        var result = new StringBuilder();
+        foreach (var part in parts)
+        {
+            result.Append(char.ToUpperInvariant(part[0]));
+            if (part.Length > 1)
+                result.Append(part.Substring(1));
+        }
+        return result.ToString();
     }
 
     private static string GetRenderingDescription(PropertyMetadata prop, bool inTableContext)
@@ -344,7 +404,7 @@ internal static class SerializerEmitter
         // Emit scalars based on layout
         if (renderScalars && scalarProps.Count > 0)
         {
-            EmitScalarsWithLayout(sb, scalarProps, valueExpr, indentLevel, fieldLayout);
+            EmitScalarsWithLayout(sb, scalarProps, valueExpr, indentLevel, fieldLayout, nestingDepth);
         }
 
         // Emit non-scalar properties (sections, arrays, etc.)
@@ -408,7 +468,7 @@ internal static class SerializerEmitter
                     sb.AppendLine($"{indent}if ({propAccess} != null)");
                     sb.AppendLine($"{indent}{{");
                     sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
-                    EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth);
+                    EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth + 1);
                     sb.AppendLine($"{indent}}}");
                 }
                 else
@@ -463,7 +523,7 @@ internal static class SerializerEmitter
                         sb.AppendLine($"{indent}if ({propAccess} != null)");
                         sb.AppendLine($"{indent}{{");
                         sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EscapeString(prop.DisplayName)}\");");
-                        EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth, true, fieldLayout);
+                        EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth + 1, true, fieldLayout);
                         sb.AppendLine($"{indent}}}");
                     }
                     break;
@@ -476,12 +536,13 @@ internal static class SerializerEmitter
         List<PropertyMetadata> scalarProps,
         string valueExpr,
         int indentLevel,
-        FieldLayoutKind fieldLayout)
+        FieldLayoutKind fieldLayout,
+        int nestingDepth = 0)
     {
         switch (fieldLayout)
         {
             case FieldLayoutKind.OneLine:
-                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel);
+                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth);
                 break;
 
             case FieldLayoutKind.LineBreaks:
@@ -497,7 +558,7 @@ internal static class SerializerEmitter
                 break;
 
             default:
-                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel);
+                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth);
                 break;
         }
     }
@@ -506,15 +567,17 @@ internal static class SerializerEmitter
         StringBuilder sb,
         List<PropertyMetadata> scalarProps,
         string valueExpr,
-        int indentLevel)
+        int indentLevel,
+        int nestingDepth = 0)
     {
         var indent = new string(' ', indentLevel * 4);
-        bool hasNullable = scalarProps.Any(p => p.IsNullableValueType);
+        bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String);
+        var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
-        if (hasNullable)
+        if (useBuilder)
         {
-            // Use List<MarkoutField> builder pattern when any scalar is nullable
-            sb.AppendLine($"{indent}var __fields = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
+            // Use List<MarkoutField> builder pattern when any scalar is nullable or string (to skip nulls/empties)
+            sb.AppendLine($"{indent}var {fieldsVar} = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
             foreach (var prop in scalarProps)
             {
                 var propAccess = $"{valueExpr}.{prop.Name}";
@@ -522,20 +585,25 @@ internal static class SerializerEmitter
                 {
                     var valueStr = GetScalarValueExpression(prop, propAccess, nullable: true);
                     sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
-                    sb.AppendLine($"{indent}    __fields.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr}));");
+                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr}));");
+                }
+                else if (prop.Kind == PropertyKind.String)
+                {
+                    sb.AppendLine($"{indent}if (!string.IsNullOrEmpty({propAccess}))");
+                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {propAccess}));");
                 }
                 else
                 {
                     var valueStr = GetScalarValueExpression(prop, propAccess);
-                    sb.AppendLine($"{indent}__fields.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr}));");
+                    sb.AppendLine($"{indent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
             }
-            sb.AppendLine($"{indent}if (__fields.Count > 0)");
-            sb.AppendLine($"{indent}    writer.WriteCompactFields(__fields);");
+            sb.AppendLine($"{indent}if ({fieldsVar}.Count > 0)");
+            sb.AppendLine($"{indent}    writer.WriteCompactFields({fieldsVar});");
         }
         else
         {
-            // Build inline MarkoutField array
+            // Build inline MarkoutField array (no nullable/string scalars)
             var fields = new List<string>();
             foreach (var prop in scalarProps)
             {
@@ -576,6 +644,10 @@ internal static class SerializerEmitter
                         sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
                     }
                 }
+                else if (prop.CustomFormat != null)
+                {
+                    sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
+                }
                 else
                 {
                     sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
@@ -596,6 +668,10 @@ internal static class SerializerEmitter
                 {
                     sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess});");
                 }
+            }
+            else if (prop.CustomFormat != null)
+            {
+                sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
             }
             else
             {
@@ -642,6 +718,16 @@ internal static class SerializerEmitter
         if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
         {
             return $"({access} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\")";
+        }
+
+        // Custom format overrides default formatting for formattable types
+        if (prop.CustomFormat != null)
+        {
+            if (prop.Kind is PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
+                or PropertyKind.DateTime or PropertyKind.DateTimeOffset)
+            {
+                return $"{access}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
+            }
         }
 
         return prop.Kind switch
@@ -757,6 +843,16 @@ internal static class SerializerEmitter
         if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
         {
             return $"{propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\"";
+        }
+
+        // Custom format overrides default formatting for formattable types
+        if (prop.CustomFormat != null)
+        {
+            if (prop.Kind is PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
+                or PropertyKind.DateTime or PropertyKind.DateTimeOffset)
+            {
+                return $"{propAccess}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
+            }
         }
 
         return prop.Kind switch
