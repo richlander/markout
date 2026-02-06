@@ -236,6 +236,58 @@ public class PackageInfo
 
 Field collections must use `List<MarkoutField>`, `IReadOnlyList<MarkoutField>`, or `MarkoutField[]` (not `IEnumerable<MarkoutField>`) to avoid double-enumeration issues.
 
+## Trees
+
+For hierarchical data, use `List<TreeNode>` properties:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class TypeShape
+{
+    [MarkoutIgnore]
+    public string Name { get; set; } = "";
+    
+    public string Kind { get; set; } = "";
+    
+    // Renders as tree with box-drawing characters
+    public List<TreeNode> Members { get; set; } = [];
+}
+
+// Build the tree
+var type = new TypeShape
+{
+    Name = "MyClass",
+    Kind = "class",
+    Members = new List<TreeNode>
+    {
+        new("Inherits", new[] { "BaseClass" }),
+        new("Properties (2)", new[] { "string Name", "int Count" })
+    }
+};
+```
+
+**Output:**
+
+```markdown
+# MyClass
+
+Kind: class
+
+├─ Inherits
+│  └─ BaseClass
+└─ Properties (2)
+   ├─ string Name
+   └─ int Count
+```
+
+TreeNode supports an optional `Icon` property for visual indicators:
+
+```csharp
+new TreeNode("local.dll", icon: "📁"),
+new TreeNode("platform.dll", icon: "🚢")
+// Renders as: └─ 📁 local.dll
+```
+
 ## Nested Lists
 
 If you have `List<Group>` where `Group` contains `List<Item>`, you'll get a compile-time warning:

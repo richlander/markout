@@ -253,6 +253,62 @@ public class SerializerTests
         Assert.Contains("| ✓ |", mdf);
         Assert.Contains("| ✗ |", mdf);
     }
+
+    [Fact]
+    public void Serialize_WithTreeProperty_RendersTree()
+    {
+        var typeShape = new TypeShape
+        {
+            Name = "MyClass",
+            Kind = "class",
+            Members = new List<TreeNode>
+            {
+                new("Inherits", new[] { "BaseClass" }),
+                new("Properties (2)", new[] { "string Name", "int Count" })
+            }
+        };
+
+        var context = new TreeTestContext();
+        var mdf = context.Serialize(typeShape);
+
+        // Should render tree structure
+        Assert.Contains("# MyClass", mdf);
+        Assert.Contains("Kind: class", mdf);
+        Assert.Contains("Inherits", mdf);
+        Assert.Contains("BaseClass", mdf);
+        Assert.Contains("Properties (2)", mdf);
+        Assert.Contains("string Name", mdf);
+        // Tree uses box-drawing characters
+        Assert.Contains("├─", mdf);
+        Assert.Contains("└─", mdf);
+    }
+
+    [Fact]
+    public void Serialize_WithTreeSection_RendersHeadingAndTree()
+    {
+        var explorer = new FileExplorer
+        {
+            Title = "Package Contents",
+            Files = new List<TreeNode>
+            {
+                new("lib", new List<TreeNode>
+                {
+                    new("net8.0", new[] { "MyLib.dll" }),
+                    new("net9.0", new[] { "MyLib.dll" })
+                })
+            }
+        };
+
+        var context = new TreeTestContext();
+        var mdf = context.Serialize(explorer);
+
+        // Should have section heading
+        Assert.Contains("# Package Contents", mdf);
+        Assert.Contains("## Files", mdf);
+        Assert.Contains("lib", mdf);
+        Assert.Contains("net8.0", mdf);
+        Assert.Contains("MyLib.dll", mdf);
+    }
 }
 
 [MarkoutSerializable]
@@ -320,5 +376,31 @@ public class AuditReport
 [MarkoutContext(typeof(AuditRecord))]
 [MarkoutContext(typeof(AuditReport))]
 public partial class BoolFormatTestContext : MarkoutSerializerContext
+{
+}
+
+// Tree serialization test types
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class TypeShape
+{
+    [MarkoutIgnore]
+    public string Name { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public List<TreeNode> Members { get; set; } = [];
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class FileExplorer
+{
+    [MarkoutIgnore]
+    public string Title { get; set; } = "";
+    
+    [MarkoutSection(Name = "Files")]
+    public List<TreeNode>? Files { get; set; }
+}
+
+[MarkoutContext(typeof(TypeShape))]
+[MarkoutContext(typeof(FileExplorer))]
+public partial class TreeTestContext : MarkoutSerializerContext
 {
 }

@@ -356,4 +356,63 @@ public class MarkoutWriterTests
         Assert.Equal("Count", field.Key);
         Assert.Equal("42", field.Value);
     }
+
+    [Fact]
+    public void WriteTree_SimpleNodes_RendersTreeStructure()
+    {
+        var writer = new MarkoutWriter();
+        var nodes = new List<TreeNode>
+        {
+            new("Root", new List<TreeNode>
+            {
+                new("Child1"),
+                new("Child2")
+            })
+        };
+        writer.WriteTree(nodes);
+
+        var output = writer.ToString();
+        Assert.Contains("└─ Root", output);
+        Assert.Contains("├─ Child1", output);
+        Assert.Contains("└─ Child2", output);
+    }
+
+    [Fact]
+    public void WriteTree_WithIcons_RendersIconBeforeLabel()
+    {
+        var writer = new MarkoutWriter();
+        var nodes = new List<TreeNode>
+        {
+            new("local.dll", "📁"),
+            new("platform.dll", "🚢"),
+            new("unknown.dll", "❓")
+        };
+        writer.WriteTree(nodes);
+
+        var output = writer.ToString();
+        Assert.Contains("📁 local.dll", output);
+        Assert.Contains("🚢 platform.dll", output);
+        Assert.Contains("❓ unknown.dll", output);
+    }
+
+    [Fact]
+    public void WriteTree_WithNestedIcons_RendersAllIcons()
+    {
+        var writer = new MarkoutWriter();
+        var nodes = new List<TreeNode>
+        {
+            new("lib", "📁", new List<TreeNode>
+            {
+                new("net8.0", "📂", new[] { "MyLib.dll" })
+            })
+        };
+        writer.WriteTree(nodes);
+
+        var output = writer.ToString();
+        Assert.Contains("📁 lib", output);
+        Assert.Contains("📂 net8.0", output);
+        Assert.Contains("MyLib.dll", output);
+        // Child without icon should not have icon prefix
+        Assert.Contains("└─ MyLib.dll", output);
+    }
 }

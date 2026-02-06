@@ -351,6 +351,16 @@ internal static class TypeParser
                         // User should use List<MarkoutField> or IReadOnlyList<MarkoutField>
                     }
 
+                    // Check for List<TreeNode> - renders as tree structure
+                    if (elementType.ToDisplayString() == "Markout.TreeNode")
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>")
+                        {
+                            return (PropertyKind.Tree, null, null, false, null);
+                        }
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null);
 

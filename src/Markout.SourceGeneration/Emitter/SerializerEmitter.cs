@@ -241,6 +241,8 @@ internal static class SerializerEmitter
             }
             if (prop.Kind == PropertyKind.NestedObject)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (fields)";
+            if (prop.Kind == PropertyKind.Tree)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (tree)";
             return $"H{prop.SectionLevel} Section \"{sectionName}\"";
         }
 
@@ -257,6 +259,7 @@ internal static class SerializerEmitter
                 : "Table",
             PropertyKind.FieldCollection => "Compact fields",
             PropertyKind.NestedObject => "Fields",
+            PropertyKind.Tree => "Tree",
             _ => "Field"
         };
     }
@@ -378,6 +381,15 @@ internal static class SerializerEmitter
                     sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
                     sb.AppendLine($"{indent}}}");
                 }
+                else if (prop.Kind == PropertyKind.Tree)
+                {
+                    // List<TreeNode> with [MarkoutSection] renders as section with tree
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                    sb.AppendLine($"{indent}{{");
+                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
+                    sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+                    sb.AppendLine($"{indent}}}");
+                }
                 else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
                 {
                     sb.AppendLine($"{indent}if ({propAccess} != null)");
@@ -406,6 +418,12 @@ internal static class SerializerEmitter
                     // List<MarkoutField> or IReadOnlyList<MarkoutField> - renders as compact line
                     sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
                     sb.AppendLine($"{indent}    writer.WriteCompactFields({propAccess});");
+                    break;
+
+                case PropertyKind.Tree:
+                    // List<TreeNode> - renders as tree structure
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                    sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
                     break;
 
                 case PropertyKind.ComplexArray:

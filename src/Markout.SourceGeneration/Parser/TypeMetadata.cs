@@ -167,5 +167,6 @@ internal enum PropertyKind
     ComplexArray,
     NestedObject,
     FieldCollection,
+    Tree,
     Other
 }

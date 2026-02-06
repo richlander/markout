@@ -684,7 +684,8 @@ public sealed class MarkoutWriter
     private void WriteTreeNodeRecursive(TreeNode node, string prefix, bool isLast)
     {
         var connector = isLast ? "└─ " : "├─ ";
-        WriteTreeNode(node.Label, prefix + connector);
+        var displayText = node.Icon != null ? $"{node.Icon} {node.Label}" : node.Label;
+        WriteTreeNode(displayText, prefix + connector);
         
         if (node.Children != null && node.Children.Count > 0)
         {
