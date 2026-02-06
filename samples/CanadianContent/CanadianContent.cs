@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet run
-#:package Markout@0.1.6
+#:package Markout@0.1.7
 // CanCon. It's the law!
 
 using System.Text.Json;
@@ -156,9 +156,10 @@ else if (query.Contains("gosling") || query.Contains("reynolds"))
 
     var view = new ActorFilmography
     {
-        Title = actor.Name,
+        Name = actor.Name,
         Birthplace = actor.Birthplace,
         BirthYear = actor.BirthYear,
+        Citizenship = string.Join(", ", actor.Citizenship),
         Filmography = actorShows.Select(s => new ShowRow
         {
             Title = s.Title,
@@ -306,16 +307,13 @@ public class ShowDetailView
     public List<ActorRow>? Cast { get; set; }
 }
 
-[MarkoutSerializable(TitleProperty = nameof(Title))]
+[MarkoutSerializable(TitleProperty = nameof(Name))]
 public class ActorFilmography
 {
-    [MarkoutIgnore]
-    public string Title { get; set; } = "";
-
+    public string Name { get; set; } = "";
     public string Birthplace { get; set; } = "";
-
-    [MarkoutPropertyName("Born")]
     public int BirthYear { get; set; }
+    public string Citizenship { get; set; } = "";
 
     [MarkoutSection(Name = "Filmography")]
     public List<ShowRow>? Filmography { get; set; }

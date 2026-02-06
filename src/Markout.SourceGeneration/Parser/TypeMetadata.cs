@@ -35,6 +35,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public string? TitleContextProperty { get; }
     public string? DescriptionProperty { get; }
     public bool RenderScalars { get; }
+    public int FieldLayout { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
     public TypeMetadata(
@@ -47,6 +48,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         string? titleContextProperty = null,
         string? descriptionProperty = null,
         bool renderScalars = true,
+        int fieldLayout = 0,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
         Namespace = @namespace;
@@ -58,6 +60,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         TitleContextProperty = titleContextProperty;
         DescriptionProperty = descriptionProperty;
         RenderScalars = renderScalars;
+        FieldLayout = fieldLayout;
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
 

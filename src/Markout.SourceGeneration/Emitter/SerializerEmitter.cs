@@ -73,7 +73,7 @@ internal static class SerializerEmitter
             }
         }
 
-        EmitPropertySerializations(sb, type.Properties, "value", 2, 2, 0, type.RenderScalars);
+        EmitPropertySerializations(sb, type.Properties, "value", 2, 2, 0, type.RenderScalars, type.FieldLayout);
 
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -301,9 +301,14 @@ internal static class SerializerEmitter
         int indentLevel,
         int baseHeadingLevel = 2,
         int nestingDepth = 0,
-        bool renderScalars = true)
+        bool renderScalars = true,
+        int fieldLayout = 0)
     {
         var indent = new string(' ', indentLevel * 4);
+
+        // Separate scalars from non-scalars for field layout handling
+        var scalarProps = new List<PropertyMetadata>();
+        var nonScalarProps = new List<PropertyMetadata>();
 
         foreach (var prop in properties)
         {
@@ -311,13 +316,25 @@ internal static class SerializerEmitter
                 continue;
 
             // Skip non-section properties if RenderScalars is false
-            // Only render sections and field collections when RenderScalars is false
             if (!renderScalars && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
                 continue;
 
+            if (IsScalarKind(prop.Kind) && !prop.IsSection)
+                scalarProps.Add(prop);
+            else
+                nonScalarProps.Add(prop);
+        }
+
+        // Emit scalars based on layout
+        if (renderScalars && scalarProps.Count > 0)
+        {
+            EmitScalarsWithLayout(sb, scalarProps, valueExpr, indentLevel, fieldLayout);
+        }
+
+        // Emit non-scalar properties (sections, arrays, etc.)
+        foreach (var prop in nonScalarProps)
+        {
             var propAccess = $"{valueExpr}.{prop.Name}";
-            // For sections: use the larger of baseHeadingLevel or the explicit SectionLevel
-            // This ensures nested sections don't go "up" in heading hierarchy
             var effectiveSectionLevel = prop.IsSection 
                 ? System.Math.Max(prop.SectionLevel, baseHeadingLevel) 
                 : baseHeadingLevel;
@@ -377,37 +394,9 @@ internal static class SerializerEmitter
                 continue;
             }
 
+            // Non-scalar property handling
             switch (prop.Kind)
             {
-                case PropertyKind.String:
-                    sb.AppendLine($"{indent}if ({propAccess} != null)");
-                    sb.AppendLine($"{indent}    writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess});");
-                    break;
-
-                case PropertyKind.Boolean:
-                    if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
-                    {
-                        // Custom bool format
-                        sb.AppendLine($"{indent}writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\");");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"{indent}writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess});");
-                    }
-                    break;
-
-                case PropertyKind.Int32:
-                case PropertyKind.Int64:
-                case PropertyKind.Double:
-                case PropertyKind.Decimal:
-                    sb.AppendLine($"{indent}writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess});");
-                    break;
-
-                case PropertyKind.DateTime:
-                case PropertyKind.DateTimeOffset:
-                    sb.AppendLine($"{indent}writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess});");
-                    break;
-
                 case PropertyKind.StringArray:
                     sb.AppendLine($"{indent}if ({propAccess} != null)");
                     sb.AppendLine($"{indent}    writer.WriteArray(\"{EscapeString(prop.MdfName)}\", {propAccess});");
@@ -443,18 +432,147 @@ internal static class SerializerEmitter
                         sb.AppendLine($"{indent}if ({propAccess} != null)");
                         sb.AppendLine($"{indent}{{");
                         sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EscapeString(prop.MdfName)}\");");
-                        EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth);
+                        EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth, true, fieldLayout);
                         sb.AppendLine($"{indent}}}");
                     }
                     break;
-
-                case PropertyKind.Other:
-                    // Try to call ToString() for unknown types
-                    sb.AppendLine($"{indent}if ({propAccess} != null)");
-                    sb.AppendLine($"{indent}    writer.WriteField(\"{EscapeString(prop.MdfName)}\", {propAccess}.ToString());");
-                    break;
             }
         }
+    }
+
+    private static void EmitScalarsWithLayout(
+        StringBuilder sb,
+        List<PropertyMetadata> scalarProps,
+        string valueExpr,
+        int indentLevel,
+        int fieldLayout)
+    {
+        var indent = new string(' ', indentLevel * 4);
+
+        // FieldLayout: 0 = OneLine, 1 = LineBreaks, 2 = LineBreaksDoubleSpace, 3 = List
+        switch (fieldLayout)
+        {
+            case 0: // OneLine - emit as WriteCompactFields with inline MarkoutField array
+                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel);
+                break;
+
+            case 1: // LineBreaks
+                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: false);
+                break;
+
+            case 2: // LineBreaksDoubleSpace
+                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: true);
+                break;
+
+            case 3: // List
+                EmitListScalars(sb, scalarProps, valueExpr, indentLevel);
+                break;
+
+            default:
+                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel);
+                break;
+        }
+    }
+
+    private static void EmitOneLineScalars(
+        StringBuilder sb,
+        List<PropertyMetadata> scalarProps,
+        string valueExpr,
+        int indentLevel)
+    {
+        var indent = new string(' ', indentLevel * 4);
+
+        // Build inline MarkoutField array
+        var fields = new List<string>();
+        foreach (var prop in scalarProps)
+        {
+            var propAccess = $"{valueExpr}.{prop.Name}";
+            var valueStr = GetScalarValueExpression(prop, propAccess);
+            fields.Add($"new global::Markout.MarkoutField(\"{EscapeString(prop.MdfName)}\", {valueStr})");
+        }
+
+        sb.AppendLine($"{indent}writer.WriteCompactFields(new global::Markout.MarkoutField[] {{ {string.Join(", ", fields)} }});");
+    }
+
+    private static void EmitLineBreaksScalars(
+        StringBuilder sb,
+        List<PropertyMetadata> scalarProps,
+        string valueExpr,
+        int indentLevel,
+        bool doubleSpace)
+    {
+        var indent = new string(' ', indentLevel * 4);
+        var methodName = doubleSpace ? "WriteField" : "WriteFieldNoBreak";
+
+        foreach (var prop in scalarProps)
+        {
+            var propAccess = $"{valueExpr}.{prop.Name}";
+            
+            if (prop.Kind == PropertyKind.String)
+            {
+                sb.AppendLine($"{indent}if ({propAccess} != null)");
+                sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.MdfName)}\", {propAccess});");
+            }
+            else if (prop.Kind == PropertyKind.Boolean)
+            {
+                if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
+                {
+                    sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.MdfName)}\", {propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\");");
+                }
+                else
+                {
+                    sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.MdfName)}\", {propAccess});");
+                }
+            }
+            else
+            {
+                sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.MdfName)}\", {propAccess});");
+            }
+        }
+    }
+
+    private static void EmitListScalars(
+        StringBuilder sb,
+        List<PropertyMetadata> scalarProps,
+        string valueExpr,
+        int indentLevel)
+    {
+        var indent = new string(' ', indentLevel * 4);
+
+        foreach (var prop in scalarProps)
+        {
+            var propAccess = $"{valueExpr}.{prop.Name}";
+            var valueStr = GetScalarValueExpression(prop, propAccess);
+            
+            if (prop.Kind == PropertyKind.String)
+            {
+                sb.AppendLine($"{indent}if ({propAccess} != null)");
+                sb.AppendLine($"{indent}    writer.WriteListItem($\"{EscapeString(prop.MdfName)}: {{{propAccess}}}\");");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}writer.WriteListItem($\"{EscapeString(prop.MdfName)}: {{{valueStr}}}\");");
+            }
+        }
+    }
+
+    private static string GetScalarValueExpression(PropertyMetadata prop, string propAccess)
+    {
+        if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
+        {
+            return $"{propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\"";
+        }
+
+        return prop.Kind switch
+        {
+            PropertyKind.Boolean => $"{propAccess} ? \"yes\" : \"no\"",
+            PropertyKind.String => $"{propAccess} ?? \"\"",
+            PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
+                => $"{propAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture)",
+            PropertyKind.DateTime or PropertyKind.DateTimeOffset
+                => $"{propAccess}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
+            _ => $"{propAccess}?.ToString() ?? \"\""
+        };
     }
 
     private static void EmitTableSerialization(

@@ -32,4 +32,10 @@ public sealed class MarkoutSerializableAttribute : Attribute
     /// properties are rendered. Default is true.
     /// </summary>
     public bool RenderScalars { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the layout for scalar fields.
+    /// Default is OneLine (pipe-separated on a single line).
+    /// </summary>
+    public FieldLayout FieldLayout { get; set; } = FieldLayout.OneLine;
 }

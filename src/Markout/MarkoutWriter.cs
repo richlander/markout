@@ -326,6 +326,95 @@ public sealed class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes a key-value field without trailing spaces (no markdown soft break).
+    /// Use for LineBreaks layout where each field is on its own line.
+    /// </summary>
+    public void WriteFieldNoBreak(string key, string? value)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(key);
+        _writer.WriteLine(value ?? string.Empty);
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a key-value field without trailing spaces (no markdown soft break).
+    /// Use for LineBreaks layout where each field is on its own line.
+    /// </summary>
+    public void WriteFieldNoBreak(string key, bool value)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(key);
+        _writer.WriteLine(value ? "yes" : "no");
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a key-value field without trailing spaces (no markdown soft break).
+    /// Use for LineBreaks layout where each field is on its own line.
+    /// </summary>
+    public void WriteFieldNoBreak(string key, int value)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(key);
+        _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a key-value field without trailing spaces (no markdown soft break).
+    /// Use for LineBreaks layout where each field is on its own line.
+    /// </summary>
+    public void WriteFieldNoBreak(string key, long value)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(key);
+        _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a key-value field without trailing spaces (no markdown soft break).
+    /// Use for LineBreaks layout where each field is on its own line.
+    /// </summary>
+    public void WriteFieldNoBreak(string key, decimal value)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(key);
+        _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a single bullet list item.
+    /// </summary>
+    public void WriteListItem(string text)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        _writer.Write("- ");
+        _writer.WriteLine(text);
+        _hasContent = true;
+    }
+
+    /// <summary>
     /// Writes multiple key-value fields on a single line, separated by pipes.
     /// Useful for compact summary lines with essential metadata.
     /// </summary>
