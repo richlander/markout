@@ -1,6 +1,5 @@
 using Markout;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Markout.Tests;
 
@@ -141,13 +140,6 @@ public partial class RenderingStrategyContext : MarkoutSerializerContext
 
 public class RenderingStrategyTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public RenderingStrategyTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
     #region Strategy 1: Pivot Table (Compare Across Groups)
 
     [Fact]
@@ -167,25 +159,25 @@ public class RenderingStrategyTests
 
         var mdf = MarkoutSerializer.Serialize(package, RenderingStrategyContext.Default);
         
-        _output.WriteLine("=== STRATEGY 1: PIVOT TABLE ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("📊 READER INSIGHT:");
-        _output.WriteLine("  \"Which packages are used across different frameworks?\"");
-        _output.WriteLine("  \"Do versions differ between frameworks?\"");
-        _output.WriteLine("  \"Which packages are framework-specific?\"");
-        _output.WriteLine("");
-        _output.WriteLine("✅ BEST FOR:");
-        _output.WriteLine("  - Comparing same items across groups");
-        _output.WriteLine("  - Version compatibility matrix");
-        _output.WriteLine("  - Seeing which items appear in multiple groups");
-        _output.WriteLine("  - Finding differences/inconsistencies");
-        _output.WriteLine("");
-        _output.WriteLine("❌ NOT GOOD FOR:");
-        _output.WriteLine("  - Many columns (>5-6 frameworks)");
-        _output.WriteLine("  - Groups have very different items");
-        _output.WriteLine("  - Reader cares about one group at a time");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== STRATEGY 1: PIVOT TABLE ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("📊 READER INSIGHT:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"Which packages are used across different frameworks?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"Do versions differ between frameworks?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"Which packages are framework-specific?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ BEST FOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Comparing same items across groups");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Version compatibility matrix");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Seeing which items appear in multiple groups");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Finding differences/inconsistencies");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("❌ NOT GOOD FOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Many columns (>5-6 frameworks)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Groups have very different items");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Reader cares about one group at a time");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     #endregion
@@ -220,25 +212,25 @@ public class RenderingStrategyTests
 
         var mdf = MarkoutSerializer.Serialize(package, RenderingStrategyContext.Default);
         
-        _output.WriteLine("=== STRATEGY 2: MULTIPLE TABLES ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("📊 READER INSIGHT:");
-        _output.WriteLine("  \"What does net6.0 need?\"");
-        _output.WriteLine("  \"What does net8.0 need?\"");
-        _output.WriteLine("  \"Show me each framework's complete dependency list\"");
-        _output.WriteLine("");
-        _output.WriteLine("✅ BEST FOR:");
-        _output.WriteLine("  - Reader examines one group at a time");
-        _output.WriteLine("  - Groups have different sets of items");
-        _output.WriteLine("  - Each group is a complete unit (build config, test suite, etc.)");
-        _output.WriteLine("  - Items have multiple properties to show in table");
-        _output.WriteLine("");
-        _output.WriteLine("❌ NOT GOOD FOR:");
-        _output.WriteLine("  - Comparing across groups");
-        _output.WriteLine("  - Too many groups (>4-5)");
-        _output.WriteLine("  - Simple items (just names)");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== STRATEGY 2: MULTIPLE TABLES ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("📊 READER INSIGHT:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"What does net6.0 need?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"What does net8.0 need?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"Show me each framework's complete dependency list\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ BEST FOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Reader examines one group at a time");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Groups have different sets of items");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Each group is a complete unit (build config, test suite, etc.)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Items have multiple properties to show in table");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("❌ NOT GOOD FOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Comparing across groups");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Too many groups (>4-5)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Simple items (just names)");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     #endregion
@@ -273,24 +265,24 @@ public class RenderingStrategyTests
 
         var mdf = MarkoutSerializer.Serialize(package, RenderingStrategyContext.Default);
         
-        _output.WriteLine("=== STRATEGY 3: MULTIPLE LISTS ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("📊 READER INSIGHT:");
-        _output.WriteLine("  \"Quick scan of what each framework needs\"");
-        _output.WriteLine("  \"Simple, compact overview\"");
-        _output.WriteLine("");
-        _output.WriteLine("✅ BEST FOR:");
-        _output.WriteLine("  - Simple items (just names or name+version)");
-        _output.WriteLine("  - Quick readability");
-        _output.WriteLine("  - Compact output");
-        _output.WriteLine("  - Items don't need tabular formatting");
-        _output.WriteLine("");
-        _output.WriteLine("❌ NOT GOOD FOR:");
-        _output.WriteLine("  - Items with multiple properties");
-        _output.WriteLine("  - Need to compare/sort items");
-        _output.WriteLine("  - Large number of items per group");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== STRATEGY 3: MULTIPLE LISTS ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("📊 READER INSIGHT:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"Quick scan of what each framework needs\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"Simple, compact overview\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ BEST FOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Simple items (just names or name+version)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Quick readability");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Compact output");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Items don't need tabular formatting");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("❌ NOT GOOD FOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Items with multiple properties");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Need to compare/sort items");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Large number of items per group");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     #endregion
@@ -334,61 +326,61 @@ public class RenderingStrategyTests
 
         var mdf = MarkoutSerializer.Serialize(project, RenderingStrategyContext.Default);
         
-        _output.WriteLine("=== STRATEGY 4: MULTIPLE SUBSECTIONS (PROPOSED) ===");
-        _output.WriteLine("");
-        _output.WriteLine("CURRENT OUTPUT:");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("DESIRED OUTPUT:");
-        _output.WriteLine("# MyApp");
-        _output.WriteLine("");
-        _output.WriteLine("## Build Configurations");
-        _output.WriteLine("");
-        _output.WriteLine("### Debug");
-        _output.WriteLine("");
-        _output.WriteLine("Platform: Any CPU");
-        _output.WriteLine("Optimized: no");
-        _output.WriteLine("");
-        _output.WriteLine("Warnings:");
-        _output.WriteLine("- CS8600");
-        _output.WriteLine("- CS8603");
-        _output.WriteLine("");
-        _output.WriteLine("| Name | Value |");
-        _output.WriteLine("|------|-------|");
-        _output.WriteLine("| DefineConstants | DEBUG;TRACE |");
-        _output.WriteLine("| DebugType | full |");
-        _output.WriteLine("");
-        _output.WriteLine("### Release");
-        _output.WriteLine("");
-        _output.WriteLine("Platform: Any CPU");
-        _output.WriteLine("Optimized: yes");
-        _output.WriteLine("");
-        _output.WriteLine("| Name | Value |");
-        _output.WriteLine("|------|-------|");
-        _output.WriteLine("| DefineConstants | TRACE |");
-        _output.WriteLine("| DebugType | pdbonly |");
-        _output.WriteLine("");
-        _output.WriteLine("📊 READER INSIGHT:");
-        _output.WriteLine("  \"What's in the Debug configuration?\"");
-        _output.WriteLine("  \"What's in the Release configuration?\"");
-        _output.WriteLine("  \"Each group is a complete, self-contained unit\"");
-        _output.WriteLine("");
-        _output.WriteLine("✅ BEST FOR:");
-        _output.WriteLine("  - Groups have complex nested structure");
-        _output.WriteLine("  - Each group should be examined independently");
-        _output.WriteLine("  - Groups have their own nested lists/tables");
-        _output.WriteLine("  - Reader navigates by group (using heading hierarchy)");
-        _output.WriteLine("");
-        _output.WriteLine("❌ NOT GOOD FOR:");
-        _output.WriteLine("  - Comparing across groups");
-        _output.WriteLine("  - Simple groups (overkill)");
-        _output.WriteLine("");
-        _output.WriteLine("IMPLEMENTATION:");
-        _output.WriteLine("  - Detect List<T> where T has non-scalar properties");
-        _output.WriteLine("  - Use first string property or TitleProperty as H3 heading");
-        _output.WriteLine("  - Render each T's properties within that H3 section");
-        _output.WriteLine("  - Nested lists become tables at H3 level");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== STRATEGY 4: MULTIPLE SUBSECTIONS (PROPOSED) ===");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("CURRENT OUTPUT:");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("DESIRED OUTPUT:");
+        TestContext.Current.TestOutputHelper!.WriteLine("# MyApp");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("## Build Configurations");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("### Debug");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Platform: Any CPU");
+        TestContext.Current.TestOutputHelper!.WriteLine("Optimized: no");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Warnings:");
+        TestContext.Current.TestOutputHelper!.WriteLine("- CS8600");
+        TestContext.Current.TestOutputHelper!.WriteLine("- CS8603");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("| Name | Value |");
+        TestContext.Current.TestOutputHelper!.WriteLine("|------|-------|");
+        TestContext.Current.TestOutputHelper!.WriteLine("| DefineConstants | DEBUG;TRACE |");
+        TestContext.Current.TestOutputHelper!.WriteLine("| DebugType | full |");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("### Release");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Platform: Any CPU");
+        TestContext.Current.TestOutputHelper!.WriteLine("Optimized: yes");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("| Name | Value |");
+        TestContext.Current.TestOutputHelper!.WriteLine("|------|-------|");
+        TestContext.Current.TestOutputHelper!.WriteLine("| DefineConstants | TRACE |");
+        TestContext.Current.TestOutputHelper!.WriteLine("| DebugType | pdbonly |");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("📊 READER INSIGHT:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"What's in the Debug configuration?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"What's in the Release configuration?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  \"Each group is a complete, self-contained unit\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ BEST FOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Groups have complex nested structure");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Each group should be examined independently");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Groups have their own nested lists/tables");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Reader navigates by group (using heading hierarchy)");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("❌ NOT GOOD FOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Comparing across groups");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Simple groups (overkill)");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("IMPLEMENTATION:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Detect List<T> where T has non-scalar properties");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Use first string property or TitleProperty as H3 heading");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Render each T's properties within that H3 section");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Nested lists become tables at H3 level");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     #endregion
@@ -398,42 +390,42 @@ public class RenderingStrategyTests
     [Fact]
     public void DecisionMatrix_WhichStrategyToUse()
     {
-        _output.WriteLine("=== DECISION MATRIX: CHOOSING THE RIGHT STRATEGY ===");
-        _output.WriteLine("");
-        _output.WriteLine("Question 1: What does the reader want to know?");
-        _output.WriteLine("");
-        _output.WriteLine("┌─ \"How do items compare across groups?\"");
-        _output.WriteLine("│  → PIVOT TABLE (Strategy 1)");
-        _output.WriteLine("│  Examples: dependency versions across frameworks,");
-        _output.WriteLine("│             test results across platforms");
-        _output.WriteLine("│");
-        _output.WriteLine("├─ \"What's in each group?\" (groups are independent)");
-        _output.WriteLine("│  │");
-        _output.WriteLine("│  ├─ Items are simple (name only or name+version)");
-        _output.WriteLine("│  │  → MULTIPLE LISTS (Strategy 3)");
-        _output.WriteLine("│  │  Examples: feature lists, installed packages");
-        _output.WriteLine("│  │");
-        _output.WriteLine("│  ├─ Items have 2-3 properties, no nesting");
-        _output.WriteLine("│  │  → MULTIPLE TABLES (Strategy 2)");
-        _output.WriteLine("│  │  Examples: build projects, test assemblies");
-        _output.WriteLine("│  │");
-        _output.WriteLine("│  └─ Items have nested structure");
-        _output.WriteLine("│     → MULTIPLE SUBSECTIONS (Strategy 4)");
-        _output.WriteLine("│     Examples: build configs, deployment stages");
-        _output.WriteLine("│");
-        _output.WriteLine("└─ \"Groups are fundamentally different\"");
-        _output.WriteLine("   → Don't use List<Group>, use separate properties");
-        _output.WriteLine("");
-        _output.WriteLine("Question 2: How many groups?");
-        _output.WriteLine("  - 2-4 groups: Any strategy works");
-        _output.WriteLine("  - 5-10 groups: Avoid pivot table (too many columns)");
-        _output.WriteLine("  - 10+ groups: Use subsections or flatten differently");
-        _output.WriteLine("");
-        _output.WriteLine("Question 3: How many items per group?");
-        _output.WriteLine("  - 1-5 items: Lists work great");
-        _output.WriteLine("  - 5-20 items: Tables or pivot");
-        _output.WriteLine("  - 20+ items: Tables, consider pagination/filtering");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== DECISION MATRIX: CHOOSING THE RIGHT STRATEGY ===");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Question 1: What does the reader want to know?");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("┌─ \"How do items compare across groups?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  → PIVOT TABLE (Strategy 1)");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  Examples: dependency versions across frameworks,");
+        TestContext.Current.TestOutputHelper!.WriteLine("│             test results across platforms");
+        TestContext.Current.TestOutputHelper!.WriteLine("│");
+        TestContext.Current.TestOutputHelper!.WriteLine("├─ \"What's in each group?\" (groups are independent)");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  │");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  ├─ Items are simple (name only or name+version)");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  │  → MULTIPLE LISTS (Strategy 3)");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  │  Examples: feature lists, installed packages");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  │");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  ├─ Items have 2-3 properties, no nesting");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  │  → MULTIPLE TABLES (Strategy 2)");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  │  Examples: build projects, test assemblies");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  │");
+        TestContext.Current.TestOutputHelper!.WriteLine("│  └─ Items have nested structure");
+        TestContext.Current.TestOutputHelper!.WriteLine("│     → MULTIPLE SUBSECTIONS (Strategy 4)");
+        TestContext.Current.TestOutputHelper!.WriteLine("│     Examples: build configs, deployment stages");
+        TestContext.Current.TestOutputHelper!.WriteLine("│");
+        TestContext.Current.TestOutputHelper!.WriteLine("└─ \"Groups are fundamentally different\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("   → Don't use List<Group>, use separate properties");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Question 2: How many groups?");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - 2-4 groups: Any strategy works");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - 5-10 groups: Avoid pivot table (too many columns)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - 10+ groups: Use subsections or flatten differently");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Question 3: How many items per group?");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - 1-5 items: Lists work great");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - 5-20 items: Tables or pivot");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - 20+ items: Tables, consider pagination/filtering");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     #endregion
@@ -443,77 +435,77 @@ public class RenderingStrategyTests
     [Fact]
     public void RealWorld_PackageDependencies()
     {
-        _output.WriteLine("=== REAL WORLD: Package Dependencies ===");
-        _output.WriteLine("");
-        _output.WriteLine("Scenario: NuGet package with dependencies per framework");
-        _output.WriteLine("");
-        _output.WriteLine("Reader Questions:");
-        _output.WriteLine("  - \"Does this package work with my framework?\"");
-        _output.WriteLine("  - \"What versions are compatible?\"");
-        _output.WriteLine("  - \"Are there version inconsistencies?\"");
-        _output.WriteLine("");
-        _output.WriteLine("RECOMMENDATION: PIVOT TABLE (Strategy 1)");
-        _output.WriteLine("  - Easy to scan for your framework");
-        _output.WriteLine("  - See version differences at a glance");
-        _output.WriteLine("  - Compact representation");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== REAL WORLD: Package Dependencies ===");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Scenario: NuGet package with dependencies per framework");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Reader Questions:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"Does this package work with my framework?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"What versions are compatible?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"Are there version inconsistencies?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("RECOMMENDATION: PIVOT TABLE (Strategy 1)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Easy to scan for your framework");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - See version differences at a glance");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Compact representation");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     [Fact]
     public void RealWorld_BuildConfigurations()
     {
-        _output.WriteLine("=== REAL WORLD: Build Configurations ===");
-        _output.WriteLine("");
-        _output.WriteLine("Scenario: MSBuild project with Debug/Release/etc configs");
-        _output.WriteLine("");
-        _output.WriteLine("Reader Questions:");
-        _output.WriteLine("  - \"What compiler flags are in Debug mode?\"");
-        _output.WriteLine("  - \"What's different between Debug and Release?\"");
-        _output.WriteLine("  - \"Show me complete Release config\"");
-        _output.WriteLine("");
-        _output.WriteLine("RECOMMENDATION: MULTIPLE SUBSECTIONS (Strategy 4)");
-        _output.WriteLine("  - Each config is self-contained");
-        _output.WriteLine("  - Complex nested data (flags, warnings, etc.)");
-        _output.WriteLine("  - Reader examines one config at a time");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== REAL WORLD: Build Configurations ===");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Scenario: MSBuild project with Debug/Release/etc configs");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Reader Questions:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"What compiler flags are in Debug mode?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"What's different between Debug and Release?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"Show me complete Release config\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("RECOMMENDATION: MULTIPLE SUBSECTIONS (Strategy 4)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Each config is self-contained");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Complex nested data (flags, warnings, etc.)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Reader examines one config at a time");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     [Fact]
     public void RealWorld_TestResults()
     {
-        _output.WriteLine("=== REAL WORLD: Test Results by Assembly ===");
-        _output.WriteLine("");
-        _output.WriteLine("Scenario: Test suite with results per test assembly");
-        _output.WriteLine("");
-        _output.WriteLine("Reader Questions:");
-        _output.WriteLine("  - \"How many tests passed in each assembly?\"");
-        _output.WriteLine("  - \"Which assembly has failures?\"");
-        _output.WriteLine("  - \"Show me summary per assembly\"");
-        _output.WriteLine("");
-        _output.WriteLine("RECOMMENDATION: MULTIPLE TABLES (Strategy 2)");
-        _output.WriteLine("  - Each assembly is independent");
-        _output.WriteLine("  - Items (test results) have multiple properties");
-        _output.WriteLine("  - Tables are easier to scan than pivot");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== REAL WORLD: Test Results by Assembly ===");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Scenario: Test suite with results per test assembly");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Reader Questions:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"How many tests passed in each assembly?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"Which assembly has failures?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"Show me summary per assembly\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("RECOMMENDATION: MULTIPLE TABLES (Strategy 2)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Each assembly is independent");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Items (test results) have multiple properties");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Tables are easier to scan than pivot");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     [Fact]
     public void RealWorld_InstalledPackages()
     {
-        _output.WriteLine("=== REAL WORLD: Installed Packages by Category ===");
-        _output.WriteLine("");
-        _output.WriteLine("Scenario: Show installed packages grouped by category");
-        _output.WriteLine("  Categories: Development, Testing, Deployment, etc.");
-        _output.WriteLine("");
-        _output.WriteLine("Reader Questions:");
-        _output.WriteLine("  - \"What dev tools are installed?\"");
-        _output.WriteLine("  - \"Quick scan of all packages\"");
-        _output.WriteLine("");
-        _output.WriteLine("RECOMMENDATION: MULTIPLE LISTS (Strategy 3)");
-        _output.WriteLine("  - Simple items (package names + versions)");
-        _output.WriteLine("  - Quick readability");
-        _output.WriteLine("  - Compact output");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== REAL WORLD: Installed Packages by Category ===");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Scenario: Show installed packages grouped by category");
+        TestContext.Current.TestOutputHelper!.WriteLine("  Categories: Development, Testing, Deployment, etc.");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("Reader Questions:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"What dev tools are installed?\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - \"Quick scan of all packages\"");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("RECOMMENDATION: MULTIPLE LISTS (Strategy 3)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Simple items (package names + versions)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Quick readability");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Compact output");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     #endregion

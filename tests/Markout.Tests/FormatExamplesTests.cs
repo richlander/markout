@@ -1,6 +1,5 @@
 using Markout;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Markout.Tests;
 
@@ -10,13 +9,6 @@ namespace Markout.Tests;
 /// </summary>
 public class FormatExamplesTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public FormatExamplesTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
     [Fact]
     public void Example_SimpleNestedObject_ShowsFormat()
     {
@@ -34,9 +26,9 @@ public class FormatExamplesTests
 
         var mdf = MarkoutSerializer.Serialize(person, NestedTestContext.Default);
         
-        _output.WriteLine("=== Simple Nested Object ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== Simple Nested Object ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.NotEmpty(mdf);
     }
@@ -59,9 +51,9 @@ public class FormatExamplesTests
 
         var mdf = MarkoutSerializer.Serialize(team, NestedTestContext.Default);
         
-        _output.WriteLine("=== List of Objects (Table Format) ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== List of Objects (Table Format) ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.NotEmpty(mdf);
     }
@@ -88,12 +80,12 @@ public class FormatExamplesTests
 
         var mdf = MarkoutSerializer.Serialize(project, NestedTestContext.Default);
         
-        _output.WriteLine("=== Nested Object with List (2 Levels) ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("NOTE: The nested list (Contributors) is rendered as a table.");
-        _output.WriteLine("This works because it's at the second level of nesting.");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== Nested Object with List (2 Levels) ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("NOTE: The nested list (Contributors) is rendered as a table.");
+        TestContext.Current.TestOutputHelper!.WriteLine("This works because it's at the second level of nesting.");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.NotEmpty(mdf);
     }
@@ -142,15 +134,15 @@ public class FormatExamplesTests
 
         var mdf = MarkoutSerializer.Serialize(package, NestedTestContext.Default);
         
-        _output.WriteLine("=== List of Objects, Each with Nested List ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("PROBLEM: DependencyGroups is a list where each item has a Packages list.");
-        _output.WriteLine("The outer list becomes a table, but the nested Packages lists are LOST.");
-        _output.WriteLine("Tables cannot contain nested lists in Markdown.");
-        _output.WriteLine("");
-        _output.WriteLine("This is a fundamental limitation of the format when mapping to Markdown tables.");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== List of Objects, Each with Nested List ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("PROBLEM: DependencyGroups is a list where each item has a Packages list.");
+        TestContext.Current.TestOutputHelper!.WriteLine("The outer list becomes a table, but the nested Packages lists are LOST.");
+        TestContext.Current.TestOutputHelper!.WriteLine("Tables cannot contain nested lists in Markdown.");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("This is a fundamental limitation of the format when mapping to Markdown tables.");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.NotEmpty(mdf);
     }
@@ -231,19 +223,19 @@ public class FormatExamplesTests
 
         var mdf = MarkoutSerializer.Serialize(result, BuildResultsContext.Default);
         
-        _output.WriteLine("=== Build Result (Real-World Pattern) ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("This is a typical build system output pattern:");
-        _output.WriteLine("- Top-level metadata (solution, config, status)");
-        _output.WriteLine("- List of projects as a table");
-        _output.WriteLine("- Summary section with aggregated data");
-        _output.WriteLine("");
-        _output.WriteLine("This pattern works well because:");
-        _output.WriteLine("1. Projects list is 1 level deep (becomes a table)");
-        _output.WriteLine("2. Summary is a nested object with scalars (becomes a section)");
-        _output.WriteLine("3. No lists within table rows");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== Build Result (Real-World Pattern) ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("This is a typical build system output pattern:");
+        TestContext.Current.TestOutputHelper!.WriteLine("- Top-level metadata (solution, config, status)");
+        TestContext.Current.TestOutputHelper!.WriteLine("- List of projects as a table");
+        TestContext.Current.TestOutputHelper!.WriteLine("- Summary section with aggregated data");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("This pattern works well because:");
+        TestContext.Current.TestOutputHelper!.WriteLine("1. Projects list is 1 level deep (becomes a table)");
+        TestContext.Current.TestOutputHelper!.WriteLine("2. Summary is a nested object with scalars (becomes a section)");
+        TestContext.Current.TestOutputHelper!.WriteLine("3. No lists within table rows");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.NotEmpty(mdf);
     }
@@ -299,22 +291,22 @@ public class FormatExamplesTests
 
         var mdf = MarkoutSerializer.Serialize(org, NestedTestContext.Default);
         
-        _output.WriteLine("=== Deep Nesting (3 Levels) ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("PROBLEM: Three levels of nesting:");
-        _output.WriteLine("1. Organization (root)");
-        _output.WriteLine("2. Departments (list → table)");
-        _output.WriteLine("3. Teams within Departments (nested list → LOST)");
-        _output.WriteLine("");
-        _output.WriteLine("The Departments table shows, but Teams within each Department are lost.");
-        _output.WriteLine("This is because you can't nest tables or lists within table cells.");
-        _output.WriteLine("");
-        _output.WriteLine("WORKAROUNDS:");
-        _output.WriteLine("1. Flatten the structure (avoid deep nesting)");
-        _output.WriteLine("2. Use sections instead of tables for the outer list");
-        _output.WriteLine("3. Accept that some data won't be serialized");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== Deep Nesting (3 Levels) ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("PROBLEM: Three levels of nesting:");
+        TestContext.Current.TestOutputHelper!.WriteLine("1. Organization (root)");
+        TestContext.Current.TestOutputHelper!.WriteLine("2. Departments (list → table)");
+        TestContext.Current.TestOutputHelper!.WriteLine("3. Teams within Departments (nested list → LOST)");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("The Departments table shows, but Teams within each Department are lost.");
+        TestContext.Current.TestOutputHelper!.WriteLine("This is because you can't nest tables or lists within table cells.");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("WORKAROUNDS:");
+        TestContext.Current.TestOutputHelper!.WriteLine("1. Flatten the structure (avoid deep nesting)");
+        TestContext.Current.TestOutputHelper!.WriteLine("2. Use sections instead of tables for the outer list");
+        TestContext.Current.TestOutputHelper!.WriteLine("3. Accept that some data won't be serialized");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.NotEmpty(mdf);
     }
@@ -352,17 +344,17 @@ public class FormatExamplesTests
 
         var mdf = MarkoutSerializer.Serialize(app, NestedTestContext.Default);
         
-        _output.WriteLine("=== Multiple Sections at Same Level ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("This pattern works well:");
-        _output.WriteLine("- String list (Features) → bullet list");
-        _output.WriteLine("- Object list (Services) → table in section");
-        _output.WriteLine("- Object list (Dependencies) → table in section");
-        _output.WriteLine("");
-        _output.WriteLine("All sections are siblings at the same level (H2).");
-        _output.WriteLine("No problematic nesting.");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== Multiple Sections at Same Level ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("This pattern works well:");
+        TestContext.Current.TestOutputHelper!.WriteLine("- String list (Features) → bullet list");
+        TestContext.Current.TestOutputHelper!.WriteLine("- Object list (Services) → table in section");
+        TestContext.Current.TestOutputHelper!.WriteLine("- Object list (Dependencies) → table in section");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("All sections are siblings at the same level (H2).");
+        TestContext.Current.TestOutputHelper!.WriteLine("No problematic nesting.");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.NotEmpty(mdf);
     }
