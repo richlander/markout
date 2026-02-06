@@ -49,8 +49,8 @@ jobs:
           globs: '**/*.md'
 
   build:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, markdownlint]
+    if: always() && needs.changes.outputs.code == 'true' && needs.markdownlint.result != 'failure'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,8 +79,8 @@ jobs:
           path: artifacts/package/release/*.nupkg
 
   smoke-test:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, markdownlint]
+    if: always() && needs.changes.outputs.code == 'true' && needs.markdownlint.result != 'failure'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
