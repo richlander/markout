@@ -432,7 +432,7 @@ internal static class SerializerEmitter
                 case PropertyKind.ComplexArray:
                     if (prop.ElementProperties != null && prop.ElementProperties.Count > 0)
                     {
-                        sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Any())");
+                        sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
                         sb.AppendLine($"{indent}{{");
                         sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EscapeString(prop.DisplayName)}\");");
                         if (prop.ElementHasNestedContent)
@@ -509,7 +509,7 @@ internal static class SerializerEmitter
             fields.Add($"new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr})");
         }
 
-        sb.AppendLine($"{indent}writer.WriteCompactFields(new global::Markout.MarkoutField[] {{ {string.Join(", ", fields)} }});");
+        sb.AppendLine($"{indent}writer.WriteCompactFields({string.Join(", ", fields)});");
     }
 
     private static void EmitLineBreaksScalars(
