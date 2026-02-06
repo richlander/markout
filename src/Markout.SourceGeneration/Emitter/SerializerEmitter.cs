@@ -76,7 +76,17 @@ internal static class SerializerEmitter
             }
         }
 
-        EmitPropertySerializations(sb, type.Properties, "value", 2, 2, 0, type.RenderScalars, type.FieldLayout);
+        var propsToRender = type.Properties;
+        if (type.TitleProperty != null || type.TitleContextProperty != null || type.DescriptionProperty != null)
+        {
+            var skip = new HashSet<string>();
+            if (type.TitleProperty != null) skip.Add(type.TitleProperty);
+            if (type.TitleContextProperty != null) skip.Add(type.TitleContextProperty);
+            if (type.DescriptionProperty != null) skip.Add(type.DescriptionProperty);
+            propsToRender = type.Properties.Where(p => !skip.Contains(p.Name)).ToList();
+        }
+
+        EmitPropertySerializations(sb, propsToRender, "value", 2, 2, 0, type.RenderScalars, type.FieldLayout);
 
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -360,7 +370,7 @@ internal static class SerializerEmitter
                 }
                 else if (prop.Kind == PropertyKind.ComplexArray && prop.ElementProperties != null)
                 {
-                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                    sb.AppendLine($"{indent}if ({GetCollectionCountCheck(prop, propAccess)})");
                     sb.AppendLine($"{indent}{{");
                     sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
                     
@@ -378,7 +388,7 @@ internal static class SerializerEmitter
                 }
                 else if (prop.Kind == PropertyKind.StringArray)
                 {
-                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Any())");
+                    sb.AppendLine($"{indent}if ({GetCollectionCountCheck(prop, propAccess)})");
                     sb.AppendLine($"{indent}{{");
                     sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
                     sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
@@ -432,7 +442,7 @@ internal static class SerializerEmitter
                 case PropertyKind.ComplexArray:
                     if (prop.ElementProperties != null && prop.ElementProperties.Count > 0)
                     {
-                        sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                        sb.AppendLine($"{indent}if ({GetCollectionCountCheck(prop, propAccess)})");
                         sb.AppendLine($"{indent}{{");
                         sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EscapeString(prop.DisplayName)}\");");
                         if (prop.ElementHasNestedContent)
@@ -499,17 +509,43 @@ internal static class SerializerEmitter
         int indentLevel)
     {
         var indent = new string(' ', indentLevel * 4);
+        bool hasNullable = scalarProps.Any(p => p.IsNullableValueType);
 
-        // Build inline MarkoutField array
-        var fields = new List<string>();
-        foreach (var prop in scalarProps)
+        if (hasNullable)
         {
-            var propAccess = $"{valueExpr}.{prop.Name}";
-            var valueStr = GetScalarValueExpression(prop, propAccess);
-            fields.Add($"new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr})");
+            // Use List<MarkoutField> builder pattern when any scalar is nullable
+            sb.AppendLine($"{indent}var __fields = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
+            foreach (var prop in scalarProps)
+            {
+                var propAccess = $"{valueExpr}.{prop.Name}";
+                if (prop.IsNullableValueType)
+                {
+                    var valueStr = GetScalarValueExpression(prop, propAccess, nullable: true);
+                    sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
+                    sb.AppendLine($"{indent}    __fields.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr}));");
+                }
+                else
+                {
+                    var valueStr = GetScalarValueExpression(prop, propAccess);
+                    sb.AppendLine($"{indent}__fields.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr}));");
+                }
+            }
+            sb.AppendLine($"{indent}if (__fields.Count > 0)");
+            sb.AppendLine($"{indent}    writer.WriteCompactFields(__fields);");
         }
+        else
+        {
+            // Build inline MarkoutField array
+            var fields = new List<string>();
+            foreach (var prop in scalarProps)
+            {
+                var propAccess = $"{valueExpr}.{prop.Name}";
+                var valueStr = GetScalarValueExpression(prop, propAccess);
+                fields.Add($"new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr})");
+            }
 
-        sb.AppendLine($"{indent}writer.WriteCompactFields({string.Join(", ", fields)});");
+            sb.AppendLine($"{indent}writer.WriteCompactFields({string.Join(", ", fields)});");
+        }
     }
 
     private static void EmitLineBreaksScalars(
@@ -525,8 +561,27 @@ internal static class SerializerEmitter
         foreach (var prop in scalarProps)
         {
             var propAccess = $"{valueExpr}.{prop.Name}";
-            
-            if (prop.Kind == PropertyKind.String)
+
+            if (prop.IsNullableValueType)
+            {
+                sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
+                if (prop.Kind == PropertyKind.Boolean)
+                {
+                    if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
+                    {
+                        sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\");");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
+                    }
+                }
+                else
+                {
+                    sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
+                }
+            }
+            else if (prop.Kind == PropertyKind.String)
             {
                 sb.AppendLine($"{indent}if ({propAccess} != null)");
                 sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess});");
@@ -560,35 +615,43 @@ internal static class SerializerEmitter
         foreach (var prop in scalarProps)
         {
             var propAccess = $"{valueExpr}.{prop.Name}";
-            var valueStr = GetScalarValueExpression(prop, propAccess);
-            
-            if (prop.Kind == PropertyKind.String)
+
+            if (prop.IsNullableValueType)
+            {
+                var valueStr = GetScalarValueExpression(prop, propAccess, nullable: true);
+                sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
+                sb.AppendLine($"{indent}    writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+            }
+            else if (prop.Kind == PropertyKind.String)
             {
                 sb.AppendLine($"{indent}if ({propAccess} != null)");
                 sb.AppendLine($"{indent}    writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{propAccess}}}\");");
             }
             else
             {
+                var valueStr = GetScalarValueExpression(prop, propAccess);
                 sb.AppendLine($"{indent}writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
             }
         }
     }
 
-    private static string GetScalarValueExpression(PropertyMetadata prop, string propAccess)
+    private static string GetScalarValueExpression(PropertyMetadata prop, string propAccess, bool nullable = false)
     {
+        var access = nullable ? $"{propAccess}.Value" : propAccess;
+
         if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
         {
-            return $"{propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\"";
+            return $"({access} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\")";
         }
 
         return prop.Kind switch
         {
-            PropertyKind.Boolean => $"{propAccess} ? \"yes\" : \"no\"",
+            PropertyKind.Boolean => $"({access} ? \"yes\" : \"no\")",
             PropertyKind.String => $"{propAccess} ?? \"\"",
             PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
-                => $"{propAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture)",
+                => $"{access}.ToString(System.Globalization.CultureInfo.InvariantCulture)",
             PropertyKind.DateTime or PropertyKind.DateTimeOffset
-                => $"{propAccess}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
+                => $"{access}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
             _ => $"{propAccess}?.ToString() ?? \"\""
         };
     }
@@ -685,6 +748,12 @@ internal static class SerializerEmitter
     {
         var propAccess = $"{itemExpr}.{prop.Name}";
 
+        if (prop.IsNullableValueType)
+        {
+            var valueExpr = GetScalarValueExpression(prop, propAccess, nullable: true);
+            return $"{propAccess}.HasValue ? {valueExpr} : \"\"";
+        }
+
         if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
         {
             return $"{propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\"";
@@ -700,6 +769,12 @@ internal static class SerializerEmitter
                 => $"{propAccess}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
             _ => $"{propAccess}?.ToString() ?? \"\""
         };
+    }
+
+    private static string GetCollectionCountCheck(PropertyMetadata prop, string propAccess)
+    {
+        var countProp = prop.IsArray ? "Length" : "Count";
+        return $"{propAccess} != null && {propAccess}.{countProp} > 0";
     }
 
     private static string EscapeString(string s)
