@@ -1,6 +1,5 @@
 using Markout;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Markout.Tests;
 
@@ -89,13 +88,6 @@ public partial class StrategyTestContext : MarkoutSerializerContext
 /// </summary>
 public class ListRenderingStrategyTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public ListRenderingStrategyTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
     [Fact]
     public void Problem_NonScalarInListTable_NowPreventedAtCompileTime()
     {
@@ -131,17 +123,17 @@ public class ListRenderingStrategyTests
 
         var mdf = MarkoutSerializer.Serialize(package, NestedTestContext.Default);
         
-        _output.WriteLine("=== PROBLEM PREVENTED ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("✅ The 'Packages' column is no longer in the table");
-        _output.WriteLine("   because it has [MarkoutIgnore] attribute.");
-        _output.WriteLine("");
-        _output.WriteLine("💡 Without [MarkoutIgnore], you would get:");
-        _output.WriteLine("   error MARKOUT001: Property 'Packages' in type 'DependencyGroup'");
-        _output.WriteLine("   is an array of complex objects and cannot be rendered in a table cell.");
-        _output.WriteLine("");
-        _output.WriteLine("This prevents the useless ToString() output!");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== PROBLEM PREVENTED ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ The 'Packages' column is no longer in the table");
+        TestContext.Current.TestOutputHelper!.WriteLine("   because it has [MarkoutIgnore] attribute.");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("💡 Without [MarkoutIgnore], you would get:");
+        TestContext.Current.TestOutputHelper!.WriteLine("   error MARKOUT001: Property 'Packages' in type 'DependencyGroup'");
+        TestContext.Current.TestOutputHelper!.WriteLine("   is an array of complex objects and cannot be rendered in a table cell.");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("This prevents the useless ToString() output!");
         
         // Verify that Packages column is NOT present
         Assert.DoesNotContain("Packages", mdf);
@@ -174,19 +166,19 @@ public class ListRenderingStrategyTests
 
         var mdf = MarkoutSerializer.Serialize(package, StrategyTestContext.Default);
         
-        _output.WriteLine("=== STRATEGY 2: Separate Section Per Item ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("✅ Pros:");
-        _output.WriteLine("  - All data preserved");
-        _output.WriteLine("  - Each framework gets its own section with proper table");
-        _output.WriteLine("  - Works with current implementation");
-        _output.WriteLine("");
-        _output.WriteLine("❌ Cons:");
-        _output.WriteLine("  - Only works if you know items ahead of time (net6.0, net8.0, etc.)");
-        _output.WriteLine("  - Can't handle dynamic list (what if there are 20 frameworks?)");
-        _output.WriteLine("  - Verbose model definition");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== STRATEGY 2: Separate Section Per Item ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ Pros:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - All data preserved");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Each framework gets its own section with proper table");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Works with current implementation");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("❌ Cons:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Only works if you know items ahead of time (net6.0, net8.0, etc.)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Can't handle dynamic list (what if there are 20 frameworks?)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Verbose model definition");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.Contains("## Dependencies (net6.0)", mdf);
         Assert.Contains("## Dependencies (net8.0)", mdf);
@@ -210,19 +202,19 @@ public class ListRenderingStrategyTests
 
         var mdf = MarkoutSerializer.Serialize(package, StrategyTestContext.Default);
         
-        _output.WriteLine("=== STRATEGY 3: Flatten Structure ===");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("✅ Pros:");
-        _output.WriteLine("  - All data in single table");
-        _output.WriteLine("  - Works with current implementation");
-        _output.WriteLine("  - Good for sorting/filtering across groups");
-        _output.WriteLine("");
-        _output.WriteLine("❌ Cons:");
-        _output.WriteLine("  - Loses semantic grouping (groups become repeated column)");
-        _output.WriteLine("  - Repetitive data (TargetFramework appears multiple times)");
-        _output.WriteLine("  - User must manually flatten before serializing");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== STRATEGY 3: Flatten Structure ===");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ Pros:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - All data in single table");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Works with current implementation");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Good for sorting/filtering across groups");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("❌ Cons:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Loses semantic grouping (groups become repeated column)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Repetitive data (TargetFramework appears multiple times)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - User must manually flatten before serializing");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
 
         Assert.Contains("| Target Framework | Package Name | Package Version |", mdf);
         Assert.Contains("| net6.0 | System.Memory |", mdf);
@@ -260,77 +252,77 @@ public class ListRenderingStrategyTests
 
         var mdf = MarkoutSerializer.Serialize(project, StrategyTestContext.Default);
         
-        _output.WriteLine("=== STRATEGY 4: Subsections for List Items (PROPOSED) ===");
-        _output.WriteLine("");
-        _output.WriteLine("CURRENT BEHAVIOR:");
-        _output.WriteLine(mdf);
-        _output.WriteLine("");
-        _output.WriteLine("DESIRED BEHAVIOR:");
-        _output.WriteLine("# MyLibrary");
-        _output.WriteLine("");
-        _output.WriteLine("## Dependencies");
-        _output.WriteLine("");
-        _output.WriteLine("### net6.0");
-        _output.WriteLine("");
-        _output.WriteLine("| Name | Version |");
-        _output.WriteLine("|------|---------|");
-        _output.WriteLine("| System.Memory | 4.5.5 |");
-        _output.WriteLine("| System.Text.Json | 6.0.0 |");
-        _output.WriteLine("");
-        _output.WriteLine("### net8.0");
-        _output.WriteLine("");
-        _output.WriteLine("| Name | Version |");
-        _output.WriteLine("|------|---------|");
-        _output.WriteLine("| System.Memory | 4.5.5 |");
-        _output.WriteLine("");
-        _output.WriteLine("✅ Pros:");
-        _output.WriteLine("  - Preserves ALL data");
-        _output.WriteLine("  - Preserves grouping semantics");
-        _output.WriteLine("  - Scales to any number of groups");
-        _output.WriteLine("  - Readable, follows markdown hierarchy");
-        _output.WriteLine("  - Handles dynamic lists");
-        _output.WriteLine("");
-        _output.WriteLine("❌ Cons:");
-        _output.WriteLine("  - Requires implementation change");
-        _output.WriteLine("  - Uses more heading levels (limits max depth)");
-        _output.WriteLine("  - More verbose than a single table");
-        _output.WriteLine("");
-        _output.WriteLine("IMPLEMENTATION:");
-        _output.WriteLine("  1. Detect when List<T> where T has non-scalar properties");
-        _output.WriteLine("  2. Instead of rendering as table, render each T as H(n+1) subsection");
-        _output.WriteLine("  3. Use a property value (like TargetFramework) as subsection heading");
-        _output.WriteLine("  4. Render T's nested lists as tables within that subsection");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== STRATEGY 4: Subsections for List Items (PROPOSED) ===");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("CURRENT BEHAVIOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine(mdf);
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("DESIRED BEHAVIOR:");
+        TestContext.Current.TestOutputHelper!.WriteLine("# MyLibrary");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("## Dependencies");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("### net6.0");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("| Name | Version |");
+        TestContext.Current.TestOutputHelper!.WriteLine("|------|---------|");
+        TestContext.Current.TestOutputHelper!.WriteLine("| System.Memory | 4.5.5 |");
+        TestContext.Current.TestOutputHelper!.WriteLine("| System.Text.Json | 6.0.0 |");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("### net8.0");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("| Name | Version |");
+        TestContext.Current.TestOutputHelper!.WriteLine("|------|---------|");
+        TestContext.Current.TestOutputHelper!.WriteLine("| System.Memory | 4.5.5 |");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ Pros:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Preserves ALL data");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Preserves grouping semantics");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Scales to any number of groups");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Readable, follows markdown hierarchy");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Handles dynamic lists");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("❌ Cons:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Requires implementation change");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Uses more heading levels (limits max depth)");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - More verbose than a single table");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("IMPLEMENTATION:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  1. Detect when List<T> where T has non-scalar properties");
+        TestContext.Current.TestOutputHelper!.WriteLine("  2. Instead of rendering as table, render each T as H(n+1) subsection");
+        TestContext.Current.TestOutputHelper!.WriteLine("  3. Use a property value (like TargetFramework) as subsection heading");
+        TestContext.Current.TestOutputHelper!.WriteLine("  4. Render T's nested lists as tables within that subsection");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 
     [Fact]
     public void DetectionLogic_WhenToUseSubsections()
     {
-        _output.WriteLine("=== DETECTION LOGIC FOR CHOOSING RENDERING STRATEGY ===");
-        _output.WriteLine("");
-        _output.WriteLine("When serializing List<T>, check T's properties:");
-        _output.WriteLine("");
-        _output.WriteLine("✅ ALL properties are scalar → Use TABLE (current behavior)");
-        _output.WriteLine("   Scalars: string, int, bool, DateTime, enum, etc.");
-        _output.WriteLine("   Example: List<Member> { Name, Role, Active }");
-        _output.WriteLine("");
-        _output.WriteLine("⚠️ T has List<U> property → Use SUBSECTIONS (Strategy 4)");
-        _output.WriteLine("   Example: List<DependencyGroup> { TargetFramework, List<Dependency> }");
-        _output.WriteLine("   Render: Each DependencyGroup as H3, its Packages as table");
-        _output.WriteLine("");
-        _output.WriteLine("⚠️ T has complex object property → Use SUBSECTIONS");
-        _output.WriteLine("   Example: List<Project> { Name, TeamInfo { Lead, List<Member> } }");
-        _output.WriteLine("   Render: Each Project as H3, nested content as normal");
-        _output.WriteLine("");
-        _output.WriteLine("HEADING CONTEXT:");
-        _output.WriteLine("  - Property marked [MarkoutSection(Level=2)] → list items use H3");
-        _output.WriteLine("  - Property not in section → list items use H2");
-        _output.WriteLine("  - Need to track current heading level to avoid H7+");
-        _output.WriteLine("");
-        _output.WriteLine("TITLE/NAME FOR SUBSECTION:");
-        _output.WriteLine("  - Check for [TitleProperty] on T");
-        _output.WriteLine("  - Or use first string property");
-        _output.WriteLine("  - Or use index if no suitable property");
-        _output.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("=== DETECTION LOGIC FOR CHOOSING RENDERING STRATEGY ===");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("When serializing List<T>, check T's properties:");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("✅ ALL properties are scalar → Use TABLE (current behavior)");
+        TestContext.Current.TestOutputHelper!.WriteLine("   Scalars: string, int, bool, DateTime, enum, etc.");
+        TestContext.Current.TestOutputHelper!.WriteLine("   Example: List<Member> { Name, Role, Active }");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("⚠️ T has List<U> property → Use SUBSECTIONS (Strategy 4)");
+        TestContext.Current.TestOutputHelper!.WriteLine("   Example: List<DependencyGroup> { TargetFramework, List<Dependency> }");
+        TestContext.Current.TestOutputHelper!.WriteLine("   Render: Each DependencyGroup as H3, its Packages as table");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("⚠️ T has complex object property → Use SUBSECTIONS");
+        TestContext.Current.TestOutputHelper!.WriteLine("   Example: List<Project> { Name, TeamInfo { Lead, List<Member> } }");
+        TestContext.Current.TestOutputHelper!.WriteLine("   Render: Each Project as H3, nested content as normal");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("HEADING CONTEXT:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Property marked [MarkoutSection(Level=2)] → list items use H3");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Property not in section → list items use H2");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Need to track current heading level to avoid H7+");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
+        TestContext.Current.TestOutputHelper!.WriteLine("TITLE/NAME FOR SUBSECTION:");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Check for [TitleProperty] on T");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Or use first string property");
+        TestContext.Current.TestOutputHelper!.WriteLine("  - Or use index if no suitable property");
+        TestContext.Current.TestOutputHelper!.WriteLine("");
     }
 }
