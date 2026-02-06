@@ -157,14 +157,14 @@ public class SerializerTests
             }
         };
 
-        var context = new SectionTestContext { Options = new MarkoutWriterOptions { IncludeSections = new HashSet<int> { 1 } } };
+        var context = new SectionTestContext { Options = new MarkoutWriterOptions { IncludeSections = ["Dependencies"] } };
         var mdf = context.Serialize(package);
 
-        // Section 1 (Dependencies) should be included
+        // Dependencies section should be included
         Assert.Contains("## Dependencies", mdf);
         Assert.Contains("Dep1", mdf);
 
-        // Section 2 (Assemblies) should be excluded
+        // Assemblies section should be excluded
         Assert.DoesNotContain("## Assemblies", mdf);
         Assert.DoesNotContain("Test.dll", mdf);
     }
@@ -186,14 +186,14 @@ public class SerializerTests
             }
         };
 
-        var context = new SectionTestContext { Options = new MarkoutWriterOptions { ExcludeSections = new HashSet<int> { 1 } } };
+        var context = new SectionTestContext { Options = new MarkoutWriterOptions { ExcludeSections = ["Dependencies"] } };
         var mdf = context.Serialize(package);
 
-        // Section 1 (Dependencies) should be excluded
+        // Dependencies section should be excluded
         Assert.DoesNotContain("## Dependencies", mdf);
         Assert.DoesNotContain("Dep1", mdf);
 
-        // Section 2 (Assemblies) should be included
+        // Assemblies section should be included
         Assert.Contains("## Assemblies", mdf);
         Assert.Contains("Test.dll", mdf);
     }

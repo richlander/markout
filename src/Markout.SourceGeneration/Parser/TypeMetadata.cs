@@ -99,7 +99,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
 
     public PropertyMetadata(
         string name,
-        string mdfName,
+        string displayName,
         string typeName,
         PropertyKind kind,
         bool isIgnored = false,
@@ -116,7 +116,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? boolFalseValue = null)
     {
         Name = name;
-        DisplayName = mdfName;
+        DisplayName = displayName;
         TypeName = typeName;
         Kind = kind;
         IsIgnored = isIgnored;

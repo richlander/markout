@@ -22,7 +22,7 @@ public sealed class MarkoutWriter
     private bool _needsBlankLine;
     private bool _hasContent;
     private bool _inTable;
-    private int _currentSection;
+    private string? _currentSectionName;
     private bool _sectionExcluded;
 
     /// <summary>
@@ -51,8 +51,12 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Creates a writer that writes to the specified TextWriter with the specified options.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if both IncludeSections and ExcludeSections are set.</exception>
     public MarkoutWriter(TextWriter writer, MarkoutWriterOptions options)
     {
+        if (options.IncludeSections != null && options.ExcludeSections != null)
+            throw new InvalidOperationException("Cannot set both IncludeSections and ExcludeSections. Use one or the other.");
+
         _writer = writer;
         _options = options;
     }
@@ -77,14 +81,14 @@ public sealed class MarkoutWriter
     public bool BoldFieldNames => _options.BoldFieldNames;
 
     /// <summary>
-    /// Gets the sections to include (1-based, H2 boundaries).
+    /// Gets the sections to include (by heading name).
     /// </summary>
-    public HashSet<int>? IncludeSections => _options.IncludeSections;
+    public HashSet<string>? IncludeSections => _options.IncludeSections;
 
     /// <summary>
-    /// Gets the sections to exclude (1-based, H2 boundaries).
+    /// Gets the sections to exclude (by heading name).
     /// </summary>
-    public HashSet<int>? ExcludeSections => _options.ExcludeSections;
+    public HashSet<string>? ExcludeSections => _options.ExcludeSections;
 
     /// <summary>
     /// Gets whether to include the description paragraph.
@@ -103,18 +107,20 @@ public sealed class MarkoutWriter
 
     private bool IsSectionIncluded()
     {
-        // Content before first H2 (section 0) is always included
-        if (_currentSection == 0)
+        // Content before first H2 (no section name) is always included
+        if (_currentSectionName == null)
             return true;
-        if (_options.IncludeSections?.Count > 0 && !_options.IncludeSections.Contains(_currentSection))
+        if (_options.IncludeSections != null && !_options.IncludeSections.Contains(_currentSectionName))
             return false;
-        if (_options.ExcludeSections?.Contains(_currentSection) == true)
+        if (_options.ExcludeSections?.Contains(_currentSectionName) == true)
             return false;
         return true;
     }
 
-    private void WriteFormattedValue<T>(T value, ReadOnlySpan<char> format = default) where T : ISpanFormattable
+    private void WriteFormattedValue<T>(T value) where T : ISpanFormattable
     {
+        // Use ISO 8601 round-trip format for date/time types
+        ReadOnlySpan<char> format = value is DateTime or DateTimeOffset ? "O" : default;
         Span<char> buffer = stackalloc char[64];
         if (value.TryFormat(buffer, out int charsWritten, format, CultureInfo.InvariantCulture))
             _writer.Write(buffer[..charsWritten]);
@@ -161,7 +167,7 @@ public sealed class MarkoutWriter
         // H2 starts a new section
         if (level == 2)
         {
-            _currentSection++;
+            _currentSectionName = text;
             _sectionExcluded = !IsSectionIncluded();
         }
 
@@ -266,10 +272,10 @@ public sealed class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a key-value field with an integer value.
+    /// Writes a key-value field with a formattable value (int, long, double, decimal, DateTime, DateTimeOffset, etc.).
     /// Uses trailing spaces for markdown hard line break.
     /// </summary>
-    public void WriteField(string key, int value)
+    public void WriteField<T>(string key, T value) where T : ISpanFormattable
     {
         if (_sectionExcluded)
             return;
@@ -277,86 +283,6 @@ public sealed class MarkoutWriter
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         WriteFormattedValue(value);
-        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field with a long value.
-    /// Uses trailing spaces for markdown hard line break.
-    /// </summary>
-    public void WriteField(string key, long value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field with a double value.
-    /// Uses trailing spaces for markdown hard line break.
-    /// </summary>
-    public void WriteField(string key, double value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field with a decimal value.
-    /// Uses trailing spaces for markdown hard line break.
-    /// </summary>
-    public void WriteField(string key, decimal value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field with a DateTime value (ISO 8601 format).
-    /// Uses trailing spaces for markdown hard line break.
-    /// </summary>
-    public void WriteField(string key, DateTime value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value, "O");
-        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field with a DateTimeOffset value (ISO 8601 format).
-    /// Uses trailing spaces for markdown hard line break.
-    /// </summary>
-    public void WriteField(string key, DateTimeOffset value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value, "O");
         _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
@@ -395,7 +321,7 @@ public sealed class MarkoutWriter
     /// Writes a key-value field without trailing spaces (no markdown soft break).
     /// Use for LineBreaks layout where each field is on its own line.
     /// </summary>
-    public void WriteFieldNoBreak(string key, int value)
+    public void WriteFieldNoBreak<T>(string key, T value) where T : ISpanFormattable
     {
         if (_sectionExcluded)
             return;
@@ -403,86 +329,6 @@ public sealed class MarkoutWriter
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         WriteFormattedValue(value);
-        _writer.WriteLine();
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field without trailing spaces (no markdown soft break).
-    /// Use for LineBreaks layout where each field is on its own line.
-    /// </summary>
-    public void WriteFieldNoBreak(string key, long value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _writer.WriteLine();
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field without trailing spaces (no markdown soft break).
-    /// Use for LineBreaks layout where each field is on its own line.
-    /// </summary>
-    public void WriteFieldNoBreak(string key, decimal value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _writer.WriteLine();
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field without trailing spaces (no markdown soft break).
-    /// Use for LineBreaks layout where each field is on its own line.
-    /// </summary>
-    public void WriteFieldNoBreak(string key, double value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _writer.WriteLine();
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field without trailing spaces (no markdown soft break).
-    /// Use for LineBreaks layout where each field is on its own line.
-    /// </summary>
-    public void WriteFieldNoBreak(string key, DateTime value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value, "O");
-        _writer.WriteLine();
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field without trailing spaces (no markdown soft break).
-    /// Use for LineBreaks layout where each field is on its own line.
-    /// </summary>
-    public void WriteFieldNoBreak(string key, DateTimeOffset value)
-    {
-        if (_sectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value, "O");
         _writer.WriteLine();
         _hasContent = true;
     }

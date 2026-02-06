@@ -174,15 +174,15 @@ public class MarkoutWriterTests
     [Fact]
     public void IncludeSections_FiltersToSpecifiedSections()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = new HashSet<int> { 1 } });
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = ["First"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Intro");
-        writer.WriteHeading(2, "First");    // Section 1 - included
+        writer.WriteHeading(2, "First");    // included
         writer.WriteField("A", "1");
-        writer.WriteHeading(2, "Second");   // Section 2 - excluded
+        writer.WriteHeading(2, "Second");   // excluded
         writer.WriteField("B", "2");
-        writer.WriteHeading(2, "Third");    // Section 3 - excluded
+        writer.WriteHeading(2, "Third");    // excluded
         writer.WriteField("C", "3");
 
         var expected = """
@@ -201,14 +201,14 @@ public class MarkoutWriterTests
     [Fact]
     public void ExcludeSections_SkipsSpecifiedSections()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = new HashSet<int> { 2 } });
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = ["Second"] });
 
         writer.WriteHeading(1, "Title");
-        writer.WriteHeading(2, "First");    // Section 1 - included
+        writer.WriteHeading(2, "First");    // included
         writer.WriteField("A", "1");
-        writer.WriteHeading(2, "Second");   // Section 2 - excluded
+        writer.WriteHeading(2, "Second");   // excluded
         writer.WriteField("B", "2");
-        writer.WriteHeading(2, "Third");    // Section 3 - included
+        writer.WriteHeading(2, "Third");    // included
         writer.WriteField("C", "3");
 
         var expected = """
@@ -229,13 +229,13 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_ContentBeforeFirstH2_AlwaysIncluded()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = new HashSet<int> { 2 } });
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = ["Second"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("This is before any H2");
-        writer.WriteHeading(2, "First");    // Section 1 - excluded
+        writer.WriteHeading(2, "First");    // excluded
         writer.WriteField("A", "1");
-        writer.WriteHeading(2, "Second");   // Section 2 - included
+        writer.WriteHeading(2, "Second");   // included
         writer.WriteField("B", "2");
 
         var expected = """
@@ -254,14 +254,14 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_TableSpanningExcludedSection_NotWritten()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = new HashSet<int> { 1 } });
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = ["Data"] });
 
         writer.WriteHeading(1, "Title");
-        writer.WriteHeading(2, "Data");     // Section 1 - excluded
+        writer.WriteHeading(2, "Data");     // excluded
         writer.WriteTableStart("Name", "Value");
         writer.WriteTableRow("Foo", "Bar");
         writer.WriteTableEnd();
-        writer.WriteHeading(2, "Other");    // Section 2 - included
+        writer.WriteHeading(2, "Other");    // included
         writer.WriteField("X", "Y");
 
         var expected = """
@@ -490,7 +490,38 @@ public class MarkoutWriterTests
         Assert.Throws<InvalidOperationException>(() => options.BoldFieldNames = false);
         Assert.Throws<InvalidOperationException>(() => options.IncludeIcons = false);
         Assert.Throws<InvalidOperationException>(() => options.IncludeDescription = false);
-        Assert.Throws<InvalidOperationException>(() => options.IncludeSections = new HashSet<int> { 1 });
-        Assert.Throws<InvalidOperationException>(() => options.ExcludeSections = new HashSet<int> { 2 });
+        Assert.Throws<InvalidOperationException>(() => options.IncludeSections = ["First"]);
+        Assert.Throws<InvalidOperationException>(() => options.ExcludeSections = ["Second"]);
+    }
+
+    [Fact]
+    public void MarkoutWriter_BothIncludeAndExclude_ThrowsInvalidOperation()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            IncludeSections = ["First"],
+            ExcludeSections = ["Second"]
+        };
+
+        Assert.Throws<InvalidOperationException>(() => new MarkoutWriter(options));
+    }
+
+    [Fact]
+    public void IncludeSections_EmptySet_IncludesPreambleOnly()
+    {
+        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = [] });
+
+        writer.WriteHeading(1, "Title");
+        writer.WriteParagraph("Preamble text");
+        writer.WriteHeading(2, "First");
+        writer.WriteField("A", "1");
+
+        var expected = """
+            # Title
+
+            Preamble text
+
+            """;
+        Assert.Equal(expected, writer.ToString());
     }
 }
