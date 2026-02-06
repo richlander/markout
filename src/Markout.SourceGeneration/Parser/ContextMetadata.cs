@@ -23,7 +23,9 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return Namespace == other.Namespace && ClassName == other.ClassName;
+        return Namespace == other.Namespace &&
+               ClassName == other.ClassName &&
+               SequenceEqual(Types, other.Types);
     }
 
     public override bool Equals(object? obj) => Equals(obj as ContextMetadata);
@@ -31,7 +33,18 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
     {
         unchecked
         {
-            return (Namespace?.GetHashCode() ?? 0) * 397 ^ (ClassName?.GetHashCode() ?? 0);
+            var hash = (Namespace?.GetHashCode() ?? 0) * 397 ^ (ClassName?.GetHashCode() ?? 0);
+            foreach (var type in Types)
+                hash = hash * 397 ^ type.GetHashCode();
+            return hash;
         }
+    }
+
+    private static bool SequenceEqual<T>(IReadOnlyList<T> a, IReadOnlyList<T> b) where T : IEquatable<T>
+    {
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (!a[i].Equals(b[i])) return false;
+        return true;
     }
 }

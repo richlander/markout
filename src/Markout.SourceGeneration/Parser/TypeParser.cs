@@ -22,20 +22,15 @@ internal static class TypeParser
     private const string MarkoutFormatAttribute = "Markout.MarkoutFormatAttribute";
 
     public static ContextMetadata? ParseContext(
-        GeneratorSyntaxContext context,
+        GeneratorAttributeSyntaxContext context,
         CancellationToken cancellationToken)
     {
-        var classDecl = (ClassDeclarationSyntax)context.Node;
-        var symbol = context.SemanticModel.GetDeclaredSymbol(classDecl, cancellationToken);
-
-        if (symbol is not INamedTypeSymbol classSymbol)
+        if (context.TargetSymbol is not INamedTypeSymbol classSymbol)
             return null;
 
-        var contextAttributes = classSymbol.GetAttributes()
-            .Where(a => a.AttributeClass?.ToDisplayString() == MarkoutContextAttribute)
-            .ToList();
+        var contextAttributes = context.Attributes;
 
-        if (contextAttributes.Count == 0)
+        if (contextAttributes.Length == 0)
             return null;
 
         var types = new List<TypeMetadata>();
@@ -44,7 +39,6 @@ internal static class TypeParser
             if (attr.ConstructorArguments.Length > 0 &&
                 attr.ConstructorArguments[0].Value is INamedTypeSymbol typeArg)
             {
-                // Pass the generator context for diagnostics
                 var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation, null, null, null, null);
                 if (typeMeta != null)
                     types.Add(typeMeta);

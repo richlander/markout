@@ -15,10 +15,12 @@ public sealed class MarkoutSourceGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Find all contexts with [MarkoutContext] attributes
+        // Find all partial classes with [MarkoutContext] attributes
         var contexts = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                predicate: static (node, _) => IsClassWithAttributes(node),
+            .ForAttributeWithMetadataName(
+                "Markout.MarkoutContextAttribute",
+                predicate: static (node, _) => node is ClassDeclarationSyntax classDecl &&
+                    classDecl.Modifiers.Any(m => m.ValueText == "partial"),
                 transform: static (ctx, ct) => TypeParser.ParseContext(ctx, ct))
             .Where(static m => m is not null)
             .Select(static (m, _) => m!);
@@ -59,12 +61,5 @@ public sealed class MarkoutSourceGenerator : IIncrementalGenerator
                 : $"{contextMeta.Namespace}.{contextMeta.ClassName}.g.cs";
             ctx.AddSource(contextHintName, contextSource);
         });
-    }
-
-    private static bool IsClassWithAttributes(SyntaxNode node)
-    {
-        return node is ClassDeclarationSyntax classDecl &&
-               classDecl.AttributeLists.Count > 0 &&
-               classDecl.Modifiers.Any(m => m.ValueText == "partial");
     }
 }

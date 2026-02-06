@@ -68,11 +68,40 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return FullTypeName == other.FullTypeName;
+        return FullTypeName == other.FullTypeName &&
+               Namespace == other.Namespace &&
+               TypeName == other.TypeName &&
+               IsValueType == other.IsValueType &&
+               TitleProperty == other.TitleProperty &&
+               TitleContextProperty == other.TitleContextProperty &&
+               DescriptionProperty == other.DescriptionProperty &&
+               RenderScalars == other.RenderScalars &&
+               FieldLayout == other.FieldLayout &&
+               SequenceEqual(Properties, other.Properties);
     }
 
     public override bool Equals(object? obj) => Equals(obj as TypeMetadata);
-    public override int GetHashCode() => FullTypeName.GetHashCode();
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            var hash = FullTypeName.GetHashCode();
+            hash = hash * 397 ^ IsValueType.GetHashCode();
+            hash = hash * 397 ^ RenderScalars.GetHashCode();
+            hash = hash * 397 ^ (int)FieldLayout;
+            foreach (var prop in Properties)
+                hash = hash * 397 ^ prop.GetHashCode();
+            return hash;
+        }
+    }
+
+    private static bool SequenceEqual<T>(IReadOnlyList<T> a, IReadOnlyList<T> b) where T : IEquatable<T>
+    {
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (!a[i].Equals(b[i])) return false;
+        return true;
+    }
 }
 
 /// <summary>
@@ -146,7 +175,25 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return Name == other.Name && TypeName == other.TypeName;
+        return Name == other.Name &&
+               DisplayName == other.DisplayName &&
+               TypeName == other.TypeName &&
+               Kind == other.Kind &&
+               IsIgnored == other.IsIgnored &&
+               IsIgnoredInTable == other.IsIgnoredInTable &&
+               IsUnsupportedInTable == other.IsUnsupportedInTable &&
+               IsSection == other.IsSection &&
+               SectionLevel == other.SectionLevel &&
+               SectionName == other.SectionName &&
+               ElementTypeName == other.ElementTypeName &&
+               ElementHasNestedContent == other.ElementHasNestedContent &&
+               ElementTitleProperty == other.ElementTitleProperty &&
+               BoolTrueValue == other.BoolTrueValue &&
+               BoolFalseValue == other.BoolFalseValue &&
+               IsNullableValueType == other.IsNullableValueType &&
+               IsArray == other.IsArray &&
+               CustomFormat == other.CustomFormat &&
+               SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
     public override bool Equals(object? obj) => Equals(obj as PropertyMetadata);
@@ -154,8 +201,21 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     {
         unchecked
         {
-            return (Name?.GetHashCode() ?? 0) * 397 ^ (TypeName?.GetHashCode() ?? 0);
+            var hash = (Name?.GetHashCode() ?? 0) * 397 ^ (TypeName?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (int)Kind;
+            hash = hash * 397 ^ (DisplayName?.GetHashCode() ?? 0);
+            return hash;
         }
+    }
+
+    private static bool SequenceEqual(IReadOnlyList<PropertyMetadata>? a, IReadOnlyList<PropertyMetadata>? b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a is null || b is null) return a is null && b is null;
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (!a[i].Equals(b[i])) return false;
+        return true;
     }
 }
 
