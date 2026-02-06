@@ -55,6 +55,16 @@ public class NullableTableContainer
     public List<NullableInTableRow>? Items { get; set; }
 }
 
+// --- String null-skipping test model (OneLine, strings only) ---
+
+[MarkoutSerializable]
+public class StringOnlyOneLine
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public int Count { get; set; }
+}
+
 // --- Title dedup test models ---
 
 [MarkoutSerializable(TitleProperty = nameof(Name), RenderScalars = true)]
@@ -89,6 +99,7 @@ public class TitleContextDedupRecord
 [MarkoutContext(typeof(NullableScalarsDoubleSpace))]
 [MarkoutContext(typeof(NullableScalarsList))]
 [MarkoutContext(typeof(NullableTableContainer))]
+[MarkoutContext(typeof(StringOnlyOneLine))]
 [MarkoutContext(typeof(TitleDedupRecord))]
 [MarkoutContext(typeof(TitleAndDescDedupRecord))]
 [MarkoutContext(typeof(TitleContextDedupRecord))]
@@ -139,7 +150,7 @@ public class NullableAndTitleTests
     }
 
     [Fact]
-    public void Nullable_OneLine_AllNullableNull_StringStillRendered()
+    public void Nullable_OneLine_AllNull_AllSkipped()
     {
         var record = new NullableScalarsOneLine
         {
@@ -151,8 +162,8 @@ public class NullableAndTitleTests
 
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        // String fields still render (with empty value); nullable value types are skipped
-        Assert.Contains("Label:", mdf);
+        // Null strings and nullable value types are all skipped
+        Assert.DoesNotContain("Label:", mdf);
         Assert.DoesNotContain("Count:", mdf);
         Assert.DoesNotContain("Active:", mdf);
         Assert.DoesNotContain("Modified:", mdf);
@@ -328,5 +339,39 @@ public class NullableAndTitleTests
         Assert.DoesNotContain("Version: 2.0", mdf);
         // Other scalars should still appear
         Assert.Contains("Kind: gadget", mdf);
+    }
+
+    // --- String null-skipping in OneLine mode ---
+
+    [Fact]
+    public void OneLine_NullString_Skipped()
+    {
+        var record = new StringOnlyOneLine { Name = null, Description = "hello", Count = 5 };
+        var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
+
+        Assert.DoesNotContain("Name:", mdf);
+        Assert.Contains("Description: hello", mdf);
+        Assert.Contains("Count: 5", mdf);
+    }
+
+    [Fact]
+    public void OneLine_EmptyString_Skipped()
+    {
+        var record = new StringOnlyOneLine { Name = "", Description = "hello", Count = 5 };
+        var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
+
+        Assert.DoesNotContain("Name:", mdf);
+        Assert.Contains("Description: hello", mdf);
+    }
+
+    [Fact]
+    public void OneLine_NonNullString_Rendered()
+    {
+        var record = new StringOnlyOneLine { Name = "Widget", Description = "A thing", Count = 1 };
+        var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
+
+        Assert.Contains("Name: Widget", mdf);
+        Assert.Contains("Description: A thing", mdf);
+        Assert.Contains("Count: 1", mdf);
     }
 }

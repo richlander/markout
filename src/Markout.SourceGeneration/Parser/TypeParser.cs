@@ -19,6 +19,7 @@ internal static class TypeParser
     private const string MarkoutIgnoreInTableAttribute = "Markout.MarkoutIgnoreInTableAttribute";
     private const string MarkoutSectionAttribute = "Markout.MarkoutSectionAttribute";
     private const string MarkoutBoolFormatAttribute = "Markout.MarkoutBoolFormatAttribute";
+    private const string MarkoutFormatAttribute = "Markout.MarkoutFormatAttribute";
 
     public static ContextMetadata? ParseContext(
         GeneratorSyntaxContext context,
@@ -196,6 +197,16 @@ internal static class TypeParser
                 boolFalseValue = fv;
         }
 
+        // Parse [MarkoutFormat] attribute
+        string? customFormat = null;
+        var formatAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutFormatAttribute);
+        if (formatAttr?.ConstructorArguments.Length > 0 &&
+            formatAttr.ConstructorArguments[0].Value is string fmt)
+        {
+            customFormat = fmt;
+        }
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -239,7 +250,8 @@ internal static class TypeParser
             boolTrueValue,
             boolFalseValue,
             isNullableValueType,
-            isArray);
+            isArray,
+            customFormat);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, bool IsArray)

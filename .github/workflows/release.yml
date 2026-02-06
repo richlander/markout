@@ -33,7 +33,17 @@ jobs:
 
       - name: Publish to NuGet
         run: |
-          dotnet nuget push packages/*.nupkg \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
+          for pkg in packages/*.nupkg; do
+            name=$(basename "$pkg")
+            case "$name" in
+              Markout.[0-9]*)
+                dotnet nuget push "$pkg" \
+                  --api-key ${{ secrets.NUGET_API_KEY }} \
+                  --source https://api.nuget.org/v3/index.json \
+                  --skip-duplicate
+                ;;
+              *)
+                echo "Skipping sample package: $name"
+                ;;
+            esac
+          done

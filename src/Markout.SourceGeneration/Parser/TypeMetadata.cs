@@ -98,6 +98,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? BoolFalseValue { get; }
     public bool IsNullableValueType { get; }
     public bool IsArray { get; }
+    public string? CustomFormat { get; }
 
     public PropertyMetadata(
         string name,
@@ -117,7 +118,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? boolTrueValue = null,
         string? boolFalseValue = null,
         bool isNullableValueType = false,
-        bool isArray = false)
+        bool isArray = false,
+        string? customFormat = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -137,6 +139,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         BoolFalseValue = boolFalseValue;
         IsNullableValueType = isNullableValueType;
         IsArray = isArray;
+        CustomFormat = customFormat;
     }
 
     public bool Equals(PropertyMetadata? other)
