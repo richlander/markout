@@ -248,7 +248,7 @@ internal static class TypeParser
         // Determine if property is unsupported in table context
         // Joined string arrays are treated as scalars, so they're fine in tables
         bool isJoinedArray = kind == PropertyKind.StringArray && joinSeparator != null;
-        bool isUnsupportedInTable = !isIgnored && !isSection && !IsScalarKind(kind) && !isJoinedArray;
+        bool isUnsupportedInTable = !isIgnored && !isSection && !IsScalarKind(kind) && !isJoinedArray && kind != PropertyKind.Formattable;
 
         // Emit warning for unsupported properties without [MarkoutIgnoreInTable]
         if (isUnsupportedInTable && !isIgnoredInTable)
@@ -416,6 +416,13 @@ internal static class TypeParser
             }
         }
 
+        // IMarkoutFormattable: custom formatting via interface
+        if (knownTypes.IMarkoutFormattable != null &&
+            type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, knownTypes.IMarkoutFormattable)))
+        {
+            return (PropertyKind.Formattable, null, null, false, null, false);
+        }
+
         // Nested object
         if (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct)
         {
@@ -506,6 +513,7 @@ internal static class TypeParser
             PropertyKind.StringArray => "a string array",
             PropertyKind.ComplexArray => "an array of complex objects",
             PropertyKind.NestedObject => "a complex object",
+            PropertyKind.Formattable => "formattable",
             PropertyKind.Other => "a non-scalar type",
             _ => kind.ToString().ToLowerInvariant()
         };

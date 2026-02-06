@@ -6,7 +6,10 @@ using Markout.SourceGeneration.Parser;
 namespace Markout.SourceGeneration.Emitter;
 
 /// <summary>
-/// Emits source code for Markout serialization.
+/// Coordinates source code emission for Markout serialization.
+/// Delegates to <see cref="FieldEmitter"/> for scalar field layouts,
+/// <see cref="CollectionEmitter"/> for tables and subsections,
+/// and <see cref="EmitHelpers"/> for shared value expressions.
 /// </summary>
 internal static class SerializerEmitter
 {
@@ -191,6 +194,202 @@ internal static class SerializerEmitter
         return sb.ToString();
     }
 
+    // EmitPropertySerializations is internal so CollectionEmitter can call back into it
+    // for recursive subsection rendering.
+    internal static void EmitPropertySerializations(
+        StringBuilder sb,
+        IReadOnlyList<PropertyMetadata> properties,
+        string valueExpr,
+        int indentLevel,
+        int baseHeadingLevel = 2,
+        int nestingDepth = 0,
+        bool autoFields = true,
+        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine)
+    {
+        var indent = new string(' ', indentLevel * 4);
+
+        // Separate scalars from non-scalars for field layout handling
+        var scalarProps = new List<PropertyMetadata>();
+        var nonScalarProps = new List<PropertyMetadata>();
+
+        foreach (var prop in properties)
+        {
+            if (prop.IsIgnored)
+                continue;
+
+            // Skip non-section properties if AutoFields is false
+            if (!autoFields && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
+                continue;
+
+            if ((EmitHelpers.IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)) && !prop.IsSection)
+                scalarProps.Add(prop);
+            else
+                nonScalarProps.Add(prop);
+        }
+
+        // Emit scalars based on layout
+        if (autoFields && scalarProps.Count > 0)
+        {
+            FieldEmitter.EmitScalarsWithLayout(sb, scalarProps, valueExpr, indentLevel, fieldLayout, nestingDepth);
+        }
+
+        // Emit non-scalar properties (sections, arrays, etc.)
+        foreach (var prop in nonScalarProps)
+        {
+            var propAccess = $"{valueExpr}.{prop.Name}";
+            var effectiveSectionLevel = prop.IsSection 
+                ? System.Math.Max(prop.SectionLevel, baseHeadingLevel) 
+                : baseHeadingLevel;
+
+            if (prop.IsSection)
+            {
+                EmitSectionProperty(sb, prop, propAccess, indent, indentLevel, effectiveSectionLevel, nestingDepth, fieldLayout);
+                continue;
+            }
+
+            // Non-section property handling
+            EmitNonSectionProperty(sb, prop, propAccess, indent, indentLevel, baseHeadingLevel, nestingDepth, fieldLayout);
+        }
+    }
+
+    private static void EmitSectionProperty(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        string indent,
+        int indentLevel,
+        int effectiveSectionLevel,
+        int nestingDepth,
+        FieldLayoutKind fieldLayout)
+    {
+        var sectionName = prop.SectionName ?? prop.DisplayName;
+
+        if (prop.Kind == PropertyKind.FieldCollection)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteFieldTable({propAccess});");
+            sb.AppendLine($"{indent}}}");
+        }
+        else if (prop.Kind == PropertyKind.ComplexArray && prop.ElementProperties != null)
+        {
+            sb.AppendLine($"{indent}if ({EmitHelpers.GetCollectionCountCheck(prop, propAccess)})");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            
+            if (prop.ElementHasNestedContent)
+            {
+                CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel, nestingDepth);
+            }
+            else
+            {
+                CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+            }
+            sb.AppendLine($"{indent}}}");
+        }
+        else if (prop.Kind == PropertyKind.StringArray)
+        {
+            sb.AppendLine($"{indent}if ({EmitHelpers.GetCollectionCountCheck(prop, propAccess)})");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
+            sb.AppendLine($"{indent}}}");
+        }
+        else if (prop.Kind == PropertyKind.Tree)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+            sb.AppendLine($"{indent}}}");
+        }
+        else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth + 1);
+            sb.AppendLine($"{indent}}}");
+        }
+        else if (prop.Kind == PropertyKind.Formattable)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    ((global::Markout.IMarkoutFormattable){propAccess}).WriteTo(writer);");
+            sb.AppendLine($"{indent}}}");
+        }
+        else
+        {
+            // For other types, just write the heading unconditionally
+            sb.AppendLine($"{indent}writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+        }
+    }
+
+    private static void EmitNonSectionProperty(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        string indent,
+        int indentLevel,
+        int baseHeadingLevel,
+        int nestingDepth,
+        FieldLayoutKind fieldLayout)
+    {
+        switch (prop.Kind)
+        {
+            case PropertyKind.StringArray:
+                sb.AppendLine($"{indent}if ({propAccess} != null)");
+                sb.AppendLine($"{indent}    writer.WriteArray(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
+                break;
+
+            case PropertyKind.FieldCollection:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteCompactFields({propAccess});");
+                break;
+
+            case PropertyKind.Tree:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+                break;
+
+            case PropertyKind.ComplexArray:
+                if (prop.ElementProperties != null && prop.ElementProperties.Count > 0)
+                {
+                    sb.AppendLine($"{indent}if ({EmitHelpers.GetCollectionCountCheck(prop, propAccess)})");
+                    sb.AppendLine($"{indent}{{");
+                    sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EmitHelpers.EscapeString(prop.DisplayName)}\");");
+                    if (prop.ElementHasNestedContent)
+                    {
+                        CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, baseHeadingLevel, nestingDepth);
+                    }
+                    else
+                    {
+                        CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                    }
+                    sb.AppendLine($"{indent}}}");
+                }
+                break;
+
+            case PropertyKind.NestedObject:
+                if (prop.ElementProperties != null && prop.ElementProperties.Count > 0)
+                {
+                    sb.AppendLine($"{indent}if ({propAccess} != null)");
+                    sb.AppendLine($"{indent}{{");
+                    sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EmitHelpers.EscapeString(prop.DisplayName)}\");");
+                    EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth + 1, true, fieldLayout);
+                    sb.AppendLine($"{indent}}}");
+                }
+                break;
+
+            case PropertyKind.Formattable:
+                sb.AppendLine($"{indent}if ({propAccess} != null)");
+                sb.AppendLine($"{indent}    ((global::Markout.IMarkoutFormattable){propAccess}).WriteTo(writer);");
+                break;
+        }
+    }
+
     private static void EmitSchemaProperty(StringBuilder sb, TypeMetadata type)
     {
         sb.AppendLine($"    private static global::Markout.MarkoutSchemaInfo? _{type.TypeName}Schema;");
@@ -220,9 +419,9 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}new()");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    Name = \"{prop.Name}\",");
-            sb.AppendLine($"{indent}    DisplayName = \"{EscapeString(prop.DisplayName)}\",");
-            sb.AppendLine($"{indent}    TypeName = \"{EscapeString(GetSimpleTypeName(prop.TypeName))}\",");
-            sb.AppendLine($"{indent}    Rendering = \"{EscapeString(rendering)}\",");
+            sb.AppendLine($"{indent}    DisplayName = \"{EmitHelpers.EscapeString(prop.DisplayName)}\",");
+            sb.AppendLine($"{indent}    TypeName = \"{EmitHelpers.EscapeString(GetSimpleTypeName(prop.TypeName))}\",");
+            sb.AppendLine($"{indent}    Rendering = \"{EmitHelpers.EscapeString(rendering)}\",");
             
             // Only show children for non-ignored properties in document context
             if (prop.ElementProperties != null && prop.ElementProperties.Count > 0 && !inTableContext && !prop.IsIgnored)
@@ -270,11 +469,18 @@ internal static class SerializerEmitter
                 suffix++;
             }
 
-            sb.AppendLine($"        public const string {uniqueName} = \"{EscapeString(sectionName)}\";");
+            sb.AppendLine($"        public const string {uniqueName} = \"{EmitHelpers.EscapeString(sectionName)}\";");
         }
 
         sb.AppendLine("    }");
         sb.AppendLine();
+    }
+
+    private static string GetTypeInfoClassName(TypeMetadata type)
+    {
+        if (string.IsNullOrEmpty(type.Namespace))
+            return $"global::{type.TypeName}MarkoutTypeInfo";
+        return $"global::{type.Namespace}.{type.TypeName}MarkoutTypeInfo";
     }
 
     private static string NormalizeSectionName(string name)
@@ -308,7 +514,7 @@ internal static class SerializerEmitter
                 return "Ignored";
             
             // In table context, only scalars (and joined arrays) work
-            if (IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null))
+            if (EmitHelpers.IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null))
                 return "Column" + (prop.Name != prop.DisplayName ? $" \"{prop.DisplayName}\"" : "");
             
             // Unsupported patterns are skipped
@@ -354,6 +560,7 @@ internal static class SerializerEmitter
                 : "Table",
             PropertyKind.FieldCollection => "Compact fields",
             PropertyKind.NestedObject => "Fields",
+            PropertyKind.Formattable => "Custom (IMarkoutFormattable)",
             PropertyKind.Tree => "Tree",
             _ => "Field"
         };
@@ -370,568 +577,5 @@ internal static class SerializerEmitter
             .Replace("System.Boolean", "bool")
             .Replace("System.Decimal", "decimal")
             .Replace("System.Double", "double");
-    }
-
-    private static bool IsScalarKind(PropertyKind kind)
-    {
-        return kind is
-            PropertyKind.String or
-            PropertyKind.Boolean or
-            PropertyKind.Int32 or
-            PropertyKind.Int64 or
-            PropertyKind.Double or
-            PropertyKind.Decimal or
-            PropertyKind.DateTime or
-            PropertyKind.DateTimeOffset or
-            PropertyKind.Enum;
-    }
-
-    private static string GetTypeInfoClassName(TypeMetadata type)
-    {
-        if (string.IsNullOrEmpty(type.Namespace))
-            return $"global::{type.TypeName}MarkoutTypeInfo";
-        return $"global::{type.Namespace}.{type.TypeName}MarkoutTypeInfo";
-    }
-
-    private static void EmitPropertySerializations(
-        StringBuilder sb,
-        IReadOnlyList<PropertyMetadata> properties,
-        string valueExpr,
-        int indentLevel,
-        int baseHeadingLevel = 2,
-        int nestingDepth = 0,
-        bool autoFields = true,
-        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine)
-    {
-        var indent = new string(' ', indentLevel * 4);
-
-        // Separate scalars from non-scalars for field layout handling
-        var scalarProps = new List<PropertyMetadata>();
-        var nonScalarProps = new List<PropertyMetadata>();
-
-        foreach (var prop in properties)
-        {
-            if (prop.IsIgnored)
-                continue;
-
-            // Skip non-section properties if AutoFields is false
-            if (!autoFields && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
-                continue;
-
-            if ((IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)) && !prop.IsSection)
-                scalarProps.Add(prop);
-            else
-                nonScalarProps.Add(prop);
-        }
-
-        // Emit scalars based on layout
-        if (autoFields && scalarProps.Count > 0)
-        {
-            EmitScalarsWithLayout(sb, scalarProps, valueExpr, indentLevel, fieldLayout, nestingDepth);
-        }
-
-        // Emit non-scalar properties (sections, arrays, etc.)
-        foreach (var prop in nonScalarProps)
-        {
-            var propAccess = $"{valueExpr}.{prop.Name}";
-            var effectiveSectionLevel = prop.IsSection 
-                ? System.Math.Max(prop.SectionLevel, baseHeadingLevel) 
-                : baseHeadingLevel;
-
-            if (prop.IsSection)
-            {
-                var sectionName = prop.SectionName ?? prop.DisplayName;
-
-                if (prop.Kind == PropertyKind.FieldCollection)
-                {
-                    // List<MarkoutField> or IReadOnlyList<MarkoutField> with [MarkoutSection] renders as field table
-                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                    sb.AppendLine($"{indent}{{");
-                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
-                    sb.AppendLine($"{indent}    writer.WriteFieldTable({propAccess});");
-                    sb.AppendLine($"{indent}}}");
-                }
-                else if (prop.Kind == PropertyKind.ComplexArray && prop.ElementProperties != null)
-                {
-                    sb.AppendLine($"{indent}if ({GetCollectionCountCheck(prop, propAccess)})");
-                    sb.AppendLine($"{indent}{{");
-                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
-                    
-                    if (prop.ElementHasNestedContent)
-                    {
-                        // Render as subsection-per-item
-                        EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel, nestingDepth);
-                    }
-                    else
-                    {
-                        // Render as table
-                        EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
-                    }
-                    sb.AppendLine($"{indent}}}");
-                }
-                else if (prop.Kind == PropertyKind.StringArray)
-                {
-                    sb.AppendLine($"{indent}if ({GetCollectionCountCheck(prop, propAccess)})");
-                    sb.AppendLine($"{indent}{{");
-                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
-                    sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
-                    sb.AppendLine($"{indent}}}");
-                }
-                else if (prop.Kind == PropertyKind.Tree)
-                {
-                    // List<TreeNode> with [MarkoutSection] renders as section with tree
-                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                    sb.AppendLine($"{indent}{{");
-                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
-                    sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
-                    sb.AppendLine($"{indent}}}");
-                }
-                else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
-                {
-                    sb.AppendLine($"{indent}if ({propAccess} != null)");
-                    sb.AppendLine($"{indent}{{");
-                    sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
-                    EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth + 1);
-                    sb.AppendLine($"{indent}}}");
-                }
-                else
-                {
-                    // For other types, just write the heading unconditionally
-                    sb.AppendLine($"{indent}writer.WriteHeading({effectiveSectionLevel}, \"{EscapeString(sectionName)}\");");
-                }
-                continue;
-            }
-
-            // Non-scalar property handling
-            switch (prop.Kind)
-            {
-                case PropertyKind.StringArray:
-                    sb.AppendLine($"{indent}if ({propAccess} != null)");
-                    sb.AppendLine($"{indent}    writer.WriteArray(\"{EscapeString(prop.DisplayName)}\", {propAccess});");
-                    break;
-
-                case PropertyKind.FieldCollection:
-                    // List<MarkoutField> or IReadOnlyList<MarkoutField> - renders as compact line
-                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                    sb.AppendLine($"{indent}    writer.WriteCompactFields({propAccess});");
-                    break;
-
-                case PropertyKind.Tree:
-                    // List<TreeNode> - renders as tree structure
-                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                    sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
-                    break;
-
-                case PropertyKind.ComplexArray:
-                    if (prop.ElementProperties != null && prop.ElementProperties.Count > 0)
-                    {
-                        sb.AppendLine($"{indent}if ({GetCollectionCountCheck(prop, propAccess)})");
-                        sb.AppendLine($"{indent}{{");
-                        sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EscapeString(prop.DisplayName)}\");");
-                        if (prop.ElementHasNestedContent)
-                        {
-                            EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, baseHeadingLevel, nestingDepth);
-                        }
-                        else
-                        {
-                            EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
-                        }
-                        sb.AppendLine($"{indent}}}");
-                    }
-                    break;
-
-                case PropertyKind.NestedObject:
-                    if (prop.ElementProperties != null && prop.ElementProperties.Count > 0)
-                    {
-                        sb.AppendLine($"{indent}if ({propAccess} != null)");
-                        sb.AppendLine($"{indent}{{");
-                        sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EscapeString(prop.DisplayName)}\");");
-                        EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth + 1, true, fieldLayout);
-                        sb.AppendLine($"{indent}}}");
-                    }
-                    break;
-            }
-        }
-    }
-
-    private static void EmitScalarsWithLayout(
-        StringBuilder sb,
-        List<PropertyMetadata> scalarProps,
-        string valueExpr,
-        int indentLevel,
-        FieldLayoutKind fieldLayout,
-        int nestingDepth = 0)
-    {
-        switch (fieldLayout)
-        {
-            case FieldLayoutKind.OneLine:
-                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth);
-                break;
-
-            case FieldLayoutKind.LineBreaks:
-                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: false);
-                break;
-
-            case FieldLayoutKind.LineBreaksDoubleSpace:
-                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: true);
-                break;
-
-            case FieldLayoutKind.List:
-                EmitListScalars(sb, scalarProps, valueExpr, indentLevel);
-                break;
-
-            default:
-                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth);
-                break;
-        }
-    }
-
-    private static void EmitOneLineScalars(
-        StringBuilder sb,
-        List<PropertyMetadata> scalarProps,
-        string valueExpr,
-        int indentLevel,
-        int nestingDepth = 0)
-    {
-        var indent = new string(' ', indentLevel * 4);
-        bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
-            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null));
-        var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
-
-        if (useBuilder)
-        {
-            // Use List<MarkoutField> builder pattern when any scalar is nullable or string (to skip nulls/empties)
-            sb.AppendLine($"{indent}var {fieldsVar} = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
-            foreach (var prop in scalarProps)
-            {
-                var propAccess = $"{valueExpr}.{prop.Name}";
-                if (prop.IsNullableValueType)
-                {
-                    var valueStr = GetScalarValueExpression(prop, propAccess, nullable: true);
-                    sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
-                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr}));");
-                }
-                else if (prop.Kind == PropertyKind.String)
-                {
-                    sb.AppendLine($"{indent}if (!string.IsNullOrEmpty({propAccess}))");
-                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {propAccess}));");
-                }
-                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
-                {
-                    var countProp = prop.IsArray ? "Length" : "Count";
-                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
-                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {GetScalarValueExpression(prop, propAccess)}));");
-                }
-                else
-                {
-                    var valueStr = GetScalarValueExpression(prop, propAccess);
-                    sb.AppendLine($"{indent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr}));");
-                }
-            }
-            sb.AppendLine($"{indent}if ({fieldsVar}.Count > 0)");
-            sb.AppendLine($"{indent}    writer.WriteCompactFields({fieldsVar});");
-        }
-        else
-        {
-            // Build inline MarkoutField array (no nullable/string scalars)
-            var fields = new List<string>();
-            foreach (var prop in scalarProps)
-            {
-                var propAccess = $"{valueExpr}.{prop.Name}";
-                var valueStr = GetScalarValueExpression(prop, propAccess);
-                fields.Add($"new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {valueStr})");
-            }
-
-            sb.AppendLine($"{indent}writer.WriteCompactFields({string.Join(", ", fields)});");
-        }
-    }
-
-    private static void EmitLineBreaksScalars(
-        StringBuilder sb,
-        List<PropertyMetadata> scalarProps,
-        string valueExpr,
-        int indentLevel,
-        bool doubleSpace)
-    {
-        var indent = new string(' ', indentLevel * 4);
-        var methodName = doubleSpace ? "WriteField" : "WriteFieldNoBreak";
-
-        foreach (var prop in scalarProps)
-        {
-            var propAccess = $"{valueExpr}.{prop.Name}";
-
-            if (prop.IsNullableValueType)
-            {
-                sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
-                if (prop.Kind == PropertyKind.Boolean)
-                {
-                    if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
-                    {
-                        sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\");");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
-                    }
-                }
-                else if (prop.CustomFormat != null)
-                {
-                    sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
-                }
-                else
-                {
-                    sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
-                }
-            }
-            else if (prop.Kind == PropertyKind.String)
-            {
-                sb.AppendLine($"{indent}if ({propAccess} != null)");
-                sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess});");
-            }
-            else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
-            {
-                var countProp = prop.IsArray ? "Length" : "Count";
-                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
-                sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {GetScalarValueExpression(prop, propAccess)});");
-            }
-            else if (prop.Kind == PropertyKind.Boolean)
-            {
-                if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
-                {
-                    sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\");");
-                }
-                else
-                {
-                    sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess});");
-                }
-            }
-            else if (prop.CustomFormat != null)
-            {
-                sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
-            }
-            else
-            {
-                sb.AppendLine($"{indent}writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess});");
-            }
-        }
-    }
-
-    private static void EmitListScalars(
-        StringBuilder sb,
-        List<PropertyMetadata> scalarProps,
-        string valueExpr,
-        int indentLevel)
-    {
-        var indent = new string(' ', indentLevel * 4);
-
-        foreach (var prop in scalarProps)
-        {
-            var propAccess = $"{valueExpr}.{prop.Name}";
-
-            if (prop.IsNullableValueType)
-            {
-                var valueStr = GetScalarValueExpression(prop, propAccess, nullable: true);
-                sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
-                sb.AppendLine($"{indent}    writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-            }
-            else if (prop.Kind == PropertyKind.String)
-            {
-                sb.AppendLine($"{indent}if ({propAccess} != null)");
-                sb.AppendLine($"{indent}    writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{propAccess}}}\");");
-            }
-            else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
-            {
-                var countProp = prop.IsArray ? "Length" : "Count";
-                var valueStr = GetScalarValueExpression(prop, propAccess);
-                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
-                sb.AppendLine($"{indent}    writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-            }
-            else
-            {
-                var valueStr = GetScalarValueExpression(prop, propAccess);
-                sb.AppendLine($"{indent}writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-            }
-        }
-    }
-
-    private static string GetScalarValueExpression(PropertyMetadata prop, string propAccess, bool nullable = false)
-    {
-        var access = nullable ? $"{propAccess}.Value" : propAccess;
-
-        // Joined string array: render as string.Join(separator, collection)
-        if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
-        {
-            return $"string.Join(\"{EscapeString(prop.JoinSeparator)}\", {propAccess})";
-        }
-
-        if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
-        {
-            return $"({access} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\")";
-        }
-
-        // Custom format overrides default formatting for formattable types
-        if (prop.CustomFormat != null)
-        {
-            if (prop.Kind is PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
-                or PropertyKind.DateTime or PropertyKind.DateTimeOffset)
-            {
-                return $"{access}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
-            }
-        }
-
-        return prop.Kind switch
-        {
-            PropertyKind.Boolean => $"({access} ? \"yes\" : \"no\")",
-            PropertyKind.String => $"{propAccess} ?? \"\"",
-            PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
-                => $"{access}.ToString(System.Globalization.CultureInfo.InvariantCulture)",
-            PropertyKind.DateTime or PropertyKind.DateTimeOffset
-                => $"{access}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
-            PropertyKind.Enum => $"{access}.ToString()",
-            _ => $"{propAccess}?.ToString() ?? \"\""
-        };
-    }
-
-    private static void EmitTableSerialization(
-        StringBuilder sb,
-        PropertyMetadata prop,
-        string propAccess,
-        int indentLevel,
-        int nestingDepth = 0)
-    {
-        if (prop.ElementProperties == null || prop.ElementProperties.Count == 0)
-            return;
-
-        var indent = new string(' ', indentLevel * 4);
-        var visibleProps = prop.ElementProperties.Where(p => !p.IsIgnored).ToList();
-        var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
-
-        // Build header array
-        var headers = string.Join(", ", visibleProps.Select(p => $"\"{EscapeString(p.DisplayName)}\""));
-        sb.AppendLine($"{indent}writer.WriteTableStart({headers});");
-
-        sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
-        sb.AppendLine($"{indent}{{");
-
-        // Build row values
-        var values = new List<string>();
-        foreach (var elemProp in visibleProps)
-        {
-            var value = GetTableCellValue(elemProp, itemVar);
-            values.Add(value);
-        }
-
-        sb.AppendLine($"{indent}    writer.WriteTableRow({string.Join(", ", values)});");
-        sb.AppendLine($"{indent}}}");
-        sb.AppendLine($"{indent}writer.WriteTableEnd();");
-    }
-
-    private static void EmitSubsectionPerItemSerialization(
-        StringBuilder sb,
-        PropertyMetadata prop,
-        string propAccess,
-        int indentLevel,
-        int parentSectionLevel = 2,
-        int nestingDepth = 0)
-    {
-        if (prop.ElementProperties == null || prop.ElementProperties.Count == 0)
-            return;
-
-        var indent = new string(' ', indentLevel * 4);
-        var subsectionLevel = parentSectionLevel + 1;
-        var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
-
-        sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
-        sb.AppendLine($"{indent}{{");
-
-        // Write subsection heading using TitleProperty or first string property
-        if (!string.IsNullOrEmpty(prop.ElementTitleProperty))
-        {
-            sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
-            sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty});");
-        }
-        else
-        {
-            // Try to find a suitable property for the heading
-            var titleProp = prop.ElementProperties.FirstOrDefault(p => 
-                !p.IsIgnored && p.Kind == PropertyKind.String && 
-                (p.Name == "Name" || p.Name == "Title" || p.Name == "Id"));
-            
-            if (titleProp != null)
-            {
-                sb.AppendLine($"{indent}    if ({itemVar}.{titleProp.Name} != null)");
-                sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{titleProp.Name});");
-            }
-            else
-            {
-                // Fallback: use first string property
-                var firstString = prop.ElementProperties.FirstOrDefault(p => !p.IsIgnored && p.Kind == PropertyKind.String);
-                if (firstString != null)
-                {
-                    sb.AppendLine($"{indent}    if ({itemVar}.{firstString.Name} != null)");
-                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{firstString.Name});");
-                }
-            }
-        }
-
-        // Emit property serializations for each item, at a deeper level
-        EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1);
-
-        sb.AppendLine($"{indent}}}");
-    }
-
-    private static string GetTableCellValue(PropertyMetadata prop, string itemExpr)
-    {
-        var propAccess = $"{itemExpr}.{prop.Name}";
-
-        if (prop.IsNullableValueType)
-        {
-            var valueExpr = GetScalarValueExpression(prop, propAccess, nullable: true);
-            return $"{propAccess}.HasValue ? {valueExpr} : \"\"";
-        }
-
-        // Joined string array in table cell
-        if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
-        {
-            return $"{propAccess} != null ? string.Join(\"{EscapeString(prop.JoinSeparator)}\", {propAccess}) : \"\"";
-        }
-
-        if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
-        {
-            return $"{propAccess} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\"";
-        }
-
-        // Custom format overrides default formatting for formattable types
-        if (prop.CustomFormat != null)
-        {
-            if (prop.Kind is PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
-                or PropertyKind.DateTime or PropertyKind.DateTimeOffset)
-            {
-                return $"{propAccess}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
-            }
-        }
-
-        return prop.Kind switch
-        {
-            PropertyKind.Boolean => $"{propAccess} ? \"yes\" : \"no\"",
-            PropertyKind.String => $"{propAccess} ?? \"\"",
-            PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
-                => $"{propAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture)",
-            PropertyKind.DateTime or PropertyKind.DateTimeOffset
-                => $"{propAccess}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
-            PropertyKind.Enum => $"{propAccess}.ToString()",
-            _ => $"{propAccess}?.ToString() ?? \"\""
-        };
-    }
-
-    private static string GetCollectionCountCheck(PropertyMetadata prop, string propAccess)
-    {
-        var countProp = prop.IsArray ? "Length" : "Count";
-        return $"{propAccess} != null && {propAccess}.{countProp} > 0";
-    }
-
-    private static string EscapeString(string s)
-    {
-        return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 }

@@ -473,6 +473,33 @@ public class SerializerTests
         Assert.DoesNotContain("Tags", mdf);
         Assert.DoesNotContain("Frameworks", mdf);
     }
+
+    [Fact]
+    public void Serialize_FormattableProperty_UsesWriteTo()
+    {
+        var person = new PersonWithAddress
+        {
+            Name = "Alice",
+            Address = new CustomAddress { Street = "123 Main St", City = "Portland", State = "OR" }
+        };
+        var mdf = MarkoutSerializer.Serialize(person, FormattableTestContext.Default);
+
+        Assert.Contains("Name: Alice", mdf);
+        Assert.Contains("Street: 123 Main St", mdf);
+        Assert.Contains("City: Portland", mdf);
+        Assert.Contains("State: OR", mdf);
+    }
+
+    [Fact]
+    public void Serialize_FormattableProperty_SkipsWhenNull()
+    {
+        var person = new PersonWithAddress { Name = "Bob", Address = null };
+        var mdf = MarkoutSerializer.Serialize(person, FormattableTestContext.Default);
+
+        Assert.Contains("Name: Bob", mdf);
+        Assert.DoesNotContain("Street", mdf);
+        Assert.DoesNotContain("City", mdf);
+    }
 }
 
 [MarkoutSerializable]
@@ -628,5 +655,34 @@ public class ProjectInfo
 
 [MarkoutContext(typeof(ProjectInfo))]
 public partial class JoinTestContext : MarkoutSerializerContext
+{
+}
+
+// IMarkoutFormattable test types
+public class CustomAddress : IMarkoutFormattable
+{
+    public string? Street { get; set; }
+    public string? City { get; set; }
+    public string? State { get; set; }
+
+    public void WriteTo(MarkoutWriter writer)
+    {
+        writer.WriteField("Street", Street);
+        writer.WriteField("City", City);
+        writer.WriteField("State", State);
+    }
+
+    public string? ToMarkoutString() => $"{City}, {State}";
+}
+
+[MarkoutSerializable]
+public class PersonWithAddress
+{
+    public string? Name { get; set; }
+    public CustomAddress? Address { get; set; }
+}
+
+[MarkoutContext(typeof(PersonWithAddress))]
+public partial class FormattableTestContext : MarkoutSerializerContext
 {
 }
