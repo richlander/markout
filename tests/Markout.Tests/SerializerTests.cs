@@ -311,11 +311,11 @@ public class SerializerTests
     }
 
     [Fact]
-    public void Serialize_RenderScalarsFalseWithNoSections_ProducesEmptyOutput()
+    public void Serialize_AutoFieldsFalseWithNoSections_ProducesEmptyOutput()
     {
-        // This type has RenderScalars=false but no sections - output will be empty
+        // This type has AutoFields=false but no sections - output will be empty
         // The MARKOUT004 warning is suppressed with #pragma in the type definition
-        var data = new RenderScalarsWarningTest { Name = "Test", Count = 42 };
+        var data = new AutoFieldsWarningTest { Name = "Test", Count = 42 };
 
         var context = new TreeTestContext();
         var mdf = context.Serialize(data);
@@ -538,7 +538,7 @@ public class FileExplorer
 
 [MarkoutContext(typeof(TypeShape))]
 [MarkoutContext(typeof(FileExplorer))]
-[MarkoutContext(typeof(RenderScalarsWarningTest))]
+[MarkoutContext(typeof(AutoFieldsWarningTest))]
 public partial class TreeTestContext : MarkoutSerializerContext
 {
 }
@@ -560,10 +560,10 @@ public partial class DictionaryTestContext : MarkoutSerializerContext
 }
 
 // Test type that intentionally triggers MARKOUT004 warning
-// This verifies the analyzer correctly warns when RenderScalars=false but no sections exist
+// This verifies the analyzer correctly warns when AutoFields=false but no sections exist
 #pragma warning disable MARKOUT004
-[MarkoutSerializable(RenderScalars = false)]
-public class RenderScalarsWarningTest
+[MarkoutSerializable(AutoFields = false)]
+public class AutoFieldsWarningTest
 {
     public string Name { get; set; } = "";
     public int Count { get; set; }

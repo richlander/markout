@@ -60,11 +60,11 @@ internal static class TypeParser
         string? titleProperty = null,
         string? titleContextProperty = null,
         string? descriptionProperty = null,
-        bool? renderScalars = null,
+        bool? autoFields = null,
         FieldLayoutKind? fieldLayout = null)
     {
         // If titleProperty/descriptionProperty not passed, try to get them from the type's [MarkoutSerializable] attribute
-        if (titleProperty == null || titleContextProperty == null || descriptionProperty == null || renderScalars == null || fieldLayout == null)
+        if (titleProperty == null || titleContextProperty == null || descriptionProperty == null || autoFields == null || fieldLayout == null)
         {
             var serializableAttr = typeSymbol.GetAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutSerializableAttribute);
@@ -78,8 +78,8 @@ internal static class TypeParser
                         titleContextProperty ??= tcp;
                     else if (named.Key == "DescriptionProperty" && named.Value.Value is string dp)
                         descriptionProperty ??= dp;
-                    else if (named.Key == "RenderScalars" && named.Value.Value is bool rs)
-                        renderScalars ??= rs;
+                    else if (named.Key == "AutoFields" && named.Value.Value is bool af)
+                        autoFields ??= af;
                     else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
                         fieldLayout ??= (FieldLayoutKind)fl;
                 }
@@ -87,7 +87,7 @@ internal static class TypeParser
         }
 
         // Default to true if not specified
-        renderScalars ??= true;
+        autoFields ??= true;
         // Default to OneLine
         fieldLayout ??= FieldLayoutKind.OneLine;
 
@@ -110,8 +110,8 @@ internal static class TypeParser
                 properties.Add(propMeta);
         }
 
-        // Warn if RenderScalars=false but no sections or field collections exist
-        if (renderScalars == false)
+        // Warn if AutoFields=false but no sections or field collections exist
+        if (autoFields == false)
         {
             bool hasSectionOrFieldCollection = properties.Any(p => 
                 !p.IsIgnored && (p.IsSection || p.Kind == PropertyKind.FieldCollection));
@@ -119,7 +119,7 @@ internal static class TypeParser
             if (!hasSectionOrFieldCollection)
             {
                 diagnostics.Add(new DiagnosticInfo(
-                    DiagnosticDescriptors.RenderScalarsNoContent,
+                    DiagnosticDescriptors.AutoFieldsNoContent,
                     typeSymbol.Locations.FirstOrDefault(),
                     typeSymbol.Name));
             }
@@ -138,7 +138,7 @@ internal static class TypeParser
             titleProperty,
             titleContextProperty,
             descriptionProperty,
-            renderScalars.Value,
+            autoFields.Value,
             fieldLayout.Value,
             diagnostics);
     }
