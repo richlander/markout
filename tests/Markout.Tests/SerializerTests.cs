@@ -157,7 +157,7 @@ public class SerializerTests
             }
         };
 
-        var context = new SectionTestContext { Options = new MarkoutWriterOptions { IncludeSections = ["Dependencies"] } };
+        var context = new SectionTestContext(new MarkoutWriterOptions { IncludeSections = ["Dependencies"] });
         var mdf = context.Serialize(package);
 
         // Dependencies section should be included
@@ -186,7 +186,7 @@ public class SerializerTests
             }
         };
 
-        var context = new SectionTestContext { Options = new MarkoutWriterOptions { ExcludeSections = ["Dependencies"] } };
+        var context = new SectionTestContext(new MarkoutWriterOptions { ExcludeSections = ["Dependencies"] });
         var mdf = context.Serialize(package);
 
         // Dependencies section should be excluded
@@ -322,6 +322,61 @@ public class SerializerTests
 
         // Output should be empty (no scalars rendered, no sections)
         Assert.Equal("", mdf.Trim());
+    }
+
+    [Fact]
+    public void Context_DefaultInstance_HasReadOnlyOptions()
+    {
+        var context = TestMarkoutContext.Default;
+
+        Assert.True(context.Options.IsReadOnly);
+    }
+
+    [Fact]
+    public void Context_ParameterlessConstructor_FreezesOptions()
+    {
+        var context = new TestMarkoutContext();
+
+        Assert.True(context.Options.IsReadOnly);
+    }
+
+    [Fact]
+    public void Context_WithOptions_BindsAndFreezesOptions()
+    {
+        var options = new MarkoutWriterOptions { BoldFieldNames = true };
+        var context = new TestMarkoutContext(options);
+
+        Assert.True(context.Options.IsReadOnly);
+        Assert.True(context.Options.BoldFieldNames);
+        Assert.Same(options, context.Options);
+    }
+
+    [Fact]
+    public void Context_WithOptions_OptionsCannotBeMutatedAfterBinding()
+    {
+        var options = new MarkoutWriterOptions { BoldFieldNames = true };
+        var context = new TestMarkoutContext(options);
+
+        Assert.Throws<InvalidOperationException>(() => options.BoldFieldNames = false);
+    }
+
+    [Fact]
+    public void Context_WithReadOnlyOptions_Throws()
+    {
+        var options = new MarkoutWriterOptions();
+        options.MakeReadOnly();
+
+        Assert.Throws<InvalidOperationException>(() => new TestMarkoutContext(options));
+    }
+
+    [Fact]
+    public void Context_OptionsPropertyHasNoSetter()
+    {
+        // Verify that Options is get-only (no set accessor)
+        var prop = typeof(MarkoutSerializerContext).GetProperty("Options");
+        Assert.NotNull(prop);
+        Assert.NotNull(prop!.GetMethod);
+        Assert.Null(prop.SetMethod);
     }
 }
 

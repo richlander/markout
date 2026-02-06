@@ -76,14 +76,11 @@ public static class SectionFiltering
     public static void FilterViaContext()
     {
         #region FilterViaContext
-        var context = new SampleContext
+        var context = new SampleContext(new MarkoutWriterOptions
         {
-            Options = new MarkoutWriterOptions
-            {
-                ExcludeSections = ["Specifications"],  // Skip Specifications section
-                BoldFieldNames = true                       // Enable bold field names
-            }
-        };
+            ExcludeSections = ["Specifications"],  // Skip Specifications section
+            BoldFieldNames = true                       // Enable bold field names
+        });
 
         ProductView product = new ProductView
         {
