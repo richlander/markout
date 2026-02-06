@@ -13,10 +13,41 @@ namespace Markout;
 /// <seealso href="../../samples/Serialization/SectionFiltering.cs">Section filtering via context</seealso>
 public abstract class MarkoutSerializerContext
 {
+    private MarkoutWriterOptions _options;
+
     /// <summary>
-    /// Gets or sets the writer options for controlling output formatting.
+    /// Creates a new context with default writer options.
     /// </summary>
-    public MarkoutWriterOptions Options { get; set; } = new();
+    protected MarkoutSerializerContext() : this(new MarkoutWriterOptions())
+    {
+    }
+
+    /// <summary>
+    /// Creates a new context with the specified writer options.
+    /// The options instance cannot be mutated once it is bound to the context.
+    /// </summary>
+    /// <param name="options">The writer options to bind to this context.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="options"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if <paramref name="options"/> is already read-only.</exception>
+    protected MarkoutSerializerContext(MarkoutWriterOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (options.IsReadOnly)
+        {
+            throw new InvalidOperationException(
+                "Cannot bind a read-only MarkoutWriterOptions instance to a context. " +
+                "The options instance is made read-only when bound to a context.");
+        }
+
+        options.MakeReadOnly();
+        _options = options;
+    }
+
+    /// <summary>
+    /// Gets the writer options bound to this context. The options instance is read-only.
+    /// </summary>
+    public MarkoutWriterOptions Options => _options;
 
     /// <summary>
     /// Gets the type info for the specified type, or null if not registered.

@@ -111,6 +111,11 @@ internal static class SerializerEmitter
         sb.AppendLine($"partial class {context.ClassName}");
         sb.AppendLine("{");
 
+        // Constructor accepting options
+        sb.AppendLine($"    public {context.ClassName}() {{ }}");
+        sb.AppendLine($"    public {context.ClassName}(global::Markout.MarkoutWriterOptions options) : base(options) {{ }}");
+        sb.AppendLine();
+
         // Static Default property
         sb.AppendLine($"    public static {context.ClassName} Default {{ get; }} = new();");
         sb.AppendLine();
