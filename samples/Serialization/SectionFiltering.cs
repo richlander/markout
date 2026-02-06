@@ -15,19 +15,19 @@ public static class SectionFiltering
         #region IncludeSpecificSections
         var writer = new MarkoutWriter(new MarkoutWriterOptions
         {
-            // Only include sections 1 and 3 (H2 boundaries)
-            IncludeSections = new HashSet<int> { 1, 3 }
+            // Only include sections matching these heading names
+            IncludeSections = ["Overview", "Reviews"]
         });
 
         writer.WriteHeading(1, "Product Details");
 
-        writer.WriteHeading(2, "Overview");        // Section 1 - included
+        writer.WriteHeading(2, "Overview");        // included
         writer.WriteField("Name", "Widget Pro");
 
-        writer.WriteHeading(2, "Specifications");  // Section 2 - excluded
+        writer.WriteHeading(2, "Specifications");  // excluded
         writer.WriteField("Weight", "1.5 kg");
 
-        writer.WriteHeading(2, "Reviews");         // Section 3 - included
+        writer.WriteHeading(2, "Reviews");         // included
         writer.WriteField("Rating", "4.5 stars");
 
         Console.WriteLine(writer.ToString());
@@ -51,19 +51,19 @@ public static class SectionFiltering
         #region ExcludeSpecificSections
         var writer = new MarkoutWriter(new MarkoutWriterOptions
         {
-            // Exclude section 2 (Specifications)
-            ExcludeSections = new HashSet<int> { 2 }
+            // Exclude the Specifications section
+            ExcludeSections = ["Specifications"]
         });
 
         writer.WriteHeading(1, "Product Details");
 
-        writer.WriteHeading(2, "Overview");        // Section 1 - included
+        writer.WriteHeading(2, "Overview");        // included
         writer.WriteField("Name", "Widget Pro");
 
-        writer.WriteHeading(2, "Specifications");  // Section 2 - excluded
+        writer.WriteHeading(2, "Specifications");  // excluded
         writer.WriteField("Weight", "1.5 kg");
 
-        writer.WriteHeading(2, "Reviews");         // Section 3 - included
+        writer.WriteHeading(2, "Reviews");         // included
         writer.WriteField("Rating", "4.5 stars");
 
         Console.WriteLine(writer.ToString());
@@ -80,7 +80,7 @@ public static class SectionFiltering
         {
             Options = new MarkoutWriterOptions
             {
-                ExcludeSections = new HashSet<int> { 2 },  // Skip section 2
+                ExcludeSections = ["Specifications"],  // Skip Specifications section
                 BoldFieldNames = true                       // Enable bold field names
             }
         };

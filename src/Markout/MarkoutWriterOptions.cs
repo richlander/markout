@@ -9,8 +9,8 @@ public class MarkoutWriterOptions
     private bool _includeIcons = true;
     private bool _includeDescription = true;
     private bool _boldFieldNames;
-    private HashSet<int>? _includeSections;
-    private HashSet<int>? _excludeSections;
+    private HashSet<string>? _includeSections;
+    private HashSet<string>? _excludeSections;
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -64,9 +64,10 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
-    /// If set, only sections with these indices (1-based) are rendered.
+    /// If set, only sections whose heading text matches are rendered.
+    /// An empty set means no named sections are included (preamble only).
     /// </summary>
-    public HashSet<int>? IncludeSections
+    public HashSet<string>? IncludeSections
     {
         get => _includeSections;
         set
@@ -77,9 +78,9 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
-    /// If set, sections with these indices (1-based) are excluded from output.
+    /// If set, sections whose heading text matches are excluded from output.
     /// </summary>
-    public HashSet<int>? ExcludeSections
+    public HashSet<string>? ExcludeSections
     {
         get => _excludeSections;
         set

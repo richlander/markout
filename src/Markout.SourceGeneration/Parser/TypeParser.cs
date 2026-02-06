@@ -7,7 +7,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Markout.SourceGeneration.Parser;
 
 /// <summary>
-/// Parses types marked with [MarkoutSerializable] and contexts marked with [MarkoutContext].
+/// Parses types and contexts marked with [MarkoutContext].
+/// Types do not require [MarkoutSerializable] — it is optional for customizing behavior.
 /// </summary>
 internal static class TypeParser
 {
@@ -18,44 +19,6 @@ internal static class TypeParser
     private const string MarkoutIgnoreInTableAttribute = "Markout.MarkoutIgnoreInTableAttribute";
     private const string MarkoutSectionAttribute = "Markout.MarkoutSectionAttribute";
     private const string MarkoutBoolFormatAttribute = "Markout.MarkoutBoolFormatAttribute";
-
-    public static TypeMetadata? ParseSerializableType(
-        GeneratorSyntaxContext context,
-        CancellationToken cancellationToken)
-    {
-        var typeDecl = (TypeDeclarationSyntax)context.Node;
-        var symbol = context.SemanticModel.GetDeclaredSymbol(typeDecl, cancellationToken);
-
-        if (symbol is not INamedTypeSymbol typeSymbol)
-            return null;
-
-        var serializableAttr = typeSymbol.GetAttributes()
-            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutSerializableAttribute);
-
-        if (serializableAttr == null)
-            return null;
-
-        string? titleProperty = null;
-        string? titleContextProperty = null;
-        string? descriptionProperty = null;
-        bool renderScalars = true;
-        var fieldLayout = FieldLayoutKind.OneLine;
-        foreach (var named in serializableAttr.NamedArguments)
-        {
-            if (named.Key == "TitleProperty" && named.Value.Value is string tp)
-                titleProperty = tp;
-            else if (named.Key == "TitleContextProperty" && named.Value.Value is string tcp)
-                titleContextProperty = tcp;
-            else if (named.Key == "DescriptionProperty" && named.Value.Value is string dp)
-                descriptionProperty = dp;
-            else if (named.Key == "RenderScalars" && named.Value.Value is bool rs)
-                renderScalars = rs;
-            else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
-                fieldLayout = (FieldLayoutKind)fl;
-        }
-
-        return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, titleContextProperty, descriptionProperty, renderScalars, fieldLayout);
-    }
 
     public static ContextMetadata? ParseContext(
         GeneratorSyntaxContext context,
