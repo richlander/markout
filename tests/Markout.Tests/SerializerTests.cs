@@ -400,6 +400,7 @@ public class TypeShape
     [MarkoutIgnore]
     public string Name { get; set; } = "";
     public string Kind { get; set; } = "";
+    [MarkoutIgnoreInTable]
     public List<TreeNode> Members { get; set; } = [];
 }
 
