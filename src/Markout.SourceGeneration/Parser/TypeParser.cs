@@ -154,6 +154,21 @@ internal static class TypeParser
                 properties.Add(propMeta);
         }
 
+        // Warn if RenderScalars=false but no sections or field collections exist
+        if (renderScalars == false)
+        {
+            bool hasSectionOrFieldCollection = properties.Any(p => 
+                !p.IsIgnored && (p.IsSection || p.Kind == PropertyKind.FieldCollection));
+            
+            if (!hasSectionOrFieldCollection)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    DiagnosticDescriptors.RenderScalarsNoContent,
+                    typeSymbol.Locations.FirstOrDefault(),
+                    typeSymbol.Name));
+            }
+        }
+
         var ns = typeSymbol.ContainingNamespace.IsGlobalNamespace
             ? string.Empty
             : typeSymbol.ContainingNamespace.ToDisplayString();

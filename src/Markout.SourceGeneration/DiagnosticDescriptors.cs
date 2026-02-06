@@ -48,4 +48,17 @@ internal static class DiagnosticDescriptors
                      "Convert to a List<T> where T has Key and Value properties, " +
                      "or if keys are known at design time, use separate scalar properties."
     );
+
+    public static readonly DiagnosticDescriptor RenderScalarsNoContent = new(
+        id: "MARKOUT004",
+        title: "RenderScalars=false with no sections",
+        messageFormat: "Type '{0}' has RenderScalars=false but no [MarkoutSection] or FieldCollection properties. " +
+                       "Output will be empty or contain only the title.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "When RenderScalars is false, only properties with [MarkoutSection] or FieldCollection types are rendered. " +
+                     "Without any such properties, the serialized output will be empty or contain only the title/description. " +
+                     "Either add [MarkoutSection] to collection properties, or remove RenderScalars=false."
+    );
 }

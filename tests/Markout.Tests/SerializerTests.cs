@@ -309,6 +309,20 @@ public class SerializerTests
         Assert.Contains("net8.0", mdf);
         Assert.Contains("MyLib.dll", mdf);
     }
+
+    [Fact]
+    public void Serialize_RenderScalarsFalseWithNoSections_ProducesEmptyOutput()
+    {
+        // This type has RenderScalars=false but no sections - output will be empty
+        // The MARKOUT004 warning is suppressed with #pragma in the type definition
+        var data = new RenderScalarsWarningTest { Name = "Test", Count = 42 };
+
+        var context = new TreeTestContext();
+        var mdf = context.Serialize(data);
+
+        // Output should be empty (no scalars rendered, no sections)
+        Assert.Equal("", mdf.Trim());
+    }
 }
 
 [MarkoutSerializable]
@@ -401,6 +415,19 @@ public class FileExplorer
 
 [MarkoutContext(typeof(TypeShape))]
 [MarkoutContext(typeof(FileExplorer))]
+[MarkoutContext(typeof(RenderScalarsWarningTest))]
 public partial class TreeTestContext : MarkoutSerializerContext
 {
 }
+
+// Test type that intentionally triggers MARKOUT004 warning
+// This verifies the analyzer correctly warns when RenderScalars=false but no sections exist
+#pragma warning disable MARKOUT004
+[MarkoutSerializable(RenderScalars = false)]
+public class RenderScalarsWarningTest
+{
+    public string Name { get; set; } = "";
+    public int Count { get; set; }
+    // No [MarkoutSection] or FieldCollection properties - output will be empty
+}
+#pragma warning restore MARKOUT004
