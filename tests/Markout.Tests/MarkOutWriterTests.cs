@@ -415,4 +415,37 @@ public class MarkoutWriterTests
         // Child without icon should not have icon prefix
         Assert.Contains("└─ MyLib.dll", output);
     }
+
+    [Fact]
+    public void WriteTree_WithIncludeIconsFalse_OmitsIcons()
+    {
+        var options = new MarkoutWriterOptions { IncludeIcons = false };
+        var writer = new MarkoutWriter(options);
+        var nodes = new List<TreeNode>
+        {
+            new("local.dll", "📁"),
+            new("platform.dll", "🚢")
+        };
+        writer.WriteTree(nodes);
+
+        var output = writer.ToString();
+        // Icons should not appear
+        Assert.DoesNotContain("📁", output);
+        Assert.DoesNotContain("🚢", output);
+        // Labels should still appear
+        Assert.Contains("local.dll", output);
+        Assert.Contains("platform.dll", output);
+    }
+
+    [Fact]
+    public void MarkoutWriterOptions_Default_HasExpectedValues()
+    {
+        var options = new MarkoutWriterOptions();
+
+        Assert.True(options.IncludeIcons);
+        Assert.True(options.IncludeDescription);
+        Assert.False(options.BoldFieldNames);
+        Assert.Null(options.IncludeSections);
+        Assert.Null(options.ExcludeSections);
+    }
 }

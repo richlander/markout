@@ -16,6 +16,7 @@ namespace Markout;
 public sealed class MarkoutWriter
 {
     private readonly TextWriter _writer;
+    private readonly MarkoutWriterOptions _options;
     private bool _needsBlankLine;
     private bool _hasContent;
     private bool _inTable;
@@ -23,25 +24,48 @@ public sealed class MarkoutWriter
     private bool _sectionExcluded;
 
     /// <summary>
-    /// Creates a writer that builds output in memory.
+    /// Creates a writer that builds output in memory with default options.
     /// Use ToString() to get the result.
     /// </summary>
-    public MarkoutWriter() : this(new StringWriter())
+    public MarkoutWriter() : this(new StringWriter(), new MarkoutWriterOptions())
     {
     }
 
     /// <summary>
-    /// Creates a writer that writes to the specified TextWriter.
+    /// Creates a writer that builds output in memory with the specified options.
+    /// Use ToString() to get the result.
     /// </summary>
-    public MarkoutWriter(TextWriter writer)
+    public MarkoutWriter(MarkoutWriterOptions options) : this(new StringWriter(), options)
+    {
+    }
+
+    /// <summary>
+    /// Creates a writer that writes to the specified TextWriter with default options.
+    /// </summary>
+    public MarkoutWriter(TextWriter writer) : this(writer, new MarkoutWriterOptions())
+    {
+    }
+
+    /// <summary>
+    /// Creates a writer that writes to the specified TextWriter with the specified options.
+    /// </summary>
+    public MarkoutWriter(TextWriter writer, MarkoutWriterOptions options)
     {
         _writer = writer;
+        _options = options;
     }
 
     /// <summary>
-    /// Creates a writer that writes to the specified Stream.
+    /// Creates a writer that writes to the specified Stream with default options.
     /// </summary>
-    public MarkoutWriter(Stream stream) : this(new StreamWriter(stream, Encoding.UTF8, leaveOpen: true))
+    public MarkoutWriter(Stream stream) : this(new StreamWriter(stream, Encoding.UTF8, leaveOpen: true), new MarkoutWriterOptions())
+    {
+    }
+
+    /// <summary>
+    /// Creates a writer that writes to the specified Stream with the specified options.
+    /// </summary>
+    public MarkoutWriter(Stream stream, MarkoutWriterOptions options) : this(new StreamWriter(stream, Encoding.UTF8, leaveOpen: true), options)
     {
     }
 
@@ -49,25 +73,51 @@ public sealed class MarkoutWriter
     /// Gets or sets whether field names should be rendered in bold.
     /// When true, field names are wrapped in ** for markdown bold formatting.
     /// </summary>
-    public bool BoldFieldNames { get; set; }
+    public bool BoldFieldNames
+    {
+        get => _options.BoldFieldNames;
+        set => _options.BoldFieldNames = value;
+    }
 
     /// <summary>
     /// Gets or sets the sections to include (1-based, H2 boundaries).
     /// If set, only these sections are written. If null, all sections are included.
     /// </summary>
-    public HashSet<int>? IncludeSections { get; set; }
+    public HashSet<int>? IncludeSections
+    {
+        get => _options.IncludeSections;
+        set => _options.IncludeSections = value;
+    }
 
     /// <summary>
     /// Gets or sets the sections to exclude (1-based, H2 boundaries).
     /// These sections are skipped even if in IncludeSections.
     /// </summary>
-    public HashSet<int>? ExcludeSections { get; set; }
+    public HashSet<int>? ExcludeSections
+    {
+        get => _options.ExcludeSections;
+        set => _options.ExcludeSections = value;
+    }
 
     /// <summary>
     /// Gets or sets whether to include the description paragraph.
     /// When false, the description is suppressed. Default is true.
     /// </summary>
-    public bool IncludeDescription { get; set; } = true;
+    public bool IncludeDescription
+    {
+        get => _options.IncludeDescription;
+        set => _options.IncludeDescription = value;
+    }
+
+    /// <summary>
+    /// Gets or sets whether to include icons in tree nodes.
+    /// When false, only the label is rendered. Default is true.
+    /// </summary>
+    public bool IncludeIcons
+    {
+        get => _options.IncludeIcons;
+        set => _options.IncludeIcons = value;
+    }
 
     /// <summary>
     /// Flushes any buffered output to the underlying stream.
@@ -684,7 +734,9 @@ public sealed class MarkoutWriter
     private void WriteTreeNodeRecursive(TreeNode node, string prefix, bool isLast)
     {
         var connector = isLast ? "└─ " : "├─ ";
-        var displayText = node.Icon != null ? $"{node.Icon} {node.Label}" : node.Label;
+        var displayText = (node.Icon != null && _options.IncludeIcons) 
+            ? $"{node.Icon} {node.Label}" 
+            : node.Label;
         WriteTreeNode(displayText, prefix + connector);
         
         if (node.Children != null && node.Children.Count > 0)
