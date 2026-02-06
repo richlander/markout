@@ -11,15 +11,37 @@ namespace Markout.Tests;
 /// </summary>
 public class GeneratedCodeTests
 {
-    private static readonly string GeneratedDir = Path.GetFullPath(Path.Combine(
-        AppContext.BaseDirectory, "..", "..", "..", "..",
-        "artifacts", "obj", "Markout.Tests", "debug", "generated",
-        "Markout.SourceGeneration",
-        "Markout.SourceGeneration.MarkoutSourceGenerator"));
+    private static readonly string? GeneratedDir = FindGeneratedDir();
+
+    private static string? FindGeneratedDir()
+    {
+        // Walk up from BaseDirectory to find the artifacts root, then locate the generated files
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            // Look for the generated output under artifacts/obj
+            var candidate = Path.Combine(dir.FullName, "artifacts", "obj", "Markout.Tests");
+            if (Directory.Exists(candidate))
+            {
+                // Find the configuration-specific generated dir (debug or release)
+                foreach (var config in Directory.GetDirectories(candidate))
+                {
+                    var genDir = Path.Combine(config, "generated",
+                        "Markout.SourceGeneration",
+                        "Markout.SourceGeneration.MarkoutSourceGenerator");
+                    if (Directory.Exists(genDir))
+                        return genDir;
+                }
+            }
+            dir = dir.Parent;
+        }
+        return null;
+    }
 
     private static string ReadGenerated(string fileName)
     {
-        var path = Path.Combine(GeneratedDir, fileName);
+        Assert.NotNull(GeneratedDir);
+        var path = Path.Combine(GeneratedDir!, fileName);
         Assert.True(File.Exists(path), $"Generated file not found: {path}");
         return File.ReadAllText(path);
     }
