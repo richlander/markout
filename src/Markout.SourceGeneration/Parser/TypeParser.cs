@@ -20,6 +20,7 @@ internal static class TypeParser
     private const string MarkoutSectionAttribute = "Markout.MarkoutSectionAttribute";
     private const string MarkoutBoolFormatAttribute = "Markout.MarkoutBoolFormatAttribute";
     private const string MarkoutFormatAttribute = "Markout.MarkoutFormatAttribute";
+    private const string MarkoutJoinAttribute = "Markout.MarkoutJoinAttribute";
 
     public static ContextMetadata? ParseContext(
         GeneratorAttributeSyntaxContext context,
@@ -201,6 +202,16 @@ internal static class TypeParser
             customFormat = fmt;
         }
 
+        // Parse [MarkoutJoin] attribute
+        string? joinSeparator = null;
+        var joinAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutJoinAttribute);
+        if (joinAttr?.ConstructorArguments.Length > 0 &&
+            joinAttr.ConstructorArguments[0].Value is string sep)
+        {
+            joinSeparator = sep;
+        }
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -212,7 +223,9 @@ internal static class TypeParser
         var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, isArray) = DeterminePropertyKind(prop.Type, compilation, diagnostics, prop.Name, prop.Locations.FirstOrDefault());
 
         // Determine if property is unsupported in table context
-        bool isUnsupportedInTable = !isIgnored && !isSection && !IsScalarKind(kind);
+        // Joined string arrays are treated as scalars, so they're fine in tables
+        bool isJoinedArray = kind == PropertyKind.StringArray && joinSeparator != null;
+        bool isUnsupportedInTable = !isIgnored && !isSection && !IsScalarKind(kind) && !isJoinedArray;
 
         // Emit warning for unsupported properties without [MarkoutIgnoreInTable]
         if (isUnsupportedInTable && !isIgnoredInTable)
@@ -245,7 +258,8 @@ internal static class TypeParser
             boolFalseValue,
             isNullableValueType,
             isArray,
-            customFormat);
+            customFormat,
+            joinSeparator);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, bool IsArray)

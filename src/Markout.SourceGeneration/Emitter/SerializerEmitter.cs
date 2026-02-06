@@ -291,8 +291,8 @@ internal static class SerializerEmitter
             if (prop.IsIgnoredInTable)
                 return "Ignored";
             
-            // In table context, only scalars work
-            if (IsScalarKind(prop.Kind))
+            // In table context, only scalars (and joined arrays) work
+            if (IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null))
                 return "Column" + (prop.Name != prop.DisplayName ? $" \"{prop.DisplayName}\"" : "");
             
             // Unsupported patterns are skipped
@@ -332,7 +332,7 @@ internal static class SerializerEmitter
             PropertyKind.Double or PropertyKind.Decimal => "Field",
             PropertyKind.DateTime or PropertyKind.DateTimeOffset => "Field (ISO 8601)",
             PropertyKind.Enum => "Field (enum)",
-            PropertyKind.StringArray => "Bullet list",
+            PropertyKind.StringArray => prop.JoinSeparator != null ? "Field (joined)" : "Bullet list",
             PropertyKind.ComplexArray => prop.ElementHasNestedContent 
                 ? "Subsections" 
                 : "Table",
@@ -402,7 +402,7 @@ internal static class SerializerEmitter
             if (!renderScalars && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
                 continue;
 
-            if (IsScalarKind(prop.Kind) && !prop.IsSection)
+            if ((IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)) && !prop.IsSection)
                 scalarProps.Add(prop);
             else
                 nonScalarProps.Add(prop);
@@ -578,7 +578,8 @@ internal static class SerializerEmitter
         int nestingDepth = 0)
     {
         var indent = new string(' ', indentLevel * 4);
-        bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String);
+        bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
+            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null));
         var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
         if (useBuilder)
@@ -598,6 +599,12 @@ internal static class SerializerEmitter
                 {
                     sb.AppendLine($"{indent}if (!string.IsNullOrEmpty({propAccess}))");
                     sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {propAccess}));");
+                }
+                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+                {
+                    var countProp = prop.IsArray ? "Length" : "Count";
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
+                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EscapeString(prop.DisplayName)}\", {GetScalarValueExpression(prop, propAccess)}));");
                 }
                 else
                 {
@@ -665,6 +672,12 @@ internal static class SerializerEmitter
                 sb.AppendLine($"{indent}if ({propAccess} != null)");
                 sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {propAccess});");
             }
+            else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+            {
+                var countProp = prop.IsArray ? "Length" : "Count";
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
+                sb.AppendLine($"{indent}    writer.{methodName}(\"{EscapeString(prop.DisplayName)}\", {GetScalarValueExpression(prop, propAccess)});");
+            }
             else if (prop.Kind == PropertyKind.Boolean)
             {
                 if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
@@ -710,6 +723,13 @@ internal static class SerializerEmitter
                 sb.AppendLine($"{indent}if ({propAccess} != null)");
                 sb.AppendLine($"{indent}    writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{propAccess}}}\");");
             }
+            else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+            {
+                var countProp = prop.IsArray ? "Length" : "Count";
+                var valueStr = GetScalarValueExpression(prop, propAccess);
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
+                sb.AppendLine($"{indent}    writer.WriteListItem($\"{EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+            }
             else
             {
                 var valueStr = GetScalarValueExpression(prop, propAccess);
@@ -721,6 +741,12 @@ internal static class SerializerEmitter
     private static string GetScalarValueExpression(PropertyMetadata prop, string propAccess, bool nullable = false)
     {
         var access = nullable ? $"{propAccess}.Value" : propAccess;
+
+        // Joined string array: render as string.Join(separator, collection)
+        if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+        {
+            return $"string.Join(\"{EscapeString(prop.JoinSeparator)}\", {propAccess})";
+        }
 
         if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
         {
@@ -846,6 +872,12 @@ internal static class SerializerEmitter
         {
             var valueExpr = GetScalarValueExpression(prop, propAccess, nullable: true);
             return $"{propAccess}.HasValue ? {valueExpr} : \"\"";
+        }
+
+        // Joined string array in table cell
+        if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+        {
+            return $"{propAccess} != null ? string.Join(\"{EscapeString(prop.JoinSeparator)}\", {propAccess}) : \"\"";
         }
 
         if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
