@@ -34,7 +34,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public string? TitleProperty { get; }
     public string? TitleContextProperty { get; }
     public string? DescriptionProperty { get; }
-    public bool RenderScalars { get; }
+    public bool AutoFields { get; }
     public FieldLayoutKind FieldLayout { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
@@ -47,7 +47,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         string? titleProperty = null,
         string? titleContextProperty = null,
         string? descriptionProperty = null,
-        bool renderScalars = true,
+        bool autoFields = true,
         FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
@@ -59,7 +59,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         TitleProperty = titleProperty;
         TitleContextProperty = titleContextProperty;
         DescriptionProperty = descriptionProperty;
-        RenderScalars = renderScalars;
+        AutoFields = autoFields;
         FieldLayout = fieldLayout;
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
@@ -75,7 +75,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
                TitleProperty == other.TitleProperty &&
                TitleContextProperty == other.TitleContextProperty &&
                DescriptionProperty == other.DescriptionProperty &&
-               RenderScalars == other.RenderScalars &&
+               AutoFields == other.AutoFields &&
                FieldLayout == other.FieldLayout &&
                SequenceEqual(Properties, other.Properties);
     }
@@ -87,7 +87,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         {
             var hash = FullTypeName.GetHashCode();
             hash = hash * 397 ^ IsValueType.GetHashCode();
-            hash = hash * 397 ^ RenderScalars.GetHashCode();
+            hash = hash * 397 ^ AutoFields.GetHashCode();
             hash = hash * 397 ^ (int)FieldLayout;
             foreach (var prop in Properties)
                 hash = hash * 397 ^ prop.GetHashCode();

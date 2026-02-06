@@ -31,7 +31,7 @@ public sealed class MarkoutSerializableAttribute : Attribute
     /// When false, only properties marked with [MarkoutSection] or IEnumerable&lt;MarkoutField&gt;
     /// properties are rendered. Default is true.
     /// </summary>
-    public bool RenderScalars { get; set; } = true;
+    public bool AutoFields { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the layout for scalar fields.

@@ -67,7 +67,7 @@ public class StringOnlyOneLine
 
 // --- Title dedup test models ---
 
-[MarkoutSerializable(TitleProperty = nameof(Name), RenderScalars = true)]
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = true)]
 public class TitleDedupRecord
 {
     public string Name { get; set; } = "";
@@ -75,7 +75,7 @@ public class TitleDedupRecord
     public int Count { get; set; }
 }
 
-[MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Summary), RenderScalars = true)]
+[MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Summary), AutoFields = true)]
 public class TitleAndDescDedupRecord
 {
     public string Name { get; set; } = "";
@@ -84,7 +84,7 @@ public class TitleAndDescDedupRecord
     public int Count { get; set; }
 }
 
-[MarkoutSerializable(TitleProperty = nameof(Name), TitleContextProperty = nameof(Version), RenderScalars = true)]
+[MarkoutSerializable(TitleProperty = nameof(Name), TitleContextProperty = nameof(Version), AutoFields = true)]
 public class TitleContextDedupRecord
 {
     public string Name { get; set; } = "";

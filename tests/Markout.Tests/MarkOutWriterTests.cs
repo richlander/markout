@@ -465,4 +465,54 @@ public class MarkoutWriterTests
         var expected = "# Title\n\nPreamble text";
         Assert.Equal(expected, writer.ToString());
     }
+
+    [Fact]
+    public void CurrentContext_DefaultIsBlock()
+    {
+        var writer = new MarkoutWriter();
+        Assert.Equal(MarkoutRenderContext.Block, writer.CurrentContext);
+    }
+
+    [Fact]
+    public void CurrentContext_InTable_ReturnsTable()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteTableStart("A", "B");
+        Assert.Equal(MarkoutRenderContext.Table, writer.CurrentContext);
+        writer.WriteTableEnd();
+        Assert.Equal(MarkoutRenderContext.Block, writer.CurrentContext);
+    }
+
+    [Fact]
+    public void CurrentContext_InCodeBlock_ReturnsCodeBlock()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCodeBlockStart("csharp");
+        Assert.Equal(MarkoutRenderContext.CodeBlock, writer.CurrentContext);
+        writer.WriteCodeBlockEnd();
+        Assert.Equal(MarkoutRenderContext.Block, writer.CurrentContext);
+    }
+
+    [Fact]
+    public void WriteCodeBlockStart_Nested_Throws()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCodeBlockStart();
+        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeBlockStart());
+    }
+
+    [Fact]
+    public void WriteCodeBlockEnd_WithoutStart_Throws()
+    {
+        var writer = new MarkoutWriter();
+        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeBlockEnd());
+    }
+
+    [Fact]
+    public void WriteTableStart_InCodeBlock_Throws()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCodeBlockStart();
+        Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart("A"));
+    }
 }

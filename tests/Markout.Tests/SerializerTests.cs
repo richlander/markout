@@ -44,6 +44,19 @@ public partial class TestMarkoutContext : MarkoutSerializerContext
 {
 }
 
+[MarkoutSerializable]
+public class BoldRecord
+{
+    public string? Label { get; set; }
+    public int Value { get; set; }
+}
+
+[MarkoutContextOptions(BoldFieldNames = true)]
+[MarkoutContext(typeof(BoldRecord))]
+public partial class BoldContext : MarkoutSerializerContext
+{
+}
+
 public class SerializerTests
 {
     [Fact]
@@ -311,11 +324,11 @@ public class SerializerTests
     }
 
     [Fact]
-    public void Serialize_RenderScalarsFalseWithNoSections_ProducesEmptyOutput()
+    public void Serialize_AutoFieldsFalseWithNoSections_ProducesEmptyOutput()
     {
-        // This type has RenderScalars=false but no sections - output will be empty
+        // This type has AutoFields=false but no sections - output will be empty
         // The MARKOUT004 warning is suppressed with #pragma in the type definition
-        var data = new RenderScalarsWarningTest { Name = "Test", Count = 42 };
+        var data = new AutoFieldsWarningTest { Name = "Test", Count = 42 };
 
         var context = new TreeTestContext();
         var mdf = context.Serialize(data);
@@ -377,6 +390,21 @@ public class SerializerTests
         Assert.NotNull(prop);
         Assert.NotNull(prop!.GetMethod);
         Assert.Null(prop.SetMethod);
+    }
+
+    [Fact]
+    public void ContextOptions_BoldFieldNames_AppliedToDefault()
+    {
+        var context = BoldContext.Default;
+        Assert.True(context.Options.BoldFieldNames);
+    }
+
+    [Fact]
+    public void ContextOptions_BoldFieldNames_RendersInOutput()
+    {
+        var record = new BoldRecord { Label = "Test", Value = 1 };
+        var mdf = MarkoutSerializer.Serialize(record, BoldContext.Default);
+        Assert.Contains("**Label:**", mdf);
     }
 
     [Fact]
@@ -538,7 +566,7 @@ public class FileExplorer
 
 [MarkoutContext(typeof(TypeShape))]
 [MarkoutContext(typeof(FileExplorer))]
-[MarkoutContext(typeof(RenderScalarsWarningTest))]
+[MarkoutContext(typeof(AutoFieldsWarningTest))]
 public partial class TreeTestContext : MarkoutSerializerContext
 {
 }
@@ -560,10 +588,10 @@ public partial class DictionaryTestContext : MarkoutSerializerContext
 }
 
 // Test type that intentionally triggers MARKOUT004 warning
-// This verifies the analyzer correctly warns when RenderScalars=false but no sections exist
+// This verifies the analyzer correctly warns when AutoFields=false but no sections exist
 #pragma warning disable MARKOUT004
-[MarkoutSerializable(RenderScalars = false)]
-public class RenderScalarsWarningTest
+[MarkoutSerializable(AutoFields = false)]
+public class AutoFieldsWarningTest
 {
     public string Name { get; set; } = "";
     public int Count { get; set; }

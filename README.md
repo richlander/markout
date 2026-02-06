@@ -201,7 +201,7 @@ Latest LTS: 10.0
 - **`[MarkoutSerializable]`** - Marks a type for serialization
   - `TitleProperty` - Property to use as H1 title
   - `DescriptionProperty` - Property to render as paragraph after title
-  - `RenderScalars` - When `false`, only sections and field collections render (default: `true`)
+  - `AutoFields` - When `false`, only sections and field collections render (default: `true`)
 - **`[MarkoutPropertyName("...")]`** - Custom property display name
 - **`[MarkoutIgnore]`** - Excludes a property from output
 - **`[MarkoutIgnoreInTable]`** - Excludes a property only in table context (silences MARKOUT001 warning)
@@ -214,7 +214,7 @@ Latest LTS: 10.0
 For dynamic metadata, use `List<MarkoutField>` properties:
 
 ```csharp
-[MarkoutSerializable(RenderScalars = false)]
+[MarkoutSerializable(AutoFields = false)]
 public class PackageInfo
 {
     public string Name { get; set; }

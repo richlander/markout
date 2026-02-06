@@ -22,6 +22,7 @@ public sealed class MarkoutWriter
     private bool _needsBlankLine;
     private bool _hasContent;
     private bool _inTable;
+    private bool _inCodeBlock;
     private string? _currentSectionName;
     private bool _sectionExcluded;
 
@@ -99,6 +100,14 @@ public sealed class MarkoutWriter
     /// Gets whether to include icons in tree nodes.
     /// </summary>
     public bool IncludeIcons => _options.IncludeIcons;
+
+    /// <summary>
+    /// Gets the current rendering context, indicating what Markdown constructs are valid.
+    /// </summary>
+    public MarkoutRenderContext CurrentContext =>
+        _inCodeBlock ? MarkoutRenderContext.CodeBlock :
+        _inTable ? MarkoutRenderContext.Table :
+        MarkoutRenderContext.Block;
 
     /// <summary>
     /// Flushes any buffered output to the underlying stream.
@@ -214,24 +223,38 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Starts a code block with optional language specifier.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if already inside a code block.</exception>
     public void WriteCodeBlockStart(string? language = null)
     {
+        if (_inCodeBlock)
+            throw new InvalidOperationException("Cannot nest code blocks. End the current code block before starting a new one.");
+
         if (_sectionExcluded)
+        {
+            _inCodeBlock = true;
             return;
+        }
 
         EnsureBlankLineIfNeeded();
         _writer.Write("```");
         if (!string.IsNullOrEmpty(language))
             _writer.Write(language);
         _writer.WriteLine();
+        _inCodeBlock = true;
         _hasContent = true;
     }
 
     /// <summary>
     /// Ends a code block.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if not inside a code block.</exception>
     public void WriteCodeBlockEnd()
     {
+        if (!_inCodeBlock)
+            throw new InvalidOperationException("Cannot end a code block without starting one first.");
+
+        _inCodeBlock = false;
+
         if (_sectionExcluded)
             return;
 
@@ -373,8 +396,7 @@ public sealed class MarkoutWriter
             if (i > 0)
                 _writer.Write(" | ");
 
-            _writer.Write(fields[i].Key);
-            _writer.Write(": ");
+            WriteFieldName(fields[i].Key);
             _writer.Write(fields[i].Value ?? string.Empty);
         }
 
@@ -400,8 +422,7 @@ public sealed class MarkoutWriter
             if (i > 0)
                 _writer.Write(" | ");
 
-            _writer.Write(fields[i].Key);
-            _writer.Write(": ");
+            WriteFieldName(fields[i].Key);
             _writer.Write(fields[i].Value ?? string.Empty);
         }
 
@@ -492,6 +513,9 @@ public sealed class MarkoutWriter
     /// </summary>
     public void WriteTableStart(params ReadOnlySpan<string> headers)
     {
+        if (_inCodeBlock)
+            throw new InvalidOperationException("Cannot start a table inside a code block.");
+
         if (_sectionExcluded)
         {
             _inTable = true; // Track state even when excluded

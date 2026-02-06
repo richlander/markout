@@ -86,7 +86,7 @@ internal static class SerializerEmitter
             propsToRender = type.Properties.Where(p => !skip.Contains(p.Name)).ToList();
         }
 
-        EmitPropertySerializations(sb, propsToRender, "value", 2, 2, 0, type.RenderScalars, type.FieldLayout);
+        EmitPropertySerializations(sb, propsToRender, "value", 2, 2, 0, type.AutoFields, type.FieldLayout);
 
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -112,7 +112,23 @@ internal static class SerializerEmitter
         sb.AppendLine("{");
 
         // Constructor accepting options
-        sb.AppendLine($"    public {context.ClassName}() {{ }}");
+        if (context.BoldFieldNames != null || context.IncludeIcons != null || context.IncludeDescription != null)
+        {
+            // Generate default constructor that applies compile-time options
+            sb.AppendLine($"    public {context.ClassName}() : base(new global::Markout.MarkoutWriterOptions");
+            sb.AppendLine("    {");
+            if (context.BoldFieldNames != null)
+                sb.AppendLine($"        BoldFieldNames = {(context.BoldFieldNames.Value ? "true" : "false")},");
+            if (context.IncludeIcons != null)
+                sb.AppendLine($"        IncludeIcons = {(context.IncludeIcons.Value ? "true" : "false")},");
+            if (context.IncludeDescription != null)
+                sb.AppendLine($"        IncludeDescription = {(context.IncludeDescription.Value ? "true" : "false")},");
+            sb.AppendLine("    }) { }");
+        }
+        else
+        {
+            sb.AppendLine($"    public {context.ClassName}() {{ }}");
+        }
         sb.AppendLine($"    public {context.ClassName}(global::Markout.MarkoutWriterOptions options) : base(options) {{ }}");
         sb.AppendLine();
 
@@ -384,7 +400,7 @@ internal static class SerializerEmitter
         int indentLevel,
         int baseHeadingLevel = 2,
         int nestingDepth = 0,
-        bool renderScalars = true,
+        bool autoFields = true,
         FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine)
     {
         var indent = new string(' ', indentLevel * 4);
@@ -398,8 +414,8 @@ internal static class SerializerEmitter
             if (prop.IsIgnored)
                 continue;
 
-            // Skip non-section properties if RenderScalars is false
-            if (!renderScalars && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
+            // Skip non-section properties if AutoFields is false
+            if (!autoFields && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
                 continue;
 
             if ((IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)) && !prop.IsSection)
@@ -409,7 +425,7 @@ internal static class SerializerEmitter
         }
 
         // Emit scalars based on layout
-        if (renderScalars && scalarProps.Count > 0)
+        if (autoFields && scalarProps.Count > 0)
         {
             EmitScalarsWithLayout(sb, scalarProps, valueExpr, indentLevel, fieldLayout, nestingDepth);
         }
