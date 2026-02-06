@@ -19,18 +19,23 @@ This report compares Markout—a source-generated Markdown serializer—with the
 ## 1. Executive Summary by Serializer
 
 ### System.Text.Json Source Generator
+
 The STJ generator is a mature, production-grade source generator targeting JSON read/write. It supports 25+ collection types, polymorphism, custom converters, multiple construction strategies, and three Roslyn version targets. Its complexity is both a strength (comprehensive) and a burden (maintenance, learning curve).
 
 ### Configuration.Binder Source Generator
+
 A binding/deserialization generator that maps `IConfiguration` key-value pairs to strongly-typed objects. Notable for its interceptor system and bit-flag generation tracking. Architecturally sophisticated with a clean TypeSpec hierarchy.
 
 ### LoggerMessage Source Generator
+
 A focused generator for high-performance structured logging. Features a dual-strategy pattern: optimized `LoggerMessage.Define<>()` for simple cases, custom state structs for complex cases. Simple, effective, well-scoped.
 
 ### Options Validator Source Generator
+
 Generates `IValidateOptions<T>` implementations from data annotations. The simplest of the runtime generators, with minimal incremental caching investment. Uses record-based models and synthesizes validators for transitive types.
 
 ### Markout
+
 A source-generated Markdown serializer for human/LLM-readable output. Write-only, closed type system, deliberately constrained. Targets CLI output, documentation, and structured reports. At ~0.2.4, it's early-stage but architecturally sound.
 
 ---
@@ -48,6 +53,7 @@ A source-generated Markdown serializer for human/LLM-readable output. Write-only
 | **Markout** | `CreateSyntaxProvider` → TypeParser.ParseContext() → ContextMetadata → SerializerEmitter |
 
 **Markout's Current Approach:**
+
 ```csharp
 // MarkoutSourceGenerator.cs
 var contexts = context.SyntaxProvider
@@ -102,6 +108,7 @@ public bool Equals(TypeMetadata? other)
 ### Model Design
 
 **STJ Model Hierarchy:**
+
 ```
 ContextGenerationSpec
 ├── TypeGenerationSpec (30+ properties)
@@ -112,6 +119,7 @@ ContextGenerationSpec
 ```
 
 **Markout Model Hierarchy:**
+
 ```
 ContextMetadata
 ├── TypeMetadata (11 properties)
@@ -127,6 +135,7 @@ Markout's model is appropriately simpler—it doesn't need STJ's complexity. How
 ### Code Organization
 
 **STJ Structure:**
+
 ```
 gen/
 ├── JsonSourceGenerator.cs (entry point)
@@ -142,6 +151,7 @@ gen/
 ```
 
 **Markout Structure:**
+
 ```
 Markout.SourceGeneration/
 ├── MarkoutSourceGenerator.cs
@@ -183,6 +193,7 @@ Markout's structure is clean but could benefit from:
 - `TypeInfoPropertyName` allows custom naming in the generated context
 
 **Recommendation:** Consider adding a `[MarkoutContextOptions]` attribute for compile-time configuration:
+
 ```csharp
 [MarkoutContextOptions(
     DefaultFieldLayout = FieldLayout.LineBreaks,
@@ -244,6 +255,7 @@ STJ's `TryResolveCollectionType` is ~170 lines of carefully-ordered type checks:
 ```
 
 **Markout's Simpler Approach:**
+
 ```csharp
 // Markout collection detection
 if (type is IArrayTypeSymbol) → Array handling
@@ -277,6 +289,7 @@ else if (IEnumerable<T>) → List handling
 ### STJ Generated Code Patterns
 
 **Per-Type Factory Method:**
+
 ```csharp
 private JsonTypeInfo<MyPoco> Create_MyPoco(JsonSerializerOptions options)
 {
@@ -290,6 +303,7 @@ private JsonTypeInfo<MyPoco> Create_MyPoco(JsonSerializerOptions options)
 ```
 
 **Fast-Path Serialization:**
+
 ```csharp
 private void MyPocoSerializeHandler(Utf8JsonWriter writer, MyPoco? value)
 {
@@ -302,6 +316,7 @@ private void MyPocoSerializeHandler(Utf8JsonWriter writer, MyPoco? value)
 ```
 
 **Pre-encoded Property Names:**
+
 ```csharp
 private static readonly JsonEncodedText PropName_Id = JsonEncodedText.Encode("id");
 ```
@@ -309,6 +324,7 @@ private static readonly JsonEncodedText PropName_Id = JsonEncodedText.Encode("id
 ### Markout Generated Code Patterns
 
 **TypeInfo Serialize Method:**
+
 ```csharp
 public override void Serialize(MarkoutWriter writer, Package value)
 {
@@ -329,6 +345,7 @@ public override void Serialize(MarkoutWriter writer, Package value)
 ```
 
 **Context GetTypeInfo Dispatch:**
+
 ```csharp
 public override MarkoutTypeInfo<T>? GetTypeInfo<T>()
 {
@@ -350,13 +367,16 @@ public override MarkoutTypeInfo<T>? GetTypeInfo<T>()
 **Areas for Improvement:**
 
 1. **List allocation in OneLine layout:**
+
 ```csharp
 // Current: allocates List<MarkoutField> for every call
 var __fields = new List<MarkoutField>();
 if (!string.IsNullOrEmpty(value.Name))
     __fields.Add(new MarkoutField("Name", value.Name));
 ```
+
 **Recommendation:** For types where all scalars are non-nullable value types, emit direct `WriteCompactFields(params ReadOnlySpan<MarkoutField>)` calls:
+
 ```csharp
 // Optimized path for all-non-nullable scalars
 writer.WriteCompactFields(
@@ -364,17 +384,20 @@ writer.WriteCompactFields(
     new MarkoutField("Price", value.Price.ToString(CultureInfo.InvariantCulture)));
 ```
 
-2. **No pre-formatted strings:**
+1. **No pre-formatted strings:**
 STJ pre-encodes property names as `JsonEncodedText`. Markout could cache display names as `const string`:
+
 ```csharp
 private const string DisplayName_Count = "Count";
 // Use: writer.WriteField(DisplayName_Count, value.Count);
 ```
 
-3. **Heading level arithmetic in generated code:**
+1. **Heading level arithmetic in generated code:**
+
 ```csharp
 sb.AppendLine($"    writer.WriteHeading({effectiveSectionLevel}, ...);");
 ```
+
 Consider computing heading levels at generation time rather than embedding arithmetic. Note: this is closely related to section hiding/inclusion—when sections are excluded, heading levels of remaining sections may need to be recalculated to avoid gaps in the heading hierarchy.
 
 ---
@@ -517,6 +540,7 @@ This would preserve the closed type system while allowing specific extension poi
 **Recommendations:**
 
 1. **Eliminate List allocation for simple cases:**
+
 ```csharp
 // If all scalars are non-nullable non-string, use params overload
 writer.WriteCompactFields(
@@ -524,9 +548,9 @@ writer.WriteCompactFields(
     new MarkoutField("Count", value.Count));
 ```
 
-2. **Pre-compute display names as constants**
+1. **Pre-compute display names as constants**
 
-3. **Consider index-based iteration for known collection types**
+2. **Consider index-based iteration for known collection types**
 
 ---
 
@@ -564,9 +588,11 @@ writer.WriteCompactFields(
 ### High Priority
 
 #### 1. Fix Incremental Caching Equality
+
 **Problem:** `TypeMetadata.Equals()` only compares `FullTypeName`, ignoring property changes.
 
 **Action:** Convert to records or implement deep equality:
+
 ```csharp
 public sealed record TypeMetadata(
     string Namespace,
@@ -576,9 +602,11 @@ public sealed record TypeMetadata(
 ```
 
 #### 2. Migrate to ForAttributeWithMetadataName
+
 **Problem:** Current `CreateSyntaxProvider` visits all class declarations.
 
 **Action:**
+
 ```csharp
 context.SyntaxProvider
     .ForAttributeWithMetadataName(
@@ -588,6 +616,7 @@ context.SyntaxProvider
 ```
 
 #### 3. Add Enum Support
+
 **Problem:** Enums are common in view models but unsupported.
 
 **Action:**
@@ -598,9 +627,11 @@ context.SyntaxProvider
 ### Medium Priority
 
 #### 4. Add Compile-Time Options Attribute
+
 **Pattern from STJ:** `[JsonSourceGenerationOptions]`
 
 **Proposal:**
+
 ```csharp
 [MarkoutContextOptions(
     DefaultFieldLayout = FieldLayout.LineBreaks,
@@ -613,6 +644,7 @@ public partial class ReportContext : MarkoutSerializerContext { }
 This bakes options into generated code, avoiding runtime options objects.
 
 #### 5. Adopt Dual-Strategy Pattern (from LoggerMessage)
+
 **Pattern:** LoggerMessage uses `LoggerMessage.Define<>()` for simple cases, custom structs for complex cases.
 
 **Application to Markout:**
@@ -620,6 +652,7 @@ This bakes options into generated code, avoiding runtime options objects.
 - **Complex types** (nullable, sections, nested): Use current List builder pattern
 
 #### 6. Multi-File Emission (from STJ)
+
 **Current:** Markout emits one file per type + one context file.
 
 **STJ Pattern:** Also emits `PropertyNames.g.cs` for shared constants.
@@ -629,7 +662,9 @@ This bakes options into generated code, avoiding runtime options objects.
 - `{Context}.SectionNames.g.cs` for section constants (already partially done)
 
 #### 7. Add KnownTypeSymbols Pattern
+
 **Pattern from STJ/Config.Binder:**
+
 ```csharp
 internal sealed class KnownTypeSymbols
 {
@@ -644,7 +679,9 @@ This caches symbol lookups for better generator performance.
 ### Lower Priority
 
 #### 8. Consider IMarkoutFormattable Interface
+
 For custom scalar formatting without breaking the closed type system:
+
 ```csharp
 public interface IMarkoutFormattable
 {
@@ -655,17 +692,21 @@ public interface IMarkoutFormattable
 Detect at generation time; emit `.FormatForMarkout()` call.
 
 #### 9. Add Diagnostic Suppressor
+
 Pattern from Config.Binder's `ConfigurationBindingGenerator.Suppressor.cs`:
 - Suppress NRT warnings in generated code
 - Suppress CA warnings for generated patterns
 
 #### 10. Pre-computed Display Names
+
 **Current:**
+
 ```csharp
 writer.WriteField("Display Name", value.Name);  // String literal each time
 ```
 
 **Better:**
+
 ```csharp
 // In generated context
 private const string Field_Name = "Display Name";
