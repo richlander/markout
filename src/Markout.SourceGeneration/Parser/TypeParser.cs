@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Markout.SourceGeneration.Parser;
 
@@ -34,13 +33,15 @@ internal static class TypeParser
         if (contextAttributes.Length == 0)
             return null;
 
+        var knownTypes = new KnownTypeSymbols(context.SemanticModel.Compilation);
+
         var types = new List<TypeMetadata>();
         foreach (var attr in contextAttributes)
         {
             if (attr.ConstructorArguments.Length > 0 &&
                 attr.ConstructorArguments[0].Value is INamedTypeSymbol typeArg)
             {
-                var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation, null, null, null, null);
+                var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation, knownTypes, null, null, null, null);
                 if (typeMeta != null)
                     types.Add(typeMeta);
             }
@@ -56,7 +57,7 @@ internal static class TypeParser
     private static TypeMetadata? ParseTypeSymbol(
         INamedTypeSymbol typeSymbol,
         Compilation compilation,
-        GeneratorSyntaxContext? generatorContext,
+        KnownTypeSymbols knownTypes,
         string? titleProperty = null,
         string? titleContextProperty = null,
         string? descriptionProperty = null,
@@ -105,7 +106,7 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation, diagnostics);
+            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
@@ -146,6 +147,7 @@ internal static class TypeParser
     private static PropertyMetadata? ParseProperty(
         IPropertySymbol prop,
         Compilation compilation,
+        KnownTypeSymbols knownTypes,
         List<DiagnosticInfo> diagnostics)
     {
         var isIgnored = HasAttribute(prop, MarkoutIgnoreAttribute);
@@ -220,7 +222,7 @@ internal static class TypeParser
             isNullableValueType = true;
         }
 
-        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, isArray) = DeterminePropertyKind(prop.Type, compilation, diagnostics, prop.Name, prop.Locations.FirstOrDefault());
+        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault());
 
         // Determine if property is unsupported in table context
         // Joined string arrays are treated as scalars, so they're fine in tables
@@ -263,16 +265,13 @@ internal static class TypeParser
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, bool IsArray)
-        DeterminePropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
+        DeterminePropertyKind(ITypeSymbol type, Compilation compilation, KnownTypeSymbols knownTypes, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
     {
-        var typeName = type.ToDisplayString();
-
         // Check for nullable value types
         if (type is INamedTypeSymbol namedType &&
             namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
         {
             type = namedType.TypeArguments[0];
-            typeName = type.ToDisplayString();
         }
 
         // Primitives
@@ -284,19 +283,17 @@ internal static class TypeParser
             SpecialType.System_Int64 => (PropertyKind.Int64, null, null, false, null, false),
             SpecialType.System_Double => (PropertyKind.Double, null, null, false, null, false),
             SpecialType.System_Decimal => (PropertyKind.Decimal, null, null, false, null, false),
-            _ => DetermineComplexPropertyKind(type, compilation, diagnostics, propertyName, propertyLocation)
+            _ => DetermineComplexPropertyKind(type, compilation, knownTypes, diagnostics, propertyName, propertyLocation)
         };
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, bool IsArray)
-        DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
+        DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, KnownTypeSymbols knownTypes, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
     {
-        var typeName = type.ToDisplayString();
-
         // DateTime types
-        if (typeName == "System.DateTime")
+        if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTime))
             return (PropertyKind.DateTime, null, null, false, null, false);
-        if (typeName == "System.DateTimeOffset")
+        if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTimeOffset))
             return (PropertyKind.DateTimeOffset, null, null, false, null, false);
 
         // Enum types
@@ -309,13 +306,13 @@ internal static class TypeParser
             var elementType = arrayType.ElementType;
 
             // Check for MarkoutField[] - renders as compact line or field table
-            if (elementType.ToDisplayString() == "Markout.MarkoutField")
+            if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.MarkoutField))
                 return (PropertyKind.FieldCollection, null, null, false, null, true);
 
             if (elementType.SpecialType == SpecialType.System_String)
                 return (PropertyKind.StringArray, null, null, false, null, true);
 
-            var elementProps = GetTypeProperties(elementType, compilation, diagnostics);
+            var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics);
             var hasNested = HasNestedContent(elementProps);
             var titleProp = GetTitleProperty(elementType);
             return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, titleProp, true);
@@ -325,8 +322,8 @@ internal static class TypeParser
         if (type is INamedTypeSymbol namedType)
         {
             // Detect Dictionary<TKey, TValue> before IEnumerable<T> since dictionaries implement IEnumerable<KeyValuePair>
-            var isDictionary = namedType.AllInterfaces.Any(i =>
-                i.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IDictionary<TKey, TValue>");
+            var isDictionary = knownTypes.IDictionary != null && namedType.AllInterfaces.Any(i =>
+                SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, knownTypes.IDictionary));
 
             if (isDictionary)
             {
@@ -340,8 +337,10 @@ internal static class TypeParser
                 return (PropertyKind.Other, null, null, false, null, false);
             }
 
-            var enumerableInterface = namedType.AllInterfaces
-                .FirstOrDefault(i => i.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IEnumerable<T>");
+            var enumerableInterface = knownTypes.IEnumerable != null
+                ? namedType.AllInterfaces.FirstOrDefault(i =>
+                    SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, knownTypes.IEnumerable))
+                : null;
 
             if (enumerableInterface != null ||
                 (namedType.OriginalDefinition.ToDisplayString().StartsWith("System.Collections.Generic.") &&
@@ -362,7 +361,7 @@ internal static class TypeParser
                 {
                     // Check for List<MarkoutField> or IReadOnlyList<MarkoutField> - renders as compact line or field table
                     // Requires materialized collection to avoid double-enumeration issues
-                    if (elementType.ToDisplayString() == "Markout.MarkoutField")
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.MarkoutField))
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
@@ -376,7 +375,7 @@ internal static class TypeParser
                     }
 
                     // Check for List<TreeNode> - renders as tree structure
-                    if (elementType.ToDisplayString() == "Markout.TreeNode")
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.TreeNode))
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>")
@@ -388,7 +387,7 @@ internal static class TypeParser
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, false);
 
-                    var elementProps = GetTypeProperties(elementType, compilation, diagnostics);
+                    var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics);
                     var hasNested = HasNestedContent(elementProps);
                     var titleProp = GetTitleProperty(elementType);
                     return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, titleProp, false);
@@ -399,7 +398,7 @@ internal static class TypeParser
         // Nested object
         if (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct)
         {
-            var props = GetTypeProperties(type, compilation, diagnostics);
+            var props = GetTypeProperties(type, compilation, knownTypes, diagnostics);
             if (props.Count > 0)
                 return (PropertyKind.NestedObject, null, props, false, null, false);
         }
@@ -436,10 +435,12 @@ internal static class TypeParser
     private static IReadOnlyList<PropertyMetadata> GetTypeProperties(
         ITypeSymbol type,
         Compilation compilation,
+        KnownTypeSymbols? knownTypes = null,
         List<DiagnosticInfo>? diagnostics = null)
     {
         var properties = new List<PropertyMetadata>();
         diagnostics ??= new List<DiagnosticInfo>();
+        knownTypes ??= new KnownTypeSymbols(compilation);
 
         if (type is not INamedTypeSymbol namedType)
             return properties;
@@ -455,7 +456,7 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation, diagnostics);
+            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
