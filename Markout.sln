@@ -13,6 +13,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Markout.Demo", "src\Markout.Demo\Markout.Demo.csproj", "{A3D5F90F-F54D-41A5-AB50-8D0DA833CEE4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Serialization", "samples\Serialization\Serialization.csproj", "{2FBCC45A-444A-444D-96D4-475718EA2A1E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,11 +75,24 @@ Global
 		{A3D5F90F-F54D-41A5-AB50-8D0DA833CEE4}.Release|x64.Build.0 = Release|Any CPU
 		{A3D5F90F-F54D-41A5-AB50-8D0DA833CEE4}.Release|x86.ActiveCfg = Release|Any CPU
 		{A3D5F90F-F54D-41A5-AB50-8D0DA833CEE4}.Release|x86.Build.0 = Release|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Debug|x64.Build.0 = Debug|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Debug|x86.Build.0 = Debug|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Release|x64.ActiveCfg = Release|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Release|x64.Build.0 = Release|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Release|x86.ActiveCfg = Release|Any CPU
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A3D5F90F-F54D-41A5-AB50-8D0DA833CEE4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{2FBCC45A-444A-444D-96D4-475718EA2A1E} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 EndGlobal
