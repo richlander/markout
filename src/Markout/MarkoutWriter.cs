@@ -15,6 +15,8 @@ namespace Markout;
 /// <seealso href="../../samples/Serialization/SectionFiltering.cs">Section filtering examples</seealso>
 public sealed class MarkoutWriter
 {
+    private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
+
     private readonly TextWriter _writer;
     private readonly MarkoutWriterOptions _options;
     private bool _needsBlankLine;
@@ -70,54 +72,29 @@ public sealed class MarkoutWriter
     }
 
     /// <summary>
-    /// Gets or sets whether field names should be rendered in bold.
-    /// When true, field names are wrapped in ** for markdown bold formatting.
+    /// Gets whether field names should be rendered in bold.
     /// </summary>
-    public bool BoldFieldNames
-    {
-        get => _options.BoldFieldNames;
-        set => _options.BoldFieldNames = value;
-    }
+    public bool BoldFieldNames => _options.BoldFieldNames;
 
     /// <summary>
-    /// Gets or sets the sections to include (1-based, H2 boundaries).
-    /// If set, only these sections are written. If null, all sections are included.
+    /// Gets the sections to include (1-based, H2 boundaries).
     /// </summary>
-    public HashSet<int>? IncludeSections
-    {
-        get => _options.IncludeSections;
-        set => _options.IncludeSections = value;
-    }
+    public HashSet<int>? IncludeSections => _options.IncludeSections;
 
     /// <summary>
-    /// Gets or sets the sections to exclude (1-based, H2 boundaries).
-    /// These sections are skipped even if in IncludeSections.
+    /// Gets the sections to exclude (1-based, H2 boundaries).
     /// </summary>
-    public HashSet<int>? ExcludeSections
-    {
-        get => _options.ExcludeSections;
-        set => _options.ExcludeSections = value;
-    }
+    public HashSet<int>? ExcludeSections => _options.ExcludeSections;
 
     /// <summary>
-    /// Gets or sets whether to include the description paragraph.
-    /// When false, the description is suppressed. Default is true.
+    /// Gets whether to include the description paragraph.
     /// </summary>
-    public bool IncludeDescription
-    {
-        get => _options.IncludeDescription;
-        set => _options.IncludeDescription = value;
-    }
+    public bool IncludeDescription => _options.IncludeDescription;
 
     /// <summary>
-    /// Gets or sets whether to include icons in tree nodes.
-    /// When false, only the label is rendered. Default is true.
+    /// Gets whether to include icons in tree nodes.
     /// </summary>
-    public bool IncludeIcons
-    {
-        get => _options.IncludeIcons;
-        set => _options.IncludeIcons = value;
-    }
+    public bool IncludeIcons => _options.IncludeIcons;
 
     /// <summary>
     /// Flushes any buffered output to the underlying stream.
@@ -129,9 +106,9 @@ public sealed class MarkoutWriter
         // Content before first H2 (section 0) is always included
         if (_currentSection == 0)
             return true;
-        if (IncludeSections?.Count > 0 && !IncludeSections.Contains(_currentSection))
+        if (_options.IncludeSections?.Count > 0 && !_options.IncludeSections.Contains(_currentSection))
             return false;
-        if (ExcludeSections?.Contains(_currentSection) == true)
+        if (_options.ExcludeSections?.Contains(_currentSection) == true)
             return false;
         return true;
     }
@@ -188,7 +165,7 @@ public sealed class MarkoutWriter
             _writer.WriteLine();
         }
 
-        _writer.Write(new string('#', level));
+        _writer.Write(HeadingPrefixes[level]);
         _writer.Write(' ');
         _writer.Write(text);
 
@@ -447,6 +424,51 @@ public sealed class MarkoutWriter
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a key-value field without trailing spaces (no markdown soft break).
+    /// Use for LineBreaks layout where each field is on its own line.
+    /// </summary>
+    public void WriteFieldNoBreak(string key, double value)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(key);
+        _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a key-value field without trailing spaces (no markdown soft break).
+    /// Use for LineBreaks layout where each field is on its own line.
+    /// </summary>
+    public void WriteFieldNoBreak(string key, DateTime value)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(key);
+        _writer.WriteLine(value.ToString("O", CultureInfo.InvariantCulture));
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes a key-value field without trailing spaces (no markdown soft break).
+    /// Use for LineBreaks layout where each field is on its own line.
+    /// </summary>
+    public void WriteFieldNoBreak(string key, DateTimeOffset value)
+    {
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(key);
+        _writer.WriteLine(value.ToString("O", CultureInfo.InvariantCulture));
         _hasContent = true;
     }
 
@@ -723,7 +745,7 @@ public sealed class MarkoutWriter
     {
         if (nodes == null || _sectionExcluded) return;
         
-        var nodeList = nodes.ToList();
+        var nodeList = nodes as IList<TreeNode> ?? [.. nodes];
         for (int i = 0; i < nodeList.Count; i++)
         {
             var isLast = i == nodeList.Count - 1;

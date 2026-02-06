@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet run
-#:package Markout@0.1.6
+#:package Markout@0.2.0
 
 using System.Text.Json;
 using System.Text.Json.Serialization;

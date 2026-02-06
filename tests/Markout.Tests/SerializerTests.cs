@@ -157,7 +157,7 @@ public class SerializerTests
             }
         };
 
-        var context = new SectionTestContext { IncludeSections = new HashSet<int> { 1 } };
+        var context = new SectionTestContext { Options = new MarkoutWriterOptions { IncludeSections = new HashSet<int> { 1 } } };
         var mdf = context.Serialize(package);
 
         // Section 1 (Dependencies) should be included
@@ -186,7 +186,7 @@ public class SerializerTests
             }
         };
 
-        var context = new SectionTestContext { ExcludeSections = new HashSet<int> { 1 } };
+        var context = new SectionTestContext { Options = new MarkoutWriterOptions { ExcludeSections = new HashSet<int> { 1 } } };
         var mdf = context.Serialize(package);
 
         // Section 1 (Dependencies) should be excluded
@@ -418,6 +418,22 @@ public class FileExplorer
 [MarkoutContext(typeof(FileExplorer))]
 [MarkoutContext(typeof(RenderScalarsWarningTest))]
 public partial class TreeTestContext : MarkoutSerializerContext
+{
+}
+
+// Test type that intentionally triggers MARKOUT003 error for dictionary properties
+// This verifies the analyzer correctly detects Dictionary<TKey, TValue> usage
+#pragma warning disable MARKOUT003, MARKOUT001
+[MarkoutSerializable]
+public class DictionaryWarningTest
+{
+    public string Name { get; set; } = "";
+    public Dictionary<string, string> Tags { get; set; } = new();
+}
+#pragma warning restore MARKOUT003, MARKOUT001
+
+[MarkoutContext(typeof(DictionaryWarningTest))]
+public partial class DictionaryTestContext : MarkoutSerializerContext
 {
 }
 

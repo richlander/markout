@@ -39,7 +39,7 @@ internal static class TypeParser
         string? titleContextProperty = null;
         string? descriptionProperty = null;
         bool renderScalars = true;
-        int fieldLayout = 0; // OneLine
+        var fieldLayout = FieldLayoutKind.OneLine;
         foreach (var named in serializableAttr.NamedArguments)
         {
             if (named.Key == "TitleProperty" && named.Value.Value is string tp)
@@ -51,7 +51,7 @@ internal static class TypeParser
             else if (named.Key == "RenderScalars" && named.Value.Value is bool rs)
                 renderScalars = rs;
             else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
-                fieldLayout = fl;
+                fieldLayout = (FieldLayoutKind)fl;
         }
 
         return ParseTypeSymbol(typeSymbol, context.SemanticModel.Compilation, null, titleProperty, titleContextProperty, descriptionProperty, renderScalars, fieldLayout);
@@ -102,7 +102,7 @@ internal static class TypeParser
         string? titleContextProperty = null,
         string? descriptionProperty = null,
         bool? renderScalars = null,
-        int? fieldLayout = null)
+        FieldLayoutKind? fieldLayout = null)
     {
         // If titleProperty/descriptionProperty not passed, try to get them from the type's [MarkoutSerializable] attribute
         if (titleProperty == null || titleContextProperty == null || descriptionProperty == null || renderScalars == null || fieldLayout == null)
@@ -122,18 +122,15 @@ internal static class TypeParser
                     else if (named.Key == "RenderScalars" && named.Value.Value is bool rs)
                         renderScalars ??= rs;
                     else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
-                        fieldLayout ??= fl;
+                        fieldLayout ??= (FieldLayoutKind)fl;
                 }
             }
         }
 
         // Default to true if not specified
         renderScalars ??= true;
-        // Default to OneLine (0)
-        fieldLayout ??= 0;
-
-        // Check if this type is used in a List<T> (table context)
-        bool isInTableContext = IsUsedInList(typeSymbol, compilation);
+        // Default to OneLine
+        fieldLayout ??= FieldLayoutKind.OneLine;
 
         var properties = new List<PropertyMetadata>();
         var diagnostics = new List<DiagnosticInfo>();
@@ -149,7 +146,7 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation, isInTableContext, diagnostics);
+            var propMeta = ParseProperty(prop, compilation, diagnostics);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
@@ -188,9 +185,8 @@ internal static class TypeParser
     }
 
     private static PropertyMetadata? ParseProperty(
-        IPropertySymbol prop, 
+        IPropertySymbol prop,
         Compilation compilation,
-        bool isInTableContext,
         List<DiagnosticInfo> diagnostics)
     {
         var isIgnored = HasAttribute(prop, MarkoutIgnoreAttribute);
@@ -215,13 +211,13 @@ internal static class TypeParser
             }
         }
 
-        var mdfName = prop.Name;
+        var displayName = prop.Name;
         var nameAttr = prop.GetAttributes()
             .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutPropertyNameAttribute);
         if (nameAttr?.ConstructorArguments.Length > 0 &&
             nameAttr.ConstructorArguments[0].Value is string customName)
         {
-            mdfName = customName;
+            displayName = customName;
         }
 
         // Parse [MarkoutBoolFormat] attribute
@@ -237,7 +233,7 @@ internal static class TypeParser
                 boolFalseValue = fv;
         }
 
-        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty) = DeterminePropertyKind(prop.Type, compilation, diagnostics);
+        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty) = DeterminePropertyKind(prop.Type, compilation, diagnostics, prop.Name, prop.Locations.FirstOrDefault());
 
         // Determine if property is unsupported in table context
         bool isUnsupportedInTable = !isIgnored && !isSection && !IsScalarKind(kind);
@@ -256,7 +252,7 @@ internal static class TypeParser
 
         return new PropertyMetadata(
             prop.Name,
-            mdfName,
+            displayName,
             prop.Type.ToDisplayString(),
             kind,
             isIgnored,
@@ -274,7 +270,7 @@ internal static class TypeParser
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty)
-        DeterminePropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null)
+        DeterminePropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
     {
         var typeName = type.ToDisplayString();
 
@@ -295,12 +291,12 @@ internal static class TypeParser
             SpecialType.System_Int64 => (PropertyKind.Int64, null, null, false, null),
             SpecialType.System_Double => (PropertyKind.Double, null, null, false, null),
             SpecialType.System_Decimal => (PropertyKind.Decimal, null, null, false, null),
-            _ => DetermineComplexPropertyKind(type, compilation, diagnostics)
+            _ => DetermineComplexPropertyKind(type, compilation, diagnostics, propertyName, propertyLocation)
         };
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty)
-        DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null)
+        DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
     {
         var typeName = type.ToDisplayString();
 
@@ -322,7 +318,7 @@ internal static class TypeParser
             if (elementType.SpecialType == SpecialType.System_String)
                 return (PropertyKind.StringArray, null, null, false, null);
 
-            var elementProps = GetTypeProperties(elementType, compilation, true, diagnostics);
+            var elementProps = GetTypeProperties(elementType, compilation, diagnostics);
             var hasNested = HasNestedContent(elementProps);
             var titleProp = GetTitleProperty(elementType);
             return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, titleProp);
@@ -331,6 +327,22 @@ internal static class TypeParser
         // Check for IEnumerable<T> / List<T> / etc.
         if (type is INamedTypeSymbol namedType)
         {
+            // Detect Dictionary<TKey, TValue> before IEnumerable<T> since dictionaries implement IEnumerable<KeyValuePair>
+            var isDictionary = namedType.AllInterfaces.Any(i =>
+                i.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IDictionary<TKey, TValue>");
+
+            if (isDictionary)
+            {
+                if (diagnostics != null && propertyName != null)
+                {
+                    diagnostics.Add(new DiagnosticInfo(
+                        DiagnosticDescriptors.DictionaryProperty,
+                        propertyLocation,
+                        propertyName));
+                }
+                return (PropertyKind.Other, null, null, false, null);
+            }
+
             var enumerableInterface = namedType.AllInterfaces
                 .FirstOrDefault(i => i.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IEnumerable<T>");
 
@@ -379,7 +391,7 @@ internal static class TypeParser
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null);
 
-                    var elementProps = GetTypeProperties(elementType, compilation, true, diagnostics);
+                    var elementProps = GetTypeProperties(elementType, compilation, diagnostics);
                     var hasNested = HasNestedContent(elementProps);
                     var titleProp = GetTitleProperty(elementType);
                     return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, titleProp);
@@ -390,7 +402,7 @@ internal static class TypeParser
         // Nested object
         if (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct)
         {
-            var props = GetTypeProperties(type, compilation, false, diagnostics);
+            var props = GetTypeProperties(type, compilation, diagnostics);
             if (props.Count > 0)
                 return (PropertyKind.NestedObject, null, props, false, null);
         }
@@ -425,9 +437,8 @@ internal static class TypeParser
     }
 
     private static IReadOnlyList<PropertyMetadata> GetTypeProperties(
-        ITypeSymbol type, 
+        ITypeSymbol type,
         Compilation compilation,
-        bool isInTableContext = false,
         List<DiagnosticInfo>? diagnostics = null)
     {
         var properties = new List<PropertyMetadata>();
@@ -447,72 +458,12 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation, isInTableContext, diagnostics);
+            var propMeta = ParseProperty(prop, compilation, diagnostics);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
 
         return properties;
-    }
-
-    private static bool IsUsedInList(INamedTypeSymbol type, Compilation compilation)
-    {
-        // Search through all syntax trees to find property declarations
-        foreach (var syntaxTree in compilation.SyntaxTrees)
-        {
-            var semanticModel = compilation.GetSemanticModel(syntaxTree);
-            var root = syntaxTree.GetRoot();
-            
-            foreach (var node in root.DescendantNodes())
-            {
-                if (node is PropertyDeclarationSyntax propDecl)
-                {
-                    var propSymbol = semanticModel.GetDeclaredSymbol(propDecl) as IPropertySymbol;
-                    if (propSymbol != null && IsGenericListOf(propSymbol.Type, type))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    private static bool IsGenericListOf(ITypeSymbol propertyType, INamedTypeSymbol targetType)
-    {
-        if (propertyType is not INamedTypeSymbol namedType)
-            return false;
-
-        // Check if it's a generic type
-        if (!namedType.IsGenericType && namedType.TypeArguments.Length == 0)
-            return false;
-
-        // Check direct type arguments (List<TargetType>, IEnumerable<TargetType>, etc.)
-        if (namedType.TypeArguments.Length > 0)
-        {
-            var firstArg = namedType.TypeArguments[0];
-            if (SymbolEqualityComparer.Default.Equals(firstArg, targetType))
-                return true;
-        }
-
-        // Check through all interfaces for IEnumerable<TargetType>
-        foreach (var iface in namedType.AllInterfaces)
-        {
-            if (iface.TypeArguments.Length > 0 &&
-                SymbolEqualityComparer.Default.Equals(iface.TypeArguments[0], targetType))
-            {
-                var ifaceTypeName = iface.OriginalDefinition.ToDisplayString();
-                if (ifaceTypeName == "System.Collections.Generic.IEnumerable<T>" ||
-                    ifaceTypeName == "System.Collections.Generic.ICollection<T>" ||
-                    ifaceTypeName == "System.Collections.Generic.IList<T>")
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private static bool IsScalarKind(PropertyKind kind)

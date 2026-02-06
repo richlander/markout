@@ -14,29 +14,9 @@ namespace Markout;
 public abstract class MarkoutSerializerContext
 {
     /// <summary>
-    /// Gets or sets whether field names should be rendered in bold.
-    /// When true, field names are wrapped in ** for markdown bold formatting.
+    /// Gets or sets the writer options for controlling output formatting.
     /// </summary>
-    public bool BoldFieldNames { get; set; }
-
-    /// <summary>
-    /// Gets or sets the sections to include (1-based, H2 boundaries).
-    /// If set, only these sections are written. If null, all sections are included.
-    /// </summary>
-    public HashSet<int>? IncludeSections { get; set; }
-
-    /// <summary>
-    /// Gets or sets the sections to exclude (1-based, H2 boundaries).
-    /// These sections are skipped even if in IncludeSections.
-    /// </summary>
-    public HashSet<int>? ExcludeSections { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether to include the description paragraph.
-    /// When false, the description (from DescriptionProperty) is suppressed.
-    /// Default is true.
-    /// </summary>
-    public bool IncludeDescription { get; set; } = true;
+    public MarkoutWriterOptions Options { get; set; } = new();
 
     /// <summary>
     /// Gets the type info for the specified type, or null if not registered.
@@ -60,7 +40,7 @@ public abstract class MarkoutSerializerContext
     /// <returns>The Markdown string representation.</returns>
     public string Serialize<T>(T value)
     {
-        return Serialize(value, BuildOptions());
+        return Serialize(value, Options);
     }
 
     /// <summary>
@@ -93,7 +73,7 @@ public abstract class MarkoutSerializerContext
     /// <param name="output">The TextWriter to write to.</param>
     public void Serialize<T>(T value, TextWriter output)
     {
-        Serialize(value, output, BuildOptions());
+        Serialize(value, output, Options);
     }
 
     /// <summary>
@@ -116,16 +96,5 @@ public abstract class MarkoutSerializerContext
         var writer = new MarkoutWriter(output, options);
         typeInfo.Serialize(writer, value);
         writer.Flush();
-    }
-
-    private MarkoutWriterOptions BuildOptions()
-    {
-        return new MarkoutWriterOptions
-        {
-            BoldFieldNames = BoldFieldNames,
-            IncludeSections = IncludeSections,
-            ExcludeSections = ExcludeSections,
-            IncludeDescription = IncludeDescription
-        };
     }
 }
