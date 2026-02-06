@@ -680,7 +680,7 @@ public sealed class MarkoutWriter
     public override string ToString()
     {
         if (_writer is StringWriter sw)
-            return sw.ToString();
+            return sw.ToString().TrimEnd();
         return base.ToString() ?? "";
     }
 
