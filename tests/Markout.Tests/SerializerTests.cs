@@ -378,6 +378,73 @@ public class SerializerTests
         Assert.NotNull(prop!.GetMethod);
         Assert.Null(prop.SetMethod);
     }
+
+    [Fact]
+    public void Serialize_EnumProperty_RendersEnumName()
+    {
+        var task = new TaskItem { Name = "Build", Priority = Priority.High };
+        var mdf = MarkoutSerializer.Serialize(task, EnumTestContext.Default);
+
+        Assert.Contains("Priority: High", mdf);
+        Assert.Contains("Name: Build", mdf);
+    }
+
+    [Fact]
+    public void Serialize_NullableEnum_SuppressesWhenNull()
+    {
+        var task = new TaskItem { Name = "Build", Priority = Priority.Low, OptionalPriority = null };
+        var mdf = MarkoutSerializer.Serialize(task, EnumTestContext.Default);
+
+        Assert.Contains("Priority: Low", mdf);
+        Assert.DoesNotContain("OptionalPriority", mdf);
+    }
+
+    [Fact]
+    public void Serialize_NullableEnum_RendersWhenSet()
+    {
+        var task = new TaskItem { Name = "Build", Priority = Priority.Low, OptionalPriority = Priority.Critical };
+        var mdf = MarkoutSerializer.Serialize(task, EnumTestContext.Default);
+
+        Assert.Contains("Critical", mdf);
+    }
+
+    [Fact]
+    public void Serialize_JoinedList_RendersAsJoinedField()
+    {
+        var project = new ProjectInfo
+        {
+            Name = "MyLib",
+            Tags = ["api", "web", "tools"],
+            Frameworks = ["net8.0", "net9.0"]
+        };
+        var mdf = MarkoutSerializer.Serialize(project, JoinTestContext.Default);
+
+        Assert.Contains("Tags: api, web, tools", mdf);
+        Assert.Contains("Frameworks: net8.0 | net9.0", mdf);
+        Assert.DoesNotContain("- api", mdf); // Should NOT be a bullet list
+    }
+
+    [Fact]
+    public void Serialize_JoinedList_SuppressesWhenNull()
+    {
+        var project = new ProjectInfo { Name = "MyLib", Tags = null, Frameworks = null };
+        var mdf = MarkoutSerializer.Serialize(project, JoinTestContext.Default);
+
+        Assert.Contains("Name: MyLib", mdf);
+        Assert.DoesNotContain("Tags", mdf);
+        Assert.DoesNotContain("Frameworks", mdf);
+    }
+
+    [Fact]
+    public void Serialize_JoinedList_SuppressesWhenEmpty()
+    {
+        var project = new ProjectInfo { Name = "MyLib", Tags = [], Frameworks = [] };
+        var mdf = MarkoutSerializer.Serialize(project, JoinTestContext.Default);
+
+        Assert.Contains("Name: MyLib", mdf);
+        Assert.DoesNotContain("Tags", mdf);
+        Assert.DoesNotContain("Frameworks", mdf);
+    }
 }
 
 [MarkoutSerializable]
@@ -503,3 +570,35 @@ public class RenderScalarsWarningTest
     // No [MarkoutSection] or FieldCollection properties - output will be empty
 }
 #pragma warning restore MARKOUT004
+
+// Enum support types
+public enum Priority { Low, Medium, High, Critical }
+
+[MarkoutSerializable]
+public class TaskItem
+{
+    public string? Name { get; set; }
+    public Priority Priority { get; set; }
+    public Priority? OptionalPriority { get; set; }
+}
+
+[MarkoutContext(typeof(TaskItem))]
+public partial class EnumTestContext : MarkoutSerializerContext
+{
+}
+
+// Collection joining types
+[MarkoutSerializable]
+public class ProjectInfo
+{
+    public string? Name { get; set; }
+    [MarkoutJoin(", ")]
+    public List<string>? Tags { get; set; }
+    [MarkoutJoin(" | ")]
+    public string[]? Frameworks { get; set; }
+}
+
+[MarkoutContext(typeof(ProjectInfo))]
+public partial class JoinTestContext : MarkoutSerializerContext
+{
+}

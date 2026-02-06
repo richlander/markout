@@ -128,6 +128,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public bool IsNullableValueType { get; }
     public bool IsArray { get; }
     public string? CustomFormat { get; }
+    public string? JoinSeparator { get; }
 
     public PropertyMetadata(
         string name,
@@ -148,7 +149,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? boolFalseValue = null,
         bool isNullableValueType = false,
         bool isArray = false,
-        string? customFormat = null)
+        string? customFormat = null,
+        string? joinSeparator = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -169,6 +171,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         IsNullableValueType = isNullableValueType;
         IsArray = isArray;
         CustomFormat = customFormat;
+        JoinSeparator = joinSeparator;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -193,6 +196,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                IsNullableValueType == other.IsNullableValueType &&
                IsArray == other.IsArray &&
                CustomFormat == other.CustomFormat &&
+               JoinSeparator == other.JoinSeparator &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -244,6 +248,7 @@ internal enum PropertyKind
     Decimal,
     DateTime,
     DateTimeOffset,
+    Enum,
     StringArray,
     ComplexArray,
     NestedObject,
