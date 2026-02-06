@@ -113,6 +113,15 @@ public sealed class MarkoutWriter
         return true;
     }
 
+    private void WriteFormattedValue<T>(T value, ReadOnlySpan<char> format = default) where T : ISpanFormattable
+    {
+        Span<char> buffer = stackalloc char[64];
+        if (value.TryFormat(buffer, out int charsWritten, format, CultureInfo.InvariantCulture))
+            _writer.Write(buffer[..charsWritten]);
+        else
+            _writer.Write(value.ToString(format.ToString(), CultureInfo.InvariantCulture));
+    }
+
     private void WriteFieldName(string key)
     {
         if (BoldFieldNames)
@@ -267,7 +276,7 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.Write(value.ToString(CultureInfo.InvariantCulture));
+        WriteFormattedValue(value);
         _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
@@ -283,7 +292,7 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.Write(value.ToString(CultureInfo.InvariantCulture));
+        WriteFormattedValue(value);
         _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
@@ -299,7 +308,7 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.Write(value.ToString(CultureInfo.InvariantCulture));
+        WriteFormattedValue(value);
         _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
@@ -315,7 +324,7 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.Write(value.ToString(CultureInfo.InvariantCulture));
+        WriteFormattedValue(value);
         _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
@@ -331,7 +340,7 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.Write(value.ToString("O", CultureInfo.InvariantCulture));
+        WriteFormattedValue(value, "O");
         _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
@@ -347,7 +356,7 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.Write(value.ToString("O", CultureInfo.InvariantCulture));
+        WriteFormattedValue(value, "O");
         _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
         _hasContent = true;
     }
@@ -393,7 +402,8 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        WriteFormattedValue(value);
+        _writer.WriteLine();
         _hasContent = true;
     }
 
@@ -408,7 +418,8 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        WriteFormattedValue(value);
+        _writer.WriteLine();
         _hasContent = true;
     }
 
@@ -423,7 +434,8 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        WriteFormattedValue(value);
+        _writer.WriteLine();
         _hasContent = true;
     }
 
@@ -438,7 +450,8 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.WriteLine(value.ToString(CultureInfo.InvariantCulture));
+        WriteFormattedValue(value);
+        _writer.WriteLine();
         _hasContent = true;
     }
 
@@ -453,7 +466,8 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.WriteLine(value.ToString("O", CultureInfo.InvariantCulture));
+        WriteFormattedValue(value, "O");
+        _writer.WriteLine();
         _hasContent = true;
     }
 
@@ -468,7 +482,8 @@ public sealed class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.WriteLine(value.ToString("O", CultureInfo.InvariantCulture));
+        WriteFormattedValue(value, "O");
+        _writer.WriteLine();
         _hasContent = true;
     }
 
@@ -500,8 +515,27 @@ public sealed class MarkoutWriter
     /// // Output: Type: Library | TFM: net8.0 | Updated: 2026-01-15
     /// </code>
     /// </example>
-    public void WriteCompactFields(params MarkoutField[] fields)
-        => WriteCompactFields((IReadOnlyList<MarkoutField>)fields);
+    public void WriteCompactFields(params ReadOnlySpan<MarkoutField> fields)
+    {
+        if (_sectionExcluded || fields.Length == 0)
+            return;
+
+        EnsureBlankLineIfNeeded();
+
+        for (int i = 0; i < fields.Length; i++)
+        {
+            if (i > 0)
+                _writer.Write(" | ");
+
+            _writer.Write(fields[i].Key);
+            _writer.Write(": ");
+            _writer.Write(fields[i].Value ?? string.Empty);
+        }
+
+        _writer.WriteLine();
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
 
     /// <summary>
     /// Writes multiple key-value fields on a single line, separated by pipes.
@@ -610,7 +644,7 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Starts a table with the given headers.
     /// </summary>
-    public void WriteTableStart(params string[] headers)
+    public void WriteTableStart(params ReadOnlySpan<string> headers)
     {
         if (_sectionExcluded)
         {
@@ -639,7 +673,8 @@ public sealed class MarkoutWriter
         foreach (var header in headers)
         {
             _writer.Write(' ');
-            _writer.Write(new string('-', header.Length));
+            for (int i = 0; i < header.Length; i++)
+                _writer.Write('-');
             _writer.Write(" |");
         }
         _writer.WriteLine();
@@ -650,7 +685,7 @@ public sealed class MarkoutWriter
     /// Writes a table row with the given values.
     /// Pipe characters in values are automatically escaped.
     /// </summary>
-    public void WriteTableRow(params string[] values)
+    public void WriteTableRow(params ReadOnlySpan<string> values)
     {
         if (!_inTable)
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
@@ -755,11 +790,19 @@ public sealed class MarkoutWriter
 
     private void WriteTreeNodeRecursive(TreeNode node, string prefix, bool isLast)
     {
-        var connector = isLast ? "└─ " : "├─ ";
-        var displayText = (node.Icon != null && _options.IncludeIcons) 
-            ? $"{node.Icon} {node.Label}" 
-            : node.Label;
-        WriteTreeNode(displayText, prefix + connector);
+        if (_sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        _writer.Write(prefix);
+        _writer.Write(isLast ? "└─ " : "├─ ");
+        if (node.Icon != null && _options.IncludeIcons)
+        {
+            _writer.Write(node.Icon);
+            _writer.Write(' ');
+        }
+        _writer.WriteLine(node.Label);
+        _hasContent = true;
         
         if (node.Children != null && node.Children.Count > 0)
         {
