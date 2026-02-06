@@ -60,6 +60,18 @@ public abstract class MarkoutSerializerContext
     /// <returns>The Markdown string representation.</returns>
     public string Serialize<T>(T value)
     {
+        return Serialize(value, BuildOptions());
+    }
+
+    /// <summary>
+    /// Serializes a value using the specified options.
+    /// </summary>
+    /// <typeparam name="T">The type to serialize.</typeparam>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="options">The writer options for controlling output formatting.</param>
+    /// <returns>The Markdown string representation.</returns>
+    public string Serialize<T>(T value, MarkoutWriterOptions options)
+    {
         var typeInfo = GetTypeInfo<T>();
         if (typeInfo == null)
         {
@@ -68,13 +80,7 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MarkoutWriter
-        {
-            BoldFieldNames = BoldFieldNames,
-            IncludeSections = IncludeSections,
-            ExcludeSections = ExcludeSections,
-            IncludeDescription = IncludeDescription
-        };
+        var writer = new MarkoutWriter(options);
         typeInfo.Serialize(writer, value);
         return writer.ToString();
     }
@@ -87,6 +93,18 @@ public abstract class MarkoutSerializerContext
     /// <param name="output">The TextWriter to write to.</param>
     public void Serialize<T>(T value, TextWriter output)
     {
+        Serialize(value, output, BuildOptions());
+    }
+
+    /// <summary>
+    /// Serializes a value to the specified TextWriter with options.
+    /// </summary>
+    /// <typeparam name="T">The type to serialize.</typeparam>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="output">The TextWriter to write to.</param>
+    /// <param name="options">The writer options for controlling output formatting.</param>
+    public void Serialize<T>(T value, TextWriter output, MarkoutWriterOptions options)
+    {
         var typeInfo = GetTypeInfo<T>();
         if (typeInfo == null)
         {
@@ -95,14 +113,19 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MarkoutWriter(output)
+        var writer = new MarkoutWriter(output, options);
+        typeInfo.Serialize(writer, value);
+        writer.Flush();
+    }
+
+    private MarkoutWriterOptions BuildOptions()
+    {
+        return new MarkoutWriterOptions
         {
             BoldFieldNames = BoldFieldNames,
             IncludeSections = IncludeSections,
             ExcludeSections = ExcludeSections,
             IncludeDescription = IncludeDescription
         };
-        typeInfo.Serialize(writer, value);
-        writer.Flush();
     }
 }

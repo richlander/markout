@@ -15,6 +15,11 @@ public class TreeNode
     public string Label { get; set; }
     
     /// <summary>
+    /// Optional icon to display before the label (e.g., "📁", "🚢").
+    /// </summary>
+    public string? Icon { get; set; }
+    
+    /// <summary>
     /// Child nodes, if any.
     /// </summary>
     public List<TreeNode>? Children { get; set; }
@@ -29,6 +34,16 @@ public class TreeNode
     }
     
     /// <summary>
+    /// Creates a tree node with an icon and optional list of children.
+    /// </summary>
+    public TreeNode(string label, string? icon, IEnumerable<TreeNode>? children = null)
+    {
+        Label = label;
+        Icon = icon;
+        Children = children?.ToList();
+    }
+    
+    /// <summary>
     /// Creates a tree node with string children (convenience for leaf nodes).
     /// </summary>
     public TreeNode(string label, IEnumerable<string>? children)
@@ -38,9 +53,26 @@ public class TreeNode
     }
     
     /// <summary>
+    /// Creates a tree node with an icon and string children.
+    /// </summary>
+    public TreeNode(string label, string? icon, IEnumerable<string>? children)
+    {
+        Label = label;
+        Icon = icon;
+        Children = children?.Select(c => new TreeNode(c)).ToList();
+    }
+    
+    /// <summary>
     /// Creates a leaf node with no children.
     /// </summary>
     public TreeNode(string label) : this(label, (IEnumerable<TreeNode>?)null)
+    {
+    }
+    
+    /// <summary>
+    /// Creates a leaf node with an icon and no children.
+    /// </summary>
+    public TreeNode(string label, string? icon) : this(label, icon, (IEnumerable<TreeNode>?)null)
     {
     }
 }

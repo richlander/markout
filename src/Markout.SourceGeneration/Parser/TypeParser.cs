@@ -154,6 +154,21 @@ internal static class TypeParser
                 properties.Add(propMeta);
         }
 
+        // Warn if RenderScalars=false but no sections or field collections exist
+        if (renderScalars == false)
+        {
+            bool hasSectionOrFieldCollection = properties.Any(p => 
+                !p.IsIgnored && (p.IsSection || p.Kind == PropertyKind.FieldCollection));
+            
+            if (!hasSectionOrFieldCollection)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    DiagnosticDescriptors.RenderScalarsNoContent,
+                    typeSymbol.Locations.FirstOrDefault(),
+                    typeSymbol.Name));
+            }
+        }
+
         var ns = typeSymbol.ContainingNamespace.IsGlobalNamespace
             ? string.Empty
             : typeSymbol.ContainingNamespace.ToDisplayString();
@@ -349,6 +364,16 @@ internal static class TypeParser
                         }
                         // IEnumerable<MarkoutField> without materialization is not supported
                         // User should use List<MarkoutField> or IReadOnlyList<MarkoutField>
+                    }
+
+                    // Check for List<TreeNode> - renders as tree structure
+                    if (elementType.ToDisplayString() == "Markout.TreeNode")
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>")
+                        {
+                            return (PropertyKind.Tree, null, null, false, null);
+                        }
                     }
 
                     if (elementType.SpecialType == SpecialType.System_String)
