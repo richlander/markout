@@ -312,8 +312,17 @@ internal static class SerializerEmitter
             EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth + 1);
             sb.AppendLine($"{indent}}}");
         }
+        else if (prop.Kind == PropertyKind.Formattable)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    ((global::Markout.IMarkoutFormattable){propAccess}).WriteTo(writer);");
+            sb.AppendLine($"{indent}}}");
+        }
         else
         {
+            // For other types, just write the heading unconditionally
             sb.AppendLine($"{indent}writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
         }
     }
@@ -372,6 +381,11 @@ internal static class SerializerEmitter
                     EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth + 1, true, fieldLayout);
                     sb.AppendLine($"{indent}}}");
                 }
+                break;
+
+            case PropertyKind.Formattable:
+                sb.AppendLine($"{indent}if ({propAccess} != null)");
+                sb.AppendLine($"{indent}    ((global::Markout.IMarkoutFormattable){propAccess}).WriteTo(writer);");
                 break;
         }
     }
@@ -546,6 +560,7 @@ internal static class SerializerEmitter
                 : "Table",
             PropertyKind.FieldCollection => "Compact fields",
             PropertyKind.NestedObject => "Fields",
+            PropertyKind.Formattable => "Custom (IMarkoutFormattable)",
             PropertyKind.Tree => "Tree",
             _ => "Field"
         };

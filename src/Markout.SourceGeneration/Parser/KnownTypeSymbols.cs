@@ -28,6 +28,9 @@ internal sealed class KnownTypeSymbols
     private INamedTypeSymbol? _iEnumerable;
     private bool _iEnumerableResolved;
 
+    private INamedTypeSymbol? _iMarkoutFormattable;
+    private bool _iMarkoutFormattableResolved;
+
     public KnownTypeSymbols(Compilation compilation)
     {
         _compilation = compilation;
@@ -39,6 +42,7 @@ internal sealed class KnownTypeSymbols
     public INamedTypeSymbol? DateTimeOffset => Resolve(ref _dateTimeOffset, ref _dateTimeOffsetResolved, "System.DateTimeOffset");
     public INamedTypeSymbol? IDictionary => Resolve(ref _iDictionary, ref _iDictionaryResolved, "System.Collections.Generic.IDictionary`2");
     public INamedTypeSymbol? IEnumerable => Resolve(ref _iEnumerable, ref _iEnumerableResolved, "System.Collections.Generic.IEnumerable`1");
+    public INamedTypeSymbol? IMarkoutFormattable => Resolve(ref _iMarkoutFormattable, ref _iMarkoutFormattableResolved, "Markout.IMarkoutFormattable");
 
     private INamedTypeSymbol? Resolve(ref INamedTypeSymbol? field, ref bool resolved, string metadataName)
     {

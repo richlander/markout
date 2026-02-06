@@ -87,6 +87,7 @@ internal static class EmitHelpers
             PropertyKind.DateTime or PropertyKind.DateTimeOffset
                 => $"{propAccess}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
             PropertyKind.Enum => $"{propAccess}.ToString()",
+            PropertyKind.Formattable => $"((global::Markout.IMarkoutFormattable){propAccess})?.ToMarkoutString() ?? \"\"",
             _ => $"{propAccess}?.ToString() ?? \"\""
         };
     }

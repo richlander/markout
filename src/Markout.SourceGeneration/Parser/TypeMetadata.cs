@@ -249,6 +249,7 @@ internal enum PropertyKind
     DateTime,
     DateTimeOffset,
     Enum,
+    Formattable,
     StringArray,
     ComplexArray,
     NestedObject,
