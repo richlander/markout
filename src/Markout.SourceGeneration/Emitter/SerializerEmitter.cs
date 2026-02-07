@@ -29,7 +29,10 @@ internal static class SerializerEmitter
 
         var className = $"{type.TypeName}MarkoutTypeInfo";
 
-        sb.AppendLine($"public sealed class {className} : global::Markout.MarkoutTypeInfo<{type.FullTypeName}>");
+        // Collect section properties for per-section hooks
+        var sectionProps = type.Properties.Where(p => p.IsSection && !p.IsIgnored).ToList();
+
+        sb.AppendLine($"public partial class {className} : global::Markout.MarkoutTypeInfo<{type.FullTypeName}>");
         sb.AppendLine("{");
         sb.AppendLine($"    public static {className} Instance {{ get; }} = new();");
         sb.AppendLine();
@@ -40,6 +43,8 @@ internal static class SerializerEmitter
             sb.AppendLine("        if (value == null) return;");
             sb.AppendLine();
         }
+
+        sb.AppendLine("        OnSerializing(writer, value);");
 
         // Emit title (H1) if TitleProperty is set
         if (!string.IsNullOrEmpty(type.TitleProperty))
@@ -89,9 +94,25 @@ internal static class SerializerEmitter
             propsToRender = type.Properties.Where(p => !skip.Contains(p.Name)).ToList();
         }
 
-        EmitPropertySerializations(sb, propsToRender, "value", 2, 2, 0, type.AutoFields, type.FieldLayout);
+        EmitPropertySerializations(sb, propsToRender, "value", 2, 2, 0, type.AutoFields, type.FieldLayout, "value", type.FullTypeName);
 
+        sb.AppendLine();
+        sb.AppendLine("        OnSerialized(writer, value);");
         sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Emit partial method declarations for hooks
+        sb.AppendLine($"    partial void OnSerializing(global::Markout.MarkoutWriter writer, {type.FullTypeName} value);");
+        sb.AppendLine($"    partial void OnSerialized(global::Markout.MarkoutWriter writer, {type.FullTypeName} value);");
+
+        // Emit per-section hooks
+        foreach (var sectionProp in sectionProps)
+        {
+            var hookName = sectionProp.SectionName ?? sectionProp.DisplayName;
+            var safeName = new string(hookName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+            sb.AppendLine($"    partial void OnBeforeSection{safeName}(global::Markout.MarkoutWriter writer, {type.FullTypeName} value, ref bool skip);");
+        }
+
         sb.AppendLine("}");
 
         return sb.ToString();
@@ -204,7 +225,9 @@ internal static class SerializerEmitter
         int baseHeadingLevel = 2,
         int nestingDepth = 0,
         bool autoFields = true,
-        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine)
+        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
+        string? rootValueExpr = null,
+        string? rootTypeName = null)
     {
         var indent = new string(' ', indentLevel * 4);
 
@@ -243,7 +266,7 @@ internal static class SerializerEmitter
 
             if (prop.IsSection)
             {
-                EmitSectionProperty(sb, prop, propAccess, indent, indentLevel, effectiveSectionLevel, nestingDepth, fieldLayout);
+                EmitSectionProperty(sb, prop, propAccess, indent, indentLevel, effectiveSectionLevel, nestingDepth, fieldLayout, rootValueExpr, rootTypeName);
                 continue;
             }
 
@@ -260,9 +283,44 @@ internal static class SerializerEmitter
         int indentLevel,
         int effectiveSectionLevel,
         int nestingDepth,
-        FieldLayoutKind fieldLayout)
+        FieldLayoutKind fieldLayout,
+        string? rootValueExpr = null,
+        string? rootTypeName = null)
     {
         var sectionName = prop.SectionName ?? prop.DisplayName;
+
+        // Emit per-section hook at top level only
+        if (rootValueExpr != null && rootTypeName != null)
+        {
+            var safeName = new string(sectionName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+            var skipVar = $"__skip{safeName}";
+            sb.AppendLine($"{indent}var {skipVar} = false;");
+            sb.AppendLine($"{indent}OnBeforeSection{safeName}(writer, {rootValueExpr}, ref {skipVar});");
+            sb.AppendLine($"{indent}if (!{skipVar})");
+            sb.AppendLine($"{indent}{{");
+
+            // Re-emit the section body with increased indent
+            EmitSectionBody(sb, prop, propAccess, indent + "    ", indentLevel + 1, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName);
+
+            sb.AppendLine($"{indent}}}");
+        }
+        else
+        {
+            EmitSectionBody(sb, prop, propAccess, indent, indentLevel, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName);
+        }
+    }
+
+    private static void EmitSectionBody(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        string indent,
+        int indentLevel,
+        int effectiveSectionLevel,
+        int nestingDepth,
+        FieldLayoutKind fieldLayout,
+        string sectionName)
+    {
 
         if (prop.Kind == PropertyKind.FieldCollection)
         {
