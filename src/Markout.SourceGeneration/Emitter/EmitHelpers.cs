@@ -116,4 +116,27 @@ internal static class EmitHelpers
     {
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
+
+    /// <summary>
+    /// Returns a condition expression that is true when the property value is NOT the default.
+    /// Used by [MarkoutSkipDefault] to conditionally skip rendering.
+    /// </summary>
+    public static string? GetNonDefaultCondition(PropertyMetadata prop, string propAccess)
+    {
+        if (prop.IsNullableValueType)
+            return $"{propAccess}.HasValue";
+
+        return prop.Kind switch
+        {
+            PropertyKind.String => $"!string.IsNullOrEmpty({propAccess})",
+            PropertyKind.Boolean => propAccess,
+            PropertyKind.Int32 or PropertyKind.Int64 => $"{propAccess} != 0",
+            PropertyKind.Double or PropertyKind.Decimal => $"{propAccess} != 0",
+            PropertyKind.DateTime or PropertyKind.DateTimeOffset => $"{propAccess} != default",
+            PropertyKind.Enum => $"{propAccess} != default({prop.TypeName})",
+            PropertyKind.StringArray => $"{propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0",
+            PropertyKind.Formattable => $"{propAccess} != null",
+            _ => $"{propAccess} != null"
+        };
+    }
 }

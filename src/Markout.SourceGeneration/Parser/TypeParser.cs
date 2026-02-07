@@ -20,6 +20,7 @@ internal static class TypeParser
     private const string MarkoutBoolFormatAttribute = "Markout.MarkoutBoolFormatAttribute";
     private const string MarkoutFormatAttribute = "Markout.MarkoutFormatAttribute";
     private const string MarkoutJoinAttribute = "Markout.MarkoutJoinAttribute";
+    private const string MarkoutSkipDefaultAttribute = "Markout.MarkoutSkipDefaultAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -235,6 +236,10 @@ internal static class TypeParser
             joinSeparator = sep;
         }
 
+        // Parse [MarkoutSkipDefault] attribute
+        bool skipWhenDefault = prop.GetAttributes()
+            .Any(a => a.AttributeClass?.ToDisplayString() == MarkoutSkipDefaultAttribute);
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -282,7 +287,8 @@ internal static class TypeParser
             isNullableValueType,
             isArray,
             customFormat,
-            joinSeparator);
+            joinSeparator,
+            skipWhenDefault);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, bool IsArray)

@@ -500,6 +500,136 @@ public class SerializerTests
         Assert.DoesNotContain("Street", mdf);
         Assert.DoesNotContain("City", mdf);
     }
+
+    [Fact]
+    public void Serialize_SkipDefault_SuppressesFalseAndZero()
+    {
+        var status = new ServerStatus { Name = "Server1", IsOnline = false, ConnectionCount = 0, AlertLevel = Priority.Low, BytesTransferred = 0, CpuUsage = 0 };
+        var mdf = MarkoutSerializer.Serialize(status, SkipDefaultTestContext.Default);
+
+        Assert.Contains("Name: Server1", mdf);
+        Assert.DoesNotContain("IsOnline", mdf);
+        Assert.DoesNotContain("ConnectionCount", mdf);
+        Assert.DoesNotContain("AlertLevel", mdf);
+        Assert.DoesNotContain("BytesTransferred", mdf);
+        Assert.DoesNotContain("CpuUsage", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipDefault_RendersNonDefaultValues()
+    {
+        var status = new ServerStatus { Name = "Server1", IsOnline = true, ConnectionCount = 42, AlertLevel = Priority.High, BytesTransferred = 1024, CpuUsage = 85.5 };
+        var mdf = MarkoutSerializer.Serialize(status, SkipDefaultTestContext.Default);
+
+        Assert.Contains("Name: Server1", mdf);
+        Assert.Contains("IsOnline", mdf);
+        Assert.Contains("ConnectionCount", mdf);
+        Assert.Contains("AlertLevel", mdf);
+        Assert.Contains("BytesTransferred", mdf);
+        Assert.Contains("CpuUsage", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipDefault_LineBreaksLayout()
+    {
+        var status = new ServerStatusLineBreaks { Name = "Server1", IsOnline = false, ConnectionCount = 0 };
+        var mdf = MarkoutSerializer.Serialize(status, SkipDefaultLineBreaksContext.Default);
+
+        Assert.Contains("Name", mdf);
+        Assert.DoesNotContain("IsOnline", mdf);
+        Assert.DoesNotContain("ConnectionCount", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipDefault_LineBreaksRendersNonDefault()
+    {
+        var status = new ServerStatusLineBreaks { Name = "Server1", IsOnline = true, ConnectionCount = 5 };
+        var mdf = MarkoutSerializer.Serialize(status, SkipDefaultLineBreaksContext.Default);
+
+        Assert.Contains("IsOnline", mdf);
+        Assert.Contains("ConnectionCount", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipDefault_ListLayout()
+    {
+        var status = new ServerStatusList { Name = "Server1", IsOnline = false, ConnectionCount = 0 };
+        var mdf = MarkoutSerializer.Serialize(status, SkipDefaultListContext.Default);
+
+        Assert.Contains("Name", mdf);
+        Assert.DoesNotContain("IsOnline", mdf);
+        Assert.DoesNotContain("ConnectionCount", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipDefault_ListRendersNonDefault()
+    {
+        var status = new ServerStatusList { Name = "Server1", IsOnline = true, ConnectionCount = 10 };
+        var mdf = MarkoutSerializer.Serialize(status, SkipDefaultListContext.Default);
+
+        Assert.Contains("IsOnline", mdf);
+        Assert.Contains("ConnectionCount", mdf);
+    }
+
+    [Fact]
+    public void Serialize_PartialHooks_OnSerializingAndOnSerializedCalled()
+    {
+        PackageWithSectionsMarkoutTypeInfo.OnSerializingCalled = false;
+        PackageWithSectionsMarkoutTypeInfo.OnSerializedCalled = false;
+
+        var pkg = new PackageWithSections
+        {
+            Name = "TestPkg",
+            Version = "1.0",
+            Dependencies = [new SimpleDep { Id = "Dep1", Version = "2.0" }]
+        };
+        MarkoutSerializer.Serialize(pkg, SectionTestContext.Default);
+
+        Assert.True(PackageWithSectionsMarkoutTypeInfo.OnSerializingCalled);
+        Assert.True(PackageWithSectionsMarkoutTypeInfo.OnSerializedCalled);
+    }
+
+    [Fact]
+    public void Serialize_PartialHooks_SkipSectionWhenRequested()
+    {
+        PackageWithSectionsMarkoutTypeInfo.SkipAssembliesSection = true;
+        try
+        {
+            var pkg = new PackageWithSections
+            {
+                Name = "TestPkg",
+                Version = "1.0",
+                Dependencies = [new SimpleDep { Id = "Dep1", Version = "2.0" }],
+                Assemblies = [new SimpleAsm { Name = "Test.dll", Arch = "x64" }]
+            };
+            var mdf = MarkoutSerializer.Serialize(pkg, SectionTestContext.Default);
+
+            Assert.Contains("Dependencies", mdf);
+            Assert.DoesNotContain("Assemblies", mdf);
+            Assert.DoesNotContain("Test.dll", mdf);
+        }
+        finally
+        {
+            PackageWithSectionsMarkoutTypeInfo.SkipAssembliesSection = false;
+        }
+    }
+
+    [Fact]
+    public void Serialize_PartialHooks_SectionRendersWhenNotSkipped()
+    {
+        PackageWithSectionsMarkoutTypeInfo.SkipAssembliesSection = false;
+
+        var pkg = new PackageWithSections
+        {
+            Name = "TestPkg",
+            Version = "1.0",
+            Assemblies = [new SimpleAsm { Name = "Test.dll", Arch = "x64" }]
+        };
+        var mdf = MarkoutSerializer.Serialize(pkg, SectionTestContext.Default);
+
+        Assert.Contains("Assemblies", mdf);
+        Assert.Contains("Test.dll", mdf);
+    }
 }
 
 [MarkoutSerializable]
@@ -684,5 +814,57 @@ public class PersonWithAddress
 
 [MarkoutContext(typeof(PersonWithAddress))]
 public partial class FormattableTestContext : MarkoutSerializerContext
+{
+}
+
+// SkipWhenDefault test types
+[MarkoutSerializable]
+public class ServerStatus
+{
+    public string? Name { get; set; }
+    [MarkoutSkipDefault]
+    public bool IsOnline { get; set; }
+    [MarkoutSkipDefault]
+    public int ConnectionCount { get; set; }
+    [MarkoutSkipDefault]
+    public Priority AlertLevel { get; set; }
+    [MarkoutSkipDefault]
+    public long BytesTransferred { get; set; }
+    [MarkoutSkipDefault]
+    public double CpuUsage { get; set; }
+}
+
+[MarkoutContext(typeof(ServerStatus))]
+public partial class SkipDefaultTestContext : MarkoutSerializerContext
+{
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+public class ServerStatusLineBreaks
+{
+    public string? Name { get; set; }
+    [MarkoutSkipDefault]
+    public bool IsOnline { get; set; }
+    [MarkoutSkipDefault]
+    public int ConnectionCount { get; set; }
+}
+
+[MarkoutContext(typeof(ServerStatusLineBreaks))]
+public partial class SkipDefaultLineBreaksContext : MarkoutSerializerContext
+{
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+public class ServerStatusList
+{
+    public string? Name { get; set; }
+    [MarkoutSkipDefault]
+    public bool IsOnline { get; set; }
+    [MarkoutSkipDefault]
+    public int ConnectionCount { get; set; }
+}
+
+[MarkoutContext(typeof(ServerStatusList))]
+public partial class SkipDefaultListContext : MarkoutSerializerContext
 {
 }
