@@ -119,6 +119,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public bool IsSection { get; }
     public int SectionLevel { get; }
     public string? SectionName { get; }
+    public string? SectionIgnoreProperty { get; }
     public string? ElementTypeName { get; }
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
     public bool ElementHasNestedContent { get; }
@@ -142,6 +143,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         bool isSection = false,
         int sectionLevel = 2,
         string? sectionName = null,
+        string? sectionIgnoreProperty = null,
         string? elementTypeName = null,
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
         bool elementHasNestedContent = false,
@@ -164,6 +166,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         IsSection = isSection;
         SectionLevel = sectionLevel;
         SectionName = sectionName;
+        SectionIgnoreProperty = sectionIgnoreProperty;
         ElementTypeName = elementTypeName;
         ElementProperties = elementProperties;
         ElementHasNestedContent = elementHasNestedContent;
@@ -191,6 +194,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                IsSection == other.IsSection &&
                SectionLevel == other.SectionLevel &&
                SectionName == other.SectionName &&
+               SectionIgnoreProperty == other.SectionIgnoreProperty &&
                ElementTypeName == other.ElementTypeName &&
                ElementHasNestedContent == other.ElementHasNestedContent &&
                ElementTitleProperty == other.ElementTitleProperty &&
@@ -213,6 +217,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (int)Kind;
             hash = hash * 397 ^ (DisplayName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ SkipWhenDefault.GetHashCode();
+            hash = hash * 397 ^ (SectionIgnoreProperty?.GetHashCode() ?? 0);
             return hash;
         }
     }

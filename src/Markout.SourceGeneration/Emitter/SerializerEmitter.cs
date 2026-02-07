@@ -105,12 +105,14 @@ internal static class SerializerEmitter
         sb.AppendLine($"    partial void OnSerializing(global::Markout.MarkoutWriter writer, {type.FullTypeName} value);");
         sb.AppendLine($"    partial void OnSerialized(global::Markout.MarkoutWriter writer, {type.FullTypeName} value);");
 
-        // Emit per-section hooks
+        // Emit per-section hooks (deduplicate by name for sections sharing the same heading)
+        var emittedHooks = new HashSet<string>();
         foreach (var sectionProp in sectionProps)
         {
             var hookName = sectionProp.SectionName ?? sectionProp.DisplayName;
             var safeName = new string(hookName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
-            sb.AppendLine($"    partial void OnBeforeSection{safeName}(global::Markout.MarkoutWriter writer, {type.FullTypeName} value, ref bool skip);");
+            if (emittedHooks.Add(safeName))
+                sb.AppendLine($"    partial void OnBeforeSection{safeName}(global::Markout.MarkoutWriter writer, {type.FullTypeName} value, ref bool skip);");
         }
 
         sb.AppendLine("}");
@@ -293,7 +295,7 @@ internal static class SerializerEmitter
         if (rootValueExpr != null && rootTypeName != null)
         {
             var safeName = new string(sectionName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
-            var skipVar = $"__skip{safeName}";
+            var skipVar = $"__skip{prop.Name}";
             sb.AppendLine($"{indent}var {skipVar} = false;");
             sb.AppendLine($"{indent}OnBeforeSection{safeName}(writer, {rootValueExpr}, ref {skipVar});");
             sb.AppendLine($"{indent}if (!{skipVar})");

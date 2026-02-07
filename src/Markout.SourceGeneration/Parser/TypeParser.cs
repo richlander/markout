@@ -177,6 +177,7 @@ internal static class TypeParser
         var isSection = HasAttribute(prop, MarkoutSectionAttribute);
         var sectionLevel = 2;
         string? sectionName = null;
+        string? sectionIgnoreProperty = null;
 
         if (isSection)
         {
@@ -190,6 +191,8 @@ internal static class TypeParser
                         sectionLevel = level;
                     else if (named.Key == "Name" && named.Value.Value is string name)
                         sectionName = name;
+                    else if (named.Key == "IgnoreProperty" && named.Value.Value is string ip)
+                        sectionIgnoreProperty = ip;
                 }
             }
         }
@@ -278,6 +281,7 @@ internal static class TypeParser
             isSection,
             sectionLevel,
             sectionName,
+            sectionIgnoreProperty,
             elementTypeName,
             elementProperties,
             hasNestedContent,

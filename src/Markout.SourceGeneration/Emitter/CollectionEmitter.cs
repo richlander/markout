@@ -21,7 +21,9 @@ internal static class CollectionEmitter
             return;
 
         var indent = new string(' ', indentLevel * 4);
-        var visibleProps = prop.ElementProperties.Where(p => !p.IsIgnored).ToList();
+        var visibleProps = prop.ElementProperties
+            .Where(p => !p.IsIgnored && p.Name != prop.SectionIgnoreProperty)
+            .ToList();
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
 
         // Build header array

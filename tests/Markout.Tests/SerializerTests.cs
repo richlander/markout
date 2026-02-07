@@ -572,6 +572,67 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_IgnoreProperty_CompactTable_OmitsDescription()
+    {
+        var data = new ApiWithIgnoreProperty
+        {
+            Title = "TestApi",
+            TypesCompact = new List<TypeRow>
+            {
+                new() { Name = "Foo", Kind = "class", Description = "A foo type" },
+                new() { Name = "Bar", Kind = "struct", Description = "A bar type" }
+            }
+        };
+
+        var context = new SectionTestContext();
+        var mdf = context.Serialize(data);
+
+        Assert.Contains("## Types", mdf);
+        Assert.Contains("| Name |", mdf);
+        Assert.Contains("| Kind |", mdf);
+        Assert.DoesNotContain("| Description |", mdf);
+        Assert.DoesNotContain("A foo type", mdf);
+        Assert.Contains("Foo", mdf);
+    }
+
+    [Fact]
+    public void Serialize_IgnoreProperty_FullTable_IncludesDescription()
+    {
+        var data = new ApiWithIgnoreProperty
+        {
+            Title = "TestApi",
+            TypesFull = new List<TypeRow>
+            {
+                new() { Name = "Foo", Kind = "class", Description = "A foo type" },
+                new() { Name = "Bar", Kind = "struct", Description = "A bar type" }
+            }
+        };
+
+        var context = new SectionTestContext();
+        var mdf = context.Serialize(data);
+
+        Assert.Contains("## Types", mdf);
+        Assert.Contains("| Name |", mdf);
+        Assert.Contains("| Kind |", mdf);
+        Assert.Contains("| Description |", mdf);
+        Assert.Contains("A foo type", mdf);
+    }
+
+    [Fact]
+    public void Serialize_IgnoreProperty_NeitherPopulated_NoSection()
+    {
+        var data = new ApiWithIgnoreProperty
+        {
+            Title = "TestApi"
+        };
+
+        var context = new SectionTestContext();
+        var mdf = context.Serialize(data);
+
+        Assert.DoesNotContain("## Types", mdf);
+    }
+
+    [Fact]
     public void Serialize_PartialHooks_OnSerializingAndOnSerializedCalled()
     {
         PackageWithSectionsMarkoutTypeInfo.OnSerializingCalled = false;
@@ -661,6 +722,8 @@ public class SimpleAsm
 
 [MarkoutContext(typeof(PackageWithSections))]
 [MarkoutContext(typeof(PackageWithTitleContext))]
+[MarkoutContext(typeof(ApiWithIgnoreProperty))]
+[MarkoutContext(typeof(TypeRow))]
 public partial class SectionTestContext : MarkoutSerializerContext
 {
 }
@@ -867,4 +930,24 @@ public class ServerStatusList
 [MarkoutContext(typeof(ServerStatusList))]
 public partial class SkipDefaultListContext : MarkoutSerializerContext
 {
+}
+
+[MarkoutSerializable]
+public class TypeRow
+{
+    public string Name { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public string? Description { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class ApiWithIgnoreProperty
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Types", IgnoreProperty = nameof(TypeRow.Description))]
+    public List<TypeRow>? TypesCompact { get; set; }
+
+    [MarkoutSection(Name = "Types")]
+    public List<TypeRow>? TypesFull { get; set; }
 }

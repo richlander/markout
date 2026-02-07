@@ -15,4 +15,10 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// Gets or sets the heading level (default is 2 for ##).
     /// </summary>
     public int Level { get; set; } = 2;
+
+    /// <summary>
+    /// Gets or sets the name of an element property to exclude from table rendering.
+    /// When set, the specified property on the element type will be omitted as a column.
+    /// </summary>
+    public string? IgnoreProperty { get; set; }
 }
