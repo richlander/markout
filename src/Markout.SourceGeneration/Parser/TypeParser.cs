@@ -260,7 +260,7 @@ internal static class TypeParser
             isNullableValueType = true;
         }
 
-        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault());
+        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault());
 
         // Determine if property is unsupported in table context
         // Joined string arrays are treated as scalars, so they're fine in tables
@@ -298,6 +298,9 @@ internal static class TypeParser
             elementProperties,
             hasNestedContent,
             elementTitleProperty,
+            elementTitleContextProperty,
+            elementAutoFields,
+            elementFieldLayout,
             boolTrueValue,
             boolFalseValue,
             isNullableValueType,
@@ -307,7 +310,7 @@ internal static class TypeParser
             skipWhenDefault);
     }
 
-    private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, bool IsArray)
+    private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
         DeterminePropertyKind(ITypeSymbol type, Compilation compilation, KnownTypeSymbols knownTypes, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
     {
         // Check for nullable value types
@@ -320,28 +323,28 @@ internal static class TypeParser
         // Primitives
         return type.SpecialType switch
         {
-            SpecialType.System_String => (PropertyKind.String, null, null, false, null, false),
-            SpecialType.System_Boolean => (PropertyKind.Boolean, null, null, false, null, false),
-            SpecialType.System_Int32 => (PropertyKind.Int32, null, null, false, null, false),
-            SpecialType.System_Int64 => (PropertyKind.Int64, null, null, false, null, false),
-            SpecialType.System_Double => (PropertyKind.Double, null, null, false, null, false),
-            SpecialType.System_Decimal => (PropertyKind.Decimal, null, null, false, null, false),
+            SpecialType.System_String => (PropertyKind.String, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
+            SpecialType.System_Boolean => (PropertyKind.Boolean, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
+            SpecialType.System_Int32 => (PropertyKind.Int32, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
+            SpecialType.System_Int64 => (PropertyKind.Int64, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
+            SpecialType.System_Double => (PropertyKind.Double, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
+            SpecialType.System_Decimal => (PropertyKind.Decimal, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
             _ => DetermineComplexPropertyKind(type, compilation, knownTypes, diagnostics, propertyName, propertyLocation)
         };
     }
 
-    private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, bool IsArray)
+    private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
         DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, KnownTypeSymbols knownTypes, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
     {
         // DateTime types
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTime))
-            return (PropertyKind.DateTime, null, null, false, null, false);
+            return (PropertyKind.DateTime, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTimeOffset))
-            return (PropertyKind.DateTimeOffset, null, null, false, null, false);
+            return (PropertyKind.DateTimeOffset, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
         // Enum types
         if (type.TypeKind == TypeKind.Enum)
-            return (PropertyKind.Enum, null, null, false, null, false);
+            return (PropertyKind.Enum, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
         // Check for arrays
         if (type is IArrayTypeSymbol arrayType)
@@ -350,15 +353,15 @@ internal static class TypeParser
 
             // Check for MarkoutField[] - renders as compact line or field table
             if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.MarkoutField))
-                return (PropertyKind.FieldCollection, null, null, false, null, true);
+                return (PropertyKind.FieldCollection, null, null, false, null, null, true, FieldLayoutKind.OneLine, true);
 
             if (elementType.SpecialType == SpecialType.System_String)
-                return (PropertyKind.StringArray, null, null, false, null, true);
+                return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, true);
 
             var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics);
             var hasNested = HasNestedContent(elementProps);
-            var titleProp = GetTitleProperty(elementType);
-            return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, titleProp, true);
+            var elementSettings = GetElementTypeSettings(elementType);
+            return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, elementSettings.TitleProperty, elementSettings.TitleContextProperty, elementSettings.AutoFields, elementSettings.FieldLayout, true);
         }
 
         // Check for IEnumerable<T> / List<T> / etc.
@@ -377,7 +380,7 @@ internal static class TypeParser
                         propertyLocation,
                         propertyName));
                 }
-                return (PropertyKind.Other, null, null, false, null, false);
+                return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
             }
 
             var enumerableInterface = knownTypes.IEnumerable != null
@@ -411,7 +414,7 @@ internal static class TypeParser
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.FieldCollection, null, null, false, null, false);
+                            return (PropertyKind.FieldCollection, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
                         }
                         // IEnumerable<MarkoutField> without materialization is not supported
                         // User should use List<MarkoutField> or IReadOnlyList<MarkoutField>
@@ -423,17 +426,17 @@ internal static class TypeParser
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>")
                         {
-                            return (PropertyKind.Tree, null, null, false, null, false);
+                            return (PropertyKind.Tree, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
                         }
                     }
 
                     if (elementType.SpecialType == SpecialType.System_String)
-                        return (PropertyKind.StringArray, null, null, false, null, false);
+                        return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
                     var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics);
                     var hasNested = HasNestedContent(elementProps);
-                    var titleProp = GetTitleProperty(elementType);
-                    return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, titleProp, false);
+                    var elementSettings = GetElementTypeSettings(elementType);
+                    return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, elementSettings.TitleProperty, elementSettings.TitleContextProperty, elementSettings.AutoFields, elementSettings.FieldLayout, false);
                 }
             }
         }
@@ -442,7 +445,7 @@ internal static class TypeParser
         if (knownTypes.IMarkoutFormattable != null &&
             type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, knownTypes.IMarkoutFormattable)))
         {
-            return (PropertyKind.Formattable, null, null, false, null, false);
+            return (PropertyKind.Formattable, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
         }
 
         // Nested object
@@ -450,36 +453,49 @@ internal static class TypeParser
         {
             var props = GetTypeProperties(type, compilation, knownTypes, diagnostics);
             if (props.Count > 0)
-                return (PropertyKind.NestedObject, null, props, false, null, false);
+                return (PropertyKind.NestedObject, null, props, false, null, null, true, FieldLayoutKind.OneLine, false);
         }
 
-        return (PropertyKind.Other, null, null, false, null, false);
+        return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
     }
 
     private static bool HasNestedContent(IReadOnlyList<PropertyMetadata>? props)
     {
         if (props == null) return false;
-        return props.Any(p => !p.IsIgnored && 
-            (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray));
+        return props.Any(p => !p.IsIgnored &&
+            (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
+             p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree));
     }
 
-    private static string? GetTitleProperty(ITypeSymbol type)
+    private static (string? TitleProperty, string? TitleContextProperty, bool AutoFields, FieldLayoutKind FieldLayout) GetElementTypeSettings(ITypeSymbol type)
     {
-        if (type is not INamedTypeSymbol namedType) return null;
-        
+        if (type is not INamedTypeSymbol namedType)
+            return (null, null, true, FieldLayoutKind.OneLine);
+
+        string? titleProperty = null;
+        string? titleContextProperty = null;
+        bool autoFields = true;
+        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine;
+
         var serializableAttr = namedType.GetAttributes()
             .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutSerializableAttribute);
-        
+
         if (serializableAttr != null)
         {
             foreach (var named in serializableAttr.NamedArguments)
             {
                 if (named.Key == "TitleProperty" && named.Value.Value is string tp)
-                    return tp;
+                    titleProperty = tp;
+                else if (named.Key == "TitleContextProperty" && named.Value.Value is string tcp)
+                    titleContextProperty = tcp;
+                else if (named.Key == "AutoFields" && named.Value.Value is bool af)
+                    autoFields = af;
+                else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
+                    fieldLayout = (FieldLayoutKind)fl;
             }
         }
-        
-        return null;
+
+        return (titleProperty, titleContextProperty, autoFields, fieldLayout);
     }
 
     private static IReadOnlyList<PropertyMetadata> GetTypeProperties(

@@ -86,8 +86,16 @@ internal static class CollectionEmitter
         // Write subsection heading using TitleProperty or first string property
         if (!string.IsNullOrEmpty(prop.ElementTitleProperty))
         {
-            sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
-            sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty});");
+            if (!string.IsNullOrEmpty(prop.ElementTitleContextProperty))
+            {
+                sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
+                sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty}, {itemVar}.{prop.ElementTitleContextProperty});");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
+                sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty});");
+            }
         }
         else
         {
@@ -114,7 +122,7 @@ internal static class CollectionEmitter
         }
 
         // Emit property serializations for each item, at a deeper level
-        SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1);
+        SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1, prop.ElementAutoFields, prop.ElementFieldLayout);
 
         sb.AppendLine($"{indent}}}");
     }

@@ -127,6 +127,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
     public bool ElementHasNestedContent { get; }
     public string? ElementTitleProperty { get; }
+    public string? ElementTitleContextProperty { get; }
+    public bool ElementAutoFields { get; }
+    public FieldLayoutKind ElementFieldLayout { get; }
     public string? BoolTrueValue { get; }
     public string? BoolFalseValue { get; }
     public bool IsNullableValueType { get; }
@@ -154,6 +157,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
         bool elementHasNestedContent = false,
         string? elementTitleProperty = null,
+        string? elementTitleContextProperty = null,
+        bool elementAutoFields = true,
+        FieldLayoutKind elementFieldLayout = FieldLayoutKind.OneLine,
         string? boolTrueValue = null,
         string? boolFalseValue = null,
         bool isNullableValueType = false,
@@ -180,6 +186,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         ElementProperties = elementProperties;
         ElementHasNestedContent = elementHasNestedContent;
         ElementTitleProperty = elementTitleProperty;
+        ElementTitleContextProperty = elementTitleContextProperty;
+        ElementAutoFields = elementAutoFields;
+        ElementFieldLayout = elementFieldLayout;
         BoolTrueValue = boolTrueValue;
         BoolFalseValue = boolFalseValue;
         IsNullableValueType = isNullableValueType;
@@ -210,6 +219,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                ElementTypeName == other.ElementTypeName &&
                ElementHasNestedContent == other.ElementHasNestedContent &&
                ElementTitleProperty == other.ElementTitleProperty &&
+               ElementTitleContextProperty == other.ElementTitleContextProperty &&
+               ElementAutoFields == other.ElementAutoFields &&
+               ElementFieldLayout == other.ElementFieldLayout &&
                BoolTrueValue == other.BoolTrueValue &&
                BoolFalseValue == other.BoolFalseValue &&
                IsNullableValueType == other.IsNullableValueType &&
@@ -229,6 +241,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (int)Kind;
             hash = hash * 397 ^ (DisplayName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ SkipWhenDefault.GetHashCode();
+            hash = hash * 397 ^ ElementAutoFields.GetHashCode();
+            hash = hash * 397 ^ (int)ElementFieldLayout;
             hash = hash * 397 ^ (SectionIgnoreProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionFormatProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionFormatterTypeName?.GetHashCode() ?? 0);
