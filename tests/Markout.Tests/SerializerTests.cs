@@ -572,6 +572,134 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_IgnoreProperty_CompactTable_OmitsDescription()
+    {
+        var data = new ApiWithIgnoreProperty
+        {
+            Title = "TestApi",
+            TypesCompact = new List<TypeRow>
+            {
+                new() { Name = "Foo", Kind = "class", Description = "A foo type" },
+                new() { Name = "Bar", Kind = "struct", Description = "A bar type" }
+            }
+        };
+
+        var context = new SectionTestContext();
+        var mdf = context.Serialize(data);
+
+        Assert.Contains("## Types", mdf);
+        Assert.Contains("| Name |", mdf);
+        Assert.Contains("| Kind |", mdf);
+        Assert.DoesNotContain("| Description |", mdf);
+        Assert.DoesNotContain("A foo type", mdf);
+        Assert.Contains("Foo", mdf);
+    }
+
+    [Fact]
+    public void Serialize_IgnoreProperty_FullTable_IncludesDescription()
+    {
+        var data = new ApiWithIgnoreProperty
+        {
+            Title = "TestApi",
+            TypesFull = new List<TypeRow>
+            {
+                new() { Name = "Foo", Kind = "class", Description = "A foo type" },
+                new() { Name = "Bar", Kind = "struct", Description = "A bar type" }
+            }
+        };
+
+        var context = new SectionTestContext();
+        var mdf = context.Serialize(data);
+
+        Assert.Contains("## Types", mdf);
+        Assert.Contains("| Name |", mdf);
+        Assert.Contains("| Kind |", mdf);
+        Assert.Contains("| Description |", mdf);
+        Assert.Contains("A foo type", mdf);
+    }
+
+    [Fact]
+    public void Serialize_IgnoreProperty_NeitherPopulated_NoSection()
+    {
+        var data = new ApiWithIgnoreProperty
+        {
+            Title = "TestApi"
+        };
+
+        var context = new SectionTestContext();
+        var mdf = context.Serialize(data);
+
+        Assert.DoesNotContain("## Types", mdf);
+    }
+
+    [Fact]
+    public void Serialize_FormattedSection_UsesFormatterAndColumnName()
+    {
+        var data = new ApiWithFormatter
+        {
+            Title = "TestApi",
+            QuietMethods = new List<MethodRow>
+            {
+                new() { Name = "GetName", Signature = "string GetName()" },
+                new() { Name = "Run", Signature = "void Run(int count)" }
+            }
+        };
+
+        var context = new FormatterTestContext();
+        var mdf = context.Serialize(data);
+
+        // Column header should be overridden to "Return Type"
+        Assert.Contains("| Return Type |", mdf);
+        Assert.DoesNotContain("| Signature |", mdf);
+        // Cell values should be formatted (first word only)
+        Assert.Contains("string", mdf);
+        Assert.Contains("void", mdf);
+        Assert.DoesNotContain("GetName()", mdf);
+    }
+
+    [Fact]
+    public void Serialize_UnformattedSection_UsesOriginalColumnAndValue()
+    {
+        var data = new ApiWithFormatter
+        {
+            Title = "TestApi",
+            DetailedMethods = new List<MethodRow>
+            {
+                new() { Name = "GetName", Signature = "string GetName()" }
+            }
+        };
+
+        var context = new FormatterTestContext();
+        var mdf = context.Serialize(data);
+
+        // Column header should be original property name
+        Assert.Contains("| Signature |", mdf);
+        Assert.DoesNotContain("| Return Type |", mdf);
+        // Full signature should be present
+        Assert.Contains("string GetName()", mdf);
+    }
+
+    [Fact]
+    public void Serialize_FormattedSection_NullValue_RendersEmptyCell()
+    {
+        var data = new ApiWithFormatter
+        {
+            Title = "TestApi",
+            QuietMethods = new List<MethodRow>
+            {
+                new() { Name = "Unknown", Signature = null }
+            }
+        };
+
+        var context = new FormatterTestContext();
+        var mdf = context.Serialize(data);
+
+        // Should not throw; should render the row
+        Assert.Contains("Unknown", mdf);
+        Assert.Contains("| Return Type |", mdf);
+    }
+
+    [Fact]
     public void Serialize_PartialHooks_OnSerializingAndOnSerializedCalled()
     {
         PackageWithSectionsMarkoutTypeInfo.OnSerializingCalled = false;
@@ -661,6 +789,8 @@ public class SimpleAsm
 
 [MarkoutContext(typeof(PackageWithSections))]
 [MarkoutContext(typeof(PackageWithTitleContext))]
+[MarkoutContext(typeof(ApiWithIgnoreProperty))]
+[MarkoutContext(typeof(TypeRow))]
 public partial class SectionTestContext : MarkoutSerializerContext
 {
 }
@@ -866,5 +996,62 @@ public class ServerStatusList
 
 [MarkoutContext(typeof(ServerStatusList))]
 public partial class SkipDefaultListContext : MarkoutSerializerContext
+{
+}
+
+[MarkoutSerializable]
+public class TypeRow
+{
+    public string Name { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public string? Description { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class ApiWithIgnoreProperty
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Types", IgnoreProperty = nameof(TypeRow.Description))]
+    public List<TypeRow>? TypesCompact { get; set; }
+
+    [MarkoutSection(Name = "Types")]
+    public List<TypeRow>? TypesFull { get; set; }
+}
+
+// Property formatter test types
+[MarkoutSerializable]
+public class MethodRow
+{
+    public string Name { get; set; } = "";
+    public string? Signature { get; set; }
+}
+
+public class ReturnTypeFormatter : IMarkoutPropertyFormatter<string>
+{
+    public string Format(string value)
+    {
+        if (value == null) return "";
+        var spaceIdx = value.IndexOf(' ');
+        return spaceIdx > 0 ? value[..spaceIdx] : value;
+    }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class ApiWithFormatter
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Methods", FormatProperty = nameof(MethodRow.Signature),
+                    Formatter = typeof(ReturnTypeFormatter), ColumnName = "Return Type")]
+    public List<MethodRow>? QuietMethods { get; set; }
+
+    [MarkoutSection(Name = "Methods")]
+    public List<MethodRow>? DetailedMethods { get; set; }
+}
+
+[MarkoutContext(typeof(ApiWithFormatter))]
+[MarkoutContext(typeof(MethodRow))]
+public partial class FormatterTestContext : MarkoutSerializerContext
 {
 }

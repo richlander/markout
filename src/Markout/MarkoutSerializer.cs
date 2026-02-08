@@ -39,6 +39,19 @@ public static class MarkoutSerializer
     }
 
     /// <summary>
+    /// Serializes a value into an existing MarkoutWriter using the specified context.
+    /// </summary>
+    /// <typeparam name="T">The type to serialize.</typeparam>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="writer">The writer to serialize into.</param>
+    /// <param name="context">The serializer context containing type metadata.</param>
+    public static void Serialize<T>(T value, MarkoutWriter writer, MarkoutSerializerContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        context.Serialize(value, writer);
+    }
+
+    /// <summary>
     /// Serializes a value to Markout format, writing to the specified TextWriter.
     /// </summary>
     /// <typeparam name="T">The type to serialize.</typeparam>

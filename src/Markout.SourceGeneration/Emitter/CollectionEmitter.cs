@@ -21,12 +21,25 @@ internal static class CollectionEmitter
             return;
 
         var indent = new string(' ', indentLevel * 4);
-        var visibleProps = prop.ElementProperties.Where(p => !p.IsIgnored).ToList();
+        var visibleProps = prop.ElementProperties
+            .Where(p => !p.IsIgnored && p.Name != prop.SectionIgnoreProperty)
+            .ToList();
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
 
-        // Build header array
-        var headers = string.Join(", ", visibleProps.Select(p => $"\"{EmitHelpers.EscapeString(p.DisplayName)}\""));
+        // Build header array (with optional column name override for formatted property)
+        var headers = string.Join(", ", visibleProps.Select(p =>
+        {
+            if (p.Name == prop.SectionFormatProperty && prop.SectionColumnName != null)
+                return $"\"{EmitHelpers.EscapeString(prop.SectionColumnName)}\"";
+            return $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
+        }));
         sb.AppendLine($"{indent}writer.WriteTableStart({headers});");
+
+        // Instantiate formatter if configured
+        if (prop.SectionFormatterTypeName != null)
+        {
+            sb.AppendLine($"{indent}var __fmt = new {prop.SectionFormatterTypeName}();");
+        }
 
         sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
         sb.AppendLine($"{indent}{{");
@@ -35,8 +48,16 @@ internal static class CollectionEmitter
         var values = new List<string>();
         foreach (var elemProp in visibleProps)
         {
-            var value = EmitHelpers.GetTableCellValue(elemProp, itemVar);
-            values.Add(value);
+            if (elemProp.Name == prop.SectionFormatProperty && prop.SectionFormatterTypeName != null)
+            {
+                var access = $"{itemVar}.{elemProp.Name}";
+                values.Add($"{access} != null ? __fmt.Format({access}) : \"\"");
+            }
+            else
+            {
+                var value = EmitHelpers.GetTableCellValue(elemProp, itemVar);
+                values.Add(value);
+            }
         }
 
         sb.AppendLine($"{indent}    writer.WriteTableRow({string.Join(", ", values)});");
