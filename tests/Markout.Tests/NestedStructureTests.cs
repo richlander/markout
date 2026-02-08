@@ -556,7 +556,159 @@ public class NestedStructureTests
     }
 
     #endregion
+
+    #region Multi-TFM Wrapper Pattern: Collection with FieldCollection elements
+
+    [Fact]
+    public void Serialize_CollectionWithFieldCollectionElements_RendersSubsections()
+    {
+        var report = new MultiTfmAuditReport
+        {
+            Title = "System.Text.Json",
+            Items =
+            [
+                new AuditItem
+                {
+                    Name = "System.Text.Json.dll",
+                    Framework = "net9.0",
+                    SomeField = "should not appear",
+                    InfoSection = [new("Name", "System.Text.Json"), new("Version", "9.0.0")]
+                },
+                new AuditItem
+                {
+                    Name = "System.Text.Json.dll",
+                    Framework = "net8.0",
+                    SomeField = "should not appear",
+                    InfoSection = [new("Name", "System.Text.Json"), new("Version", "8.0.0")]
+                }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, MultiTfmAuditReportContext.Default);
+
+        // Single H1 from wrapper
+        Assert.Single(mdf.Split('\n'), l => l.StartsWith("# "));
+        Assert.Contains("# System.Text.Json", mdf);
+
+        // H2 section heading
+        Assert.Contains("## Items", mdf);
+
+        // H3 subsection per item with context
+        Assert.Contains("### System.Text.Json.dll (net9.0)", mdf);
+        Assert.Contains("### System.Text.Json.dll (net8.0)", mdf);
+
+        // H4 item sections (Info within each item)
+        Assert.Contains("#### Info", mdf);
+
+        // FieldCollection content renders as field table
+        Assert.Contains("| Name | System.Text.Json |", mdf);
+        Assert.Contains("| Version | 9.0.0 |", mdf);
+        Assert.Contains("| Version | 8.0.0 |", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CollectionElement_AutoFieldsFalse_SuppressesScalarFields()
+    {
+        var report = new MultiTfmAuditReport
+        {
+            Title = "Test",
+            Items =
+            [
+                new AuditItem
+                {
+                    Name = "test.dll",
+                    Framework = "net9.0",
+                    SomeField = "this should not appear",
+                    InfoSection = [new("Key", "Value")]
+                }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, MultiTfmAuditReportContext.Default);
+
+        // SomeField should NOT appear because AutoFields=false on AuditItem
+        Assert.DoesNotContain("SomeField", mdf);
+        Assert.DoesNotContain("this should not appear", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CollectionElement_TitleContextProperty_RendersInParentheses()
+    {
+        var report = new MultiTfmAuditReport
+        {
+            Title = "Test",
+            Items =
+            [
+                new AuditItem
+                {
+                    Name = "Foo.dll",
+                    Framework = "net9.0",
+                    InfoSection = [new("A", "B")]
+                }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, MultiTfmAuditReportContext.Default);
+
+        // Title with context renders as "### Foo.dll (net9.0)"
+        Assert.Contains("### Foo.dll (net9.0)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CollectionElement_NullContext_RendersWithoutParentheses()
+    {
+        var report = new MultiTfmAuditReport
+        {
+            Title = "Test",
+            Items =
+            [
+                new AuditItem
+                {
+                    Name = "Foo.dll",
+                    Framework = null,
+                    InfoSection = [new("A", "B")]
+                }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, MultiTfmAuditReportContext.Default);
+
+        // No context — should render without parentheses
+        Assert.Contains("### Foo.dll", mdf);
+        Assert.DoesNotContain("### Foo.dll (", mdf);
+    }
+
+    #endregion
 }
+
+#region Multi-TFM Wrapper Pattern: Collection with FieldCollection Elements
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class MultiTfmAuditReport
+{
+    public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Items")]
+    public List<AuditItem>? Items { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name), TitleContextProperty = nameof(Framework), AutoFields = false)]
+public class AuditItem
+{
+    public string Name { get; set; } = "";
+    public string? Framework { get; set; }
+    public string SomeField { get; set; } = "";
+
+    [MarkoutSection(Name = "Info")]
+    public List<MarkoutField> InfoSection { get; set; } = [];
+}
+
+[MarkoutContext(typeof(MultiTfmAuditReport))]
+public partial class MultiTfmAuditReportContext : MarkoutSerializerContext
+{
+}
+
+#endregion
 
 #region Real-World Pattern: DotNet Inspector Structure
 
