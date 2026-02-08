@@ -120,6 +120,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public int SectionLevel { get; }
     public string? SectionName { get; }
     public string? SectionIgnoreProperty { get; }
+    public string? SectionFormatProperty { get; }
+    public string? SectionFormatterTypeName { get; }
+    public string? SectionColumnName { get; }
     public string? ElementTypeName { get; }
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
     public bool ElementHasNestedContent { get; }
@@ -144,6 +147,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         int sectionLevel = 2,
         string? sectionName = null,
         string? sectionIgnoreProperty = null,
+        string? sectionFormatProperty = null,
+        string? sectionFormatterTypeName = null,
+        string? sectionColumnName = null,
         string? elementTypeName = null,
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
         bool elementHasNestedContent = false,
@@ -167,6 +173,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionLevel = sectionLevel;
         SectionName = sectionName;
         SectionIgnoreProperty = sectionIgnoreProperty;
+        SectionFormatProperty = sectionFormatProperty;
+        SectionFormatterTypeName = sectionFormatterTypeName;
+        SectionColumnName = sectionColumnName;
         ElementTypeName = elementTypeName;
         ElementProperties = elementProperties;
         ElementHasNestedContent = elementHasNestedContent;
@@ -195,6 +204,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionLevel == other.SectionLevel &&
                SectionName == other.SectionName &&
                SectionIgnoreProperty == other.SectionIgnoreProperty &&
+               SectionFormatProperty == other.SectionFormatProperty &&
+               SectionFormatterTypeName == other.SectionFormatterTypeName &&
+               SectionColumnName == other.SectionColumnName &&
                ElementTypeName == other.ElementTypeName &&
                ElementHasNestedContent == other.ElementHasNestedContent &&
                ElementTitleProperty == other.ElementTitleProperty &&
@@ -218,6 +230,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (DisplayName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ SkipWhenDefault.GetHashCode();
             hash = hash * 397 ^ (SectionIgnoreProperty?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (SectionFormatProperty?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (SectionFormatterTypeName?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (SectionColumnName?.GetHashCode() ?? 0);
             return hash;
         }
     }

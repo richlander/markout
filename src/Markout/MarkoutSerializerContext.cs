@@ -97,6 +97,26 @@ public abstract class MarkoutSerializerContext
     }
 
     /// <summary>
+    /// Serializes a value into an existing MarkoutWriter.
+    /// Use this to interleave serialized and imperative content in a single writer.
+    /// </summary>
+    /// <typeparam name="T">The type to serialize.</typeparam>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="writer">The writer to serialize into.</param>
+    public void Serialize<T>(T value, MarkoutWriter writer)
+    {
+        var typeInfo = GetTypeInfo<T>();
+        if (typeInfo == null)
+        {
+            throw new InvalidOperationException(
+                $"Type '{typeof(T).FullName}' is not registered in this serializer context. " +
+                $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
+        }
+
+        typeInfo.Serialize(writer, value);
+    }
+
+    /// <summary>
     /// Serializes a value to the specified TextWriter.
     /// </summary>
     /// <typeparam name="T">The type to serialize.</typeparam>
