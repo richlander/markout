@@ -21,6 +21,10 @@ internal static class TypeParser
     private const string MarkoutFormatAttribute = "Markout.MarkoutFormatAttribute";
     private const string MarkoutJoinAttribute = "Markout.MarkoutJoinAttribute";
     private const string MarkoutSkipDefaultAttribute = "Markout.MarkoutSkipDefaultAttribute";
+    private const string MarkoutSkipNullAttribute = "Markout.MarkoutSkipNullAttribute";
+    private const string MarkoutDisplayFormatAttribute = "Markout.MarkoutDisplayFormatAttribute";
+    private const string MarkoutMaxItemsAttribute = "Markout.MarkoutMaxItemsAttribute";
+    private const string MarkoutTableDisplayAttribute = "Markout.MarkoutTableDisplayAttribute";
     private const string MarkoutValueFormatterAttribute = "Markout.MarkoutValueFormatterAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
@@ -191,6 +195,7 @@ internal static class TypeParser
         string? sectionFormatProperty = null;
         string? sectionFormatterTypeName = null;
         string? sectionColumnName = null;
+        string? sectionShowWhenProperty = null;
 
         if (isSection)
         {
@@ -212,6 +217,8 @@ internal static class TypeParser
                         sectionFormatterTypeName = formatterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                     else if (named.Key == "ColumnName" && named.Value.Value is string cn)
                         sectionColumnName = cn;
+                    else if (named.Key == "ShowWhenProperty" && named.Value.Value is string swp)
+                        sectionShowWhenProperty = swp;
                 }
             }
         }
@@ -272,6 +279,46 @@ internal static class TypeParser
         bool skipWhenDefault = prop.GetAttributes()
             .Any(a => a.AttributeClass?.ToDisplayString() == MarkoutSkipDefaultAttribute);
 
+        // Parse [MarkoutSkipNull] attribute
+        bool skipWhenNull = prop.GetAttributes()
+            .Any(a => a.AttributeClass?.ToDisplayString() == MarkoutSkipNullAttribute);
+
+        // Parse [MarkoutDisplayFormat] attribute
+        string? displayFormat = null;
+        var displayFormatAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutDisplayFormatAttribute);
+        if (displayFormatAttr?.ConstructorArguments.Length > 0 &&
+            displayFormatAttr.ConstructorArguments[0].Value is string df)
+        {
+            displayFormat = df;
+        }
+
+        // Parse [MarkoutMaxItems] attribute
+        int? maxItems = null;
+        string? maxItemsEllipsisFormat = null;
+        var maxItemsAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutMaxItemsAttribute);
+        if (maxItemsAttr?.ConstructorArguments.Length > 0 &&
+            maxItemsAttr.ConstructorArguments[0].Value is int mi)
+        {
+            maxItems = mi;
+            foreach (var named in maxItemsAttr.NamedArguments)
+            {
+                if (named.Key == "EllipsisFormat" && named.Value.Value is string ef)
+                    maxItemsEllipsisFormat = ef;
+            }
+        }
+
+        // Parse [MarkoutTableDisplay] attribute
+        string? tableDisplayFormat = null;
+        var tableDisplayAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutTableDisplayAttribute);
+        if (tableDisplayAttr?.ConstructorArguments.Length > 0 &&
+            tableDisplayAttr.ConstructorArguments[0].Value is string tdf)
+        {
+            tableDisplayFormat = tdf;
+        }
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -314,6 +361,7 @@ internal static class TypeParser
             sectionFormatProperty,
             sectionFormatterTypeName,
             sectionColumnName,
+            sectionShowWhenProperty,
             elementTypeName,
             elementProperties,
             hasNestedContent,
@@ -328,7 +376,12 @@ internal static class TypeParser
             customFormat,
             joinSeparator,
             skipWhenDefault,
-            valueFormatterTypeName);
+            valueFormatterTypeName,
+            skipWhenNull,
+            displayFormat,
+            maxItems,
+            maxItemsEllipsisFormat,
+            tableDisplayFormat);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

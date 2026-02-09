@@ -291,24 +291,39 @@ internal static class SerializerEmitter
     {
         var sectionName = prop.SectionName ?? prop.DisplayName;
 
+        // Emit ShowWhenProperty guard if configured
+        var showWhenIndent = indent;
+        var showWhenIndentLevel = indentLevel;
+        if (prop.SectionShowWhenProperty != null && rootValueExpr != null)
+        {
+            sb.AppendLine($"{indent}if ({rootValueExpr}.{prop.SectionShowWhenProperty})");
+            sb.AppendLine($"{indent}{{");
+            showWhenIndent = indent + "    ";
+            showWhenIndentLevel = indentLevel + 1;
+        }
+
         // Emit per-section hook at top level only
         if (rootValueExpr != null && rootTypeName != null)
         {
             var safeName = new string(sectionName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
             var skipVar = $"__skip{prop.Name}";
-            sb.AppendLine($"{indent}var {skipVar} = false;");
-            sb.AppendLine($"{indent}OnBeforeSection{safeName}(writer, {rootValueExpr}, ref {skipVar});");
-            sb.AppendLine($"{indent}if (!{skipVar})");
-            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{showWhenIndent}var {skipVar} = false;");
+            sb.AppendLine($"{showWhenIndent}OnBeforeSection{safeName}(writer, {rootValueExpr}, ref {skipVar});");
+            sb.AppendLine($"{showWhenIndent}if (!{skipVar})");
+            sb.AppendLine($"{showWhenIndent}{{");
 
-            // Re-emit the section body with increased indent
-            EmitSectionBody(sb, prop, propAccess, indent + "    ", indentLevel + 1, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName);
+            EmitSectionBody(sb, prop, propAccess, showWhenIndent + "    ", showWhenIndentLevel + 1, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName);
 
-            sb.AppendLine($"{indent}}}");
+            sb.AppendLine($"{showWhenIndent}}}");
         }
         else
         {
-            EmitSectionBody(sb, prop, propAccess, indent, indentLevel, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName);
+            EmitSectionBody(sb, prop, propAccess, showWhenIndent, showWhenIndentLevel, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName);
+        }
+
+        if (prop.SectionShowWhenProperty != null && rootValueExpr != null)
+        {
+            sb.AppendLine($"{indent}}}");
         }
     }
 
@@ -338,13 +353,30 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
             
-            if (prop.ElementHasNestedContent)
+            if (prop.MaxItems != null)
             {
-                CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel, nestingDepth);
+                var innerIndent = indent + "    ";
+                var (truncVar, _) = EmitHelpers.EmitMaxItemsTruncation(sb, prop, propAccess, innerIndent, nestingDepth);
+                if (prop.ElementHasNestedContent)
+                {
+                    CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, truncVar, indentLevel + 1, effectiveSectionLevel, nestingDepth);
+                }
+                else
+                {
+                    CollectionEmitter.EmitTableSerialization(sb, prop, truncVar, indentLevel + 1, nestingDepth);
+                }
+                EmitHelpers.EmitMaxItemsEllipsis(sb, prop, propAccess, innerIndent, nestingDepth);
             }
             else
             {
-                CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                if (prop.ElementHasNestedContent)
+                {
+                    CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel, nestingDepth);
+                }
+                else
+                {
+                    CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                }
             }
             sb.AppendLine($"{indent}}}");
         }
@@ -353,7 +385,17 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}if ({EmitHelpers.GetCollectionCountCheck(prop, propAccess)})");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
+            if (prop.MaxItems != null)
+            {
+                var innerIndent = indent + "    ";
+                var (truncVar, _) = EmitHelpers.EmitMaxItemsTruncation(sb, prop, propAccess, innerIndent, nestingDepth);
+                sb.AppendLine($"{innerIndent}writer.WriteArray({truncVar});");
+                EmitHelpers.EmitMaxItemsEllipsis(sb, prop, propAccess, innerIndent, nestingDepth);
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
+            }
             sb.AppendLine($"{indent}}}");
         }
         else if (prop.Kind == PropertyKind.Tree)
@@ -361,7 +403,17 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+            if (prop.MaxItems != null)
+            {
+                var innerIndent = indent + "    ";
+                var (truncVar, _) = EmitHelpers.EmitMaxItemsTruncation(sb, prop, propAccess, innerIndent, nestingDepth);
+                sb.AppendLine($"{innerIndent}writer.WriteTree({truncVar});");
+                EmitHelpers.EmitMaxItemsEllipsis(sb, prop, propAccess, innerIndent, nestingDepth);
+            }
+            else
+            {
+                sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+            }
             sb.AppendLine($"{indent}}}");
         }
         else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)

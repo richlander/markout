@@ -16,7 +16,8 @@ internal static class EmitHelpers
         // Value formatter takes highest priority
         if (prop.ValueFormatterTypeName != null)
         {
-            return $"new {prop.ValueFormatterTypeName}().Format({access})";
+            var expr = $"new {prop.ValueFormatterTypeName}().Format({access})";
+            return WrapWithDisplayFormat(prop, expr);
         }
 
         // Joined string array: render as string.Join(separator, collection)
@@ -36,9 +37,69 @@ internal static class EmitHelpers
             if (prop.Kind is PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
                 or PropertyKind.DateTime or PropertyKind.DateTimeOffset)
             {
-                return $"{access}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
+                var expr = $"{access}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
+                return WrapWithDisplayFormat(prop, expr);
             }
         }
+
+        // DisplayFormat wraps the final value
+        if (prop.DisplayFormat != null)
+        {
+            return $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.DisplayFormat)}\", {access})";
+        }
+
+        return prop.Kind switch
+        {
+            PropertyKind.Boolean => $"({access} ? \"yes\" : \"no\")",
+            PropertyKind.String => $"{propAccess} ?? \"\"",
+            PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
+                => $"{access}.ToString(System.Globalization.CultureInfo.InvariantCulture)",
+            PropertyKind.DateTime or PropertyKind.DateTimeOffset
+                => $"{access}.ToString(\"O\", System.Globalization.CultureInfo.InvariantCulture)",
+            PropertyKind.Enum => $"{access}.ToString()",
+            _ => $"{propAccess}?.ToString() ?? \"\""
+        };
+    }
+
+    private static string WrapWithDisplayFormat(PropertyMetadata prop, string innerExpr)
+    {
+        if (prop.DisplayFormat != null)
+            return $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.DisplayFormat)}\", {innerExpr})";
+        return innerExpr;
+    }
+
+    private static string WrapWithTableOrDisplayFormat(PropertyMetadata prop, string innerExpr)
+    {
+        if (prop.TableDisplayFormat != null)
+            return $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.TableDisplayFormat)}\", {innerExpr})";
+        if (prop.DisplayFormat != null)
+            return $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.DisplayFormat)}\", {innerExpr})";
+        return innerExpr;
+    }
+
+    private static string WrapWithTableDisplayFormat(PropertyMetadata prop, string innerExpr)
+    {
+        if (prop.TableDisplayFormat != null)
+            return $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.TableDisplayFormat)}\", {innerExpr})";
+        return innerExpr;
+    }
+
+    /// <summary>
+    /// Like GetScalarValueExpression but without DisplayFormat wrapping.
+    /// Used when we need to apply TableDisplayFormat instead.
+    /// </summary>
+    private static string GetScalarValueExpressionNoDisplayFormat(PropertyMetadata prop, string propAccess, bool nullable = false)
+    {
+        var access = nullable ? $"{propAccess}.Value" : propAccess;
+
+        if (prop.ValueFormatterTypeName != null)
+            return $"new {prop.ValueFormatterTypeName}().Format({access})";
+
+        if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
+            return $"({access} ? \"{EscapeString(prop.BoolTrueValue)}\" : \"{EscapeString(prop.BoolFalseValue)}\")";
+
+        if (prop.CustomFormat != null && prop.Kind is PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal or PropertyKind.DateTime or PropertyKind.DateTimeOffset)
+            return $"{access}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
 
         return prop.Kind switch
         {
@@ -61,7 +122,14 @@ internal static class EmitHelpers
         {
             if (prop.ValueFormatterTypeName != null)
             {
-                return $"{propAccess}.HasValue ? new {prop.ValueFormatterTypeName}().Format({propAccess}.Value) : \"\"";
+                var inner = $"new {prop.ValueFormatterTypeName}().Format({propAccess}.Value)";
+                return $"{propAccess}.HasValue ? {WrapWithTableOrDisplayFormat(prop, inner)} : \"\"";
+            }
+            // For nullable with table display, we need to get the inner value then wrap
+            if (prop.TableDisplayFormat != null)
+            {
+                var innerValue = GetScalarValueExpressionNoDisplayFormat(prop, propAccess, nullable: true);
+                return $"{propAccess}.HasValue ? {WrapWithTableDisplayFormat(prop, innerValue)} : \"\"";
             }
             var valueExpr = GetScalarValueExpression(prop, propAccess, nullable: true);
             return $"{propAccess}.HasValue ? {valueExpr} : \"\"";
@@ -70,7 +138,8 @@ internal static class EmitHelpers
         // Value formatter takes highest priority
         if (prop.ValueFormatterTypeName != null)
         {
-            return $"new {prop.ValueFormatterTypeName}().Format({propAccess})";
+            var inner = $"new {prop.ValueFormatterTypeName}().Format({propAccess})";
+            return WrapWithTableOrDisplayFormat(prop, inner);
         }
 
         // Joined string array in table cell
@@ -90,8 +159,21 @@ internal static class EmitHelpers
             if (prop.Kind is PropertyKind.Int32 or PropertyKind.Int64 or PropertyKind.Double or PropertyKind.Decimal
                 or PropertyKind.DateTime or PropertyKind.DateTimeOffset)
             {
-                return $"{propAccess}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
+                var inner = $"{propAccess}.ToString(\"{EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture)";
+                return WrapWithTableOrDisplayFormat(prop, inner);
             }
+        }
+
+        // TableDisplayFormat takes priority over DisplayFormat in table context
+        if (prop.TableDisplayFormat != null)
+        {
+            return $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.TableDisplayFormat)}\", {propAccess})";
+        }
+
+        // DisplayFormat wraps the final value
+        if (prop.DisplayFormat != null)
+        {
+            return $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.DisplayFormat)}\", {propAccess})";
         }
 
         return prop.Kind switch
@@ -114,6 +196,51 @@ internal static class EmitHelpers
         return $"{propAccess} != null && {propAccess}.{countProp} > 0";
     }
 
+    /// <summary>
+    /// Emits truncation logic for [MarkoutMaxItems]. Call after emitting the collection variable.
+    /// Returns the variable name to use for iteration (either the original or a truncated version).
+    /// </summary>
+    public static (string IterVar, bool NeedsEllipsis) EmitMaxItemsTruncation(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        string indent,
+        int nestingDepth)
+    {
+        if (prop.MaxItems == null)
+            return (propAccess, false);
+
+        var maxItems = prop.MaxItems.Value;
+        var ellipsis = prop.MaxItemsEllipsisFormat ?? "... and {0} more";
+        var countProp = prop.IsArray ? "Length" : "Count";
+        var truncVar = nestingDepth == 0 ? "__truncated" : $"__truncated{nestingDepth}";
+        var remainVar = nestingDepth == 0 ? "__remaining" : $"__remaining{nestingDepth}";
+
+        sb.AppendLine($"{indent}var {remainVar} = {propAccess}.{countProp} - {maxItems};");
+        sb.AppendLine($"{indent}var {truncVar} = {remainVar} > 0 ? global::System.Linq.Enumerable.Take({propAccess}, {maxItems}) : {propAccess};");
+
+        return (truncVar, true);
+    }
+
+    public static void EmitMaxItemsEllipsis(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        string indent,
+        int nestingDepth)
+    {
+        if (prop.MaxItems == null)
+            return;
+
+        var maxItems = prop.MaxItems.Value;
+        var ellipsis = prop.MaxItemsEllipsisFormat ?? "... and {0} more";
+        var countProp = prop.IsArray ? "Length" : "Count";
+        var remainVar = nestingDepth == 0 ? "__remaining" : $"__remaining{nestingDepth}";
+
+        sb.AppendLine($"{indent}if ({remainVar} > 0)");
+        sb.AppendLine($"{indent}    writer.WriteParagraph(string.Format(\"{EscapeString(ellipsis)}\", {remainVar}));");
+    }
+
     public static bool IsScalarKind(PropertyKind kind)
     {
         return kind is
@@ -131,6 +258,30 @@ internal static class EmitHelpers
     public static string EscapeString(string s)
     {
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+    }
+
+    /// <summary>
+    /// Returns a condition expression that is true when the property value is NOT null/empty.
+    /// Used by [MarkoutSkipNull] to conditionally skip rendering.
+    /// Unlike GetNonDefaultCondition, this does not skip non-null defaults like false or 0.
+    /// </summary>
+    public static string? GetNonNullCondition(PropertyMetadata prop, string propAccess)
+    {
+        if (prop.IsNullableValueType)
+            return $"{propAccess}.HasValue";
+
+        return prop.Kind switch
+        {
+            PropertyKind.String => $"!string.IsNullOrEmpty({propAccess})",
+            PropertyKind.StringArray => $"{propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0",
+            PropertyKind.Formattable => $"{propAccess} != null",
+            // Non-nullable value types (bool, int, etc.) are never null — no condition needed
+            PropertyKind.Boolean or PropertyKind.Int32 or PropertyKind.Int64
+                or PropertyKind.Double or PropertyKind.Decimal
+                or PropertyKind.DateTime or PropertyKind.DateTimeOffset
+                or PropertyKind.Enum => null,
+            _ => $"{propAccess} != null"
+        };
     }
 
     /// <summary>

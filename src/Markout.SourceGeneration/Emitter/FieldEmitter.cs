@@ -52,7 +52,7 @@ internal static class FieldEmitter
         var indent = new string(' ', indentLevel * 4);
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
             || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
-            || p.SkipWhenDefault);
+            || p.SkipWhenDefault || p.SkipWhenNull);
         var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
         if (useBuilder)
@@ -87,6 +87,19 @@ internal static class FieldEmitter
                         var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
                         sb.AppendLine($"{indent}if ({condition})");
                         sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                    }
+                    else if (prop.SkipWhenNull)
+                    {
+                        var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
+                        if (condition != null)
+                        {
+                            sb.AppendLine($"{indent}if ({condition})");
+                            sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"{indent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                        }
                     }
                     else
                     {
@@ -127,8 +140,11 @@ internal static class FieldEmitter
             var propAccess = $"{valueExpr}.{prop.Name}";
             var emitIndent = indent;
 
-            // Wrap with skip-default condition if needed (for types not already conditionally rendered)
+            // Wrap with skip-default or skip-null condition if needed (for types not already conditionally rendered)
             bool needsSkipDefault = prop.SkipWhenDefault && !prop.IsNullableValueType
+                && prop.Kind != PropertyKind.String
+                && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
+            bool needsSkipNull = !needsSkipDefault && prop.SkipWhenNull && !prop.IsNullableValueType
                 && prop.Kind != PropertyKind.String
                 && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
             if (needsSkipDefault)
@@ -137,6 +153,16 @@ internal static class FieldEmitter
                 sb.AppendLine($"{indent}if ({condition})");
                 sb.AppendLine($"{indent}{{");
                 emitIndent = indent + "    ";
+            }
+            else if (needsSkipNull)
+            {
+                var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
+                if (condition != null)
+                {
+                    sb.AppendLine($"{indent}if ({condition})");
+                    sb.AppendLine($"{indent}{{");
+                    emitIndent = indent + "    ";
+                }
             }
 
             if (prop.ValueFormatterTypeName != null)
@@ -205,7 +231,7 @@ internal static class FieldEmitter
                 sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
             }
 
-            if (needsSkipDefault)
+            if (needsSkipDefault || needsSkipNull)
             {
                 sb.AppendLine($"{indent}}}");
             }
@@ -228,12 +254,25 @@ internal static class FieldEmitter
             bool needsSkipDefault = prop.SkipWhenDefault && !prop.IsNullableValueType
                 && prop.Kind != PropertyKind.String
                 && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
+            bool needsSkipNull = !needsSkipDefault && prop.SkipWhenNull && !prop.IsNullableValueType
+                && prop.Kind != PropertyKind.String
+                && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
             if (needsSkipDefault)
             {
                 var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
                 sb.AppendLine($"{indent}if ({condition})");
                 sb.AppendLine($"{indent}{{");
                 emitIndent = indent + "    ";
+            }
+            else if (needsSkipNull)
+            {
+                var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
+                if (condition != null)
+                {
+                    sb.AppendLine($"{indent}if ({condition})");
+                    sb.AppendLine($"{indent}{{");
+                    emitIndent = indent + "    ";
+                }
             }
 
             if (prop.IsNullableValueType)
@@ -260,7 +299,7 @@ internal static class FieldEmitter
                 sb.AppendLine($"{emitIndent}writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
             }
 
-            if (needsSkipDefault)
+            if (needsSkipDefault || needsSkipNull)
             {
                 sb.AppendLine($"{indent}}}");
             }
