@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet run
-#:package Markout@0.3.4
+#:package Markout@0.4.0
 // CanCon. It's the law!
 
 using System.Text.Json;
@@ -227,9 +227,11 @@ public class CanConOverview
     public string Title { get; set; } = "";
 
     [MarkoutSection(Name = "Actors")]
+    [MarkoutMaxItems(5)]
     public List<ActorRow>? Actors { get; set; }
 
     [MarkoutSection(Name = "Shows")]
+    [MarkoutMaxItems(5)]
     public List<ShowRow>? Shows { get; set; }
 }
 

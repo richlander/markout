@@ -572,6 +572,383 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_SkipNull_SuppressesNullStrings()
+    {
+        var pkg = new PackageInfo { Name = "MyPackage", License = null, Repository = null, Downloads = 100 };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
+
+        Assert.Contains("Name: MyPackage", mdf);
+        Assert.Contains("Downloads: 100", mdf);
+        Assert.DoesNotContain("License", mdf);
+        Assert.DoesNotContain("Repository", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipNull_RendersNonNullStrings()
+    {
+        var pkg = new PackageInfo { Name = "MyPackage", License = "MIT", Repository = "https://github.com/test", Downloads = 100 };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
+
+        Assert.Contains("License: MIT", mdf);
+        Assert.Contains("Repository: https://github.com/test", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipNull_SuppressesNullNullableInt()
+    {
+        var pkg = new PackageInfo { Name = "MyPackage", Downloads = 100, Stars = null };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
+
+        Assert.DoesNotContain("Stars", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipNull_RendersNonNullNullableInt()
+    {
+        var pkg = new PackageInfo { Name = "MyPackage", Downloads = 100, Stars = 42 };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
+
+        Assert.Contains("Stars: 42", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipNull_DoesNotSuppressZeroOrFalse()
+    {
+        var pkg = new PackageInfo { Name = "MyPackage", Downloads = 0, Stars = 0 };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
+
+        Assert.Contains("Downloads: 0", mdf);
+        Assert.Contains("Stars: 0", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipNull_LineBreaksLayout()
+    {
+        var pkg = new PackageInfoLineBreaks { Name = "MyPackage", License = null, Repository = null };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullLineBreaksContext.Default);
+
+        Assert.Contains("Name", mdf);
+        Assert.DoesNotContain("License", mdf);
+        Assert.DoesNotContain("Repository", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipNull_LineBreaksRendersNonNull()
+    {
+        var pkg = new PackageInfoLineBreaks { Name = "MyPackage", License = "MIT", Repository = "https://example.com" };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullLineBreaksContext.Default);
+
+        Assert.Contains("License", mdf);
+        Assert.Contains("Repository", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipNull_ListLayout()
+    {
+        var pkg = new PackageInfoList { Name = "MyPackage", License = null, Repository = null };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullListContext.Default);
+
+        Assert.Contains("Name", mdf);
+        Assert.DoesNotContain("License", mdf);
+        Assert.DoesNotContain("Repository", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipNull_ListRendersNonNull()
+    {
+        var pkg = new PackageInfoList { Name = "MyPackage", License = "MIT", Repository = "https://example.com" };
+        var mdf = MarkoutSerializer.Serialize(pkg, SkipNullListContext.Default);
+
+        Assert.Contains("License", mdf);
+        Assert.Contains("Repository", mdf);
+    }
+
+    [Fact]
+    public void Serialize_DisplayFormat_AppliesFormatString()
+    {
+        var stats = new DownloadStats { Name = "MyPackage", TotalDownloads = 1234567, CpuUsage = 0.856 };
+        var mdf = MarkoutSerializer.Serialize(stats, DisplayFormatTestContext.Default);
+
+        Assert.Contains("1,234,567 downloads", mdf);
+        Assert.Contains("85.6", mdf);  // P1 format: "85.6 %"
+    }
+
+    [Fact]
+    public void Serialize_DisplayFormat_InTableContext()
+    {
+        var report = new DownloadReport
+        {
+            Title = "Stats",
+            Packages = new List<DownloadRow>
+            {
+                new() { Name = "Pkg1", Downloads = 5000000 },
+                new() { Name = "Pkg2", Downloads = 42 }
+            }
+        };
+        var mdf = MarkoutSerializer.Serialize(report, DisplayFormatTestContext.Default);
+
+        Assert.Contains("5,000,000 downloads", mdf);
+        Assert.Contains("42 downloads", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhenProperty_ShowsSection()
+    {
+        var report = new ConditionalReport
+        {
+            Title = "Report",
+            ShowDetails = true,
+            ShowSummary = false,
+            Details = new() { "Detail 1", "Detail 2" },
+            Summary = new() { "Summary line" }
+        };
+        var mdf = MarkoutSerializer.Serialize(report, ShowWhenTestContext.Default);
+
+        Assert.Contains("## Details", mdf);
+        Assert.Contains("Detail 1", mdf);
+        Assert.DoesNotContain("## Summary", mdf);
+        Assert.DoesNotContain("Summary line", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhenProperty_HidesSection()
+    {
+        var report = new ConditionalReport
+        {
+            Title = "Report",
+            ShowDetails = false,
+            ShowSummary = true,
+            Details = new() { "Detail 1" },
+            Summary = new() { "Summary line" }
+        };
+        var mdf = MarkoutSerializer.Serialize(report, ShowWhenTestContext.Default);
+
+        Assert.DoesNotContain("## Details", mdf);
+        Assert.Contains("## Summary", mdf);
+        Assert.Contains("Summary line", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhenProperty_MutualExclusion()
+    {
+        var report = new ConditionalReport
+        {
+            Title = "Report",
+            ShowDetails = true,
+            ShowSummary = true,
+            Details = new() { "Detail 1" },
+            Summary = new() { "Summary line" }
+        };
+        var mdf = MarkoutSerializer.Serialize(report, ShowWhenTestContext.Default);
+
+        Assert.Contains("## Details", mdf);
+        Assert.Contains("## Summary", mdf);
+    }
+
+    [Fact]
+    public void Serialize_MaxItems_TruncatesStringArray()
+    {
+        var report = new FileReport
+        {
+            Title = "Report",
+            Files = new() { "a.cs", "b.cs", "c.cs", "d.cs", "e.cs" }
+        };
+        var mdf = MarkoutSerializer.Serialize(report, MaxItemsTestContext.Default);
+
+        Assert.Contains("a.cs", mdf);
+        Assert.Contains("b.cs", mdf);
+        Assert.Contains("c.cs", mdf);
+        Assert.DoesNotContain("d.cs", mdf);
+        Assert.DoesNotContain("e.cs", mdf);
+        Assert.Contains("... and 2 more", mdf);
+    }
+
+    [Fact]
+    public void Serialize_MaxItems_CustomEllipsisFormat()
+    {
+        var report = new FileReport
+        {
+            Title = "Report",
+            Logs = new() { "log1", "log2", "log3", "log4", "log5" }
+        };
+        var mdf = MarkoutSerializer.Serialize(report, MaxItemsTestContext.Default);
+
+        Assert.Contains("log1", mdf);
+        Assert.Contains("log2", mdf);
+        Assert.DoesNotContain("log3", mdf);
+        Assert.Contains("(3 more items not shown)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_MaxItems_NoTruncationWhenUnderLimit()
+    {
+        var report = new FileReport
+        {
+            Title = "Report",
+            Files = new() { "a.cs", "b.cs" }
+        };
+        var mdf = MarkoutSerializer.Serialize(report, MaxItemsTestContext.Default);
+
+        Assert.Contains("a.cs", mdf);
+        Assert.Contains("b.cs", mdf);
+        Assert.DoesNotContain("... and", mdf);
+    }
+
+    [Fact]
+    public void Serialize_TableDisplay_FormatsInTableContext()
+    {
+        var view = new InventoryView
+        {
+            Title = "Inventory",
+            Items = new()
+            {
+                new() { Name = "Widgets", Count = 42 },
+                new() { Name = "Gadgets", Count = 7 }
+            }
+        };
+        var mdf = MarkoutSerializer.Serialize(view, TableDisplayTestContext.Default);
+
+        Assert.Contains("42 items", mdf);
+        Assert.Contains("7 items", mdf);
+    }
+
+    [Fact]
+    public void Serialize_TableDisplay_BlockContextUsesNormalFormat()
+    {
+        var item = new ItemRow { Name = "Widget", Count = 42 };
+        var mdf = MarkoutSerializer.Serialize(item, TableDisplayTestContext.Default);
+
+        // In block context, Count should render as "42" not "42 items"
+        Assert.Contains("Count: 42", mdf);
+        Assert.DoesNotContain("42 items", mdf);
+    }
+
+    // --- ShowWhen tests ---
+
+    [Fact]
+    public void Serialize_ShowWhen_LineBreaks_ShowsWhenTrue()
+    {
+        var pkg = new VerifiedPackage { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft", IsTool = false, ToolFormat = "global" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.Contains("VerifiedBy: Microsoft", mdf);
+        Assert.DoesNotContain("ToolFormat", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_LineBreaks_HidesWhenFalse()
+    {
+        var pkg = new VerifiedPackage { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft", IsTool = false, ToolFormat = "global" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.DoesNotContain("VerifiedBy", mdf);
+        Assert.DoesNotContain("ToolFormat", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_OneLine_ShowsWhenTrue()
+    {
+        var pkg = new VerifiedPackageOneLine { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.Contains("VerifiedBy: Microsoft", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_OneLine_HidesWhenFalse()
+    {
+        var pkg = new VerifiedPackageOneLine { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.DoesNotContain("VerifiedBy", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_List_ShowsWhenTrue()
+    {
+        var pkg = new VerifiedPackageList { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.Contains("VerifiedBy: Microsoft", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_List_HidesWhenFalse()
+    {
+        var pkg = new VerifiedPackageList { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.DoesNotContain("VerifiedBy", mdf);
+    }
+
+    // --- Link tests ---
+
+    [Fact]
+    public void Serialize_Link_LineBreaks_BareLink()
+    {
+        var project = new LinkProjectInfo { Name = "Markout", Homepage = "https://github.com/markout" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.Contains("[https://github.com/markout](https://github.com/markout)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_LineBreaks_WithTextProperty()
+    {
+        var project = new LinkProjectInfo { Name = "Markout", Repository = "https://github.com/markout" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.Contains("[Markout](https://github.com/markout)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_LineBreaks_NullSkipped()
+    {
+        var project = new LinkProjectInfo { Name = "Markout" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.DoesNotContain("Homepage", mdf);
+        Assert.DoesNotContain("Repository", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_OneLine_BareLink()
+    {
+        var project = new LinkProjectOneLine { Name = "Markout", Url = "https://example.com" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.Contains("[https://example.com](https://example.com)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_List_BareAndTextProperty()
+    {
+        var project = new LinkProjectList { Name = "Markout", Url = "https://example.com", Repository = "https://github.com/markout" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.Contains("[https://example.com](https://example.com)", mdf);
+        Assert.Contains("[Markout](https://github.com/markout)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_InTable()
+    {
+        var view = new LinkProjectListView
+        {
+            Title = "Projects",
+            Projects = new List<LinkProjectRow>
+            {
+                new() { Name = "Alpha", Url = "https://alpha.com" },
+                new() { Name = "Beta", Url = "https://beta.com" }
+            }
+        };
+        var mdf = MarkoutSerializer.Serialize(view, LinkTestContext.Default);
+
+        Assert.Contains("[https://alpha.com](https://alpha.com)", mdf);
+        Assert.Contains("[https://beta.com](https://beta.com)", mdf);
+    }
+
+    [Fact]
     public void Serialize_IgnoreProperty_CompactTable_OmitsDescription()
     {
         var data = new ApiWithIgnoreProperty
@@ -1053,5 +1430,246 @@ public class ApiWithFormatter
 [MarkoutContext(typeof(ApiWithFormatter))]
 [MarkoutContext(typeof(MethodRow))]
 public partial class FormatterTestContext : MarkoutSerializerContext
+{
+}
+
+// SkipWhenNull test types
+[MarkoutSerializable]
+public class PackageInfo
+{
+    public string? Name { get; set; }
+    [MarkoutSkipNull]
+    public string? License { get; set; }
+    [MarkoutSkipNull]
+    public string? Repository { get; set; }
+    public int Downloads { get; set; }
+    [MarkoutSkipNull]
+    public int? Stars { get; set; }
+}
+
+[MarkoutContext(typeof(PackageInfo))]
+public partial class SkipNullTestContext : MarkoutSerializerContext
+{
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+public class PackageInfoLineBreaks
+{
+    public string? Name { get; set; }
+    [MarkoutSkipNull]
+    public string? License { get; set; }
+    [MarkoutSkipNull]
+    public string? Repository { get; set; }
+}
+
+[MarkoutContext(typeof(PackageInfoLineBreaks))]
+public partial class SkipNullLineBreaksContext : MarkoutSerializerContext
+{
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+public class PackageInfoList
+{
+    public string? Name { get; set; }
+    [MarkoutSkipNull]
+    public string? License { get; set; }
+    [MarkoutSkipNull]
+    public string? Repository { get; set; }
+}
+
+[MarkoutContext(typeof(PackageInfoList))]
+public partial class SkipNullListContext : MarkoutSerializerContext
+{
+}
+
+// DisplayFormat test types
+[MarkoutSerializable]
+public class DownloadStats
+{
+    public string? Name { get; set; }
+    [MarkoutDisplayFormat("{0:N0} downloads")]
+    public long TotalDownloads { get; set; }
+    [MarkoutDisplayFormat("{0:P1}")]
+    public double CpuUsage { get; set; }
+}
+
+[MarkoutSerializable]
+public class DownloadRow
+{
+    public string Name { get; set; } = "";
+    [MarkoutDisplayFormat("{0:N0} downloads")]
+    public long Downloads { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class DownloadReport
+{
+    [MarkoutIgnore]
+    public string? Title { get; set; }
+    [MarkoutSection(Name = "Packages")]
+    public List<DownloadRow>? Packages { get; set; }
+}
+
+[MarkoutContext(typeof(DownloadStats))]
+[MarkoutContext(typeof(DownloadReport))]
+[MarkoutContext(typeof(DownloadRow))]
+public partial class DisplayFormatTestContext : MarkoutSerializerContext
+{
+}
+
+// ShowWhenProperty test types
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class ConditionalReport
+{
+    [MarkoutIgnore]
+    public string? Title { get; set; }
+    public bool ShowDetails { get; set; }
+    public bool ShowSummary { get; set; }
+
+    [MarkoutSection(Name = "Details", ShowWhenProperty = nameof(ShowDetails))]
+    public List<string>? Details { get; set; }
+
+    [MarkoutSection(Name = "Summary", ShowWhenProperty = nameof(ShowSummary))]
+    public List<string>? Summary { get; set; }
+}
+
+[MarkoutContext(typeof(ConditionalReport))]
+[MarkoutContext(typeof(VerifiedPackage))]
+[MarkoutContext(typeof(VerifiedPackageOneLine))]
+[MarkoutContext(typeof(VerifiedPackageList))]
+public partial class ShowWhenTestContext : MarkoutSerializerContext
+{
+}
+
+// MaxItems test types
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class FileReport
+{
+    [MarkoutIgnore]
+    public string? Title { get; set; }
+
+    [MarkoutSection(Name = "Files")]
+    [MarkoutMaxItems(3)]
+    public List<string>? Files { get; set; }
+
+    [MarkoutSection(Name = "Logs")]
+    [MarkoutMaxItems(2, EllipsisFormat = "({0} more items not shown)")]
+    public List<string>? Logs { get; set; }
+}
+
+[MarkoutContext(typeof(FileReport))]
+public partial class MaxItemsTestContext : MarkoutSerializerContext
+{
+}
+
+// TableDisplay test types
+[MarkoutSerializable]
+public class ItemRow
+{
+    public string Name { get; set; } = "";
+    [MarkoutTableDisplay("{0} items")]
+    public int Count { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class InventoryView
+{
+    [MarkoutIgnore]
+    public string? Title { get; set; }
+    [MarkoutSection(Name = "Items")]
+    public List<ItemRow>? Items { get; set; }
+}
+
+[MarkoutContext(typeof(InventoryView))]
+[MarkoutContext(typeof(ItemRow))]
+public partial class TableDisplayTestContext : MarkoutSerializerContext
+{
+}
+
+// --- ShowWhen test types ---
+
+[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+public class VerifiedPackage
+{
+    public string Name { get; set; } = "";
+    public bool IsVerified { get; set; }
+    [MarkoutShowWhen(nameof(IsVerified))]
+    public string? VerifiedBy { get; set; }
+    public bool IsTool { get; set; }
+    [MarkoutShowWhen(nameof(IsTool))]
+    public string? ToolFormat { get; set; }
+}
+
+[MarkoutSerializable]
+public class VerifiedPackageOneLine
+{
+    public string Name { get; set; } = "";
+    public bool IsVerified { get; set; }
+    [MarkoutShowWhen(nameof(IsVerified))]
+    public string? VerifiedBy { get; set; }
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+public class VerifiedPackageList
+{
+    public string Name { get; set; } = "";
+    public bool IsVerified { get; set; }
+    [MarkoutShowWhen(nameof(IsVerified))]
+    public string? VerifiedBy { get; set; }
+}
+
+// --- Link test types ---
+
+[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+public class LinkProjectInfo
+{
+    public string Name { get; set; } = "";
+    [MarkoutLink]
+    public string? Homepage { get; set; }
+    [MarkoutLink(TextProperty = nameof(Name))]
+    public string? Repository { get; set; }
+}
+
+[MarkoutSerializable]
+public class LinkProjectOneLine
+{
+    public string Name { get; set; } = "";
+    [MarkoutLink]
+    public string? Url { get; set; }
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+public class LinkProjectList
+{
+    public string Name { get; set; } = "";
+    [MarkoutLink]
+    public string? Url { get; set; }
+    [MarkoutLink(TextProperty = nameof(Name))]
+    public string? Repository { get; set; }
+}
+
+[MarkoutSerializable]
+public class LinkProjectRow
+{
+    public string Name { get; set; } = "";
+    [MarkoutLink]
+    public string? Url { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class LinkProjectListView
+{
+    [MarkoutIgnore]
+    public string? Title { get; set; }
+    [MarkoutSection(Name = "Projects")]
+    public List<LinkProjectRow>? Projects { get; set; }
+}
+
+[MarkoutContext(typeof(LinkProjectInfo))]
+[MarkoutContext(typeof(LinkProjectOneLine))]
+[MarkoutContext(typeof(LinkProjectList))]
+[MarkoutContext(typeof(LinkProjectListView))]
+[MarkoutContext(typeof(LinkProjectRow))]
+public partial class LinkTestContext : MarkoutSerializerContext
 {
 }

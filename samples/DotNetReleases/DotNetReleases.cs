@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet run
-#:package Markout@0.3.4
+#:package Markout@0.4.0
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -38,9 +38,11 @@ public class ReleasesView
     public string Title { get; set; } = "";
     
     [MarkoutPropertyName("Latest Major")]
+    [MarkoutSkipNull]
     public string? LatestMajor { get; set; }
     
     [MarkoutPropertyName("Latest LTS")]
+    [MarkoutSkipNull]
     public string? LatestLtsMajor { get; set; }
     
     [MarkoutSection(Name = "All Releases")]
@@ -52,6 +54,7 @@ public class ReleaseRow
 {
     public string Version { get; set; } = "";
     public string Type { get; set; } = "";
+    [MarkoutBoolFormat("✓", "✗")]
     public bool Supported { get; set; }
 }
 

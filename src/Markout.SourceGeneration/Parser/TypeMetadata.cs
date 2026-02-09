@@ -123,6 +123,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? SectionFormatProperty { get; }
     public string? SectionFormatterTypeName { get; }
     public string? SectionColumnName { get; }
+    public string? SectionShowWhenProperty { get; }
     public string? ElementTypeName { get; }
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
     public bool ElementHasNestedContent { get; }
@@ -138,6 +139,14 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? JoinSeparator { get; }
     public bool SkipWhenDefault { get; }
     public string? ValueFormatterTypeName { get; }
+    public bool SkipWhenNull { get; }
+    public string? DisplayFormat { get; }
+    public int? MaxItems { get; }
+    public string? MaxItemsEllipsisFormat { get; }
+    public string? TableDisplayFormat { get; }
+    public string? ShowWhenProperty { get; }
+    public bool IsLink { get; }
+    public string? LinkTextProperty { get; }
 
     public PropertyMetadata(
         string name,
@@ -154,6 +163,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? sectionFormatProperty = null,
         string? sectionFormatterTypeName = null,
         string? sectionColumnName = null,
+        string? sectionShowWhenProperty = null,
         string? elementTypeName = null,
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
         bool elementHasNestedContent = false,
@@ -168,7 +178,15 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? customFormat = null,
         string? joinSeparator = null,
         bool skipWhenDefault = false,
-        string? valueFormatterTypeName = null)
+        string? valueFormatterTypeName = null,
+        bool skipWhenNull = false,
+        string? displayFormat = null,
+        int? maxItems = null,
+        string? maxItemsEllipsisFormat = null,
+        string? tableDisplayFormat = null,
+        string? showWhenProperty = null,
+        bool isLink = false,
+        string? linkTextProperty = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -184,6 +202,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionFormatProperty = sectionFormatProperty;
         SectionFormatterTypeName = sectionFormatterTypeName;
         SectionColumnName = sectionColumnName;
+        SectionShowWhenProperty = sectionShowWhenProperty;
         ElementTypeName = elementTypeName;
         ElementProperties = elementProperties;
         ElementHasNestedContent = elementHasNestedContent;
@@ -199,6 +218,14 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         JoinSeparator = joinSeparator;
         SkipWhenDefault = skipWhenDefault;
         ValueFormatterTypeName = valueFormatterTypeName;
+        SkipWhenNull = skipWhenNull;
+        DisplayFormat = displayFormat;
+        MaxItems = maxItems;
+        MaxItemsEllipsisFormat = maxItemsEllipsisFormat;
+        TableDisplayFormat = tableDisplayFormat;
+        ShowWhenProperty = showWhenProperty;
+        IsLink = isLink;
+        LinkTextProperty = linkTextProperty;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -219,6 +246,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionFormatProperty == other.SectionFormatProperty &&
                SectionFormatterTypeName == other.SectionFormatterTypeName &&
                SectionColumnName == other.SectionColumnName &&
+               SectionShowWhenProperty == other.SectionShowWhenProperty &&
                ElementTypeName == other.ElementTypeName &&
                ElementHasNestedContent == other.ElementHasNestedContent &&
                ElementTitleProperty == other.ElementTitleProperty &&
@@ -233,6 +261,14 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                JoinSeparator == other.JoinSeparator &&
                SkipWhenDefault == other.SkipWhenDefault &&
                ValueFormatterTypeName == other.ValueFormatterTypeName &&
+               SkipWhenNull == other.SkipWhenNull &&
+               DisplayFormat == other.DisplayFormat &&
+               MaxItems == other.MaxItems &&
+               MaxItemsEllipsisFormat == other.MaxItemsEllipsisFormat &&
+               TableDisplayFormat == other.TableDisplayFormat &&
+               ShowWhenProperty == other.ShowWhenProperty &&
+               IsLink == other.IsLink &&
+               LinkTextProperty == other.LinkTextProperty &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -245,13 +281,22 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (int)Kind;
             hash = hash * 397 ^ (DisplayName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ SkipWhenDefault.GetHashCode();
+            hash = hash * 397 ^ SkipWhenNull.GetHashCode();
+            hash = hash * 397 ^ (DisplayFormat?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (MaxItems?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (MaxItemsEllipsisFormat?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (TableDisplayFormat?.GetHashCode() ?? 0);
             hash = hash * 397 ^ ElementAutoFields.GetHashCode();
             hash = hash * 397 ^ (int)ElementFieldLayout;
             hash = hash * 397 ^ (SectionIgnoreProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionFormatProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionFormatterTypeName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionColumnName?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (SectionShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (ValueFormatterTypeName?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (ShowWhenProperty?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ IsLink.GetHashCode();
+            hash = hash * 397 ^ (LinkTextProperty?.GetHashCode() ?? 0);
             return hash;
         }
     }

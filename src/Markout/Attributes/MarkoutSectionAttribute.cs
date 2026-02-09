@@ -40,4 +40,10 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// When null, the original property display name is used.
     /// </summary>
     public string? ColumnName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of a boolean property that controls whether this section is rendered.
+    /// When the property value is <c>false</c>, the section is skipped entirely.
+    /// </summary>
+    public string? ShowWhenProperty { get; set; }
 }
