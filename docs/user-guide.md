@@ -3,6 +3,7 @@
 Markout is a source-generated .NET library that serializes objects to clean, readable Markdown. Define your view models with attributes, and Markout generates efficient serialization code at compile time — no reflection, no runtime overhead.
 
 - [Quick Start](#quick-start)
+- [Quick Tweaks](#quick-tweaks)
 - [Defining View Models](#defining-view-models)
 - [Serialization](#serialization)
 - [Scalar Fields](#scalar-fields)
@@ -60,7 +61,19 @@ Output:
 Country: Canada | Temperature: 6.2 | Latitude: 49.2827 | Longitude: -123.1207 | Altitude: 0
 ```
 
-The same data can be rendered differently by changing the `FieldLayout`. For example, `LineBreaks` produces one field per line:
+> This is the [HelloMarkout](../samples/HelloMarkout/HelloMarkout.cs) sample.
+
+Three things are required:
+
+1. **A view model** — a class, optionally decorated with `[MarkoutSerializable]` for customization.
+2. **A context** — a `partial class` inheriting `MarkoutSerializerContext` with `[MarkoutContext(typeof(...))]` for each type.
+3. **A serialize call** — `MarkoutSerializer.Serialize(value, context)`.
+
+The source generator fills in the `partial class` with all the serialization logic at compile time.
+
+## Quick Tweaks
+
+The same city can be rendered differently by changing just the `FieldLayout`. `LineBreaks` puts one field per line:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
@@ -77,7 +90,12 @@ Longitude: -123.1207
 Altitude: 0
 ```
 
-Or `List` renders each field as a bullet item:
+`List` renders each field as a bullet item:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.List)]
+public class CityView { /* same properties */ }
+```
 
 ```markdown
 # Vancouver
@@ -89,15 +107,30 @@ Or `List` renders each field as a bullet item:
 - Altitude: 0
 ```
 
-> This is the [HelloMarkout](../samples/HelloMarkout/HelloMarkout.cs) sample.
+Property-level attributes let you refine individual fields without changing the overall layout:
 
-Three things are required:
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class CityView
+{
+    public string Name { get; set; } = "";
+    public string Country { get; set; } = "";
+    [MarkoutDisplayFormat("{0}°C")]
+    public double Temperature { get; set; }
+    [MarkoutFormat("F4")]
+    public double Latitude { get; set; }
+    [MarkoutFormat("F4")]
+    public double Longitude { get; set; }
+    [MarkoutDisplayFormat("{0}m")]
+    public int Altitude { get; set; }
+}
+```
 
-1. **A view model** — a class, optionally decorated with `[MarkoutSerializable]` for customization.
-2. **A context** — a `partial class` inheriting `MarkoutSerializerContext` with `[MarkoutContext(typeof(...))]` for each type.
-3. **A serialize call** — `MarkoutSerializer.Serialize(value, context)`.
+```markdown
+# Vancouver
 
-The source generator fills in the `partial class` with all the serialization logic at compile time.
+Country: Canada | Temperature: 6.2°C | Latitude: 49.2827 | Longitude: -123.1207 | Altitude: 0m
+```
 
 ## Defining View Models
 
