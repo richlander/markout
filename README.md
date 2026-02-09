@@ -205,7 +205,7 @@ Latest LTS: 10.0
 - **`[MarkoutPropertyName("...")]`** - Custom property display name
 - **`[MarkoutIgnore]`** - Excludes a property from output
 - **`[MarkoutIgnoreInTable]`** - Excludes a property only in table context (silences MARKOUT001 warning)
-- **`[MarkoutSection(Name = "...")]`** - Renders property as H2 section
+- **`[MarkoutSection(Name = "...")]`** - Groups property under an H2 section (scalars grouped by name, collections as tables/lists)
 - **`[MarkoutBoolFormat]`** - Custom true/false display values
 - **`[MarkoutContext(typeof(...))]`** - Registers types for source generation
 

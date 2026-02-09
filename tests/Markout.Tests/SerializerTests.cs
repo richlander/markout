@@ -1076,6 +1076,179 @@ public class SerializerTests
         Assert.Contains("| Return Type |", mdf);
     }
 
+    // --- Scalar section tests ---
+
+    [Fact]
+    public void Serialize_ScalarSection_RendersHeadingAndFields()
+    {
+        var pkg = new PackageWithScalarSection
+        {
+            Name = "MyPackage",
+            TotalDownloads = 1000,
+            VersionDownloads = 200,
+            VersionCount = 5
+        };
+        var mdf = MarkoutSerializer.Serialize(pkg, ScalarSectionTestContext.Default);
+
+        Assert.Contains("# MyPackage", mdf);
+        Assert.Contains("## Statistics", mdf);
+        Assert.Contains("Total Downloads", mdf);
+        Assert.Contains("1000", mdf);
+        Assert.Contains("Version Downloads", mdf);
+        Assert.Contains("Version Count", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_SkipNullHidesEntireSection()
+    {
+        var pkg = new PackageWithScalarSection
+        {
+            Name = "MyPackage",
+            TotalDownloads = null,
+            VersionDownloads = null,
+            VersionCount = null
+        };
+        var mdf = MarkoutSerializer.Serialize(pkg, ScalarSectionTestContext.Default);
+
+        Assert.Contains("# MyPackage", mdf);
+        Assert.DoesNotContain("Statistics", mdf);
+        Assert.DoesNotContain("Total Downloads", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_MultipleSectionGroups()
+    {
+        var view = new MultiSectionView
+        {
+            Name = "TestView",
+            Author = "Alice",
+            License = "MIT",
+            Downloads = 100,
+            Stars = 50
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        Assert.Contains("## Info", mdf);
+        Assert.Contains("Author: Alice", mdf);
+        Assert.Contains("License: MIT", mdf);
+        Assert.Contains("## Stats", mdf);
+        Assert.Contains("Downloads: 100", mdf);
+        Assert.Contains("Stars: 50", mdf);
+
+        // Info should come before Stats
+        var infoIdx = mdf.IndexOf("## Info", StringComparison.Ordinal);
+        var statsIdx = mdf.IndexOf("## Stats", StringComparison.Ordinal);
+        Assert.True(infoIdx < statsIdx);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_MixedWithCollectionSection()
+    {
+        var view = new MixedSectionView
+        {
+            Name = "MixedView",
+            Downloads = 100,
+            Stars = 50,
+            Dependencies = new List<SimpleDep>
+            {
+                new() { Id = "Dep1", Version = "1.0" }
+            }
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        Assert.Contains("## Stats", mdf);
+        Assert.Contains("Downloads: 100", mdf);
+        Assert.Contains("## Dependencies", mdf);
+        Assert.Contains("Dep1", mdf);
+
+        // Stats should come before Dependencies (declaration order)
+        var statsIdx = mdf.IndexOf("## Stats", StringComparison.Ordinal);
+        var depsIdx = mdf.IndexOf("## Dependencies", StringComparison.Ordinal);
+        Assert.True(statsIdx < depsIdx);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_ShowWhenPropertyWrapsGroup()
+    {
+        var view = new ConditionalScalarSection
+        {
+            Name = "TestView",
+            ShowStats = false,
+            Downloads = 100,
+            Stars = 50
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        Assert.DoesNotContain("Stats", mdf);
+        Assert.DoesNotContain("Downloads", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_ShowWhenPropertyTrue()
+    {
+        var view = new ConditionalScalarSection
+        {
+            Name = "TestView",
+            ShowStats = true,
+            Downloads = 100,
+            Stars = 50
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        Assert.Contains("## Stats", mdf);
+        Assert.Contains("Downloads: 100", mdf);
+        Assert.Contains("Stars: 50", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_FormatterAndLinkWork()
+    {
+        var view = new FormattedScalarSection
+        {
+            Name = "TestView",
+            Downloads = 50,
+            Repository = "https://github.com/test"
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        Assert.Contains("## Stats", mdf);
+        Assert.Contains("100", mdf); // DoubleFormatter: 50 * 2
+        Assert.Contains("[https://github.com/test](https://github.com/test)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_LineBreaksLayout()
+    {
+        var view = new ScalarSectionLineBreaks
+        {
+            Name = "TestView",
+            TotalDownloads = 1000,
+            PackageSize = 2048
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        Assert.Contains("## Stats", mdf);
+        Assert.Contains("Total Downloads", mdf);
+        Assert.Contains("1000", mdf);
+        Assert.Contains("Package Size", mdf);
+        Assert.Contains("2048", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_LineBreaksAllNull_HidesSection()
+    {
+        var view = new ScalarSectionLineBreaks
+        {
+            Name = "TestView",
+            TotalDownloads = null,
+            PackageSize = null
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        Assert.DoesNotContain("Stats", mdf);
+        Assert.DoesNotContain("Total Downloads", mdf);
+    }
+
     [Fact]
     public void Serialize_PartialHooks_OnSerializingAndOnSerializedCalled()
     {
@@ -1671,5 +1844,123 @@ public class LinkProjectListView
 [MarkoutContext(typeof(LinkProjectListView))]
 [MarkoutContext(typeof(LinkProjectRow))]
 public partial class LinkTestContext : MarkoutSerializerContext
+{
+}
+
+// --- Scalar section test types ---
+
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
+public class PackageWithScalarSection
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutSection(Name = "Statistics")]
+    [MarkoutSkipNull]
+    [MarkoutPropertyName("Total Downloads")]
+    public long? TotalDownloads { get; set; }
+
+    [MarkoutSection(Name = "Statistics")]
+    [MarkoutSkipNull]
+    [MarkoutPropertyName("Version Downloads")]
+    public long? VersionDownloads { get; set; }
+
+    [MarkoutSection(Name = "Statistics")]
+    [MarkoutSkipNull]
+    [MarkoutPropertyName("Version Count")]
+    public int? VersionCount { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
+public class MultiSectionView
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutSection(Name = "Info")]
+    public string? Author { get; set; }
+
+    [MarkoutSection(Name = "Info")]
+    public string? License { get; set; }
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    public int? Downloads { get; set; }
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    public int? Stars { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
+public class MixedSectionView
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    public int? Downloads { get; set; }
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    public int? Stars { get; set; }
+
+    [MarkoutSection(Name = "Dependencies")]
+    public List<SimpleDep>? Dependencies { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
+public class ConditionalScalarSection
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+    public bool ShowStats { get; set; }
+
+    [MarkoutSection(Name = "Stats", ShowWhenProperty = nameof(ShowStats))]
+    public int Downloads { get; set; }
+
+    [MarkoutSection(Name = "Stats")]
+    public int Stars { get; set; }
+}
+
+public class DoubleFormatter : IMarkoutValueFormatter<long>
+{
+    public string Format(long value) => $"{value * 2}";
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
+public class FormattedScalarSection
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutValueFormatter(typeof(DoubleFormatter))]
+    public long Downloads { get; set; }
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutLink]
+    public string? Repository { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false, FieldLayout = FieldLayout.LineBreaks)]
+public class ScalarSectionLineBreaks
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    [MarkoutPropertyName("Total Downloads")]
+    public long? TotalDownloads { get; set; }
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    [MarkoutPropertyName("Package Size")]
+    public long? PackageSize { get; set; }
+}
+
+[MarkoutContext(typeof(PackageWithScalarSection))]
+[MarkoutContext(typeof(MultiSectionView))]
+[MarkoutContext(typeof(MixedSectionView))]
+[MarkoutContext(typeof(ConditionalScalarSection))]
+[MarkoutContext(typeof(FormattedScalarSection))]
+[MarkoutContext(typeof(ScalarSectionLineBreaks))]
+public partial class ScalarSectionTestContext : MarkoutSerializerContext
 {
 }

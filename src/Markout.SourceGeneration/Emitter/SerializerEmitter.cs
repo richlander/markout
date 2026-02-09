@@ -233,9 +233,18 @@ internal static class SerializerEmitter
     {
         var indent = new string(' ', indentLevel * 4);
 
-        // Separate scalars from non-scalars for field layout handling
-        var scalarProps = new List<PropertyMetadata>();
-        var nonScalarProps = new List<PropertyMetadata>();
+        // Separate into three groups:
+        // 1. rootScalars — scalars without [MarkoutSection] (auto fields at document root)
+        // 2. scalarSectionGroups — scalars WITH [MarkoutSection], grouped by SectionName
+        // 3. compoundProps — collections, trees, nested objects (unchanged)
+        var rootScalars = new List<PropertyMetadata>();
+        var scalarSectionGroups = new List<(string SectionName, List<PropertyMetadata> Props, PropertyMetadata FirstProp)>();
+        var scalarSectionLookup = new Dictionary<string, List<PropertyMetadata>>();
+        var compoundProps = new List<PropertyMetadata>();
+
+        // Track section ordering by first-occurrence index across all section types
+        var sectionOrder = new List<(string SectionName, bool IsScalar)>();
+        var seenSections = new HashSet<string>();
 
         foreach (var prop in properties)
         {
@@ -246,34 +255,146 @@ internal static class SerializerEmitter
             if (!autoFields && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
                 continue;
 
-            if ((EmitHelpers.IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)) && !prop.IsSection)
-                scalarProps.Add(prop);
+            bool isScalarKind = EmitHelpers.IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
+
+            if (isScalarKind && !prop.IsSection)
+            {
+                rootScalars.Add(prop);
+            }
+            else if (isScalarKind && prop.IsSection)
+            {
+                var sectionName = prop.SectionName ?? prop.DisplayName;
+                if (!scalarSectionLookup.TryGetValue(sectionName, out var group))
+                {
+                    group = new List<PropertyMetadata>();
+                    scalarSectionLookup[sectionName] = group;
+                    scalarSectionGroups.Add((sectionName, group, prop));
+                }
+                group.Add(prop);
+
+                if (seenSections.Add(sectionName))
+                    sectionOrder.Add((sectionName, true));
+            }
             else
-                nonScalarProps.Add(prop);
+            {
+                compoundProps.Add(prop);
+                if (prop.IsSection)
+                {
+                    var sectionName = prop.SectionName ?? prop.DisplayName;
+                    if (seenSections.Add(sectionName))
+                        sectionOrder.Add((sectionName, false));
+                }
+            }
         }
 
-        // Emit scalars based on layout
-        if (autoFields && scalarProps.Count > 0)
+        // Emit root scalars (unchanged)
+        if (autoFields && rootScalars.Count > 0)
         {
-            FieldEmitter.EmitScalarsWithLayout(sb, scalarProps, valueExpr, indentLevel, fieldLayout, nestingDepth);
+            FieldEmitter.EmitScalarsWithLayout(sb, rootScalars, valueExpr, indentLevel, fieldLayout, nestingDepth);
         }
 
-        // Emit non-scalar properties (sections, arrays, etc.)
-        foreach (var prop in nonScalarProps)
+        // Build lookup for compound section props by name for ordered emission
+        var compoundSectionProps = new Dictionary<string, List<PropertyMetadata>>();
+        var compoundNonSectionProps = new List<PropertyMetadata>();
+        foreach (var prop in compoundProps)
         {
-            var propAccess = $"{valueExpr}.{prop.Name}";
-            var effectiveSectionLevel = prop.IsSection 
-                ? System.Math.Max(prop.SectionLevel, baseHeadingLevel) 
-                : baseHeadingLevel;
-
             if (prop.IsSection)
             {
-                EmitSectionProperty(sb, prop, propAccess, indent, indentLevel, effectiveSectionLevel, nestingDepth, fieldLayout, rootValueExpr, rootTypeName);
-                continue;
+                var sectionName = prop.SectionName ?? prop.DisplayName;
+                if (!compoundSectionProps.TryGetValue(sectionName, out var list))
+                {
+                    list = new List<PropertyMetadata>();
+                    compoundSectionProps[sectionName] = list;
+                }
+                list.Add(prop);
             }
+            else
+            {
+                compoundNonSectionProps.Add(prop);
+            }
+        }
 
-            // Non-section property handling
+        // Emit sections in declaration order (interleaving scalar and compound sections)
+        foreach (var (sectionName, isScalar) in sectionOrder)
+        {
+            if (isScalar)
+            {
+                var group = scalarSectionGroups.First(g => g.SectionName == sectionName);
+                EmitScalarSectionGroup(sb, group.Props, group.FirstProp, sectionName, valueExpr, indent, indentLevel, baseHeadingLevel, nestingDepth, fieldLayout, rootValueExpr, rootTypeName);
+            }
+            else
+            {
+                if (compoundSectionProps.TryGetValue(sectionName, out var props))
+                {
+                    foreach (var prop in props)
+                    {
+                        var propAccess = $"{valueExpr}.{prop.Name}";
+                        var effectiveSectionLevel = System.Math.Max(prop.SectionLevel, baseHeadingLevel);
+                        EmitSectionProperty(sb, prop, propAccess, indent, indentLevel, effectiveSectionLevel, nestingDepth, fieldLayout, rootValueExpr, rootTypeName);
+                    }
+                }
+            }
+        }
+
+        // Emit remaining compound non-section properties
+        foreach (var prop in compoundNonSectionProps)
+        {
+            var propAccess = $"{valueExpr}.{prop.Name}";
             EmitNonSectionProperty(sb, prop, propAccess, indent, indentLevel, baseHeadingLevel, nestingDepth, fieldLayout);
+        }
+    }
+
+    private static void EmitScalarSectionGroup(
+        StringBuilder sb,
+        List<PropertyMetadata> props,
+        PropertyMetadata firstProp,
+        string sectionName,
+        string valueExpr,
+        string indent,
+        int indentLevel,
+        int baseHeadingLevel,
+        int nestingDepth,
+        FieldLayoutKind fieldLayout,
+        string? rootValueExpr = null,
+        string? rootTypeName = null)
+    {
+        var effectiveSectionLevel = System.Math.Max(firstProp.SectionLevel, baseHeadingLevel);
+
+        // Emit ShowWhenProperty guard if configured (from first property's section config)
+        var showWhenIndent = indent;
+        var showWhenIndentLevel = indentLevel;
+        if (firstProp.SectionShowWhenProperty != null && rootValueExpr != null)
+        {
+            sb.AppendLine($"{indent}if ({rootValueExpr}.{firstProp.SectionShowWhenProperty})");
+            sb.AppendLine($"{indent}{{");
+            showWhenIndent = indent + "    ";
+            showWhenIndentLevel = indentLevel + 1;
+        }
+
+        // Emit per-section hook at top level only
+        if (rootValueExpr != null && rootTypeName != null)
+        {
+            var safeName = new string(sectionName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+            var skipVar = $"__skipSection{safeName}";
+            sb.AppendLine($"{showWhenIndent}var {skipVar} = false;");
+            sb.AppendLine($"{showWhenIndent}OnBeforeSection{safeName}(writer, {rootValueExpr}, ref {skipVar});");
+            sb.AppendLine($"{showWhenIndent}if (!{skipVar})");
+            sb.AppendLine($"{showWhenIndent}{{");
+
+            FieldEmitter.EmitScalarsWithLayout(sb, props, valueExpr, showWhenIndentLevel + 1, fieldLayout, nestingDepth,
+                sectionHeading: sectionName, sectionLevel: effectiveSectionLevel);
+
+            sb.AppendLine($"{showWhenIndent}}}");
+        }
+        else
+        {
+            FieldEmitter.EmitScalarsWithLayout(sb, props, valueExpr, showWhenIndentLevel, fieldLayout, nestingDepth,
+                sectionHeading: sectionName, sectionLevel: effectiveSectionLevel);
+        }
+
+        if (firstProp.SectionShowWhenProperty != null && rootValueExpr != null)
+        {
+            sb.AppendLine($"{indent}}}");
         }
     }
 
@@ -643,6 +764,8 @@ internal static class SerializerEmitter
         if (prop.IsSection)
         {
             var sectionName = prop.SectionName ?? prop.DisplayName;
+            if (EmitHelpers.IsScalarKind(prop.Kind))
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (field)";
             if (prop.Kind == PropertyKind.FieldCollection)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (field table)";
             if (prop.Kind == PropertyKind.ComplexArray)

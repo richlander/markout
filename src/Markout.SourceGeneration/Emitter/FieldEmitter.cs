@@ -16,28 +16,30 @@ internal static class FieldEmitter
         string valueExpr,
         int indentLevel,
         FieldLayoutKind fieldLayout,
-        int nestingDepth = 0)
+        int nestingDepth = 0,
+        string? sectionHeading = null,
+        int sectionLevel = 2)
     {
         switch (fieldLayout)
         {
             case FieldLayoutKind.OneLine:
-                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth);
+                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
                 break;
 
             case FieldLayoutKind.LineBreaks:
-                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: false);
+                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: false, sectionHeading, sectionLevel);
                 break;
 
             case FieldLayoutKind.LineBreaksDoubleSpace:
-                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: true);
+                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: true, sectionHeading, sectionLevel);
                 break;
 
             case FieldLayoutKind.List:
-                EmitListScalars(sb, scalarProps, valueExpr, indentLevel);
+                EmitListScalars(sb, scalarProps, valueExpr, indentLevel, sectionHeading, sectionLevel);
                 break;
 
             default:
-                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth);
+                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
                 break;
         }
     }
@@ -47,7 +49,9 @@ internal static class FieldEmitter
         List<PropertyMetadata> scalarProps,
         string valueExpr,
         int indentLevel,
-        int nestingDepth = 0)
+        int nestingDepth = 0,
+        string? sectionHeading = null,
+        int sectionLevel = 2)
     {
         var indent = new string(' ', indentLevel * 4);
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
@@ -126,7 +130,11 @@ internal static class FieldEmitter
                 }
             }
             sb.AppendLine($"{indent}if ({fieldsVar}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            if (sectionHeading != null)
+                sb.AppendLine($"{indent}    writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
             sb.AppendLine($"{indent}    writer.WriteCompactFields({fieldsVar});");
+            sb.AppendLine($"{indent}}}");
         }
         else
         {
@@ -140,6 +148,8 @@ internal static class FieldEmitter
                 fields.Add($"new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr})");
             }
 
+            if (sectionHeading != null)
+                sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
             sb.AppendLine($"{indent}writer.WriteCompactFields({string.Join(", ", fields)});");
         }
     }
@@ -149,10 +159,30 @@ internal static class FieldEmitter
         List<PropertyMetadata> scalarProps,
         string valueExpr,
         int indentLevel,
-        bool doubleSpace)
+        bool doubleSpace,
+        string? sectionHeading = null,
+        int sectionLevel = 2)
     {
         var indent = new string(' ', indentLevel * 4);
         var methodName = doubleSpace ? "WriteField" : "WriteFieldNoBreak";
+
+        // For LineBreaks layout, all fields are emitted individually so we need a different
+        // strategy for section headings: use a builder flag when any field is conditional,
+        // or emit heading unconditionally when all fields always render.
+        bool anyConditional = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
+            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
+            || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
+
+        string? renderedVar = null;
+        if (sectionHeading != null && anyConditional)
+        {
+            renderedVar = "__sectionRendered";
+            sb.AppendLine($"{indent}var {renderedVar} = false;");
+        }
+        else if (sectionHeading != null)
+        {
+            sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
+        }
 
         foreach (var prop in scalarProps)
         {
@@ -193,55 +223,104 @@ internal static class FieldEmitter
                 }
             }
 
+            // For nullable value types and strings, the condition is emitted inline;
+            // we need to wrap the write call in a block to insert the heading guard.
+            bool isInlineConditional = prop.IsNullableValueType || prop.Kind == PropertyKind.String
+                || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
+
             if (prop.ValueFormatterTypeName != null)
             {
                 if (prop.IsNullableValueType)
                 {
                     sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
-                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}.Value));");
+                    if (renderedVar != null)
+                    {
+                        sb.AppendLine($"{emitIndent}{{");
+                        EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
+                        sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}.Value));");
+                        sb.AppendLine($"{emitIndent}}}");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}.Value));");
+                    }
                 }
                 else
                 {
+                    EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
                     sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}));");
                 }
             }
             else if (prop.IsNullableValueType)
             {
                 sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
+                if (renderedVar != null)
+                {
+                    sb.AppendLine($"{emitIndent}{{");
+                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
+                }
                 if (prop.Kind == PropertyKind.Boolean)
                 {
+                    var writeIndent = renderedVar != null ? emitIndent + "    " : emitIndent + "    ";
                     if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
                     {
-                        sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value ? \"{EmitHelpers.EscapeString(prop.BoolTrueValue)}\" : \"{EmitHelpers.EscapeString(prop.BoolFalseValue)}\");");
+                        sb.AppendLine($"{writeIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value ? \"{EmitHelpers.EscapeString(prop.BoolTrueValue)}\" : \"{EmitHelpers.EscapeString(prop.BoolFalseValue)}\");");
                     }
                     else
                     {
-                        sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
+                        sb.AppendLine($"{writeIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
                     }
                 }
                 else if (prop.CustomFormat != null)
                 {
-                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value.ToString(\"{EmitHelpers.EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
+                    var writeIndent = renderedVar != null ? emitIndent + "    " : emitIndent + "    ";
+                    sb.AppendLine($"{writeIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value.ToString(\"{EmitHelpers.EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
                 }
                 else
                 {
-                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
+                    var writeIndent = renderedVar != null ? emitIndent + "    " : emitIndent + "    ";
+                    sb.AppendLine($"{writeIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
+                }
+                if (renderedVar != null)
+                {
+                    sb.AppendLine($"{emitIndent}}}");
                 }
             }
             else if (prop.Kind == PropertyKind.String)
             {
                 var valueStr = EmitHelpers.WrapWithLink(prop, propAccess, valueExpr);
                 sb.AppendLine($"{emitIndent}if ({propAccess} != null)");
-                sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr});");
+                if (renderedVar != null)
+                {
+                    sb.AppendLine($"{emitIndent}{{");
+                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
+                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr});");
+                    sb.AppendLine($"{emitIndent}}}");
+                }
+                else
+                {
+                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr});");
+                }
             }
             else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
             {
                 var countProp = prop.IsArray ? "Length" : "Count";
                 sb.AppendLine($"{emitIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
-                sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)});");
+                if (renderedVar != null)
+                {
+                    sb.AppendLine($"{emitIndent}{{");
+                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
+                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)});");
+                    sb.AppendLine($"{emitIndent}}}");
+                }
+                else
+                {
+                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)});");
+                }
             }
             else if (prop.Kind == PropertyKind.Boolean)
             {
+                EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
                 if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
                 {
                     sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess} ? \"{EmitHelpers.EscapeString(prop.BoolTrueValue)}\" : \"{EmitHelpers.EscapeString(prop.BoolFalseValue)}\");");
@@ -253,10 +332,12 @@ internal static class FieldEmitter
             }
             else if (prop.CustomFormat != null)
             {
+                EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
                 sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.ToString(\"{EmitHelpers.EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
             }
             else
             {
+                EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
                 sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
             }
 
@@ -275,9 +356,26 @@ internal static class FieldEmitter
         StringBuilder sb,
         List<PropertyMetadata> scalarProps,
         string valueExpr,
-        int indentLevel)
+        int indentLevel,
+        string? sectionHeading = null,
+        int sectionLevel = 2)
     {
         var indent = new string(' ', indentLevel * 4);
+
+        bool anyConditional = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
+            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
+            || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
+
+        string? renderedVar = null;
+        if (sectionHeading != null && anyConditional)
+        {
+            renderedVar = "__sectionRendered";
+            sb.AppendLine($"{indent}var {renderedVar} = false;");
+        }
+        else if (sectionHeading != null)
+        {
+            sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
+        }
 
         foreach (var prop in scalarProps)
         {
@@ -322,25 +420,56 @@ internal static class FieldEmitter
                 var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess, nullable: true);
                 valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
                 sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
-                sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                if (renderedVar != null)
+                {
+                    sb.AppendLine($"{emitIndent}{{");
+                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
+                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                    sb.AppendLine($"{emitIndent}}}");
+                }
+                else
+                {
+                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                }
             }
             else if (prop.Kind == PropertyKind.String)
             {
                 var valueStr = EmitHelpers.WrapWithLink(prop, propAccess, valueExpr);
                 sb.AppendLine($"{emitIndent}if ({propAccess} != null)");
-                sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                if (renderedVar != null)
+                {
+                    sb.AppendLine($"{emitIndent}{{");
+                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
+                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                    sb.AppendLine($"{emitIndent}}}");
+                }
+                else
+                {
+                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                }
             }
             else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
             {
                 var countProp = prop.IsArray ? "Length" : "Count";
                 var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
                 sb.AppendLine($"{emitIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
-                sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                if (renderedVar != null)
+                {
+                    sb.AppendLine($"{emitIndent}{{");
+                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
+                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                    sb.AppendLine($"{emitIndent}}}");
+                }
+                else
+                {
+                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                }
             }
             else
             {
                 var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
                 valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+                EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
                 sb.AppendLine($"{emitIndent}writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
             }
 
@@ -353,5 +482,22 @@ internal static class FieldEmitter
                 sb.AppendLine($"{indent}}}");
             }
         }
+    }
+
+    /// <summary>
+    /// Emits a heading-once guard: if the flag is false, write the heading and set it to true.
+    /// </summary>
+    private static void EmitHeadingOnce(StringBuilder sb, string renderedVar, string heading, int level, string indent)
+    {
+        sb.AppendLine($"{indent}if (!{renderedVar}) {{ writer.WriteHeading({level}, \"{EmitHelpers.EscapeString(heading)}\"); {renderedVar} = true; }}");
+    }
+
+    /// <summary>
+    /// Convenience: emits heading-once guard only when renderedVar is set (conditional section heading).
+    /// </summary>
+    private static void EmitHeadingOnceIfNeeded(StringBuilder sb, string? renderedVar, string? heading, int level, string indent)
+    {
+        if (renderedVar != null)
+            EmitHeadingOnce(sb, renderedVar, heading!, level, indent);
     }
 }

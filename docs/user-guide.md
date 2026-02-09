@@ -30,6 +30,7 @@ var city = new CityView
 {
     Name = "Vancouver",
     Country = "Canada",
+    Population = 2_632_000,
     Temperature = 6.2,
     Latitude = 49.2827,
     Longitude = -123.1207,
@@ -43,10 +44,22 @@ public class CityView
 {
     public string Name { get; set; } = "";
     public string Country { get; set; } = "";
-    public double Temperature { get; set; }
+    [MarkoutDisplayFormat("{0:N0}")]
+    public int Population { get; set; }
+
+    [MarkoutSection(Name = "Geography")]
     public double Latitude { get; set; }
+
+    [MarkoutSection(Name = "Geography")]
     public double Longitude { get; set; }
+
+    [MarkoutSection(Name = "Geography")]
+    [MarkoutPropertyName("Altitude (m)")]
     public int Altitude { get; set; }
+
+    [MarkoutSection(Name = "Geography")]
+    [MarkoutDisplayFormat("{0:0.0} °C")]
+    public double Temperature { get; set; }
 }
 
 [MarkoutContext(typeof(CityView))]
@@ -58,7 +71,11 @@ Output:
 ```markdown
 # Vancouver
 
-Country: Canada | Temperature: 6.2 | Latitude: 49.2827 | Longitude: -123.1207 | Altitude: 0
+Country: Canada | Population: 2,632,000
+
+## Geography
+
+Latitude: 49.2827 | Longitude: -123.1207 | Altitude (m): 0 | Temperature: 6.2 °C
 ```
 
 > This is the [HelloMarkout](../samples/HelloMarkout/HelloMarkout.cs) sample.
@@ -73,7 +90,7 @@ The source generator fills in the `partial class` with all the serialization log
 
 ## Quick Tweaks
 
-The same city can be rendered differently by changing just the `FieldLayout`. `LineBreaks` puts one field per line:
+The same city can be rendered differently by changing just the `FieldLayout`. `LineBreaks` puts one field per line — both top-level fields and within sections:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
@@ -84,10 +101,14 @@ public class CityView { /* same properties */ }
 # Vancouver
 
 Country: Canada
-Temperature: 6.2
+Population: 2,632,000
+
+## Geography
+
 Latitude: 49.2827
 Longitude: -123.1207
-Altitude: 0
+Altitude (m): 0
+Temperature: 6.2 °C
 ```
 
 > **Note:** In standard Markdown, adjacent lines without a blank line between them collapse into a single paragraph when rendered as HTML. `LineBreaksDoubleSpace` avoids this by appending two trailing spaces (`  `) to each line, which Markdown renders as `<br>`. Use `LineBreaks` when you're targeting plain text or terminals; use `LineBreaksDoubleSpace` when your output will be rendered as HTML.
@@ -103,35 +124,14 @@ public class CityView { /* same properties */ }
 # Vancouver
 
 - Country: Canada
-- Temperature: 6.2
+- Population: 2,632,000
+
+## Geography
+
 - Latitude: 49.2827
 - Longitude: -123.1207
-- Altitude: 0
-```
-
-Property-level attributes let you refine individual fields without changing the overall layout. `[MarkoutFormat]` applies a .NET format string — `F4` keeps 4 decimal places while `F2` rounds to 2 — and `[MarkoutDisplayFormat]` wraps the value in surrounding text:
-
-```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name))]
-public class CityView
-{
-    public string Name { get; set; } = "";
-    public string Country { get; set; } = "";
-    [MarkoutDisplayFormat("{0}°C")]
-    public double Temperature { get; set; }
-    [MarkoutFormat("F4")]
-    public double Latitude { get; set; }
-    [MarkoutFormat("F2")]
-    public double Longitude { get; set; }
-    [MarkoutDisplayFormat("{0}m")]
-    public int Altitude { get; set; }
-}
-```
-
-```markdown
-# Vancouver
-
-Country: Canada | Temperature: 6.2°C | Latitude: 49.2827 | Longitude: -123.12 | Altitude: 0m
+- Altitude (m): 0
+- Temperature: 6.2 °C
 ```
 
 ## Defining View Models
@@ -528,7 +528,48 @@ When `IsVerified` is `false`, `VerifiedBy` is not rendered — even if it has a 
 
 ## Sections and Collections
 
-When a property is a `List<T>` of complex objects, it renders as a section with a heading and table. Use `[MarkoutSection]` to name the section:
+Use `[MarkoutSection]` to group properties under a heading. It works on both scalar properties and collections.
+
+### Scalar Sections
+
+When scalar properties share the same section name, they are grouped under a single heading:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
+public class PackageView
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutSection(Name = "Statistics")]
+    [MarkoutSkipNull]
+    [MarkoutValueFormatter(typeof(CompactNumberFormatter))]
+    public long? Downloads { get; set; }
+
+    [MarkoutSection(Name = "Statistics")]
+    [MarkoutSkipNull]
+    [MarkoutValueFormatter(typeof(ByteSizeFormatter))]
+    [MarkoutPropertyName("Package Size")]
+    public long? PackageSize { get; set; }
+}
+```
+
+```markdown
+# System.Text.Json
+
+## Statistics
+
+Downloads: 5.1B | Package Size: 2.1 MB
+```
+
+When all fields in a scalar section are null or skipped, the heading is suppressed entirely — no empty sections appear.
+
+All property-level attributes work within scalar sections: `[MarkoutSkipNull]`, `[MarkoutValueFormatter]`, `[MarkoutFormat]`, `[MarkoutLink]`, `[MarkoutShowWhen]`, etc.
+
+> See the [HelloMarkout](../samples/HelloMarkout/HelloMarkout.cs) sample for a Geography section using scalar properties.
+
+### Collection Sections
+
+When a `List<T>` of complex objects has `[MarkoutSection]`, it renders as a headed table:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title))]
@@ -542,8 +583,6 @@ public class ShowDetailView
     public List<ActorRow>? Cast { get; set; }
 }
 ```
-
-Output:
 
 ```markdown
 # The Expanse
@@ -888,7 +927,7 @@ writer.WriteCodeBlockEnd();
 | `[MarkoutPropertyName("...")]` | Property | Sets the display name for a field or column. |
 | `[MarkoutIgnore]` | Property | Excludes the property from all output. |
 | `[MarkoutIgnoreInTable]` | Property | Excludes the property in table context only. |
-| `[MarkoutSection]` | Property | Renders the property as a headed section. Properties: `Name`, `Level`, `ShowWhenProperty`, `IgnoreProperty`, `FormatProperty`, `Formatter`, `ColumnName`. |
+| `[MarkoutSection]` | Property | Renders the property under a headed section. Works on scalar properties (grouped by name) and collections (tables, lists, trees). Properties: `Name`, `Level`, `ShowWhenProperty`, `IgnoreProperty`, `FormatProperty`, `Formatter`, `ColumnName`. |
 | `[MarkoutBoolFormat("T", "F")]` | Property | Custom true/false display strings. |
 | `[MarkoutFormat("...")]` | Property | .NET format string passed to `ToString()`. |
 | `[MarkoutDisplayFormat("...")]` | Property | Composite format string via `string.Format()`. `{0}` is the value. |
