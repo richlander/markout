@@ -13,6 +13,12 @@ internal static class EmitHelpers
     {
         var access = nullable ? $"{propAccess}.Value" : propAccess;
 
+        // Value formatter takes highest priority
+        if (prop.ValueFormatterTypeName != null)
+        {
+            return $"new {prop.ValueFormatterTypeName}().Format({access})";
+        }
+
         // Joined string array: render as string.Join(separator, collection)
         if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
         {
@@ -53,8 +59,18 @@ internal static class EmitHelpers
 
         if (prop.IsNullableValueType)
         {
+            if (prop.ValueFormatterTypeName != null)
+            {
+                return $"{propAccess}.HasValue ? new {prop.ValueFormatterTypeName}().Format({propAccess}.Value) : \"\"";
+            }
             var valueExpr = GetScalarValueExpression(prop, propAccess, nullable: true);
             return $"{propAccess}.HasValue ? {valueExpr} : \"\"";
+        }
+
+        // Value formatter takes highest priority
+        if (prop.ValueFormatterTypeName != null)
+        {
+            return $"new {prop.ValueFormatterTypeName}().Format({propAccess})";
         }
 
         // Joined string array in table cell

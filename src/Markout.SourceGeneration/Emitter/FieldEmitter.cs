@@ -139,7 +139,19 @@ internal static class FieldEmitter
                 emitIndent = indent + "    ";
             }
 
-            if (prop.IsNullableValueType)
+            if (prop.ValueFormatterTypeName != null)
+            {
+                if (prop.IsNullableValueType)
+                {
+                    sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
+                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}.Value));");
+                }
+                else
+                {
+                    sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}));");
+                }
+            }
+            else if (prop.IsNullableValueType)
             {
                 sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
                 if (prop.Kind == PropertyKind.Boolean)
