@@ -203,10 +203,22 @@ string markdown = SampleContext.Default.Serialize(product);
 
 ### With options
 
+Options can be passed per-call:
+
 ```csharp
 var options = new MarkoutWriterOptions { BoldFieldNames = true };
 string markdown = MarkoutSerializer.Serialize(product, SampleContext.Default, options);
 ```
+
+Or set at compile time on the context class with `[MarkoutContextOptions]`, so every serialization through that context uses them by default:
+
+```csharp
+[MarkoutContextOptions(BoldFieldNames = true, SuppressTableWarnings = true)]
+[MarkoutContext(typeof(ProductView))]
+public partial class SampleContext : MarkoutSerializerContext { }
+```
+
+Per-call options override context-level defaults when both are specified.
 
 Every registered type generates a `Default` singleton on the context class.
 
