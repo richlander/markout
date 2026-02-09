@@ -144,6 +144,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public int? MaxItems { get; }
     public string? MaxItemsEllipsisFormat { get; }
     public string? TableDisplayFormat { get; }
+    public string? ShowWhenProperty { get; }
+    public bool IsLink { get; }
+    public string? LinkTextProperty { get; }
 
     public PropertyMetadata(
         string name,
@@ -180,7 +183,10 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? displayFormat = null,
         int? maxItems = null,
         string? maxItemsEllipsisFormat = null,
-        string? tableDisplayFormat = null)
+        string? tableDisplayFormat = null,
+        string? showWhenProperty = null,
+        bool isLink = false,
+        string? linkTextProperty = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -217,6 +223,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         MaxItems = maxItems;
         MaxItemsEllipsisFormat = maxItemsEllipsisFormat;
         TableDisplayFormat = tableDisplayFormat;
+        ShowWhenProperty = showWhenProperty;
+        IsLink = isLink;
+        LinkTextProperty = linkTextProperty;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -257,6 +266,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                MaxItems == other.MaxItems &&
                MaxItemsEllipsisFormat == other.MaxItemsEllipsisFormat &&
                TableDisplayFormat == other.TableDisplayFormat &&
+               ShowWhenProperty == other.ShowWhenProperty &&
+               IsLink == other.IsLink &&
+               LinkTextProperty == other.LinkTextProperty &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -282,6 +294,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionColumnName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (ValueFormatterTypeName?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (ShowWhenProperty?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ IsLink.GetHashCode();
+            hash = hash * 397 ^ (LinkTextProperty?.GetHashCode() ?? 0);
             return hash;
         }
     }

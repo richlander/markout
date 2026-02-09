@@ -52,7 +52,7 @@ internal static class FieldEmitter
         var indent = new string(' ', indentLevel * 4);
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
             || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
-            || p.SkipWhenDefault || p.SkipWhenNull);
+            || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
         var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
         if (useBuilder)
@@ -62,49 +62,67 @@ internal static class FieldEmitter
             foreach (var prop in scalarProps)
             {
                 var propAccess = $"{valueExpr}.{prop.Name}";
+                var fieldIndent = indent;
+
+                // ShowWhenProperty guard wraps the entire field emission
+                if (prop.ShowWhenProperty != null)
+                {
+                    sb.AppendLine($"{indent}if ({valueExpr}.{prop.ShowWhenProperty})");
+                    sb.AppendLine($"{indent}{{");
+                    fieldIndent = indent + "    ";
+                }
+
                 if (prop.IsNullableValueType)
                 {
                     var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess, nullable: true);
-                    sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
-                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+                    sb.AppendLine($"{fieldIndent}if ({propAccess}.HasValue)");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
                 else if (prop.Kind == PropertyKind.String)
                 {
-                    sb.AppendLine($"{indent}if (!string.IsNullOrEmpty({propAccess}))");
-                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}));");
+                    var valueStr = EmitHelpers.WrapWithLink(prop, propAccess, valueExpr);
+                    sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
                 else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
                 {
                     var countProp = prop.IsArray ? "Length" : "Count";
-                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
-                    sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)}));");
+                    sb.AppendLine($"{fieldIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)}));");
                 }
                 else
                 {
                     var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
                     if (prop.SkipWhenDefault)
                     {
                         var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
-                        sb.AppendLine($"{indent}if ({condition})");
-                        sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                        sb.AppendLine($"{fieldIndent}if ({condition})");
+                        sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                     }
                     else if (prop.SkipWhenNull)
                     {
                         var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
                         if (condition != null)
                         {
-                            sb.AppendLine($"{indent}if ({condition})");
-                            sb.AppendLine($"{indent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                            sb.AppendLine($"{fieldIndent}if ({condition})");
+                            sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                         }
                         else
                         {
-                            sb.AppendLine($"{indent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                            sb.AppendLine($"{fieldIndent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                         }
                     }
                     else
                     {
-                        sb.AppendLine($"{indent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                        sb.AppendLine($"{fieldIndent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                     }
+                }
+
+                if (prop.ShowWhenProperty != null)
+                {
+                    sb.AppendLine($"{indent}}}");
                 }
             }
             sb.AppendLine($"{indent}if ({fieldsVar}.Count > 0)");
@@ -118,6 +136,7 @@ internal static class FieldEmitter
             {
                 var propAccess = $"{valueExpr}.{prop.Name}";
                 var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
+                valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
                 fields.Add($"new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr})");
             }
 
@@ -140,6 +159,15 @@ internal static class FieldEmitter
             var propAccess = $"{valueExpr}.{prop.Name}";
             var emitIndent = indent;
 
+            // ShowWhenProperty wraps the entire field emission
+            bool hasShowWhen = prop.ShowWhenProperty != null;
+            if (hasShowWhen)
+            {
+                sb.AppendLine($"{indent}if ({valueExpr}.{prop.ShowWhenProperty})");
+                sb.AppendLine($"{indent}{{");
+                emitIndent = indent + "    ";
+            }
+
             // Wrap with skip-default or skip-null condition if needed (for types not already conditionally rendered)
             bool needsSkipDefault = prop.SkipWhenDefault && !prop.IsNullableValueType
                 && prop.Kind != PropertyKind.String
@@ -150,18 +178,18 @@ internal static class FieldEmitter
             if (needsSkipDefault)
             {
                 var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
-                sb.AppendLine($"{indent}if ({condition})");
-                sb.AppendLine($"{indent}{{");
-                emitIndent = indent + "    ";
+                sb.AppendLine($"{emitIndent}if ({condition})");
+                sb.AppendLine($"{emitIndent}{{");
+                emitIndent = emitIndent + "    ";
             }
             else if (needsSkipNull)
             {
                 var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
                 if (condition != null)
                 {
-                    sb.AppendLine($"{indent}if ({condition})");
-                    sb.AppendLine($"{indent}{{");
-                    emitIndent = indent + "    ";
+                    sb.AppendLine($"{emitIndent}if ({condition})");
+                    sb.AppendLine($"{emitIndent}{{");
+                    emitIndent = emitIndent + "    ";
                 }
             }
 
@@ -202,8 +230,9 @@ internal static class FieldEmitter
             }
             else if (prop.Kind == PropertyKind.String)
             {
+                var valueStr = EmitHelpers.WrapWithLink(prop, propAccess, valueExpr);
                 sb.AppendLine($"{emitIndent}if ({propAccess} != null)");
-                sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
+                sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr});");
             }
             else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
             {
@@ -233,6 +262,10 @@ internal static class FieldEmitter
 
             if (needsSkipDefault || needsSkipNull)
             {
+                sb.AppendLine($"{(hasShowWhen ? indent + "    " : indent)}}}");
+            }
+            if (hasShowWhen)
+            {
                 sb.AppendLine($"{indent}}}");
             }
         }
@@ -251,6 +284,15 @@ internal static class FieldEmitter
             var propAccess = $"{valueExpr}.{prop.Name}";
             var emitIndent = indent;
 
+            // ShowWhenProperty wraps the entire field emission
+            bool hasShowWhen = prop.ShowWhenProperty != null;
+            if (hasShowWhen)
+            {
+                sb.AppendLine($"{indent}if ({valueExpr}.{prop.ShowWhenProperty})");
+                sb.AppendLine($"{indent}{{");
+                emitIndent = indent + "    ";
+            }
+
             bool needsSkipDefault = prop.SkipWhenDefault && !prop.IsNullableValueType
                 && prop.Kind != PropertyKind.String
                 && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
@@ -260,31 +302,33 @@ internal static class FieldEmitter
             if (needsSkipDefault)
             {
                 var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
-                sb.AppendLine($"{indent}if ({condition})");
-                sb.AppendLine($"{indent}{{");
-                emitIndent = indent + "    ";
+                sb.AppendLine($"{emitIndent}if ({condition})");
+                sb.AppendLine($"{emitIndent}{{");
+                emitIndent = emitIndent + "    ";
             }
             else if (needsSkipNull)
             {
                 var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
                 if (condition != null)
                 {
-                    sb.AppendLine($"{indent}if ({condition})");
-                    sb.AppendLine($"{indent}{{");
-                    emitIndent = indent + "    ";
+                    sb.AppendLine($"{emitIndent}if ({condition})");
+                    sb.AppendLine($"{emitIndent}{{");
+                    emitIndent = emitIndent + "    ";
                 }
             }
 
             if (prop.IsNullableValueType)
             {
                 var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess, nullable: true);
+                valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
                 sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
                 sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
             }
             else if (prop.Kind == PropertyKind.String)
             {
+                var valueStr = EmitHelpers.WrapWithLink(prop, propAccess, valueExpr);
                 sb.AppendLine($"{emitIndent}if ({propAccess} != null)");
-                sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{propAccess}}}\");");
+                sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
             }
             else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
             {
@@ -296,10 +340,15 @@ internal static class FieldEmitter
             else
             {
                 var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
+                valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
                 sb.AppendLine($"{emitIndent}writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
             }
 
             if (needsSkipDefault || needsSkipNull)
+            {
+                sb.AppendLine($"{(hasShowWhen ? indent + "    " : indent)}}}");
+            }
+            if (hasShowWhen)
             {
                 sb.AppendLine($"{indent}}}");
             }

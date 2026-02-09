@@ -26,6 +26,8 @@ internal static class TypeParser
     private const string MarkoutMaxItemsAttribute = "Markout.MarkoutMaxItemsAttribute";
     private const string MarkoutTableDisplayAttribute = "Markout.MarkoutTableDisplayAttribute";
     private const string MarkoutValueFormatterAttribute = "Markout.MarkoutValueFormatterAttribute";
+    private const string MarkoutShowWhenAttribute = "Markout.MarkoutShowWhenAttribute";
+    private const string MarkoutLinkAttribute = "Markout.MarkoutLinkAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -319,6 +321,31 @@ internal static class TypeParser
             tableDisplayFormat = tdf;
         }
 
+        // Parse [MarkoutShowWhen] attribute
+        string? showWhenProperty = null;
+        var showWhenAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutShowWhenAttribute);
+        if (showWhenAttr?.ConstructorArguments.Length > 0 &&
+            showWhenAttr.ConstructorArguments[0].Value is string swpField)
+        {
+            showWhenProperty = swpField;
+        }
+
+        // Parse [MarkoutLink] attribute
+        bool isLink = false;
+        string? linkTextProperty = null;
+        var linkAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutLinkAttribute);
+        if (linkAttr != null)
+        {
+            isLink = true;
+            foreach (var named in linkAttr.NamedArguments)
+            {
+                if (named.Key == "TextProperty" && named.Value.Value is string ltp)
+                    linkTextProperty = ltp;
+            }
+        }
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -381,7 +408,10 @@ internal static class TypeParser
             displayFormat,
             maxItems,
             maxItemsEllipsisFormat,
-            tableDisplayFormat);
+            tableDisplayFormat,
+            showWhenProperty,
+            isLink,
+            linkTextProperty);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

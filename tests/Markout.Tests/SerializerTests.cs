@@ -823,6 +823,131 @@ public class SerializerTests
         Assert.DoesNotContain("42 items", mdf);
     }
 
+    // --- ShowWhen tests ---
+
+    [Fact]
+    public void Serialize_ShowWhen_LineBreaks_ShowsWhenTrue()
+    {
+        var pkg = new VerifiedPackage { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft", IsTool = false, ToolFormat = "global" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.Contains("VerifiedBy: Microsoft", mdf);
+        Assert.DoesNotContain("ToolFormat", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_LineBreaks_HidesWhenFalse()
+    {
+        var pkg = new VerifiedPackage { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft", IsTool = false, ToolFormat = "global" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.DoesNotContain("VerifiedBy", mdf);
+        Assert.DoesNotContain("ToolFormat", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_OneLine_ShowsWhenTrue()
+    {
+        var pkg = new VerifiedPackageOneLine { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.Contains("VerifiedBy: Microsoft", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_OneLine_HidesWhenFalse()
+    {
+        var pkg = new VerifiedPackageOneLine { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.DoesNotContain("VerifiedBy", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_List_ShowsWhenTrue()
+    {
+        var pkg = new VerifiedPackageList { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.Contains("VerifiedBy: Microsoft", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ShowWhen_List_HidesWhenFalse()
+    {
+        var pkg = new VerifiedPackageList { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft" };
+        var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
+
+        Assert.DoesNotContain("VerifiedBy", mdf);
+    }
+
+    // --- Link tests ---
+
+    [Fact]
+    public void Serialize_Link_LineBreaks_BareLink()
+    {
+        var project = new LinkProjectInfo { Name = "Markout", Homepage = "https://github.com/markout" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.Contains("[https://github.com/markout](https://github.com/markout)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_LineBreaks_WithTextProperty()
+    {
+        var project = new LinkProjectInfo { Name = "Markout", Repository = "https://github.com/markout" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.Contains("[Markout](https://github.com/markout)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_LineBreaks_NullSkipped()
+    {
+        var project = new LinkProjectInfo { Name = "Markout" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.DoesNotContain("Homepage", mdf);
+        Assert.DoesNotContain("Repository", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_OneLine_BareLink()
+    {
+        var project = new LinkProjectOneLine { Name = "Markout", Url = "https://example.com" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.Contains("[https://example.com](https://example.com)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_List_BareAndTextProperty()
+    {
+        var project = new LinkProjectList { Name = "Markout", Url = "https://example.com", Repository = "https://github.com/markout" };
+        var mdf = MarkoutSerializer.Serialize(project, LinkTestContext.Default);
+
+        Assert.Contains("[https://example.com](https://example.com)", mdf);
+        Assert.Contains("[Markout](https://github.com/markout)", mdf);
+    }
+
+    [Fact]
+    public void Serialize_Link_InTable()
+    {
+        var view = new LinkProjectListView
+        {
+            Title = "Projects",
+            Projects = new List<LinkProjectRow>
+            {
+                new() { Name = "Alpha", Url = "https://alpha.com" },
+                new() { Name = "Beta", Url = "https://beta.com" }
+            }
+        };
+        var mdf = MarkoutSerializer.Serialize(view, LinkTestContext.Default);
+
+        Assert.Contains("[https://alpha.com](https://alpha.com)", mdf);
+        Assert.Contains("[https://beta.com](https://beta.com)", mdf);
+    }
+
     [Fact]
     public void Serialize_IgnoreProperty_CompactTable_OmitsDescription()
     {
@@ -1409,6 +1534,9 @@ public class ConditionalReport
 }
 
 [MarkoutContext(typeof(ConditionalReport))]
+[MarkoutContext(typeof(VerifiedPackage))]
+[MarkoutContext(typeof(VerifiedPackageOneLine))]
+[MarkoutContext(typeof(VerifiedPackageList))]
 public partial class ShowWhenTestContext : MarkoutSerializerContext
 {
 }
@@ -1455,5 +1583,93 @@ public class InventoryView
 [MarkoutContext(typeof(InventoryView))]
 [MarkoutContext(typeof(ItemRow))]
 public partial class TableDisplayTestContext : MarkoutSerializerContext
+{
+}
+
+// --- ShowWhen test types ---
+
+[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+public class VerifiedPackage
+{
+    public string Name { get; set; } = "";
+    public bool IsVerified { get; set; }
+    [MarkoutShowWhen(nameof(IsVerified))]
+    public string? VerifiedBy { get; set; }
+    public bool IsTool { get; set; }
+    [MarkoutShowWhen(nameof(IsTool))]
+    public string? ToolFormat { get; set; }
+}
+
+[MarkoutSerializable]
+public class VerifiedPackageOneLine
+{
+    public string Name { get; set; } = "";
+    public bool IsVerified { get; set; }
+    [MarkoutShowWhen(nameof(IsVerified))]
+    public string? VerifiedBy { get; set; }
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+public class VerifiedPackageList
+{
+    public string Name { get; set; } = "";
+    public bool IsVerified { get; set; }
+    [MarkoutShowWhen(nameof(IsVerified))]
+    public string? VerifiedBy { get; set; }
+}
+
+// --- Link test types ---
+
+[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+public class LinkProjectInfo
+{
+    public string Name { get; set; } = "";
+    [MarkoutLink]
+    public string? Homepage { get; set; }
+    [MarkoutLink(TextProperty = nameof(Name))]
+    public string? Repository { get; set; }
+}
+
+[MarkoutSerializable]
+public class LinkProjectOneLine
+{
+    public string Name { get; set; } = "";
+    [MarkoutLink]
+    public string? Url { get; set; }
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+public class LinkProjectList
+{
+    public string Name { get; set; } = "";
+    [MarkoutLink]
+    public string? Url { get; set; }
+    [MarkoutLink(TextProperty = nameof(Name))]
+    public string? Repository { get; set; }
+}
+
+[MarkoutSerializable]
+public class LinkProjectRow
+{
+    public string Name { get; set; } = "";
+    [MarkoutLink]
+    public string? Url { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class LinkProjectListView
+{
+    [MarkoutIgnore]
+    public string? Title { get; set; }
+    [MarkoutSection(Name = "Projects")]
+    public List<LinkProjectRow>? Projects { get; set; }
+}
+
+[MarkoutContext(typeof(LinkProjectInfo))]
+[MarkoutContext(typeof(LinkProjectOneLine))]
+[MarkoutContext(typeof(LinkProjectList))]
+[MarkoutContext(typeof(LinkProjectListView))]
+[MarkoutContext(typeof(LinkProjectRow))]
+public partial class LinkTestContext : MarkoutSerializerContext
 {
 }

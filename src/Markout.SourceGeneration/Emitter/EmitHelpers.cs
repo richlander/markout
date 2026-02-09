@@ -117,7 +117,12 @@ internal static class EmitHelpers
     public static string GetTableCellValue(PropertyMetadata prop, string itemExpr)
     {
         var propAccess = $"{itemExpr}.{prop.Name}";
+        var result = GetTableCellValueCore(prop, propAccess, itemExpr);
+        return WrapWithLink(prop, result, itemExpr);
+    }
 
+    private static string GetTableCellValueCore(PropertyMetadata prop, string propAccess, string itemExpr)
+    {
         if (prop.IsNullableValueType)
         {
             if (prop.ValueFormatterTypeName != null)
@@ -188,6 +193,27 @@ internal static class EmitHelpers
             PropertyKind.Formattable => $"((global::Markout.IMarkoutFormattable){propAccess})?.ToMarkoutString() ?? \"\"",
             _ => $"{propAccess}?.ToString() ?? \"\""
         };
+    }
+
+    /// <summary>
+    /// Wraps a value expression with markdown link formatting if the property has [MarkoutLink].
+    /// </summary>
+    /// <param name="prop">The property metadata.</param>
+    /// <param name="innerExpr">The formatted value expression (the URL).</param>
+    /// <param name="parentExpr">The parent object expression, used to access TextProperty.</param>
+    public static string WrapWithLink(PropertyMetadata prop, string innerExpr, string parentExpr)
+    {
+        if (!prop.IsLink)
+            return innerExpr;
+
+        if (prop.LinkTextProperty != null)
+        {
+            // [text](url) where text comes from another property
+            return $"$\"[{{{parentExpr}.{prop.LinkTextProperty}}}]({{{innerExpr}}})\"";
+        }
+
+        // [url](url) — bare link
+        return $"$\"[{{{innerExpr}}}]({{{innerExpr}}})\"";
     }
 
     public static string GetCollectionCountCheck(PropertyMetadata prop, string propAccess)

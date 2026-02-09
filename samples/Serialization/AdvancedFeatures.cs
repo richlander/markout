@@ -59,9 +59,36 @@ public class MetricRow
 }
 #endregion
 
+#region ShowWhenAndLink
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
+public class PackageView
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutLink]
+    [MarkoutSkipNull]
+    public string? Homepage { get; set; }
+
+    [MarkoutLink(TextProperty = nameof(Name))]
+    [MarkoutSkipNull]
+    public string? Repository { get; set; }
+
+    public bool IsVerified { get; set; }
+
+    [MarkoutShowWhen(nameof(IsVerified))]
+    public string? VerifiedBy { get; set; }
+
+    public bool IsTool { get; set; }
+
+    [MarkoutShowWhen(nameof(IsTool))]
+    public string? ToolCommand { get; set; }
+}
+#endregion
+
 [MarkoutContext(typeof(ServerView))]
 [MarkoutContext(typeof(AuditReport))]
 [MarkoutContext(typeof(MetricRow))]
+[MarkoutContext(typeof(PackageView))]
 public partial class AdvancedContext : MarkoutSerializerContext { }
 
 /// <summary>
@@ -127,5 +154,42 @@ public static class AdvancedFeatures
         #endregion
 
         Console.WriteLine(markdown);
+    }
+
+    /// <summary>
+    /// Shows [MarkoutShowWhen] for conditional fields and [MarkoutLink] for URL rendering.
+    /// </summary>
+    public static void ShowWhenAndLinks()
+    {
+        #region ShowWhenAndLinkUsage
+        var pkg = new PackageView
+        {
+            Name = "dotnet-inspect",
+            Homepage = "https://github.com/richlander/dotnet-inspect",
+            Repository = "https://github.com/richlander/dotnet-inspect.git",
+            IsVerified = true,
+            VerifiedBy = "Microsoft",
+            IsTool = true,
+            ToolCommand = "dotnet inspect"
+        };
+
+        string markdown = MarkoutSerializer.Serialize(pkg, AdvancedContext.Default);
+        // Homepage renders as [url](url)
+        // Repository renders as [dotnet-inspect](url) via TextProperty
+        // VerifiedBy shows because IsVerified is true
+        // ToolCommand shows because IsTool is true
+        #endregion
+
+        Console.WriteLine(markdown);
+        Console.WriteLine();
+
+        // With IsVerified=false, IsTool=false — those fields are hidden
+        var basic = new PackageView
+        {
+            Name = "SomeLib",
+            IsVerified = false,
+            IsTool = false
+        };
+        Console.WriteLine(MarkoutSerializer.Serialize(basic, AdvancedContext.Default));
     }
 }
