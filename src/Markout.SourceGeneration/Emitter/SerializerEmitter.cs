@@ -234,10 +234,10 @@ internal static class SerializerEmitter
         var indent = new string(' ', indentLevel * 4);
 
         // Separate into three groups:
-        // 1. ungroupedScalars — scalars without [MarkoutSection] (auto fields)
+        // 1. rootScalars — scalars without [MarkoutSection] (auto fields at document root)
         // 2. scalarSectionGroups — scalars WITH [MarkoutSection], grouped by SectionName
         // 3. compoundProps — collections, trees, nested objects (unchanged)
-        var ungroupedScalars = new List<PropertyMetadata>();
+        var rootScalars = new List<PropertyMetadata>();
         var scalarSectionGroups = new List<(string SectionName, List<PropertyMetadata> Props, PropertyMetadata FirstProp)>();
         var scalarSectionLookup = new Dictionary<string, List<PropertyMetadata>>();
         var compoundProps = new List<PropertyMetadata>();
@@ -259,7 +259,7 @@ internal static class SerializerEmitter
 
             if (isScalarKind && !prop.IsSection)
             {
-                ungroupedScalars.Add(prop);
+                rootScalars.Add(prop);
             }
             else if (isScalarKind && prop.IsSection)
             {
@@ -287,10 +287,10 @@ internal static class SerializerEmitter
             }
         }
 
-        // Emit ungrouped scalars (unchanged)
-        if (autoFields && ungroupedScalars.Count > 0)
+        // Emit root scalars (unchanged)
+        if (autoFields && rootScalars.Count > 0)
         {
-            FieldEmitter.EmitScalarsWithLayout(sb, ungroupedScalars, valueExpr, indentLevel, fieldLayout, nestingDepth);
+            FieldEmitter.EmitScalarsWithLayout(sb, rootScalars, valueExpr, indentLevel, fieldLayout, nestingDepth);
         }
 
         // Build lookup for compound section props by name for ordered emission
