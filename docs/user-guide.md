@@ -74,12 +74,12 @@ For simple row types used in tables, you typically don't need `[MarkoutSerializa
 
 ```csharp
 // No [MarkoutSerializable] needed — registered via [MarkoutContext] on the context class
-public class ReleaseRow
+public class ActorRow
 {
-    public string Version { get; set; } = "";
-    public string Type { get; set; } = "";
-    [MarkoutBoolFormat("✓", "✗")]
-    public bool Supported { get; set; }
+    public string Name { get; set; } = "";
+    public string Birthplace { get; set; } = "";
+    public int BirthYear { get; set; }
+    public string Citizenship { get; set; } = "";
 }
 ```
 
