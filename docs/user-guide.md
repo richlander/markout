@@ -66,10 +66,14 @@ The source generator fills in the `partial class` with all the serialization log
 
 ## Defining View Models
 
-A view model is any class or struct with `[MarkoutSerializable]`. Public properties with getters are serialized automatically.
+Markout has two kinds of attributes: **type-level attributes** on the view model class, and **property-level attributes** on individual properties.
+
+A type becomes serializable when it is registered on a context class with `[MarkoutContext(typeof(T))]`. The `[MarkoutSerializable]` attribute on the type itself is **optional** — use it only when you need to customize behavior like `TitleProperty`, `FieldLayout`, or `AutoFields`. Without it, the type uses sensible defaults (all fields rendered, `OneLine` layout, no title heading).
+
+For simple row types used in tables, you typically don't need `[MarkoutSerializable]`:
 
 ```csharp
-[MarkoutSerializable]
+// No [MarkoutSerializable] needed — registered via [MarkoutContext] on the context class
 public class ReleaseRow
 {
     public string Version { get; set; } = "";
@@ -79,9 +83,7 @@ public class ReleaseRow
 }
 ```
 
-### Title Property
-
-Set `TitleProperty` to render a property as a Markdown heading instead of a field:
+For top-level document types, use `[MarkoutSerializable]` to configure the title, layout, or description:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title))]
@@ -98,7 +100,19 @@ public class ReleasesView
 }
 ```
 
-The title property is rendered as a heading and automatically excluded from the field list — `[MarkoutIgnore]` is not needed. The same applies to `TitleContextProperty` and `DescriptionProperty`.
+All types must be registered on the context class:
+
+```csharp
+[MarkoutContext(typeof(ReleasesView))]
+[MarkoutContext(typeof(ReleaseRow))]
+public partial class ReleasesContext : MarkoutSerializerContext { }
+```
+
+> From the [DotNetReleases](../samples/DotNetReleases/DotNetReleases.cs) sample.
+
+### Title Property
+
+Set `TitleProperty` to render a property as a Markdown `#` heading instead of a field. The title property is automatically excluded from the field list — `[MarkoutIgnore]` is not needed. The same applies to `TitleContextProperty` and `DescriptionProperty`.
 
 ### Title Context Property
 
@@ -795,9 +809,9 @@ writer.WriteCodeBlockEnd();
 
 | Attribute | Target | Purpose |
 |-----------|--------|---------|
-| `[MarkoutSerializable]` | Class/Struct | Marks a type for source generation. Properties: `TitleProperty`, `TitleContextProperty`, `DescriptionProperty`, `AutoFields`, `FieldLayout`. |
-| `[MarkoutContext(typeof(T))]` | Class | Registers a type with a serializer context. Apply multiple times for multiple types. |
-| `[MarkoutContextOptions]` | Class | Sets default options on a context. Properties: `BoldFieldNames`, `IncludeIcons`, `IncludeDescription`, `SuppressTableWarnings`. |
+| `[MarkoutSerializable]` | Class/Struct | **Optional.** Customizes type serialization. Properties: `TitleProperty`, `TitleContextProperty`, `DescriptionProperty`, `AutoFields`, `FieldLayout`. Not needed for simple types — registration via `[MarkoutContext]` is sufficient. |
+| `[MarkoutContext(typeof(T))]` | Context class | **Required.** Registers a type with a serializer context. Apply multiple times for multiple types. |
+| `[MarkoutContextOptions]` | Context class | Sets default options on a context. Properties: `BoldFieldNames`, `IncludeIcons`, `IncludeDescription`, `SuppressTableWarnings`. |
 | `[MarkoutPropertyName("...")]` | Property | Sets the display name for a field or column. |
 | `[MarkoutIgnore]` | Property | Excludes the property from all output. |
 | `[MarkoutIgnoreInTable]` | Property | Excludes the property in table context only. |
