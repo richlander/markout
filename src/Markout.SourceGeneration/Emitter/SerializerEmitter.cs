@@ -242,8 +242,9 @@ internal static class SerializerEmitter
         var scalarSectionLookup = new Dictionary<string, List<PropertyMetadata>>();
         var compoundProps = new List<PropertyMetadata>();
 
-        // Track section ordering by first-occurrence index across all section types
-        var sectionOrder = new List<(string SectionName, bool IsScalar)>();
+        // Track emit ordering by first-occurrence index across all compound property types
+        // SectionName=null for non-section compound props (emitted inline in declaration order)
+        var emitOrder = new List<(string? SectionName, bool IsScalar, PropertyMetadata? NonSectionProp)>();
         var seenSections = new HashSet<string>();
 
         foreach (var prop in properties)
@@ -273,7 +274,7 @@ internal static class SerializerEmitter
                 group.Add(prop);
 
                 if (seenSections.Add(sectionName))
-                    sectionOrder.Add((sectionName, true));
+                    emitOrder.Add((sectionName, true, null));
             }
             else
             {
@@ -282,7 +283,11 @@ internal static class SerializerEmitter
                 {
                     var sectionName = prop.SectionName ?? prop.DisplayName;
                     if (seenSections.Add(sectionName))
-                        sectionOrder.Add((sectionName, false));
+                        emitOrder.Add((sectionName, false, null));
+                }
+                else
+                {
+                    emitOrder.Add((null, false, prop));
                 }
             }
         }
@@ -295,7 +300,6 @@ internal static class SerializerEmitter
 
         // Build lookup for compound section props by name for ordered emission
         var compoundSectionProps = new Dictionary<string, List<PropertyMetadata>>();
-        var compoundNonSectionProps = new List<PropertyMetadata>();
         foreach (var prop in compoundProps)
         {
             if (prop.IsSection)
@@ -308,23 +312,24 @@ internal static class SerializerEmitter
                 }
                 list.Add(prop);
             }
-            else
-            {
-                compoundNonSectionProps.Add(prop);
-            }
         }
 
-        // Emit sections in declaration order (interleaving scalar and compound sections)
-        foreach (var (sectionName, isScalar) in sectionOrder)
+        // Emit compound properties in declaration order (sections, scalar sections, and non-sections interleaved)
+        foreach (var (sectionName, isScalar, nonSectionProp) in emitOrder)
         {
-            if (isScalar)
+            if (nonSectionProp != null)
+            {
+                var propAccess = $"{valueExpr}.{nonSectionProp.Name}";
+                EmitNonSectionProperty(sb, nonSectionProp, propAccess, indent, indentLevel, baseHeadingLevel, nestingDepth, fieldLayout);
+            }
+            else if (isScalar)
             {
                 var group = scalarSectionGroups.First(g => g.SectionName == sectionName);
-                EmitScalarSectionGroup(sb, group.Props, group.FirstProp, sectionName, valueExpr, indent, indentLevel, baseHeadingLevel, nestingDepth, fieldLayout, rootValueExpr, rootTypeName);
+                EmitScalarSectionGroup(sb, group.Props, group.FirstProp, sectionName!, valueExpr, indent, indentLevel, baseHeadingLevel, nestingDepth, fieldLayout, rootValueExpr, rootTypeName);
             }
             else
             {
-                if (compoundSectionProps.TryGetValue(sectionName, out var props))
+                if (compoundSectionProps.TryGetValue(sectionName!, out var props))
                 {
                     foreach (var prop in props)
                     {
@@ -334,13 +339,6 @@ internal static class SerializerEmitter
                     }
                 }
             }
-        }
-
-        // Emit remaining compound non-section properties
-        foreach (var prop in compoundNonSectionProps)
-        {
-            var propAccess = $"{valueExpr}.{prop.Name}";
-            EmitNonSectionProperty(sb, prop, propAccess, indent, indentLevel, baseHeadingLevel, nestingDepth, fieldLayout);
         }
     }
 

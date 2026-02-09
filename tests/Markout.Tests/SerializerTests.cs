@@ -1250,6 +1250,89 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_ScalarSection_FieldCollectionBeforeSectionsPreservesOrder()
+    {
+        var view = new FieldCollectionBeforeSections
+        {
+            Name = "TestPkg",
+            Summary = [new("Version", "1.0"), new("Type", "Library")],
+            Downloads = 500,
+            Stars = 10
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        // Summary (non-section field collection) should appear before the Stats section
+        var summaryIdx = mdf.IndexOf("Version: 1.0");
+        var statsIdx = mdf.IndexOf("## Stats");
+        Assert.True(summaryIdx >= 0, "Summary fields should be present");
+        Assert.True(statsIdx >= 0, "Stats section should be present");
+        Assert.True(summaryIdx < statsIdx, "Summary should appear before Stats section");
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_ExcludeAllSections_FieldCollectionStillRenders()
+    {
+        var view = new FieldCollectionBeforeSections
+        {
+            Name = "TestPkg",
+            Summary = [new("Version", "1.0"), new("Type", "Library")],
+            Downloads = 500,
+            Stars = 10
+        };
+        var context = new ScalarSectionTestContext(new MarkoutWriterOptions { ExcludeSections = ["Stats"] });
+        var mdf = context.Serialize(view);
+
+        // Non-section field collection should render even when all sections are excluded
+        Assert.Contains("Version: 1.0", mdf);
+        Assert.Contains("Type: Library", mdf);
+        // Section should be excluded
+        Assert.DoesNotContain("## Stats", mdf);
+        Assert.DoesNotContain("Downloads", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_ExcludeScalarSection_OtherSectionsRender()
+    {
+        var view = new MixedSectionView
+        {
+            Name = "TestPkg",
+            Downloads = 500,
+            Stars = 10,
+            Dependencies = [new SimpleDep { Id = "Dep1", Version = "1.0" }]
+        };
+        var context = new ScalarSectionTestContext(new MarkoutWriterOptions { ExcludeSections = ["Stats"] });
+        var mdf = context.Serialize(view);
+
+        // Scalar section should be excluded
+        Assert.DoesNotContain("## Stats", mdf);
+        Assert.DoesNotContain("Downloads", mdf);
+        // Collection section should still render
+        Assert.Contains("## Dependencies", mdf);
+        Assert.Contains("Dep1", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_IncludeScalarSection_OnlyThatSectionRenders()
+    {
+        var view = new MixedSectionView
+        {
+            Name = "TestPkg",
+            Downloads = 500,
+            Stars = 10,
+            Dependencies = [new SimpleDep { Id = "Dep1", Version = "1.0" }]
+        };
+        var context = new ScalarSectionTestContext(new MarkoutWriterOptions { IncludeSections = ["Stats"] });
+        var mdf = context.Serialize(view);
+
+        // Scalar section should render
+        Assert.Contains("## Stats", mdf);
+        Assert.Contains("Downloads: 500", mdf);
+        // Collection section should be excluded
+        Assert.DoesNotContain("## Dependencies", mdf);
+        Assert.DoesNotContain("Dep1", mdf);
+    }
+
+    [Fact]
     public void Serialize_PartialHooks_OnSerializingAndOnSerializedCalled()
     {
         PackageWithSectionsMarkoutTypeInfo.OnSerializingCalled = false;
@@ -1955,12 +2038,30 @@ public class ScalarSectionLineBreaks
     public long? PackageSize { get; set; }
 }
 
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
+public class FieldCollectionBeforeSections
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutIgnoreInTable]
+    public List<MarkoutField> Summary { get; set; } = [];
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    public int? Downloads { get; set; }
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    public int? Stars { get; set; }
+}
+
 [MarkoutContext(typeof(PackageWithScalarSection))]
 [MarkoutContext(typeof(MultiSectionView))]
 [MarkoutContext(typeof(MixedSectionView))]
 [MarkoutContext(typeof(ConditionalScalarSection))]
 [MarkoutContext(typeof(FormattedScalarSection))]
 [MarkoutContext(typeof(ScalarSectionLineBreaks))]
+[MarkoutContext(typeof(FieldCollectionBeforeSections))]
 public partial class ScalarSectionTestContext : MarkoutSerializerContext
 {
 }
