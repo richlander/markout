@@ -3,22 +3,28 @@
 
 using Markout;
 
-var product = new ProductView
+var city = new CityView
 {
-    Name = "Widget Pro",
-    Category = "Electronics",
-    Price = 49.99m
+    Name = "Vancouver",
+    Country = "Canada",
+    Temperature = 12.34,
+    Latitude = 49.2827,
+    Longitude = -123.1207,
+    Altitude = 0
 };
 
-MarkoutSerializer.Serialize(product, Console.Out, ProductContext.Default);
+MarkoutSerializer.Serialize(city, Console.Out, CityContext.Default);
 
 [MarkoutSerializable(TitleProperty = nameof(Name))]
-public class ProductView
+public class CityView
 {
     public string Name { get; set; } = "";
-    public string Category { get; set; } = "";
-    public decimal Price { get; set; }
+    public string Country { get; set; } = "";
+    public double Temperature { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public int Altitude { get; set; }
 }
 
-[MarkoutContext(typeof(ProductView))]
-public partial class ProductContext : MarkoutSerializerContext { }
+[MarkoutContext(typeof(CityView))]
+public partial class CityContext : MarkoutSerializerContext { }
