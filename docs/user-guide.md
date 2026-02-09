@@ -90,6 +90,8 @@ Longitude: -123.1207
 Altitude: 0
 ```
 
+> **Note:** In standard Markdown, adjacent lines without a blank line between them collapse into a single paragraph when rendered as HTML. `LineBreaksDoubleSpace` avoids this by appending two trailing spaces (`  `) to each line, which Markdown renders as `<br>`. Use `LineBreaks` when you're targeting plain text or terminals; use `LineBreaksDoubleSpace` when your output will be rendered as HTML.
+
 `List` renders each field as a bullet item:
 
 ```csharp
@@ -107,7 +109,7 @@ public class CityView { /* same properties */ }
 - Altitude: 0
 ```
 
-Property-level attributes let you refine individual fields without changing the overall layout:
+Property-level attributes let you refine individual fields without changing the overall layout. `[MarkoutFormat]` applies a .NET format string — `F4` keeps 4 decimal places while `F2` rounds to 2 — and `[MarkoutDisplayFormat]` wraps the value in surrounding text:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name))]
@@ -119,7 +121,7 @@ public class CityView
     public double Temperature { get; set; }
     [MarkoutFormat("F4")]
     public double Latitude { get; set; }
-    [MarkoutFormat("F4")]
+    [MarkoutFormat("F2")]
     public double Longitude { get; set; }
     [MarkoutDisplayFormat("{0}m")]
     public int Altitude { get; set; }
@@ -129,7 +131,7 @@ public class CityView
 ```markdown
 # Vancouver
 
-Country: Canada | Temperature: 6.2°C | Latitude: 49.2827 | Longitude: -123.1207 | Altitude: 0m
+Country: Canada | Temperature: 6.2°C | Latitude: 49.2827 | Longitude: -123.12 | Altitude: 0m
 ```
 
 ## Defining View Models
