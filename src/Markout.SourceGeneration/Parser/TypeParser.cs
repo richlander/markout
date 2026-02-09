@@ -38,22 +38,11 @@ internal static class TypeParser
 
         var knownTypes = new KnownTypeSymbols(context.SemanticModel.Compilation);
 
-        var types = new List<TypeMetadata>();
-        foreach (var attr in contextAttributes)
-        {
-            if (attr.ConstructorArguments.Length > 0 &&
-                attr.ConstructorArguments[0].Value is INamedTypeSymbol typeArg)
-            {
-                var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation, knownTypes, null, null, null, null);
-                if (typeMeta != null)
-                    types.Add(typeMeta);
-            }
-        }
-
-        // Parse [MarkoutContextOptions] attribute
+        // Parse [MarkoutContextOptions] attribute (before processing types, as options affect type parsing)
         bool? boldFieldNames = null;
         bool? includeIcons = null;
         bool? includeDescription = null;
+        bool suppressTableWarnings = false;
         var optionsAttr = classSymbol.GetAttributes()
             .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutContextOptionsAttribute);
         if (optionsAttr != null)
@@ -66,6 +55,20 @@ internal static class TypeParser
                     includeIcons = ii;
                 else if (named.Key == "IncludeDescription" && named.Value.Value is bool id)
                     includeDescription = id;
+                else if (named.Key == "SuppressTableWarnings" && named.Value.Value is bool stw)
+                    suppressTableWarnings = stw;
+            }
+        }
+
+        var types = new List<TypeMetadata>();
+        foreach (var attr in contextAttributes)
+        {
+            if (attr.ConstructorArguments.Length > 0 &&
+                attr.ConstructorArguments[0].Value is INamedTypeSymbol typeArg)
+            {
+                var typeMeta = ParseTypeSymbol(typeArg, context.SemanticModel.Compilation, knownTypes, null, null, null, null, suppressTableWarnings: suppressTableWarnings);
+                if (typeMeta != null)
+                    types.Add(typeMeta);
             }
         }
 
@@ -73,7 +76,7 @@ internal static class TypeParser
             ? string.Empty
             : classSymbol.ContainingNamespace.ToDisplayString();
 
-        return new ContextMetadata(ns, classSymbol.Name, types, boldFieldNames, includeIcons, includeDescription);
+        return new ContextMetadata(ns, classSymbol.Name, types, boldFieldNames, includeIcons, includeDescription, suppressTableWarnings);
     }
 
     private static TypeMetadata? ParseTypeSymbol(
@@ -84,7 +87,8 @@ internal static class TypeParser
         string? titleContextProperty = null,
         string? descriptionProperty = null,
         bool? autoFields = null,
-        FieldLayoutKind? fieldLayout = null)
+        FieldLayoutKind? fieldLayout = null,
+        bool suppressTableWarnings = false)
     {
         // If titleProperty/descriptionProperty not passed, try to get them from the type's [MarkoutSerializable] attribute
         if (titleProperty == null || titleContextProperty == null || descriptionProperty == null || autoFields == null || fieldLayout == null)
@@ -152,6 +156,11 @@ internal static class TypeParser
             ? string.Empty
             : typeSymbol.ContainingNamespace.ToDisplayString();
 
+        // Filter out MARKOUT001 warnings when SuppressTableWarnings is enabled
+        var filteredDiagnostics = suppressTableWarnings
+            ? diagnostics.Where(d => d.Descriptor.Id != "MARKOUT001").ToList()
+            : diagnostics;
+
         return new TypeMetadata(
             ns,
             typeSymbol.Name,
@@ -163,7 +172,7 @@ internal static class TypeParser
             descriptionProperty,
             autoFields.Value,
             fieldLayout.Value,
-            diagnostics);
+            filteredDiagnostics);
     }
 
     private static PropertyMetadata? ParseProperty(

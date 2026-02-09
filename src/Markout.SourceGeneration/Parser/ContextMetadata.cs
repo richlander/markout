@@ -14,9 +14,11 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
     public bool? BoldFieldNames { get; }
     public bool? IncludeIcons { get; }
     public bool? IncludeDescription { get; }
+    public bool SuppressTableWarnings { get; }
 
     public ContextMetadata(string @namespace, string className, IReadOnlyList<TypeMetadata> types,
-        bool? boldFieldNames = null, bool? includeIcons = null, bool? includeDescription = null)
+        bool? boldFieldNames = null, bool? includeIcons = null, bool? includeDescription = null,
+        bool suppressTableWarnings = false)
     {
         Namespace = @namespace;
         ClassName = className;
@@ -24,6 +26,7 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
         BoldFieldNames = boldFieldNames;
         IncludeIcons = includeIcons;
         IncludeDescription = includeDescription;
+        SuppressTableWarnings = suppressTableWarnings;
     }
 
     public bool Equals(ContextMetadata? other)
@@ -35,6 +38,7 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
                BoldFieldNames == other.BoldFieldNames &&
                IncludeIcons == other.IncludeIcons &&
                IncludeDescription == other.IncludeDescription &&
+               SuppressTableWarnings == other.SuppressTableWarnings &&
                SequenceEqual(Types, other.Types);
     }
 
@@ -47,6 +51,7 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
             hash = hash * 397 ^ (BoldFieldNames?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (IncludeIcons?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (IncludeDescription?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ SuppressTableWarnings.GetHashCode();
             foreach (var type in Types)
                 hash = hash * 397 ^ type.GetHashCode();
             return hash;
