@@ -1250,6 +1250,26 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_ScalarSection_FieldCollectionBeforeSectionsPreservesOrder()
+    {
+        var view = new FieldCollectionBeforeSections
+        {
+            Name = "TestPkg",
+            Summary = [new("Version", "1.0"), new("Type", "Library")],
+            Downloads = 500,
+            Stars = 10
+        };
+        var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
+
+        // Summary (non-section field collection) should appear before the Stats section
+        var summaryIdx = mdf.IndexOf("Version: 1.0");
+        var statsIdx = mdf.IndexOf("## Stats");
+        Assert.True(summaryIdx >= 0, "Summary fields should be present");
+        Assert.True(statsIdx >= 0, "Stats section should be present");
+        Assert.True(summaryIdx < statsIdx, "Summary should appear before Stats section");
+    }
+
+    [Fact]
     public void Serialize_PartialHooks_OnSerializingAndOnSerializedCalled()
     {
         PackageWithSectionsMarkoutTypeInfo.OnSerializingCalled = false;
@@ -1955,12 +1975,30 @@ public class ScalarSectionLineBreaks
     public long? PackageSize { get; set; }
 }
 
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
+public class FieldCollectionBeforeSections
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutIgnoreInTable]
+    public List<MarkoutField> Summary { get; set; } = [];
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    public int? Downloads { get; set; }
+
+    [MarkoutSection(Name = "Stats")]
+    [MarkoutSkipNull]
+    public int? Stars { get; set; }
+}
+
 [MarkoutContext(typeof(PackageWithScalarSection))]
 [MarkoutContext(typeof(MultiSectionView))]
 [MarkoutContext(typeof(MixedSectionView))]
 [MarkoutContext(typeof(ConditionalScalarSection))]
 [MarkoutContext(typeof(FormattedScalarSection))]
 [MarkoutContext(typeof(ScalarSectionLineBreaks))]
+[MarkoutContext(typeof(FieldCollectionBeforeSections))]
 public partial class ScalarSectionTestContext : MarkoutSerializerContext
 {
 }
