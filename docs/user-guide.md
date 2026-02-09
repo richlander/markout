@@ -60,6 +60,32 @@ Output:
 Country: Canada | Temperature: 6.2 | Latitude: 49.2827 | Longitude: -123.1207 | Altitude: 0
 ```
 
+The same data can be rendered differently by changing the `FieldLayout`. For example, switching to `LineBreaks` produces one field per line:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
+public class CityView { /* same properties */ }
+```
+
+```markdown
+# Vancouver
+
+Country: Canada
+Temperature: 6.2
+Latitude: 49.2827
+Longitude: -123.1207
+Altitude: 0
+```
+
+Or as a list of cities in a parent view, Markout renders them as a table:
+
+```markdown
+| Name | Country | Temperature | Latitude | Longitude | Altitude |
+|------|---------|-------------|----------|-----------|----------|
+| Vancouver | Canada | 6.2 | 49.2827 | -123.1207 | 0 |
+| Tokyo | Japan | 15.4 | 35.6762 | 139.6503 | 40 |
+```
+
 > This is the [HelloMarkout](../samples/HelloMarkout/HelloMarkout.cs) sample.
 
 Three things are required:
