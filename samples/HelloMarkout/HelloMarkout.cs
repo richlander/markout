@@ -7,7 +7,7 @@ var city = new CityView
 {
     Name = "Vancouver",
     Country = "Canada",
-    Temperature = 12.34,
+    Temperature = 6.2,
     Latitude = 49.2827,
     Longitude = -123.1207,
     Altitude = 0
