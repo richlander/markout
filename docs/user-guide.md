@@ -89,6 +89,8 @@ public class ActorRow
 }
 ```
 
+> From the [CanadianContent](../samples/CanadianContent/CanadianContent.cs) sample.
+
 For top-level document types, use `[MarkoutSerializable]` to configure the title, layout, or description:
 
 ```csharp
