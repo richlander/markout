@@ -87,7 +87,6 @@ Set `TitleProperty` to render a property as a Markdown heading instead of a fiel
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class ReleasesView
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutPropertyName("Latest Major")]
@@ -99,7 +98,7 @@ public class ReleasesView
 }
 ```
 
-The title property is consumed by the heading and excluded from the field list. Use `[MarkoutIgnore]` to suppress the redundant field.
+The title property is rendered as a heading and automatically excluded from the field list — `[MarkoutIgnore]` is not needed. The same applies to `TitleContextProperty` and `DescriptionProperty`.
 
 ### Title Context Property
 
@@ -136,7 +135,6 @@ By default, all scalar properties are rendered as fields (`AutoFields = true`). 
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
 public class AuditReport
 {
-    [MarkoutIgnore]
     public string? Title { get; set; }
 
     public bool HasWarnings { get; set; }
@@ -210,12 +208,14 @@ public string FilmingLocation { get; set; } = "";
 
 ### Ignoring Properties
 
-Use `[MarkoutIgnore]` to exclude a property entirely:
+Use `[MarkoutIgnore]` to exclude a property from all output. This is useful for properties that drive logic but shouldn't appear in the rendered Markdown:
 
 ```csharp
 [MarkoutIgnore]
-public string Title { get; set; } = "";
+public string InternalId { get; set; } = "";
 ```
+
+> **Note:** Properties named by `TitleProperty`, `TitleContextProperty`, or `DescriptionProperty` are automatically excluded from the field list — you do not need `[MarkoutIgnore]` on them.
 
 Use `[MarkoutIgnoreInTable]` to exclude a property only in table context (when the type is rendered as a row in a parent's table):
 
@@ -436,7 +436,6 @@ When a property is a `List<T>` of complex objects, it renders as a section with 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class CanConOverview
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutSection(Name = "Actors")]
