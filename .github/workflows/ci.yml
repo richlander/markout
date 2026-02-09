@@ -60,6 +60,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
       - name: Restore
         run: dotnet restore
 
@@ -78,42 +86,20 @@ jobs:
           name: packages
           path: artifacts/package/release/*.nupkg
 
-  smoke-test:
-    needs: [changes, markdownlint]
-    if: always() && needs.changes.outputs.code == 'true' && needs.markdownlint.result != 'failure'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install markdownlint-cli
-        run: npm install -g markdownlint-cli
-
-      - name: Build
-        run: dotnet build
-
       - name: Run demos and validate with markdownlint
         run: |
           set -e
+          demo=artifacts/bin/Markout.Demo/release/Markout.Demo
           
           # Get available demos dynamically (filter to just demo names)
-          demos=$(dotnet run --project src/Markout.Demo --no-build | grep -E '^\s+\w+$' | tr -d ' ')
+          demos=$($demo | grep -E '^\s+\w+$' | tr -d ' ')
           echo "Available demos: $demos"
           
           # Run each demo and lint output
-          for demo in $demos; do
-            echo "Running demo: $demo"
-            output="demo-${demo}.md"
-            dotnet run --project src/Markout.Demo --no-build -- $demo > "$output"
+          for name in $demos; do
+            echo "Running demo: $name"
+            output="demo-${name}.md"
+            $demo $name > "$output"
             markdownlint "$output"
           done
           
