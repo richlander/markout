@@ -28,3 +28,6 @@ MD033: false
 
 # Emphasis as heading OK (bold tagline in README)
 MD036: false
+
+# Spaces inside code spans OK (trailing `  ` examples in docs)
+MD038: false
