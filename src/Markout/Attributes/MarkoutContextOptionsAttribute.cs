@@ -33,4 +33,13 @@ public sealed class MarkoutContextOptionsAttribute : Attribute
     /// Default is true.
     /// </summary>
     public bool IncludeDescription { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to suppress MARKOUT001 warnings for properties
+    /// that are unsupported in table context. Useful when domain model types
+    /// from external libraries are processed transitively and cannot be annotated
+    /// with [MarkoutIgnoreInTable].
+    /// Default is false.
+    /// </summary>
+    public bool SuppressTableWarnings { get; set; }
 }
