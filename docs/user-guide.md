@@ -468,41 +468,30 @@ When a property is a `List<T>` of complex objects, it renders as a section with 
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class CanConOverview
+public class ShowDetailView
 {
     public string Title { get; set; } = "";
+    public string Type { get; set; } = "";
+    public string Years { get; set; } = "";
 
-    [MarkoutSection(Name = "Actors")]
-    [MarkoutMaxItems(5)]
-    public List<ActorRow>? Actors { get; set; }
-
-    [MarkoutSection(Name = "Shows")]
-    [MarkoutMaxItems(5)]
-    public List<ShowRow>? Shows { get; set; }
+    [MarkoutSection(Name = "Canadian Cast")]
+    public List<ActorRow>? Cast { get; set; }
 }
 ```
 
 Output:
 
 ```markdown
-# Canadian Content Database
+# The Expanse
 
-## Actors
+Type: TV Series | Years: 2015-2022
+
+## Canadian Cast
 
 | Name | Birthplace | Born | Citizenship |
 |------|------------|------|-------------|
-| Ryan Gosling | London, Ontario | 1980 | Canadian |
-| Ryan Reynolds | Vancouver, BC | 1976 | Canadian, American |
-
-... and 3 more
-
-## Shows
-
-| Title | Type | Years | Filmed In |
-|-------|------|-------|-----------|
-| The Expanse | TV Series | 2015-2022 | Toronto |
-
-... and 4 more
+| Cara Gee | Calgary, Alberta | 1983 | Canadian |
+| Keon Alexander | Toronto, Ontario | 1986 | Canadian |
 ```
 
 > From the [CanadianContent](../samples/CanadianContent/CanadianContent.cs) sample.
