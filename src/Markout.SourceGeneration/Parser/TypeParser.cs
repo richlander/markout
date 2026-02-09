@@ -21,6 +21,7 @@ internal static class TypeParser
     private const string MarkoutFormatAttribute = "Markout.MarkoutFormatAttribute";
     private const string MarkoutJoinAttribute = "Markout.MarkoutJoinAttribute";
     private const string MarkoutSkipDefaultAttribute = "Markout.MarkoutSkipDefaultAttribute";
+    private const string MarkoutValueFormatterAttribute = "Markout.MarkoutValueFormatterAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -247,6 +248,16 @@ internal static class TypeParser
             customFormat = fmt;
         }
 
+        // Parse [MarkoutValueFormatter] attribute
+        string? valueFormatterTypeName = null;
+        var valueFormatterAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutValueFormatterAttribute);
+        if (valueFormatterAttr?.ConstructorArguments.Length > 0 &&
+            valueFormatterAttr.ConstructorArguments[0].Value is INamedTypeSymbol valueFormatterType)
+        {
+            valueFormatterTypeName = valueFormatterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        }
+
         // Parse [MarkoutJoin] attribute
         string? joinSeparator = null;
         var joinAttr = prop.GetAttributes()
@@ -316,7 +327,8 @@ internal static class TypeParser
             isArray,
             customFormat,
             joinSeparator,
-            skipWhenDefault);
+            skipWhenDefault,
+            valueFormatterTypeName);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

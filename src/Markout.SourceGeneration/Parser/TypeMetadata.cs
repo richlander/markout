@@ -137,6 +137,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? CustomFormat { get; }
     public string? JoinSeparator { get; }
     public bool SkipWhenDefault { get; }
+    public string? ValueFormatterTypeName { get; }
 
     public PropertyMetadata(
         string name,
@@ -166,7 +167,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         bool isArray = false,
         string? customFormat = null,
         string? joinSeparator = null,
-        bool skipWhenDefault = false)
+        bool skipWhenDefault = false,
+        string? valueFormatterTypeName = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -196,6 +198,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         CustomFormat = customFormat;
         JoinSeparator = joinSeparator;
         SkipWhenDefault = skipWhenDefault;
+        ValueFormatterTypeName = valueFormatterTypeName;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -229,6 +232,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                CustomFormat == other.CustomFormat &&
                JoinSeparator == other.JoinSeparator &&
                SkipWhenDefault == other.SkipWhenDefault &&
+               ValueFormatterTypeName == other.ValueFormatterTypeName &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -247,6 +251,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionFormatProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionFormatterTypeName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionColumnName?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (ValueFormatterTypeName?.GetHashCode() ?? 0);
             return hash;
         }
     }
