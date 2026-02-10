@@ -2,6 +2,7 @@
   <PropertyGroup>
     <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Authors>Richard Lander</Authors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
