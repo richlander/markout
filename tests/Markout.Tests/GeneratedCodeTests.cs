@@ -1,7 +1,6 @@
 using System.IO;
 using System.Linq;
 using Markout;
-using Xunit;
 
 namespace Markout.Tests;
 

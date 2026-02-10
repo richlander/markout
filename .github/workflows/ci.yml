@@ -75,7 +75,7 @@ jobs:
         run: dotnet build -c Release -p:OfficialBuild=true --no-restore
 
       - name: Test
-        run: dotnet test -c Release --no-build --verbosity normal
+        run: dotnet run --project tests/Markout.Tests -c Release
 
       - name: Pack
         run: dotnet pack -c Release -p:OfficialBuild=true --no-build
