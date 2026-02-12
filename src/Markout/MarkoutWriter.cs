@@ -13,7 +13,7 @@ namespace Markout;
 /// </example>
 /// <seealso href="../../samples/Serialization/WriterUsage.cs">Direct writer usage examples</seealso>
 /// <seealso href="../../samples/Serialization/SectionFiltering.cs">Section filtering examples</seealso>
-public sealed class MarkoutWriter
+public class MarkoutWriter
 {
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
 
@@ -110,6 +110,36 @@ public sealed class MarkoutWriter
         MarkoutRenderContext.Block;
 
     /// <summary>
+    /// Gets the underlying TextWriter. Available to subclasses for custom rendering.
+    /// </summary>
+    protected TextWriter Writer => _writer;
+
+    /// <summary>
+    /// Gets the writer options. Available to subclasses for reading configuration.
+    /// </summary>
+    protected MarkoutWriterOptions Options => _options;
+
+    /// <summary>
+    /// Gets or sets whether a blank line is needed before the next content.
+    /// </summary>
+    protected bool NeedsBlankLine { get => _needsBlankLine; set => _needsBlankLine = value; }
+
+    /// <summary>
+    /// Gets or sets whether any content has been written.
+    /// </summary>
+    protected bool HasContent { get => _hasContent; set => _hasContent = value; }
+
+    /// <summary>
+    /// Gets whether output is currently inside a table.
+    /// </summary>
+    protected bool InTable => _inTable;
+
+    /// <summary>
+    /// Gets whether the current section is excluded by filtering.
+    /// </summary>
+    protected bool SectionExcluded => _sectionExcluded;
+
+    /// <summary>
     /// Flushes any buffered output to the underlying stream.
     /// </summary>
     public void Flush() => _writer.Flush();
@@ -126,7 +156,11 @@ public sealed class MarkoutWriter
         return true;
     }
 
-    private void WriteFormattedValue<T>(T value) where T : ISpanFormattable
+    /// <summary>
+    /// Writes a formatted value using ISpanFormattable.
+    /// Available to subclasses for custom rendering.
+    /// </summary>
+    protected void WriteFormattedValue<T>(T value) where T : ISpanFormattable
     {
         // Use ISO 8601 round-trip format for date/time types
         ReadOnlySpan<char> format = value is DateTime or DateTimeOffset ? "O" : default;
@@ -137,7 +171,11 @@ public sealed class MarkoutWriter
             _writer.Write(value.ToString(format.ToString(), CultureInfo.InvariantCulture));
     }
 
-    private void WriteFieldName(string key)
+    /// <summary>
+    /// Writes a field name with optional bold formatting.
+    /// Override to customize how field names are rendered.
+    /// </summary>
+    protected virtual void WriteFieldName(string key)
     {
         if (BoldFieldNames)
         {
@@ -168,17 +206,12 @@ public sealed class MarkoutWriter
     /// <param name="level">Heading level (1-6).</param>
     /// <param name="text">Heading text.</param>
     /// <param name="context">Optional context to append in parentheses.</param>
-    public void WriteHeading(int level, string text, string? context)
+    public virtual void WriteHeading(int level, string text, string? context)
     {
         if (level < 1 || level > 6)
             throw new ArgumentOutOfRangeException(nameof(level), "Heading level must be between 1 and 6.");
 
-        // H2 starts a new section
-        if (level == 2)
-        {
-            _currentSectionName = text;
-            _sectionExcluded = !IsSectionIncluded();
-        }
+        UpdateSectionState(level, text);
 
         if (_sectionExcluded)
             return;
@@ -209,7 +242,7 @@ public sealed class MarkoutWriter
     /// Writes a paragraph of text.
     /// </summary>
     /// <param name="text">The paragraph text.</param>
-    public void WriteParagraph(string? text)
+    public virtual void WriteParagraph(string? text)
     {
         if (string.IsNullOrEmpty(text) || _sectionExcluded)
             return;
@@ -224,7 +257,7 @@ public sealed class MarkoutWriter
     /// Starts a code block with optional language specifier.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if already inside a code block.</exception>
-    public void WriteCodeBlockStart(string? language = null)
+    public virtual void WriteCodeBlockStart(string? language = null)
     {
         if (_inCodeBlock)
             throw new InvalidOperationException("Cannot nest code blocks. End the current code block before starting a new one.");
@@ -248,7 +281,7 @@ public sealed class MarkoutWriter
     /// Ends a code block.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if not inside a code block.</exception>
-    public void WriteCodeBlockEnd()
+    public virtual void WriteCodeBlockEnd()
     {
         if (!_inCodeBlock)
             throw new InvalidOperationException("Cannot end a code block without starting one first.");
@@ -266,7 +299,7 @@ public sealed class MarkoutWriter
     /// Writes a key-value field with a string value.
     /// Uses trailing spaces for markdown hard line break.
     /// </summary>
-    public void WriteField(string key, string? value)
+    public virtual void WriteField(string key, string? value)
     {
         if (_sectionExcluded)
             return;
@@ -282,7 +315,7 @@ public sealed class MarkoutWriter
     /// Writes a key-value field with a boolean value (yes/no).
     /// Uses trailing spaces for markdown hard line break.
     /// </summary>
-    public void WriteField(string key, bool value)
+    public virtual void WriteField(string key, bool value)
     {
         if (_sectionExcluded)
             return;
@@ -298,7 +331,7 @@ public sealed class MarkoutWriter
     /// Writes a key-value field with a formattable value (int, long, double, decimal, DateTime, DateTimeOffset, etc.).
     /// Uses trailing spaces for markdown hard line break.
     /// </summary>
-    public void WriteField<T>(string key, T value) where T : ISpanFormattable
+    public virtual void WriteField<T>(string key, T value) where T : ISpanFormattable
     {
         if (_sectionExcluded)
             return;
@@ -314,7 +347,7 @@ public sealed class MarkoutWriter
     /// Writes a key-value field without trailing spaces (no markdown soft break).
     /// Use for LineBreaks layout where each field is on its own line.
     /// </summary>
-    public void WriteFieldNoBreak(string key, string? value)
+    public virtual void WriteFieldNoBreak(string key, string? value)
     {
         if (_sectionExcluded)
             return;
@@ -329,7 +362,7 @@ public sealed class MarkoutWriter
     /// Writes a key-value field without trailing spaces (no markdown soft break).
     /// Use for LineBreaks layout where each field is on its own line.
     /// </summary>
-    public void WriteFieldNoBreak(string key, bool value)
+    public virtual void WriteFieldNoBreak(string key, bool value)
     {
         if (_sectionExcluded)
             return;
@@ -344,7 +377,7 @@ public sealed class MarkoutWriter
     /// Writes a key-value field without trailing spaces (no markdown soft break).
     /// Use for LineBreaks layout where each field is on its own line.
     /// </summary>
-    public void WriteFieldNoBreak<T>(string key, T value) where T : ISpanFormattable
+    public virtual void WriteFieldNoBreak<T>(string key, T value) where T : ISpanFormattable
     {
         if (_sectionExcluded)
             return;
@@ -359,7 +392,7 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Writes a single bullet list item.
     /// </summary>
-    public void WriteListItem(string text)
+    public virtual void WriteListItem(string text)
     {
         if (_sectionExcluded)
             return;
@@ -384,7 +417,7 @@ public sealed class MarkoutWriter
     /// // Output: Type: Library | TFM: net8.0 | Updated: 2026-01-15
     /// </code>
     /// </example>
-    public void WriteCompactFields(params ReadOnlySpan<MarkoutField> fields)
+    public virtual void WriteCompactFields(params MarkoutField[] fields)
     {
         if (_sectionExcluded || fields.Length == 0)
             return;
@@ -410,7 +443,7 @@ public sealed class MarkoutWriter
     /// Useful for compact summary lines with essential metadata.
     /// </summary>
     /// <param name="fields">Fields to write.</param>
-    public void WriteCompactFields(IReadOnlyList<MarkoutField> fields)
+    public virtual void WriteCompactFields(IReadOnlyList<MarkoutField> fields)
     {
         if (_sectionExcluded || fields.Count == 0)
             return;
@@ -435,7 +468,7 @@ public sealed class MarkoutWriter
     /// Writes fields as a two-column Property/Value table.
     /// </summary>
     /// <param name="fields">Fields to write as table rows.</param>
-    public void WriteFieldTable(IReadOnlyList<MarkoutField> fields)
+    public virtual void WriteFieldTable(IReadOnlyList<MarkoutField> fields)
     {
         if (fields.Count == 0)
             return;
@@ -452,7 +485,7 @@ public sealed class MarkoutWriter
     /// Writes an array field with string items as a markdown list.
     /// Always has a blank line before and after for proper markdown rendering.
     /// </summary>
-    public void WriteArray(string key, IEnumerable<string>? items)
+    public virtual void WriteArray(string key, IEnumerable<string>? items)
     {
         if (_sectionExcluded)
             return;
@@ -481,7 +514,7 @@ public sealed class MarkoutWriter
     /// Writes string items as a markdown bullet list (no label).
     /// Use after a heading when the section title serves as the label.
     /// </summary>
-    public void WriteArray(IEnumerable<string>? items)
+    public virtual void WriteArray(IEnumerable<string>? items)
     {
         if (_sectionExcluded)
             return;
@@ -511,7 +544,7 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Starts a table with the given headers.
     /// </summary>
-    public void WriteTableStart(params ReadOnlySpan<string> headers)
+    public virtual void WriteTableStart(params string[] headers)
     {
         if (_inCodeBlock)
             throw new InvalidOperationException("Cannot start a table inside a code block.");
@@ -555,7 +588,7 @@ public sealed class MarkoutWriter
     /// Writes a table row with the given values.
     /// Pipe characters in values are automatically escaped.
     /// </summary>
-    public void WriteTableRow(params ReadOnlySpan<string> values)
+    public virtual void WriteTableRow(params string[] values)
     {
         if (!_inTable)
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
@@ -573,7 +606,10 @@ public sealed class MarkoutWriter
         _writer.WriteLine();
     }
 
-    private static string EscapeTableCell(string value)
+    /// <summary>
+    /// Escapes pipe characters and newlines in table cell values.
+    /// </summary>
+    protected static string EscapeTableCell(string value)
     {
         // Escape pipe characters and newlines in table cells
         if (value.Contains('|') || value.Contains('\n') || value.Contains('\r'))
@@ -590,7 +626,7 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Ends the current table.
     /// </summary>
-    public void WriteTableEnd()
+    public virtual void WriteTableEnd()
     {
         _inTable = false;
         if (!_sectionExcluded)
@@ -602,7 +638,7 @@ public sealed class MarkoutWriter
     /// </summary>
     /// <param name="headers">Column headers.</param>
     /// <param name="rows">Row data. Each row should have the same number of columns as headers.</param>
-    public void WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
+    public virtual void WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
     {
         var headerArray = headers as string[] ?? headers.ToArray();
         WriteTableStart(headerArray);
@@ -616,7 +652,7 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Writes a simple pair (two values separated by whitespace).
     /// </summary>
-    public void WriteSimplePair(string name, string value, int nameWidth = 32)
+    public virtual void WriteSimplePair(string name, string value, int nameWidth = 32)
     {
         if (_sectionExcluded)
             return;
@@ -632,7 +668,7 @@ public sealed class MarkoutWriter
     /// </summary>
     /// <param name="text">The node text.</param>
     /// <param name="prefix">The prefix for tree structure (e.g., "├─ ", "│  ").</param>
-    public void WriteTreeNode(string text, string prefix = "")
+    public virtual void WriteTreeNode(string text, string prefix = "")
     {
         if (_sectionExcluded)
             return;
@@ -646,7 +682,7 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Writes a tree structure from a list of TreeNode objects.
     /// </summary>
-    public void WriteTree(IEnumerable<TreeNode>? nodes)
+    public virtual void WriteTree(IEnumerable<TreeNode>? nodes)
     {
         if (nodes == null || _sectionExcluded) return;
         
@@ -688,7 +724,7 @@ public sealed class MarkoutWriter
     /// <summary>
     /// Writes a blank line.
     /// </summary>
-    public void WriteBlankLine()
+    public virtual void WriteBlankLine()
     {
         if (_sectionExcluded)
             return;
@@ -708,12 +744,32 @@ public sealed class MarkoutWriter
         return base.ToString() ?? "";
     }
 
-    private void EnsureBlankLineIfNeeded()
+    /// <summary>
+    /// Ensures a blank line is written before the next content if needed.
+    /// Override to customize blank line behavior.
+    /// </summary>
+    protected virtual void EnsureBlankLineIfNeeded()
     {
         if (_needsBlankLine)
         {
             _writer.WriteLine();
             _needsBlankLine = false;
+        }
+    }
+
+    /// <summary>
+    /// Updates section tracking state for heading-based section filtering.
+    /// Subclasses that override <see cref="WriteHeading(int, string, string?)"/> should call this
+    /// at the start of their override to maintain section include/exclude behavior.
+    /// </summary>
+    /// <param name="level">Heading level (1-6).</param>
+    /// <param name="text">Heading text (used as section name for H2 headings).</param>
+    protected void UpdateSectionState(int level, string text)
+    {
+        if (level == 2)
+        {
+            _currentSectionName = text;
+            _sectionExcluded = !IsSectionIncluded();
         }
     }
 }
