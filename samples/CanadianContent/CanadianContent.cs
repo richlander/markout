@@ -70,7 +70,7 @@ if (nIndex >= 0 && nIndex + 1 < argList.Count && int.TryParse(argList[nIndex + 1
 
 var query = argList.Count > 0 ? string.Join(" ", argList).ToLowerInvariant() : "";
 
-if (query is "-h" or "--help" or "help")
+if (query is "" or "-h" or "--help" or "help")
 {
     Console.WriteLine("""
         Canadian Content Database - CanCon. It's the law!
@@ -89,7 +89,7 @@ if (query is "-h" or "--help" or "help")
           -n count      Limit table rows to count (e.g. -n 5)
 
         Queries:
-          (no args)     Show all actors and shows
+          summary       Show all actors, shows, and filming locations
           ryan          Actors named Ryan (Gosling, Reynolds)
           rachel        Actors named Rachel (McAdams, Skarsten)
           gosling       Ryan Gosling's filmography
@@ -103,7 +103,7 @@ if (query is "-h" or "--help" or "help")
           vbars         Vertical bar chart of shows per filming city
 
         Examples:
-          dotnet run
+          dotnet run -- summary
           dotnet run -- ryan
           dotnet run -- --format ansi toronto
           dotnet run -- --format plain tree
@@ -124,7 +124,7 @@ MarkoutWriter writer = format switch
     _ => new MarkdownWriter(Console.Out, options),
 };
 
-if (string.IsNullOrEmpty(query))
+if (query.Contains("summary"))
 {
     // Show all actors and shows
     var overview = new CanConOverview
@@ -320,7 +320,7 @@ else if (query.Contains("bars"))
 else
 {
     Console.Error.WriteLine($"Unknown query: {query}");
-    Console.Error.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars");
+    Console.Error.WriteLine("Try: summary, ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars");
 }
 
 // --- JSON Models ---
