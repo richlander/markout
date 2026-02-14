@@ -60,6 +60,9 @@ public class AnsiWriter : MarkoutWriter
     /// </summary>
     public (byte R, byte G, byte B) RuleGradientEnd { get; set; } = (0, 40, 50);
 
+    /// <inheritdoc/>
+    public override MarkoutShape SupportedShapes => MarkoutShape.All;
+
     // ── Headings ──
 
     /// <inheritdoc/>
