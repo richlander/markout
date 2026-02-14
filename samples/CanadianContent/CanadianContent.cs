@@ -34,11 +34,13 @@ if (query is "-h" or "--help" or "help")
           schitt        Schitt's Creek with Canadian cast
           toronto       Shows filmed in Toronto
           vancouver     Shows filmed in Vancouver
+          tree          Filmography trees (shows grouped by filming location)
 
         Examples:
           dotnet run CanadianContent.cs
           dotnet run CanadianContent.cs ryan
           dotnet run CanadianContent.cs toronto
+          dotnet run CanadianContent.cs tree
         """);
     return;
 }
@@ -170,10 +172,36 @@ else if (query.Contains("gosling") || query.Contains("reynolds"))
     };
     MarkoutSerializer.Serialize(view, Console.Out, CanConContext.Default);
 }
+else if (query.Contains("tree"))
+{
+    var writer = new MarkoutWriter(Console.Out);
+    writer.WriteHeading(1, "Canadian Content — Filmography Trees");
+
+    foreach (var actor in actors)
+    {
+        var actorShows = shows
+            .Where(s => s.CanadianActors.Contains(actor.Name))
+            .ToList();
+
+        if (actorShows.Count == 0) continue;
+
+        // Group shows by filming location
+        var cityNodes = actorShows
+            .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+            .OrderBy(g => g.Key)
+            .Select(g => new TreeNode(
+                g.Key,
+                g.Select(s => $"{s.Title} ({s.Years})")))
+            .ToList();
+
+        writer.WriteTree([new TreeNode(actor.Name, cityNodes)]);
+        writer.WriteBlankLine();
+    }
+}
 else
 {
     Console.WriteLine($"Unknown query: {query}");
-    Console.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver");
+    Console.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree");
 }
 
 // --- JSON Models ---
