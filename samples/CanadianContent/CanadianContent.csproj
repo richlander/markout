@@ -11,6 +11,7 @@
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="true" />
     <ProjectReference Include="..\..\src\Markout.Ansi\Markout.Ansi.csproj" />
+    <ProjectReference Include="..\..\src\Markout.Ansi.Spectre\Markout.Ansi.Spectre.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="actors.json" CopyToOutputDirectory="PreserveNewest" />

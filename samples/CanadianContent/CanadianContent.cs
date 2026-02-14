@@ -4,7 +4,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Markout;
 using Markout.Ansi;
+using Markout.Ansi.Spectre;
 using Microsoft.Extensions.Terminal;
+using Spectre.Console;
+using TreeNode = Markout.TreeNode;
 
 // Load data from JSON files
 var basePath = AppContext.BaseDirectory;
@@ -53,6 +56,10 @@ else if (argList.Remove("--diagram"))
 {
     format = "diagram";
 }
+else if (argList.Remove("--spectre"))
+{
+    format = "spectre";
+}
 
 var nIndex = argList.IndexOf("-n");
 if (nIndex >= 0 && nIndex + 1 < argList.Count && int.TryParse(argList[nIndex + 1], out var n))
@@ -68,11 +75,12 @@ if (query is "-h" or "--help" or "help")
     Console.WriteLine("""
         Canadian Content Database - CanCon. It's the law!
 
-        Usage: dotnet run -- [--format markdown|ansi|plain|oneline|diagram] [--ansi] [--plain] [--oneline] [--diagram] [-n count] [query]
+        Usage: dotnet run -- [--format markdown|ansi|spectre|plain|oneline|diagram] [--ansi] [--spectre] [--plain] [--oneline] [--diagram] [-n count] [query]
 
         Formats:
           markdown      Markdown output (default)
           ansi          ANSI terminal output with colors
+          spectre       ANSI terminal output via Spectre.Console
           plain         Plain text output
           oneline       Compact columnar tables only
           diagram       Tree/diagram output only
@@ -109,6 +117,7 @@ var options = new MarkoutWriterOptions { MaxItems = maxItems };
 MarkoutWriter writer = format switch
 {
     "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),
+    "spectre" => new SpectreWriter(AnsiConsole.Console, options),
     "plain" => new MarkoutWriter(Console.Out, options),
     "oneline" => new OneLineWriter(Console.Out, options),
     "diagram" => new DiagramWriter(Console.Out, options),
