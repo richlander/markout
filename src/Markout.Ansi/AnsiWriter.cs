@@ -423,11 +423,11 @@ public class AnsiWriter : MarkoutWriter
         for (int i = 0; i < nodeList.Count; i++)
         {
             var isLast = i == nodeList.Count - 1;
-            WriteAnsiTreeNode(nodeList[i], "", isLast);
+            WriteAnsiTreeNode(nodeList[i], "", isLast, 0);
         }
     }
 
-    private void WriteAnsiTreeNode(TreeNode node, string prefix, bool isLast)
+    private void WriteAnsiTreeNode(TreeNode node, string prefix, bool isLast, int depth)
     {
         if (SectionExcluded)
             return;
@@ -440,13 +440,28 @@ public class AnsiWriter : MarkoutWriter
         Writer.Write(isLast ? "└─ " : "├─ ");
         _terminal.ResetColor();
 
-        // Icon (as-is) + label (normal color)
+        // Icon (as-is) + label colored by depth
         if (node.Icon != null && Options.IncludeIcons)
         {
             Writer.Write(node.Icon);
             Writer.Write(' ');
         }
-        Writer.WriteLine(node.Label);
+
+        if (depth == 0)
+            Writer.WriteLine(AnsiCodes.MakeBold(node.Label));
+        else if (depth == 1)
+        {
+            _terminal.SetColor(TerminalColor.Cyan);
+            Writer.WriteLine(node.Label);
+            _terminal.ResetColor();
+        }
+        else
+        {
+            _terminal.SetColor(TerminalColor.DarkGray);
+            Writer.WriteLine(node.Label);
+            _terminal.ResetColor();
+        }
+
         HasContent = true;
 
         if (node.Children != null && node.Children.Count > 0)
@@ -455,7 +470,7 @@ public class AnsiWriter : MarkoutWriter
             for (int i = 0; i < node.Children.Count; i++)
             {
                 var isChildLast = i == node.Children.Count - 1;
-                WriteAnsiTreeNode(node.Children[i], childPrefix, isChildLast);
+                WriteAnsiTreeNode(node.Children[i], childPrefix, isChildLast, depth + 1);
             }
         }
     }
