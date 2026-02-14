@@ -32,6 +32,34 @@ public class AnsiWriter : MarkoutWriter
     /// </summary>
     private int TerminalWidth => _terminal.Width == int.MaxValue ? 80 : _terminal.Width;
 
+    /// <summary>
+    /// Color for the heading label text. Default is <see cref="TerminalColor.White"/>.
+    /// </summary>
+    public TerminalColor RuleLabelColor { get; set; } = TerminalColor.White;
+
+    /// <summary>
+    /// Color for rule lines when gradient is disabled. Default is <see cref="TerminalColor.DarkGray"/>.
+    /// </summary>
+    public TerminalColor RuleLineColor { get; set; } = TerminalColor.DarkGray;
+
+    /// <summary>
+    /// Whether to render rule lines as a gradient that fades toward the edges.
+    /// Default is true.
+    /// </summary>
+    public bool RuleGradient { get; set; } = true;
+
+    /// <summary>
+    /// RGB color for the bright end of the gradient (nearest the label).
+    /// Default is (0, 180, 180) — teal/cyan.
+    /// </summary>
+    public (byte R, byte G, byte B) RuleGradientStart { get; set; } = (0, 180, 180);
+
+    /// <summary>
+    /// RGB color for the dim end of the gradient (at the edges).
+    /// Default is (0, 40, 50) — near-black teal.
+    /// </summary>
+    public (byte R, byte G, byte B) RuleGradientEnd { get; set; } = (0, 40, 50);
+
     // ── Headings ──
 
     /// <inheritdoc/>
@@ -76,7 +104,9 @@ public class AnsiWriter : MarkoutWriter
 
         if (remaining <= 0)
         {
+            _terminal.SetColor(RuleLabelColor);
             Writer.Write(AnsiCodes.MakeBold(title));
+            _terminal.ResetColor();
             Writer.WriteLine();
             return;
         }
@@ -84,14 +114,45 @@ public class AnsiWriter : MarkoutWriter
         int left = remaining / 2;
         int right = remaining - left;
 
-        _terminal.SetColor(TerminalColor.DarkGray);
-        Writer.Write(new string('─', left));
-        _terminal.ResetColor();
+        WriteRuleLine(left, fadeInward: true);
+        _terminal.SetColor(RuleLabelColor);
         Writer.Write(AnsiCodes.MakeBold(padded));
-        _terminal.SetColor(TerminalColor.DarkGray);
-        Writer.Write(new string('─', right));
         _terminal.ResetColor();
+        WriteRuleLine(right, fadeInward: false);
         Writer.WriteLine();
+    }
+
+    private void WriteRuleLine(int length, bool fadeInward)
+    {
+        if (length <= 0) return;
+
+        if (!RuleGradient)
+        {
+            _terminal.SetColor(RuleLineColor);
+            Writer.Write(new string('─', length));
+            _terminal.ResetColor();
+            return;
+        }
+
+        // Gradient: interpolate from start (bright, near label) to end (dim, at edge)
+        var (r1, g1, b1) = RuleGradientStart;
+        var (r2, g2, b2) = RuleGradientEnd;
+
+        for (int i = 0; i < length; i++)
+        {
+            // t=0 at edge, t=1 near label
+            float t = fadeInward
+                ? (float)i / Math.Max(length - 1, 1)
+                : 1f - (float)i / Math.Max(length - 1, 1);
+
+            byte r = (byte)(r2 + (r1 - r2) * t);
+            byte g = (byte)(g2 + (g1 - g2) * t);
+            byte b = (byte)(b2 + (b1 - b2) * t);
+
+            Writer.Write($"\x1b[38;2;{r};{g};{b}m─");
+        }
+
+        _terminal.ResetColor();
     }
 
     // ── Fields ──
