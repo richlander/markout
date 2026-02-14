@@ -2,14 +2,15 @@ namespace Markout;
 
 /// <summary>
 /// A writer that produces compact columnar output (docker-style).
-/// Batch tables use space-padded columns with uppercase headers.
-/// Streaming tables fall back to tab-separated values.
+/// Tables use space-padded columns with uppercase headers.
 /// Suppresses headings, fields, paragraphs, and code blocks.
 /// </summary>
 public class OneLineWriter : MarkoutWriter
 {
     private const int ColumnGap = 2;
     private readonly bool _showHeader;
+    private string[]? _streamingHeaders;
+    private List<string[]>? _streamingRows;
 
     /// <summary>
     /// Creates a one-line writer targeting the specified TextWriter.
@@ -49,9 +50,8 @@ public class OneLineWriter : MarkoutWriter
 
         InTable = true;
         ResetTableRowTracking();
-
-        if (_showHeader)
-            Writer.WriteLine(string.Join('\t', headers.Select(h => h.ToUpperInvariant())));
+        _streamingHeaders = headers;
+        _streamingRows = [];
     }
 
     /// <inheritdoc/>
@@ -60,14 +60,23 @@ public class OneLineWriter : MarkoutWriter
         if (SectionExcluded || !ShouldWriteTableRow())
             return;
 
-        Writer.WriteLine(string.Join('\t', values));
+        _streamingRows?.Add(values);
     }
 
     /// <inheritdoc/>
     public override void WriteTableEnd()
     {
         InTable = false;
-        if (!SectionExcluded && TableRowsSkipped > 0)
+        if (SectionExcluded || _streamingHeaders == null)
+            return;
+
+        // Flush buffered rows with space-padded columns
+        WriteTable(_streamingHeaders, _streamingRows ?? []);
+        _streamingHeaders = null;
+        _streamingRows = null;
+
+        // WriteTable doesn't know about streaming skipped rows
+        if (TableRowsSkipped > 0)
             Writer.WriteLine($"\n... and {TableRowsSkipped} more");
     }
 
