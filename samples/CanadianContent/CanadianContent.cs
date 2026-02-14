@@ -99,7 +99,20 @@ if (string.IsNullOrEmpty(query))
             Type = s.Type,
             Years = s.Years,
             FilmingLocation = s.Location
-        }).ToList()
+        }).ToList(),
+        Cities = shows
+            .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+            .OrderByDescending(g => g.Count())
+            .Select(g =>
+            {
+                var mostRecent = g.OrderByDescending(s => s.Years).First();
+                return new CityRow
+                {
+                    City = g.Key,
+                    ShowCount = g.Count(),
+                    MostRecent = $"{mostRecent.Title} ({mostRecent.Years})"
+                };
+            }).ToList()
     };
     MarkoutSerializer.Serialize(overview, writer, CanConContext.Default);
 }
@@ -293,6 +306,9 @@ public class CanConOverview
 
     [MarkoutSection(Name = "Shows")]
     public List<ShowRow>? Shows { get; set; }
+
+    [MarkoutSection(Name = "Filming Locations")]
+    public List<CityRow>? Cities { get; set; }
 }
 
 [MarkoutSerializable]
@@ -331,6 +347,18 @@ public class ShowRow
 
     [MarkoutPropertyName("Filmed In")]
     public string FilmingLocation { get; set; } = "";
+}
+
+[MarkoutSerializable]
+public class CityRow
+{
+    public string City { get; set; } = "";
+
+    [MarkoutPropertyName("Shows")]
+    public int ShowCount { get; set; }
+
+    [MarkoutPropertyName("Most Recent")]
+    public string MostRecent { get; set; } = "";
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
@@ -385,6 +413,7 @@ public class ActorFilmography
 [MarkoutContext(typeof(ActorRow))]
 [MarkoutContext(typeof(ActorDetailRow))]
 [MarkoutContext(typeof(ShowRow))]
+[MarkoutContext(typeof(CityRow))]
 [MarkoutContext(typeof(ActorSearchResult))]
 [MarkoutContext(typeof(LocationSearchResult))]
 [MarkoutContext(typeof(ShowDetailView))]
