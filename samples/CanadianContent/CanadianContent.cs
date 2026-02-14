@@ -45,6 +45,14 @@ else if (argList.Remove("--plain"))
 {
     format = "plain";
 }
+else if (argList.Remove("--oneline"))
+{
+    format = "oneline";
+}
+else if (argList.Remove("--diagram"))
+{
+    format = "diagram";
+}
 
 var nIndex = argList.IndexOf("-n");
 if (nIndex >= 0 && nIndex + 1 < argList.Count && int.TryParse(argList[nIndex + 1], out var n))
@@ -60,12 +68,14 @@ if (query is "-h" or "--help" or "help")
     Console.WriteLine("""
         Canadian Content Database - CanCon. It's the law!
 
-        Usage: dotnet run -- [--format markdown|ansi|plain] [--ansi] [--plain] [-n count] [query]
+        Usage: dotnet run -- [--format markdown|ansi|plain|oneline|diagram] [--ansi] [--plain] [--oneline] [--diagram] [-n count] [query]
 
         Formats:
           markdown      Markdown output (default)
           ansi          ANSI terminal output with colors
           plain         Plain text output
+          oneline       Compact columnar tables only
+          diagram       Tree/diagram output only
 
         Options:
           -n count      Limit table rows to count (e.g. -n 5)
@@ -97,6 +107,8 @@ MarkoutWriter writer = format switch
 {
     "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),
     "plain" => new MarkoutWriter(Console.Out, options),
+    "oneline" => new OneLineWriter(Console.Out, options),
+    "diagram" => new DiagramWriter(Console.Out, options),
     _ => new MarkdownWriter(Console.Out, options),
 };
 
