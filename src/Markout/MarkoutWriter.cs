@@ -658,13 +658,59 @@ public class MarkoutWriter
     /// <param name="rows">Row data. Each row should have the same number of columns as headers.</param>
     public virtual void WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
     {
+        if (ShapeUnsupported(MarkoutShape.Tables))
+            return;
+
         var headerArray = headers as string[] ?? headers.ToArray();
-        WriteTableStart(headerArray);
-        foreach (var row in rows)
+        var rowList = rows as IList<string[]> ?? rows.ToList();
+
+        // Calculate column widths
+        var widths = new int[headerArray.Length];
+        for (int i = 0; i < headerArray.Length; i++)
+            widths[i] = headerArray[i].Length;
+        foreach (var row in rowList)
         {
-            WriteTableRow(row);
+            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+                widths[i] = Math.Max(widths[i], row[i].Length);
         }
-        WriteTableEnd();
+
+        // Apply MaxItems
+        var maxItems = _options.MaxItems;
+        var visibleRows = maxItems.HasValue && rowList.Count > maxItems.Value
+            ? rowList.Take(maxItems.Value).ToList()
+            : rowList;
+        var skipped = rowList.Count - visibleRows.Count;
+
+        EnsureBlankLineIfNeeded();
+
+        // Headers
+        for (int i = 0; i < headerArray.Length; i++)
+        {
+            if (i < headerArray.Length - 1)
+                _writer.Write(headerArray[i].PadRight(widths[i] + 2));
+            else
+                _writer.Write(headerArray[i]);
+        }
+        _writer.WriteLine();
+
+        // Rows
+        foreach (var row in visibleRows)
+        {
+            for (int i = 0; i < row.Length; i++)
+            {
+                if (i < row.Length - 1)
+                    _writer.Write(row[i].PadRight(widths[i] + 2));
+                else
+                    _writer.Write(row[i]);
+            }
+            _writer.WriteLine();
+        }
+
+        if (skipped > 0)
+            _writer.WriteLine($"\n... and {skipped} more");
+
+        _needsBlankLine = true;
+        _hasContent = true;
     }
 
     /// <summary>
