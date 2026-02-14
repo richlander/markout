@@ -832,6 +832,43 @@ public class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes a list of labeled items as a bullet list with bold labels.
+    /// Each item renders as "- Label: Description" with an optional indented detail line.
+    /// </summary>
+    public virtual void WriteLabeledList(IReadOnlyList<LabeledItem> items)
+    {
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.LabeledLists))
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        foreach (var item in items)
+            WriteLabeledListItem(item);
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Renders a single labeled list item. Override for custom styling (e.g., bold, color).
+    /// </summary>
+    protected virtual void WriteLabeledListItem(LabeledItem item)
+    {
+        _writer.Write("- ");
+        _writer.Write(item.Label);
+        _writer.Write(": ");
+        _writer.WriteLine(item.Description);
+
+        if (item.Detail != null)
+        {
+            _writer.Write("  ");
+            _writer.WriteLine(item.Detail);
+        }
+    }
+
+    /// <summary>
     /// Writes a horizontal bar chart from labeled values.
     /// Bars are scaled proportionally to the maximum value using block characters.
     /// </summary>

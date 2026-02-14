@@ -409,6 +409,19 @@ public class SpectreWriter : MarkoutWriter
         HasContent = true;
     }
 
+    // ── Labeled lists ──
+
+    /// <inheritdoc/>
+    protected override void WriteLabeledListItem(LabeledItem item)
+    {
+        WriteMarkupLine($"- [bold]{Esc(item.Label)}:[/] {Esc(item.Description)}");
+
+        if (item.Detail != null)
+        {
+            WriteMarkupLine($"  [grey]{Esc(item.Detail)}[/]");
+        }
+    }
+
     // ── Bar charts ──
 
     /// <inheritdoc/>

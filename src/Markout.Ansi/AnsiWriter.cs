@@ -446,6 +446,25 @@ public class AnsiWriter : MarkoutWriter
     /// </summary>
     public TerminalColor BarValueColor { get; set; } = TerminalColor.DarkGray;
 
+    // ── Labeled lists ──
+
+    /// <inheritdoc/>
+    protected override void WriteLabeledListItem(LabeledItem item)
+    {
+        Writer.Write("- ");
+        Writer.Write(AnsiCodes.MakeBold(item.Label));
+        Writer.Write(": ");
+        Writer.WriteLine(item.Description);
+
+        if (item.Detail != null)
+        {
+            Writer.Write("  ");
+            _terminal.SetColor(TerminalColor.DarkGray);
+            Writer.WriteLine(item.Detail);
+            _terminal.ResetColor();
+        }
+    }
+
     // ── Bar charts ──
 
     /// <inheritdoc/>

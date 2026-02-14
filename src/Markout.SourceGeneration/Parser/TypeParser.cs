@@ -546,6 +546,18 @@ internal static class TypeParser
                         }
                     }
 
+                    // Check for IReadOnlyList<LabeledItem> / List<LabeledItem> - renders as labeled list
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.LabeledItem))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.LabeledList, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                        }
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 

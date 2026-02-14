@@ -345,5 +345,6 @@ internal enum PropertyKind
     FieldCollection,
     Tree,
     BarChart,
+    LabeledList,
     Other
 }

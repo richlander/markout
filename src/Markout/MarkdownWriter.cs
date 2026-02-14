@@ -320,6 +320,21 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
+    protected override void WriteLabeledListItem(LabeledItem item)
+    {
+        Writer.Write("- **");
+        Writer.Write(item.Label);
+        Writer.Write(":** ");
+        Writer.WriteLine(item.Description);
+
+        if (item.Detail != null)
+        {
+            Writer.Write("  ");
+            Writer.WriteLine(item.Detail);
+        }
+    }
+
+    /// <inheritdoc/>
     public override void WriteArray(string key, IEnumerable<string>? items)
     {
         if (SectionExcluded)

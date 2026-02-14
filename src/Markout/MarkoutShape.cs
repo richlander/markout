@@ -41,6 +41,9 @@ public enum MarkoutShape
     /// <summary>Horizontal bar charts.</summary>
     BarCharts = 512,
 
+    /// <summary>Labeled descriptive lists.</summary>
+    LabeledLists = 1024,
+
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts
+    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts | LabeledLists
 }

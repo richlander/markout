@@ -549,4 +549,66 @@ public class MarkoutWriterTests
         writer.WriteCodeBlockStart();
         Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart("A"));
     }
+
+    [Fact]
+    public void WriteLabeledList_PlainText_WritesLabelAndDescription()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteLabeledList([
+            new LabeledItem("Insight", "What does the generic math hierarchy look like?"),
+            new LabeledItem("Discovery", "What can JsonSerializer do?"),
+        ]);
+
+        var expected = """
+            - Insight: What does the generic math hierarchy look like?
+            - Discovery: What can JsonSerializer do?
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteLabeledList_PlainText_WithDetail_IndentsDetail()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteLabeledList([
+            new LabeledItem("Insight", "What does the generic math hierarchy look like?", "dotnet-inspect api System.Runtime"),
+        ]);
+
+        var expected = """
+            - Insight: What does the generic math hierarchy look like?
+              dotnet-inspect api System.Runtime
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteLabeledList_Markdown_BoldsLabel()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteLabeledList([
+            new LabeledItem("Insight", "What does the generic math hierarchy look like?"),
+            new LabeledItem("Discovery", "What can JsonSerializer do?"),
+        ]);
+
+        var expected = """
+            - **Insight:** What does the generic math hierarchy look like?
+            - **Discovery:** What can JsonSerializer do?
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteLabeledList_Markdown_WithDetail_IndentsDetail()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteLabeledList([
+            new LabeledItem("Insight", "Hierarchy overview", "dotnet-inspect api System.Runtime"),
+        ]);
+
+        var expected = """
+            - **Insight:** Hierarchy overview
+              dotnet-inspect api System.Runtime
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
 }
