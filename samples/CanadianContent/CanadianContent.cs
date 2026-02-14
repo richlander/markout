@@ -157,10 +157,10 @@ if (query.Contains("summary"))
             Title = s.Title,
             Type = s.Type,
             Years = s.Years,
-            FilmingLocation = s.Location.Replace("Filmed in ", "")
+            FilmingLocation = s.Location
         }).ToList(),
         Cities = shows
-            .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+            .GroupBy(s => s.Location)
             .OrderByDescending(g => g.Count())
             .Select(g =>
             {
@@ -253,7 +253,7 @@ else if (query.Contains("toronto") || query.Contains("vancouver"))
             Title = s.Title,
             Type = s.Type,
             Years = s.Years,
-            FilmingLocation = s.Location.Replace("Filmed in ", "")
+            FilmingLocation = s.Location
         }).ToList()
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
@@ -275,7 +275,7 @@ else if (query.Contains("gosling") || query.Contains("reynolds"))
             Title = s.Title,
             Type = s.Type,
             Years = s.Years,
-            FilmingLocation = s.Location.Replace("Filmed in ", "")
+            FilmingLocation = s.Location
         }).ToList()
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
@@ -295,7 +295,7 @@ else if (query.Contains("tree"))
                 if (actorShows.Count == 0) return null;
 
                 var cityNodes = actorShows
-                    .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+                    .GroupBy(s => s.Location)
                     .OrderBy(g => g.Key)
                     .Select(g => new TreeNode(
                         g.Key,
@@ -312,7 +312,7 @@ else if (query.Contains("tree"))
 else if (query.Contains("vbars"))
 {
     var bars = shows
-        .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+        .GroupBy(s => s.Location)
         .OrderByDescending(g => g.Count())
         .Select(g => new BarItem(g.Key, g.Count()))
         .ToList();
@@ -325,7 +325,7 @@ else if (query.Contains("bars"))
     {
         Title = "Shows per Filming Location",
         Bars = shows
-            .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+            .GroupBy(s => s.Location)
             .OrderByDescending(g => g.Count())
             .Select(g => new BarItem(g.Key, g.Count()))
             .ToList()

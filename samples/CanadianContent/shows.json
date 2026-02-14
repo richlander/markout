@@ -3,105 +3,105 @@
     "title": "Schitt's Creek",
     "type": "TV Series",
     "years": "2015-2020",
-    "location": "Filmed in Ontario",
+    "location": "Ontario",
     "canadianActors": ["Eugene Levy", "Dan Levy", "Catherine O'Hara", "Annie Murphy", "Emily Hampshire"]
   },
   {
     "title": "The Expanse",
     "type": "TV Series",
     "years": "2015-2022",
-    "location": "Filmed in Toronto",
+    "location": "Toronto",
     "canadianActors": ["Shohreh Aghdashloo", "Cara Gee", "Shawn Doyle", "Elias Toufexis", "Kathleen Robertson", "Frankie Adams", "Athena Karkanis", "Andrew Rotilio", "Sandrine Holt"]
   },
   {
     "title": "Station Eleven",
     "type": "TV Miniseries",
     "years": "2021-2022",
-    "location": "Filmed in Toronto",
+    "location": "Toronto",
     "canadianActors": ["Mackenzie Davis", "Emily Hampshire", "Tatiana Maslany"]
   },
   {
     "title": "The Matrix",
     "type": "Movie",
     "years": "1999",
-    "location": "Filmed in Sydney",
+    "location": "Sydney",
     "canadianActors": ["Keanu Reeves", "Carrie-Anne Moss"]
   },
   {
     "title": "The Notebook",
     "type": "Movie",
     "years": "2004",
-    "location": "Filmed in South Carolina",
+    "location": "South Carolina",
     "canadianActors": ["Ryan Gosling", "Rachel McAdams"]
   },
   {
     "title": "Blade Runner 2049",
     "type": "Movie",
     "years": "2017",
-    "location": "Filmed in Budapest",
+    "location": "Budapest",
     "canadianActors": ["Ryan Gosling", "Mackenzie Davis"]
   },
   {
     "title": "Deadpool",
     "type": "Movie",
     "years": "2016",
-    "location": "Filmed in Vancouver",
+    "location": "Vancouver",
     "canadianActors": ["Ryan Reynolds"]
   },
   {
     "title": "Barbie",
     "type": "Movie",
     "years": "2023",
-    "location": "Filmed in London",
+    "location": "London",
     "canadianActors": ["Ryan Gosling"]
   },
   {
     "title": "Lost Girl",
     "type": "TV Series",
     "years": "2010-2016",
-    "location": "Filmed in Toronto",
+    "location": "Toronto",
     "canadianActors": ["Rachel Skarsten"]
   },
   {
     "title": "Orphan Black",
     "type": "TV Series",
     "years": "2013-2017",
-    "location": "Filmed in Toronto",
+    "location": "Toronto",
     "canadianActors": ["Tatiana Maslany"]
   },
   {
     "title": "The Umbrella Academy",
     "type": "TV Series",
     "years": "2019-2023",
-    "location": "Filmed in Toronto",
+    "location": "Toronto",
     "canadianActors": ["Elliot Page"]
   },
   {
     "title": "Grey's Anatomy",
     "type": "TV Series",
     "years": "2005-present",
-    "location": "Filmed in Los Angeles",
+    "location": "Los Angeles",
     "canadianActors": ["Sandra Oh"]
   },
   {
     "title": "Killing Eve",
     "type": "TV Series",
     "years": "2018-2022",
-    "location": "Filmed in London",
+    "location": "London",
     "canadianActors": ["Sandra Oh"]
   },
   {
     "title": "Juno",
     "type": "Movie",
     "years": "2007",
-    "location": "Filmed in Vancouver",
+    "location": "Vancouver",
     "canadianActors": ["Elliot Page"]
   },
   {
     "title": "Batwoman",
     "type": "TV Series",
     "years": "2019-2022",
-    "location": "Filmed in Vancouver",
+    "location": "Vancouver",
     "canadianActors": ["Rachel Skarsten"]
   }
 ]
