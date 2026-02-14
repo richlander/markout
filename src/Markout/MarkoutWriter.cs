@@ -857,13 +857,14 @@ public class MarkoutWriter
     /// </summary>
     /// <param name="items">The labeled values to chart.</param>
     /// <param name="maxBarHeight">Maximum height of the tallest bar in rows. Default is 10.</param>
-    public virtual void WriteVerticalBarChart(IReadOnlyList<BarItem> items, int maxBarHeight = 10)
+    /// <param name="barWidth">Width of each bar in characters. Null (default) fills the column width.</param>
+    public virtual void WriteVerticalBarChart(IReadOnlyList<BarItem> items, int maxBarHeight = 10, int? barWidth = null)
     {
         if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
             return;
 
         EnsureBlankLineIfNeeded();
-        WriteVerticalBarBody(items, maxBarHeight);
+        WriteVerticalBarBody(items, maxBarHeight, barWidth);
         _needsBlankLine = true;
         _hasContent = true;
     }
@@ -872,7 +873,7 @@ public class MarkoutWriter
     /// Renders the vertical bar chart body (bars, values, labels).
     /// Override for custom styling of the entire vertical chart.
     /// </summary>
-    protected virtual void WriteVerticalBarBody(IReadOnlyList<BarItem> items, int maxBarHeight)
+    protected virtual void WriteVerticalBarBody(IReadOnlyList<BarItem> items, int maxBarHeight, int? barWidth)
     {
         var maxValue = 0.0;
         foreach (var item in items)
@@ -880,14 +881,15 @@ public class MarkoutWriter
         if (maxValue <= 0) maxValue = 1;
 
         // Pre-compute column data
-        var cols = new (string Label, string ValueStr, int Height, int ColWidth)[items.Count];
+        var cols = new (string Label, string ValueStr, int Height, int ColWidth, int BarWidth)[items.Count];
         for (int i = 0; i < items.Count; i++)
         {
             var valueStr = FormatBarValue(items[i].Value);
             var height = (int)Math.Round(items[i].Value / maxValue * maxBarHeight);
             if (items[i].Value > 0 && height == 0) height = 1;
-            var colWidth = Math.Max(items[i].Label.Length, valueStr.Length);
-            cols[i] = (items[i].Label, valueStr, height, colWidth);
+            var colWidth = Math.Max(items[i].Label.Length, Math.Max(valueStr.Length, barWidth ?? 1));
+            var bw = barWidth ?? colWidth;
+            cols[i] = (items[i].Label, valueStr, height, colWidth, bw);
         }
 
         // Bar rows (top to bottom)
@@ -917,14 +919,18 @@ public class MarkoutWriter
     /// Renders one row of vertical bars. Override for custom bar colors.
     /// </summary>
     protected virtual void WriteVerticalBarRow(
-        (string Label, string ValueStr, int Height, int ColWidth)[] cols, int row)
+        (string Label, string ValueStr, int Height, int ColWidth, int BarWidth)[] cols, int row)
     {
         for (int c = 0; c < cols.Length; c++)
         {
             if (c > 0) _writer.Write("  ");
             if (cols[c].Height >= row)
             {
-                _writer.Write(new string('█', cols[c].ColWidth));
+                var pad = cols[c].ColWidth - cols[c].BarWidth;
+                var leftPad = pad / 2;
+                _writer.Write(new string(' ', leftPad));
+                _writer.Write(new string('█', cols[c].BarWidth));
+                _writer.Write(new string(' ', pad - leftPad));
             }
             else
             {

@@ -309,14 +309,14 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteVerticalBarChart(IReadOnlyList<BarItem> items, int maxBarHeight = 10)
+    public override void WriteVerticalBarChart(IReadOnlyList<BarItem> items, int maxBarHeight = 10, int? barWidth = null)
     {
         if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
             return;
 
         EnsureBlankLineIfNeeded();
         Writer.WriteLine("```text");
-        WriteVerticalBarBody(items, maxBarHeight);
+        WriteVerticalBarBody(items, maxBarHeight, barWidth);
         Writer.WriteLine("```");
         NeedsBlankLine = true;
         HasContent = true;

@@ -521,16 +521,20 @@ public class AnsiWriter : MarkoutWriter
 
     /// <inheritdoc/>
     protected override void WriteVerticalBarRow(
-        (string Label, string ValueStr, int Height, int ColWidth)[] cols, int row)
+        (string Label, string ValueStr, int Height, int ColWidth, int BarWidth)[] cols, int row)
     {
         for (int c = 0; c < cols.Length; c++)
         {
             if (c > 0) Writer.Write("  ");
             if (cols[c].Height >= row)
             {
+                var pad = cols[c].ColWidth - cols[c].BarWidth;
+                var leftPad = pad / 2;
+                Writer.Write(new string(' ', leftPad));
                 _terminal.SetColor(BarColor);
-                Writer.Write(new string('█', cols[c].ColWidth));
+                Writer.Write(new string('█', cols[c].BarWidth));
                 _terminal.ResetColor();
+                Writer.Write(new string(' ', pad - leftPad));
             }
             else
             {
