@@ -195,6 +195,7 @@ public class MarkdownWriter : MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         InTable = true;
+        ResetTableRowTracking();
 
         // Header row
         Writer.Write('|');
@@ -228,6 +229,9 @@ public class MarkdownWriter : MarkoutWriter
         if (SectionExcluded)
             return;
 
+        if (!ShouldWriteTableRow())
+            return;
+
         Writer.Write('|');
         foreach (var value in values)
         {
@@ -243,7 +247,11 @@ public class MarkdownWriter : MarkoutWriter
     {
         InTable = false;
         if (!SectionExcluded)
+        {
+            if (TableRowsSkipped > 0)
+                Writer.WriteLine($"\n... and {TableRowsSkipped} more");
             NeedsBlankLine = true;
+        }
     }
 
     /// <inheritdoc/>

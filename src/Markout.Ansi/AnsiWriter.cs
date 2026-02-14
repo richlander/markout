@@ -195,6 +195,7 @@ public class AnsiWriter : MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         InTable = true;
+        ResetTableRowTracking();
 
         // Bold uppercase headers, tab-separated (streaming — no width info)
         Writer.WriteLine(AnsiCodes.MakeBold(string.Join('\t', headers.Select(h => h.ToUpperInvariant()))));
@@ -210,6 +211,9 @@ public class AnsiWriter : MarkoutWriter
         if (SectionExcluded)
             return;
 
+        if (!ShouldWriteTableRow())
+            return;
+
         Writer.WriteLine(string.Join('\t', values));
     }
 
@@ -218,7 +222,15 @@ public class AnsiWriter : MarkoutWriter
     {
         InTable = false;
         if (!SectionExcluded)
+        {
+            if (TableRowsSkipped > 0)
+            {
+                _terminal.SetColor(TerminalColor.DarkGray);
+                Writer.WriteLine($"\n... and {TableRowsSkipped} more");
+                _terminal.ResetColor();
+            }
             NeedsBlankLine = true;
+        }
     }
 
     /// <inheritdoc/>
@@ -230,11 +242,18 @@ public class AnsiWriter : MarkoutWriter
         var headerArray = headers as string[] ?? headers.ToArray();
         var rowList = rows as IList<string[]> ?? rows.ToList();
 
-        // Calculate column widths
+        // Apply MaxItems to the visible rows (for width calculation too)
+        var maxItems = Options.MaxItems;
+        var visibleRows = maxItems.HasValue && rowList.Count > maxItems.Value
+            ? rowList.Take(maxItems.Value).ToList()
+            : rowList;
+        var skipped = rowList.Count - visibleRows.Count;
+
+        // Calculate column widths from visible rows
         var widths = new int[headerArray.Length];
         for (int i = 0; i < headerArray.Length; i++)
             widths[i] = headerArray[i].Length;
-        foreach (var row in rowList)
+        foreach (var row in visibleRows)
         {
             for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
                 widths[i] = Math.Max(widths[i], row[i].Length);
@@ -266,7 +285,7 @@ public class AnsiWriter : MarkoutWriter
         Writer.WriteLine();
 
         // Rows
-        foreach (var row in rowList)
+        foreach (var row in visibleRows)
         {
             for (int i = 0; i < row.Length; i++)
             {
@@ -276,6 +295,13 @@ public class AnsiWriter : MarkoutWriter
                     Writer.Write(row[i]);
             }
             Writer.WriteLine();
+        }
+
+        if (skipped > 0)
+        {
+            _terminal.SetColor(TerminalColor.DarkGray);
+            Writer.WriteLine($"\n... and {skipped} more");
+            _terminal.ResetColor();
         }
 
         NeedsBlankLine = true;

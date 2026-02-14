@@ -1,28 +1,54 @@
-#!/usr/bin/env dotnet run
-#:package Markout@0.5.0
 // CanCon. It's the law!
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Markout;
+using Markout.Ansi;
+using Microsoft.Extensions.Terminal;
 
-// Load data from JSON files (relative to the source file location)
-var basePath = Path.GetDirectoryName(Path.GetFullPath("CanadianContent.cs")) ?? ".";
+// Load data from JSON files
+var basePath = AppContext.BaseDirectory;
 var actorsJson = await File.ReadAllTextAsync(Path.Combine(basePath, "actors.json"));
 var showsJson = await File.ReadAllTextAsync(Path.Combine(basePath, "shows.json"));
 
 var actors = JsonSerializer.Deserialize(actorsJson, CanConJsonContext.Default.ListActor)!;
 var shows = JsonSerializer.Deserialize(showsJson, CanConJsonContext.Default.ListShow)!;
 
-// Parse command-line query
-var query = args.Length > 0 ? string.Join(" ", args).ToLowerInvariant() : "";
+// Parse arguments: [--format markdown|ansi|plain] [-n count] [query]
+var argList = args.ToList();
+var format = "markdown";
+int? maxItems = null;
+
+var formatIndex = argList.IndexOf("--format");
+if (formatIndex >= 0 && formatIndex + 1 < argList.Count)
+{
+    format = argList[formatIndex + 1].ToLowerInvariant();
+    argList.RemoveRange(formatIndex, 2);
+}
+
+var nIndex = argList.IndexOf("-n");
+if (nIndex >= 0 && nIndex + 1 < argList.Count && int.TryParse(argList[nIndex + 1], out var n))
+{
+    maxItems = n;
+    argList.RemoveRange(nIndex, 2);
+}
+
+var query = argList.Count > 0 ? string.Join(" ", argList).ToLowerInvariant() : "";
 
 if (query is "-h" or "--help" or "help")
 {
     Console.WriteLine("""
         Canadian Content Database - CanCon. It's the law!
 
-        Usage: dotnet run CanadianContent.cs [query]
+        Usage: dotnet run -- [--format markdown|ansi|plain] [-n count] [query]
+
+        Formats:
+          markdown      Markdown output (default)
+          ansi          ANSI terminal output with colors
+          plain         Plain text output
+
+        Options:
+          -n count      Limit table rows to count (e.g. -n 5)
 
         Queries:
           (no args)     Show all actors and shows
@@ -37,13 +63,22 @@ if (query is "-h" or "--help" or "help")
           tree          Filmography trees (shows grouped by filming location)
 
         Examples:
-          dotnet run CanadianContent.cs
-          dotnet run CanadianContent.cs ryan
-          dotnet run CanadianContent.cs toronto
-          dotnet run CanadianContent.cs tree
+          dotnet run
+          dotnet run -- ryan
+          dotnet run -- --format ansi toronto
+          dotnet run -- --format plain tree
         """);
     return;
 }
+
+// Create the writer for the selected format
+var options = new MarkoutWriterOptions { MaxItems = maxItems };
+MarkoutWriter writer = format switch
+{
+    "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),
+    "plain" => new MarkoutWriter(Console.Out, options),
+    _ => new MarkdownWriter(Console.Out, options),
+};
 
 if (string.IsNullOrEmpty(query))
 {
@@ -66,7 +101,7 @@ if (string.IsNullOrEmpty(query))
             FilmingLocation = s.Location
         }).ToList()
     };
-    MarkoutSerializer.Serialize(overview, Console.Out, CanConContext.Default);
+    MarkoutSerializer.Serialize(overview, writer, CanConContext.Default);
 }
 else if (query.Contains("ryan") || query.Contains("rachel"))
 {
@@ -88,7 +123,7 @@ else if (query.Contains("ryan") || query.Contains("rachel"))
             KnownFor = string.Join(", ", a.Shows.Take(3))
         }).ToList()
     };
-    MarkoutSerializer.Serialize(view, Console.Out, CanConContext.Default);
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
 else if (query.Contains("expanse"))
 {
@@ -109,7 +144,7 @@ else if (query.Contains("expanse"))
             Citizenship = string.Join(", ", a.Citizenship)
         }).ToList()
     };
-    MarkoutSerializer.Serialize(view, Console.Out, CanConContext.Default);
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
 else if (query.Contains("schitt"))
 {
@@ -130,7 +165,7 @@ else if (query.Contains("schitt"))
             Citizenship = string.Join(", ", a.Citizenship)
         }).ToList()
     };
-    MarkoutSerializer.Serialize(view, Console.Out, CanConContext.Default);
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
 else if (query.Contains("toronto") || query.Contains("vancouver"))
 {
@@ -148,7 +183,7 @@ else if (query.Contains("toronto") || query.Contains("vancouver"))
             FilmingLocation = s.Location
         }).ToList()
     };
-    MarkoutSerializer.Serialize(view, Console.Out, CanConContext.Default);
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
 else if (query.Contains("gosling") || query.Contains("reynolds"))
 {
@@ -170,11 +205,10 @@ else if (query.Contains("gosling") || query.Contains("reynolds"))
             FilmingLocation = s.Location
         }).ToList()
     };
-    MarkoutSerializer.Serialize(view, Console.Out, CanConContext.Default);
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
 else if (query.Contains("tree"))
 {
-    var writer = new MarkoutWriter(Console.Out);
     writer.WriteHeading(1, "Canadian Content — Filmography Trees");
 
     foreach (var actor in actors)
@@ -200,8 +234,8 @@ else if (query.Contains("tree"))
 }
 else
 {
-    Console.WriteLine($"Unknown query: {query}");
-    Console.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree");
+    Console.Error.WriteLine($"Unknown query: {query}");
+    Console.Error.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree");
 }
 
 // --- JSON Models ---
@@ -255,11 +289,9 @@ public class CanConOverview
     public string Title { get; set; } = "";
 
     [MarkoutSection(Name = "Actors")]
-    [MarkoutMaxItems(5)]
     public List<ActorRow>? Actors { get; set; }
 
     [MarkoutSection(Name = "Shows")]
-    [MarkoutMaxItems(5)]
     public List<ShowRow>? Shows { get; set; }
 }
 

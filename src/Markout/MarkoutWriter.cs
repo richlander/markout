@@ -25,6 +25,8 @@ public class MarkoutWriter
     private bool _inCodeBlock;
     private string? _currentSectionName;
     private bool _sectionExcluded;
+    private int _tableRowCount;
+    private int _tableRowsSkipped;
 
     /// <summary>
     /// Creates a writer that builds output in memory with default options.
@@ -143,6 +145,36 @@ public class MarkoutWriter
     /// Gets whether the current section is excluded by filtering.
     /// </summary>
     protected bool SectionExcluded => _sectionExcluded;
+
+    /// <summary>
+    /// Increments the table row counter and returns true if the row should be written.
+    /// When <see cref="MarkoutWriterOptions.MaxItems"/> is set, returns false once the
+    /// limit is reached and tracks skipped rows for the ellipsis in <see cref="WriteTableEnd"/>.
+    /// </summary>
+    protected bool ShouldWriteTableRow()
+    {
+        if (_options.MaxItems is int max && _tableRowCount >= max)
+        {
+            _tableRowsSkipped++;
+            return false;
+        }
+        _tableRowCount++;
+        return true;
+    }
+
+    /// <summary>
+    /// Resets the table row tracking counters. Call from <see cref="WriteTableStart"/> overrides.
+    /// </summary>
+    protected void ResetTableRowTracking()
+    {
+        _tableRowCount = 0;
+        _tableRowsSkipped = 0;
+    }
+
+    /// <summary>
+    /// Gets the number of table rows skipped due to <see cref="MarkoutWriterOptions.MaxItems"/>.
+    /// </summary>
+    protected int TableRowsSkipped => _tableRowsSkipped;
 
     /// <summary>
     /// Flushes any buffered output to the underlying stream.
@@ -534,6 +566,8 @@ public class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         _inTable = true;
+        _tableRowCount = 0;
+        _tableRowsSkipped = 0;
 
         _writer.WriteLine(string.Join('\t', headers));
         _hasContent = true;
@@ -548,6 +582,9 @@ public class MarkoutWriter
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
 
         if (_sectionExcluded)
+            return;
+
+        if (!ShouldWriteTableRow())
             return;
 
         _writer.WriteLine(string.Join('\t', values));
@@ -577,7 +614,14 @@ public class MarkoutWriter
     {
         _inTable = false;
         if (!_sectionExcluded)
+        {
+            if (_tableRowsSkipped > 0)
+            {
+                _writer.WriteLine();
+                _writer.WriteLine($"... and {_tableRowsSkipped} more");
+            }
             _needsBlankLine = true;
+        }
     }
 
     /// <summary>
