@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Markout.Ansi</RootNamespace>
+    <Description>ANSI terminal renderer for Markout</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Markout\Markout.csproj" />
+    <!-- TODO: Replace with PackageReference when Microsoft.Extensions.Terminal is on NuGet -->
+    <ProjectReference Include="..\..\..\terminal-experiments\src\Microsoft.Extensions.Terminal\Microsoft.Extensions.Terminal.csproj" />
+  </ItemGroup>
+
+</Project>
