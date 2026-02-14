@@ -14,6 +14,18 @@ var showsJson = await File.ReadAllTextAsync(Path.Combine(basePath, "shows.json")
 var actors = JsonSerializer.Deserialize(actorsJson, CanConJsonContext.Default.ListActor)!;
 var shows = JsonSerializer.Deserialize(showsJson, CanConJsonContext.Default.ListShow)!;
 
+var cityCountry = new Dictionary<string, string>
+{
+    ["Toronto"] = "Canada",
+    ["Vancouver"] = "Canada",
+    ["Ontario"] = "Canada",
+    ["London"] = "England",
+    ["Sydney"] = "Australia",
+    ["South Carolina"] = "USA",
+    ["Budapest"] = "Hungary",
+    ["Los Angeles"] = "USA",
+};
+
 // Parse arguments: [--format markdown|ansi|plain] [-n count] [query]
 var argList = args.ToList();
 var format = "markdown";
@@ -109,6 +121,7 @@ if (string.IsNullOrEmpty(query))
                 return new CityRow
                 {
                     City = g.Key,
+                    Country = cityCountry.GetValueOrDefault(g.Key, ""),
                     ShowCount = g.Count(),
                     MostRecent = $"{mostRecent.Title} ({mostRecent.Years})"
                 };
@@ -353,6 +366,7 @@ public class ShowRow
 public class CityRow
 {
     public string City { get; set; } = "";
+    public string Country { get; set; } = "";
 
     [MarkoutPropertyName("Shows")]
     public int ShowCount { get; set; }
