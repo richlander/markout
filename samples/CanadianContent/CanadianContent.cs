@@ -68,6 +68,12 @@ if (nIndex >= 0 && nIndex + 1 < argList.Count && int.TryParse(argList[nIndex + 1
     argList.RemoveRange(nIndex, 2);
 }
 
+// Section filters for summary command
+HashSet<string>? includeSections = null;
+if (argList.Remove("--actors")) (includeSections ??= []).Add("Actors");
+if (argList.Remove("--shows")) (includeSections ??= []).Add("Shows");
+if (argList.Remove("--cities")) (includeSections ??= []).Add("Filming Locations");
+
 var query = argList.Count > 0 ? string.Join(" ", argList).ToLowerInvariant() : "";
 
 if (query is "" or "-h" or "--help" or "help")
@@ -87,6 +93,9 @@ if (query is "" or "-h" or "--help" or "help")
 
         Options:
           -n count      Limit table rows to count (e.g. -n 5)
+          --actors      Filter summary to actors table
+          --shows       Filter summary to shows table
+          --cities      Filter summary to filming locations table
 
         Queries:
           summary       Show all actors, shows, and filming locations
@@ -108,12 +117,13 @@ if (query is "" or "-h" or "--help" or "help")
           dotnet run -- --format ansi toronto
           dotnet run -- --format plain tree
           dotnet run -- --format ansi bars
+          dotnet run -- --oneline summary --actors
         """);
     return;
 }
 
 // Create the writer for the selected format
-var options = new MarkoutWriterOptions { MaxItems = maxItems };
+var options = new MarkoutWriterOptions { MaxItems = maxItems, IncludeSections = includeSections };
 MarkoutWriter writer = format switch
 {
     "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),
@@ -126,6 +136,11 @@ MarkoutWriter writer = format switch
 
 if (query.Contains("summary"))
 {
+    if (format == "oneline" && includeSections == null)
+    {
+        Console.Error.WriteLine("oneline format requires a section flag with summary: --actors, --shows, or --cities");
+        return;
+    }
     // Show all actors and shows
     var overview = new CanConOverview
     {
