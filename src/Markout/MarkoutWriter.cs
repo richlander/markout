@@ -27,6 +27,7 @@ public class MarkoutWriter
     private bool _sectionExcluded;
     private int _tableRowCount;
     private int _tableRowsSkipped;
+    private MarkoutShape _warnedShapes;
 
     /// <summary>
     /// Creates a writer that builds output in memory with default options.
@@ -104,6 +105,12 @@ public class MarkoutWriter
     public bool IncludeIcons => _options.IncludeIcons;
 
     /// <summary>
+    /// Gets the shapes this writer supports. Unsupported shapes produce a
+    /// runtime diagnostic and are skipped. Default is <see cref="MarkoutShape.All"/>.
+    /// </summary>
+    public virtual MarkoutShape SupportedShapes => MarkoutShape.All;
+
+    /// <summary>
     /// Gets the current rendering context, indicating what Markdown constructs are valid.
     /// </summary>
     public MarkoutRenderContext CurrentContext =>
@@ -177,6 +184,28 @@ public class MarkoutWriter
     protected int TableRowsSkipped => _tableRowsSkipped;
 
     /// <summary>
+    /// Returns true if this writer supports the given shape.
+    /// </summary>
+    protected bool Supports(MarkoutShape shape) => (SupportedShapes & shape) != 0;
+
+    /// <summary>
+    /// Writes a diagnostic warning for an unsupported shape (once per shape) and returns true.
+    /// Returns false if the shape is supported. Use as: <c>if (ShapeUnsupported(shape)) return;</c>
+    /// </summary>
+    protected bool ShapeUnsupported(MarkoutShape shape)
+    {
+        if (Supports(shape))
+            return false;
+
+        if ((_warnedShapes & shape) == 0)
+        {
+            _warnedShapes |= shape;
+            Console.Error.WriteLine($"Warning: {GetType().Name} does not support {shape}");
+        }
+        return true;
+    }
+
+    /// <summary>
     /// Flushes any buffered output to the underlying stream.
     /// </summary>
     public void Flush() => _writer.Flush();
@@ -241,7 +270,7 @@ public class MarkoutWriter
 
         UpdateSectionState(level, text);
 
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Headings))
             return;
 
         // Always add blank line before heading if there's content
@@ -270,7 +299,7 @@ public class MarkoutWriter
     /// <param name="text">The paragraph text.</param>
     public virtual void WriteParagraph(string? text)
     {
-        if (string.IsNullOrEmpty(text) || _sectionExcluded)
+        if (string.IsNullOrEmpty(text) || _sectionExcluded || ShapeUnsupported(MarkoutShape.Paragraphs))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -290,7 +319,7 @@ public class MarkoutWriter
 
         _inCodeBlock = true;
 
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.CodeBlocks))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -319,7 +348,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteField(string key, string? value)
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -333,7 +362,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteField(string key, bool value)
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -347,7 +376,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteField<T>(string key, T value) where T : ISpanFormattable
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -363,7 +392,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteFieldNoBreak(string key, string? value)
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -378,7 +407,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteFieldNoBreak(string key, bool value)
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -393,7 +422,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteFieldNoBreak<T>(string key, T value) where T : ISpanFormattable
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -408,7 +437,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteListItem(string text)
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Lists))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -433,7 +462,7 @@ public class MarkoutWriter
     /// </example>
     public virtual void WriteCompactFields(params MarkoutField[] fields)
     {
-        if (_sectionExcluded || fields.Length == 0)
+        if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.CompactFields))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -459,7 +488,7 @@ public class MarkoutWriter
     /// <param name="fields">Fields to write.</param>
     public virtual void WriteCompactFields(IReadOnlyList<MarkoutField> fields)
     {
-        if (_sectionExcluded || fields.Count == 0)
+        if (_sectionExcluded || fields.Count == 0 || ShapeUnsupported(MarkoutShape.CompactFields))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -500,7 +529,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteArray(string key, IEnumerable<string>? items)
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Lists))
             return;
 
         if (_hasContent)
@@ -519,7 +548,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteArray(IEnumerable<string>? items)
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Lists))
             return;
 
         if (_hasContent)
@@ -555,19 +584,17 @@ public class MarkoutWriter
         if (_inCodeBlock)
             throw new InvalidOperationException("Cannot start a table inside a code block.");
 
-        if (SectionExcluded)
-        {
-            _inTable = true;
+        _inTable = true;
+        _tableRowCount = 0;
+        _tableRowsSkipped = 0;
+
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Tables))
             return;
-        }
 
         if (headers.Length == 0)
             throw new ArgumentException("At least one header is required.", nameof(headers));
 
         EnsureBlankLineIfNeeded();
-        _inTable = true;
-        _tableRowCount = 0;
-        _tableRowsSkipped = 0;
 
         _writer.WriteLine(string.Join('\t', headers));
         _hasContent = true;
@@ -581,7 +608,7 @@ public class MarkoutWriter
         if (!_inTable)
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
 
-        if (_sectionExcluded)
+        if (_sectionExcluded || !Supports(MarkoutShape.Tables))
             return;
 
         if (!ShouldWriteTableRow())
@@ -645,7 +672,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteSimplePair(string name, string value, int nameWidth = 32)
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.SimplePairs))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -661,7 +688,7 @@ public class MarkoutWriter
     /// <param name="prefix">The prefix for tree structure (e.g., "├─ ", "│  ").</param>
     public virtual void WriteTreeNode(string text, string prefix = "")
     {
-        if (_sectionExcluded)
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Trees))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -675,7 +702,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteTree(IEnumerable<TreeNode>? nodes)
     {
-        if (nodes == null || _sectionExcluded) return;
+        if (nodes == null || _sectionExcluded || ShapeUnsupported(MarkoutShape.Trees)) return;
         
         var nodeList = nodes as IList<TreeNode> ?? [.. nodes];
         for (int i = 0; i < nodeList.Count; i++)
