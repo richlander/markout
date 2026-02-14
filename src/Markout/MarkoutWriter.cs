@@ -28,6 +28,8 @@ public class MarkoutWriter
     private int _tableRowCount;
     private int _tableRowsSkipped;
     private MarkoutShape _warnedShapes;
+    private string[]? _streamingHeaders;
+    private List<string[]>? _streamingRows;
 
     /// <summary>
     /// Creates a writer that builds output in memory with default options.
@@ -594,10 +596,8 @@ public class MarkoutWriter
         if (headers.Length == 0)
             throw new ArgumentException("At least one header is required.", nameof(headers));
 
-        EnsureBlankLineIfNeeded();
-
-        _writer.WriteLine(string.Join('\t', headers));
-        _hasContent = true;
+        _streamingHeaders = headers;
+        _streamingRows = [];
     }
 
     /// <summary>
@@ -614,7 +614,7 @@ public class MarkoutWriter
         if (!ShouldWriteTableRow())
             return;
 
-        _writer.WriteLine(string.Join('\t', values));
+        _streamingRows?.Add(values);
     }
 
     /// <summary>
@@ -640,15 +640,61 @@ public class MarkoutWriter
     public virtual void WriteTableEnd()
     {
         _inTable = false;
-        if (!_sectionExcluded)
+        if (!_sectionExcluded && _streamingHeaders != null)
         {
-            if (_tableRowsSkipped > 0)
-            {
-                _writer.WriteLine();
-                _writer.WriteLine($"... and {_tableRowsSkipped} more");
-            }
+            FlushStreamingTable(_streamingHeaders, _streamingRows ?? [], _tableRowsSkipped);
+            _streamingHeaders = null;
+            _streamingRows = null;
             _needsBlankLine = true;
         }
+    }
+
+    /// <summary>
+    /// Renders buffered streaming table rows with space-padded columns.
+    /// Rows have already been filtered by MaxItems via <see cref="ShouldWriteTableRow"/>.
+    /// Override to customize streaming table rendering (e.g., add separators or colors).
+    /// </summary>
+    protected virtual void FlushStreamingTable(string[] headers, IList<string[]> rows, int skippedRows)
+    {
+        // Calculate column widths
+        var widths = new int[headers.Length];
+        for (int i = 0; i < headers.Length; i++)
+            widths[i] = headers[i].Length;
+        foreach (var row in rows)
+        {
+            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+                widths[i] = Math.Max(widths[i], row[i].Length);
+        }
+
+        EnsureBlankLineIfNeeded();
+
+        // Headers
+        for (int i = 0; i < headers.Length; i++)
+        {
+            if (i < headers.Length - 1)
+                _writer.Write(headers[i].PadRight(widths[i] + 2));
+            else
+                _writer.Write(headers[i]);
+        }
+        _writer.WriteLine();
+
+        // Rows
+        foreach (var row in rows)
+        {
+            for (int i = 0; i < row.Length; i++)
+            {
+                if (i < row.Length - 1)
+                    _writer.Write(row[i].PadRight(widths[i] + 2));
+                else
+                    _writer.Write(row[i]);
+            }
+            _writer.WriteLine();
+        }
+
+        if (skippedRows > 0)
+            _writer.WriteLine($"\n... and {skippedRows} more");
+
+        _hasContent = true;
     }
 
     /// <summary>

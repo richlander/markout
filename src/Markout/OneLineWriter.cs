@@ -9,8 +9,6 @@ public class OneLineWriter : MarkoutWriter
 {
     private const int ColumnGap = 2;
     private readonly bool _showHeader;
-    private string[]? _streamingHeaders;
-    private List<string[]>? _streamingRows;
 
     /// <summary>
     /// Creates a one-line writer targeting the specified TextWriter.
@@ -40,44 +38,11 @@ public class OneLineWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteTableStart(params string[] headers)
+    protected override void FlushStreamingTable(string[] headers, IList<string[]> rows, int skippedRows)
     {
-        if (SectionExcluded)
-        {
-            InTable = true;
-            return;
-        }
-
-        InTable = true;
-        ResetTableRowTracking();
-        _streamingHeaders = headers;
-        _streamingRows = [];
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTableRow(params string[] values)
-    {
-        if (SectionExcluded || !ShouldWriteTableRow())
-            return;
-
-        _streamingRows?.Add(values);
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTableEnd()
-    {
-        InTable = false;
-        if (SectionExcluded || _streamingHeaders == null)
-            return;
-
-        // Flush buffered rows with space-padded columns
-        WriteTable(_streamingHeaders, _streamingRows ?? []);
-        _streamingHeaders = null;
-        _streamingRows = null;
-
-        // WriteTable doesn't know about streaming skipped rows
-        if (TableRowsSkipped > 0)
-            Writer.WriteLine($"\n... and {TableRowsSkipped} more");
+        WriteTable(headers, rows);
+        if (skippedRows > 0)
+            Writer.WriteLine($"\n... and {skippedRows} more");
     }
 
     /// <inheritdoc/>

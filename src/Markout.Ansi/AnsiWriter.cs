@@ -243,57 +243,15 @@ public class AnsiWriter : MarkoutWriter
     // ── Tables ──
 
     /// <inheritdoc/>
-    public override void WriteTableStart(params string[] headers)
+    protected override void FlushStreamingTable(string[] headers, IList<string[]> rows, int skippedRows)
     {
-        if (InCodeBlock)
-            throw new InvalidOperationException("Cannot start a table inside a code block.");
-
-        if (SectionExcluded)
+        // Reuse batch WriteTable for consistent styled rendering
+        WriteTable(headers, rows);
+        if (skippedRows > 0)
         {
-            InTable = true;
-            return;
-        }
-
-        if (headers.Length == 0)
-            throw new ArgumentException("At least one header is required.", nameof(headers));
-
-        EnsureBlankLineIfNeeded();
-        InTable = true;
-        ResetTableRowTracking();
-
-        // Bold uppercase headers, tab-separated (streaming — no width info)
-        Writer.WriteLine(AnsiCodes.MakeBold(string.Join('\t', headers.Select(h => h.ToUpperInvariant()))));
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTableRow(params string[] values)
-    {
-        if (!InTable)
-            throw new InvalidOperationException("Cannot write table row without starting a table first.");
-
-        if (SectionExcluded)
-            return;
-
-        if (!ShouldWriteTableRow())
-            return;
-
-        Writer.WriteLine(string.Join('\t', values));
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTableEnd()
-    {
-        InTable = false;
-        if (!SectionExcluded)
-        {
-            if (TableRowsSkipped > 0)
-            {
-                _terminal.SetColor(TerminalColor.DarkGray);
-                Writer.WriteLine($"\n... and {TableRowsSkipped} more");
-                _terminal.ResetColor();
-            }
-            NeedsBlankLine = true;
+            _terminal.SetColor(TerminalColor.DarkGray);
+            Writer.WriteLine($"\n... and {skippedRows} more");
+            _terminal.ResetColor();
         }
     }
 
