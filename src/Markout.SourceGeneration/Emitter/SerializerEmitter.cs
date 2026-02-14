@@ -535,6 +535,14 @@ internal static class SerializerEmitter
             }
             sb.AppendLine($"{indent}}}");
         }
+        else if (prop.Kind == PropertyKind.BarChart)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteBarChart({propAccess});");
+            sb.AppendLine($"{indent}}}");
+        }
         else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
         {
             sb.AppendLine($"{indent}if ({propAccess} != null)");
@@ -583,6 +591,11 @@ internal static class SerializerEmitter
             case PropertyKind.Tree:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
                 sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+                break;
+
+            case PropertyKind.BarChart:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteBarChart({propAccess});");
                 break;
 
             case PropertyKind.ComplexArray:
@@ -776,6 +789,8 @@ internal static class SerializerEmitter
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (fields)";
             if (prop.Kind == PropertyKind.Tree)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (tree)";
+            if (prop.Kind == PropertyKind.BarChart)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (bar chart)";
             return $"H{prop.SectionLevel} Section \"{sectionName}\"";
         }
 
@@ -795,6 +810,7 @@ internal static class SerializerEmitter
             PropertyKind.NestedObject => "Fields",
             PropertyKind.Formattable => "Custom (IMarkoutFormattable)",
             PropertyKind.Tree => "Tree",
+            PropertyKind.BarChart => "Bar chart",
             _ => "Field"
         };
     }

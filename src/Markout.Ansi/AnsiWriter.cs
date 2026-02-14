@@ -478,6 +478,47 @@ public class AnsiWriter : MarkoutWriter
 
     // ── Trees ──
 
+    /// <summary>
+    /// Color for bar chart bars. Default is <see cref="TerminalColor.Cyan"/>.
+    /// </summary>
+    public TerminalColor BarColor { get; set; } = TerminalColor.Cyan;
+
+    /// <summary>
+    /// Color for bar chart value labels. Default is <see cref="TerminalColor.DarkGray"/>.
+    /// </summary>
+    public TerminalColor BarValueColor { get; set; } = TerminalColor.DarkGray;
+
+    // ── Bar charts ──
+
+    /// <inheritdoc/>
+    protected override void WriteBarLine(BarItem item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
+    {
+        // Label in bold
+        Writer.Write(AnsiCodes.MakeBold(item.Label.PadRight(labelWidth)));
+        Writer.Write("  ");
+
+        // Bar in color
+        var ratio = item.Value / maxValue;
+        var fullBlocks = (int)(ratio * maxBarWidth);
+        var fraction = (ratio * maxBarWidth) - fullBlocks;
+        var halfBlock = fraction >= 0.5;
+
+        _terminal.SetColor(BarColor);
+        Writer.Write(new string('█', fullBlocks));
+        if (halfBlock) Writer.Write('▌');
+        _terminal.ResetColor();
+
+        // Value label
+        var barWidth = fullBlocks + (halfBlock ? 1 : 0);
+        var padding = maxBarWidth - barWidth + 1;
+        Writer.Write(new string(' ', padding));
+        _terminal.SetColor(BarValueColor);
+        Writer.WriteLine(FormatBarValue(item.Value).PadLeft(valueWidth));
+        _terminal.ResetColor();
+    }
+
+    // ── Trees (continued) ──
+
     /// <inheritdoc/>
     public override void WriteTree(IEnumerable<TreeNode>? nodes)
     {

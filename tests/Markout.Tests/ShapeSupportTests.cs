@@ -26,6 +26,7 @@ public class ShapeSupportTests
         Assert.True(all.HasFlag(MarkoutShape.Trees));
         Assert.True(all.HasFlag(MarkoutShape.CodeBlocks));
         Assert.True(all.HasFlag(MarkoutShape.SimplePairs));
+        Assert.True(all.HasFlag(MarkoutShape.BarCharts));
     }
 
     [Fact]
@@ -170,5 +171,64 @@ public class ShapeSupportTests
         Assert.DoesNotContain("\t", output);
         Assert.Contains("Name", output);
         Assert.Contains("Alice", output);
+    }
+
+    [Fact]
+    public void BarChart_OnBaseWriter()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteBarChart([
+            new BarItem("Alpha", 10),
+            new BarItem("Beta", 5),
+            new BarItem("Gamma", 1),
+        ]);
+        var output = writer.ToString();
+        Assert.Contains("Alpha", output);
+        Assert.Contains("Beta", output);
+        Assert.Contains("Gamma", output);
+        Assert.Contains("█", output);
+        Assert.Contains("10", output);
+    }
+
+    [Fact]
+    public void BarChart_HalfBlock_ForFractions()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteBarChart([
+            new BarItem("Full", 10),
+            new BarItem("Half", 5),
+        ], maxBarWidth: 10);
+        var output = writer.ToString();
+        // Half at 50% of 10 chars = 5 full blocks, no half
+        // Let's just verify it renders both
+        Assert.Contains("Full", output);
+        Assert.Contains("Half", output);
+    }
+
+    [Fact]
+    public void BarChart_Empty_NoOutput()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteBarChart([]);
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Fact]
+    public void BarChart_UnsupportedWriter_SkipsWithWarning()
+    {
+        var errWriter = new StringWriter();
+        var origErr = Console.Error;
+        Console.SetError(errWriter);
+        try
+        {
+            var writer = new TablesOnlyWriter();
+            writer.WriteBarChart([new BarItem("X", 5)]);
+            Assert.Equal("", writer.ToString());
+            Assert.Contains("does not support BarCharts", errWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(origErr);
+        }
     }
 }

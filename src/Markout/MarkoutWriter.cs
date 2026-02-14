@@ -786,6 +786,72 @@ public class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes a horizontal bar chart from labeled values.
+    /// Bars are scaled proportionally to the maximum value using block characters.
+    /// </summary>
+    /// <param name="items">The labeled values to chart.</param>
+    /// <param name="maxBarWidth">Maximum width of the longest bar in characters. Default is 30.</param>
+    public virtual void WriteBarChart(IReadOnlyList<BarItem> items, int maxBarWidth = 30)
+    {
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+            return;
+
+        EnsureBlankLineIfNeeded();
+
+        var maxValue = 0.0;
+        var maxLabelWidth = 0;
+        var maxValueWidth = 0;
+        foreach (var item in items)
+        {
+            if (item.Value > maxValue) maxValue = item.Value;
+            if (item.Label.Length > maxLabelWidth) maxLabelWidth = item.Label.Length;
+            var vw = FormatBarValue(item.Value).Length;
+            if (vw > maxValueWidth) maxValueWidth = vw;
+        }
+
+        if (maxValue <= 0) maxValue = 1;
+
+        foreach (var item in items)
+        {
+            WriteBarLine(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
+        }
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Renders a single bar line. Override for custom bar styling.
+    /// </summary>
+    protected virtual void WriteBarLine(BarItem item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
+    {
+        _writer.Write(item.Label.PadRight(labelWidth));
+        _writer.Write("  ");
+
+        var ratio = item.Value / maxValue;
+        var fullBlocks = (int)(ratio * maxBarWidth);
+        var fraction = (ratio * maxBarWidth) - fullBlocks;
+        var halfBlock = fraction >= 0.5;
+
+        _writer.Write(new string('█', fullBlocks));
+        if (halfBlock) _writer.Write('▌');
+
+        // Pad to align the value column
+        var barWidth = fullBlocks + (halfBlock ? 1 : 0);
+        var padding = maxBarWidth - barWidth + 1;
+        _writer.Write(new string(' ', padding));
+        _writer.WriteLine(FormatBarValue(item.Value).PadLeft(valueWidth));
+    }
+
+    /// <summary>
+    /// Formats the numeric value displayed at the end of a bar.
+    /// </summary>
+    protected static string FormatBarValue(double value)
+    {
+        return value == Math.Floor(value) ? ((int)value).ToString() : value.ToString("0.#");
+    }
+
+    /// <summary>
     /// Writes a blank line.
     /// </summary>
     public virtual void WriteBlankLine()

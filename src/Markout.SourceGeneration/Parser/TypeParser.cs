@@ -534,6 +534,18 @@ internal static class TypeParser
                         }
                     }
 
+                    // Check for IReadOnlyList<BarItem> / List<BarItem> - renders as bar chart
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.BarItem))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.BarChart, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                        }
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 

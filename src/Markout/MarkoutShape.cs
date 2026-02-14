@@ -38,6 +38,9 @@ public enum MarkoutShape
     /// <summary>Simple name-value pairs.</summary>
     SimplePairs = 256,
 
+    /// <summary>Horizontal bar charts.</summary>
+    BarCharts = 512,
+
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs
+    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts
 }

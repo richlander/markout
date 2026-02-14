@@ -344,5 +344,6 @@ internal enum PropertyKind
     NestedObject,
     FieldCollection,
     Tree,
+    BarChart,
     Other
 }

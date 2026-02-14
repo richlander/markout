@@ -91,12 +91,14 @@ if (query is "-h" or "--help" or "help")
           toronto       Shows filmed in Toronto
           vancouver     Shows filmed in Vancouver
           tree          Filmography trees (shows grouped by filming location)
+          bars          Bar chart of shows per filming city
 
         Examples:
           dotnet run
           dotnet run -- ryan
           dotnet run -- --format ansi toronto
           dotnet run -- --format plain tree
+          dotnet run -- --format ansi bars
         """);
     return;
 }
@@ -282,10 +284,23 @@ else if (query.Contains("tree"))
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
+else if (query.Contains("bars"))
+{
+    var view = new ShowsByLocationChart
+    {
+        Title = "Shows per Filming Location",
+        Bars = shows
+            .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+            .OrderByDescending(g => g.Count())
+            .Select(g => new BarItem(g.Key, g.Count()))
+            .ToList()
+    };
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+}
 else
 {
     Console.Error.WriteLine($"Unknown query: {query}");
-    Console.Error.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree");
+    Console.Error.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars");
 }
 
 // --- JSON Models ---
@@ -457,6 +472,16 @@ public class FilmographyTreeView
     public List<TreeNode>? Filmography { get; set; }
 }
 
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ShowsByLocationChart
+{
+    [MarkoutIgnore]
+    public string Title { get; set; } = "";
+
+    [MarkoutIgnoreInTable]
+    public IReadOnlyList<BarItem>? Bars { get; set; }
+}
+
 [MarkoutContext(typeof(CanConOverview))]
 [MarkoutContext(typeof(ActorRow))]
 [MarkoutContext(typeof(ActorDetailRow))]
@@ -467,4 +492,5 @@ public class FilmographyTreeView
 [MarkoutContext(typeof(ShowDetailView))]
 [MarkoutContext(typeof(ActorFilmography))]
 [MarkoutContext(typeof(FilmographyTreeView))]
+[MarkoutContext(typeof(ShowsByLocationChart))]
 public partial class CanConContext : MarkoutSerializerContext { }

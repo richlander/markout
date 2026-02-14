@@ -22,5 +22,5 @@ public class DiagramWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override MarkoutShape SupportedShapes => MarkoutShape.Headings | MarkoutShape.Trees;
+    public override MarkoutShape SupportedShapes => MarkoutShape.Headings | MarkoutShape.Trees | MarkoutShape.BarCharts;
 }
