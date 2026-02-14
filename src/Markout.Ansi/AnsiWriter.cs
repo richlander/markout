@@ -448,7 +448,11 @@ public class AnsiWriter : MarkoutWriter
         }
 
         if (depth == 0)
+        {
+            _terminal.SetColor(TerminalColor.White);
             Writer.WriteLine(AnsiCodes.MakeBold(node.Label));
+            _terminal.ResetColor();
+        }
         else if (depth == 1)
         {
             Writer.WriteLine(node.Label);
