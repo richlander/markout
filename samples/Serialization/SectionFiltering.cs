@@ -13,7 +13,7 @@ public static class SectionFiltering
     public static void IncludeSpecificSections()
     {
         #region IncludeSpecificSections
-        var writer = new MarkoutWriter(new MarkoutWriterOptions
+        var writer = new MarkdownWriter(new MarkoutWriterOptions
         {
             // Only include sections matching these heading names
             IncludeSections = ["Overview", "Reviews"]
@@ -49,7 +49,7 @@ public static class SectionFiltering
     public static void ExcludeSpecificSections()
     {
         #region ExcludeSpecificSections
-        var writer = new MarkoutWriter(new MarkoutWriterOptions
+        var writer = new MarkdownWriter(new MarkoutWriterOptions
         {
             // Exclude the Specifications section
             ExcludeSections = ["Specifications"]

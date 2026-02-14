@@ -4,7 +4,9 @@ using System.Text;
 namespace Markout;
 
 /// <summary>
-/// Low-level writer for generating Markout output.
+/// Base writer that defines the Markout shape vocabulary.
+/// Produces plain-text output by default. Subclass to create renderers
+/// for specific formats (e.g., <see cref="MarkdownWriter"/> for Markdown).
 /// </summary>
 /// <example>
 ///   <code lang="cs" source="../../samples/Serialization/WriterUsage.cs" region="UseMarkoutWriter" title="Basic writer usage" />
@@ -15,8 +17,6 @@ namespace Markout;
 /// <seealso href="../../samples/Serialization/SectionFiltering.cs">Section filtering examples</seealso>
 public class MarkoutWriter
 {
-    private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
-
     private readonly TextWriter _writer;
     private readonly MarkoutWriterOptions _options;
     private bool _needsBlankLine;
@@ -130,9 +130,14 @@ public class MarkoutWriter
     protected bool HasContent { get => _hasContent; set => _hasContent = value; }
 
     /// <summary>
-    /// Gets whether output is currently inside a table.
+    /// Gets or sets whether output is currently inside a table.
     /// </summary>
-    protected bool InTable => _inTable;
+    protected bool InTable { get => _inTable; set => _inTable = value; }
+
+    /// <summary>
+    /// Gets or sets whether output is currently inside a code block.
+    /// </summary>
+    protected bool InCodeBlock { get => _inCodeBlock; set => _inCodeBlock = value; }
 
     /// <summary>
     /// Gets whether the current section is excluded by filtering.
@@ -172,22 +177,13 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a field name with optional bold formatting.
+    /// Writes a field name.
     /// Override to customize how field names are rendered.
     /// </summary>
     protected virtual void WriteFieldName(string key)
     {
-        if (BoldFieldNames)
-        {
-            _writer.Write("**");
-            _writer.Write(key);
-            _writer.Write(":** ");
-        }
-        else
-        {
-            _writer.Write(key);
-            _writer.Write(": ");
-        }
+        _writer.Write(key);
+        _writer.Write(": ");
     }
 
     /// <summary>
@@ -222,8 +218,6 @@ public class MarkoutWriter
             _writer.WriteLine();
         }
 
-        _writer.Write(HeadingPrefixes[level]);
-        _writer.Write(' ');
         _writer.Write(text);
 
         if (!string.IsNullOrEmpty(context))
@@ -262,18 +256,12 @@ public class MarkoutWriter
         if (_inCodeBlock)
             throw new InvalidOperationException("Cannot nest code blocks. End the current code block before starting a new one.");
 
+        _inCodeBlock = true;
+
         if (_sectionExcluded)
-        {
-            _inCodeBlock = true;
             return;
-        }
 
         EnsureBlankLineIfNeeded();
-        _writer.Write("```");
-        if (!string.IsNullOrEmpty(language))
-            _writer.Write(language);
-        _writer.WriteLine();
-        _inCodeBlock = true;
         _hasContent = true;
     }
 
@@ -291,13 +279,11 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return;
 
-        _writer.WriteLine("```");
         _needsBlankLine = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a string value.
-    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public virtual void WriteField(string key, string? value)
     {
@@ -306,14 +292,12 @@ public class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.Write(value ?? string.Empty);
-        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.WriteLine(value ?? string.Empty);
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a boolean value (yes/no).
-    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public virtual void WriteField(string key, bool value)
     {
@@ -322,14 +306,12 @@ public class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
-        _writer.Write(value ? "yes" : "no");
-        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.WriteLine(value ? "yes" : "no");
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a key-value field with a formattable value (int, long, double, decimal, DateTime, DateTimeOffset, etc.).
-    /// Uses trailing spaces for markdown hard line break.
     /// </summary>
     public virtual void WriteField<T>(string key, T value) where T : ISpanFormattable
     {
@@ -339,7 +321,7 @@ public class MarkoutWriter
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         WriteFormattedValue(value);
-        _writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
+        _writer.WriteLine();
         _hasContent = true;
     }
 
@@ -482,36 +464,25 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes an array field with string items as a markdown list.
-    /// Always has a blank line before and after for proper markdown rendering.
+    /// Writes an array field with string items as a list.
     /// </summary>
     public virtual void WriteArray(string key, IEnumerable<string>? items)
     {
         if (_sectionExcluded)
             return;
 
-        // Always ensure blank line before array if there's prior content
         if (_hasContent)
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
 
-        if (BoldFieldNames)
-        {
-            _writer.Write("**");
-            _writer.Write(key);
-            _writer.WriteLine(":**");
-        }
-        else
-        {
-            _writer.Write(key);
-            _writer.WriteLine(":");
-        }
+        _writer.Write(key);
+        _writer.WriteLine(":");
 
         WriteBulletItems(items);
     }
 
     /// <summary>
-    /// Writes string items as a markdown bullet list (no label).
+    /// Writes string items as a bullet list (no label).
     /// Use after a heading when the section title serves as the label.
     /// </summary>
     public virtual void WriteArray(IEnumerable<string>? items)
@@ -526,7 +497,10 @@ public class MarkoutWriter
         WriteBulletItems(items);
     }
 
-    private void WriteBulletItems(IEnumerable<string>? items)
+    /// <summary>
+    /// Writes items as a bullet list. Available to subclasses.
+    /// </summary>
+    protected void WriteBulletItems(IEnumerable<string>? items)
     {
         if (items != null)
         {
@@ -549,9 +523,9 @@ public class MarkoutWriter
         if (_inCodeBlock)
             throw new InvalidOperationException("Cannot start a table inside a code block.");
 
-        if (_sectionExcluded)
+        if (SectionExcluded)
         {
-            _inTable = true; // Track state even when excluded
+            _inTable = true;
             return;
         }
 
@@ -561,32 +535,12 @@ public class MarkoutWriter
         EnsureBlankLineIfNeeded();
         _inTable = true;
 
-        // Header row
-        _writer.Write('|');
-        foreach (var header in headers)
-        {
-            _writer.Write(' ');
-            _writer.Write(header);
-            _writer.Write(" |");
-        }
-        _writer.WriteLine();
-
-        // Separator row
-        _writer.Write('|');
-        foreach (var header in headers)
-        {
-            _writer.Write(' ');
-            for (int i = 0; i < header.Length; i++)
-                _writer.Write('-');
-            _writer.Write(" |");
-        }
-        _writer.WriteLine();
+        _writer.WriteLine(string.Join('\t', headers));
         _hasContent = true;
     }
 
     /// <summary>
     /// Writes a table row with the given values.
-    /// Pipe characters in values are automatically escaped.
     /// </summary>
     public virtual void WriteTableRow(params string[] values)
     {
@@ -596,14 +550,7 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return;
 
-        _writer.Write('|');
-        foreach (var value in values)
-        {
-            _writer.Write(' ');
-            _writer.Write(EscapeTableCell(value));
-            _writer.Write(" |");
-        }
-        _writer.WriteLine();
+        _writer.WriteLine(string.Join('\t', values));
     }
 
     /// <summary>

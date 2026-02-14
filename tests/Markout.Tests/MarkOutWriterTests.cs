@@ -7,7 +7,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_Level1_WritesCorrectMarkdown()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package");
 
         Assert.Equal("# Package", writer.ToString());
@@ -16,7 +16,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_Level2_WritesCorrectMarkdown()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(2, "Dependencies");
 
         Assert.Equal("## Dependencies", writer.ToString());
@@ -25,7 +25,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_WithContext_WritesCorrectMarkdown()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(2, "Dependencies", "net6.0");
 
         Assert.Equal("## Dependencies (net6.0)", writer.ToString());
@@ -104,7 +104,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteTable_WritesMarkdownTable()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteTableStart("File", "Arch", "Signed");
         writer.WriteTableRow("Foo.dll", "AnyCPU", "yes");
         writer.WriteTableRow("Bar.dll", "x64", "no");
@@ -136,7 +136,7 @@ public class MarkoutWriterTests
     [Fact]
     public void MultipleElements_AddsBlankLinesBetweenSections()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package");
         writer.WriteField("Name", "Test");
         writer.WriteField("Version", "1.0.0");
@@ -160,7 +160,7 @@ public class MarkoutWriterTests
     [Fact]
     public void IncludeSections_FiltersToSpecifiedSections()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = ["First"] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = ["First"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Intro");
@@ -178,7 +178,7 @@ public class MarkoutWriterTests
     [Fact]
     public void ExcludeSections_SkipsSpecifiedSections()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = ["Second"] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { ExcludeSections = ["Second"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "First");    // included
@@ -195,7 +195,7 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_ContentBeforeFirstH2_AlwaysIncluded()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = ["Second"] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = ["Second"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("This is before any H2");
@@ -211,7 +211,7 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_TableSpanningExcludedSection_NotWritten()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = ["Data"] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { ExcludeSections = ["Data"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "Data");     // excluded
@@ -269,7 +269,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteCompactFields_AfterHeading_AddsBlankLine()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package 1.0.0");
         writer.WriteCompactFields(
             new MarkoutField("Type", "Library"),
@@ -454,7 +454,7 @@ public class MarkoutWriterTests
     [Fact]
     public void IncludeSections_EmptySet_IncludesPreambleOnly()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = [] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = [] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Preamble text");
