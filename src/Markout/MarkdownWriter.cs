@@ -278,4 +278,33 @@ public class MarkdownWriter : MarkoutWriter
 
         WriteBulletItems(items);
     }
+
+    /// <inheritdoc/>
+    public override void WriteBarChart(IReadOnlyList<BarItem> items, int maxBarWidth = 30)
+    {
+        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+            return;
+
+        EnsureBlankLineIfNeeded();
+        Writer.WriteLine("```");
+        // Delegate to base rendering (which writes individual bar lines)
+        var maxValue = 0.0;
+        var maxLabelWidth = 0;
+        var maxValueWidth = 0;
+        foreach (var item in items)
+        {
+            if (item.Value > maxValue) maxValue = item.Value;
+            if (item.Label.Length > maxLabelWidth) maxLabelWidth = item.Label.Length;
+            var vw = FormatBarValue(item.Value).Length;
+            if (vw > maxValueWidth) maxValueWidth = vw;
+        }
+        if (maxValue <= 0) maxValue = 1;
+
+        foreach (var item in items)
+            WriteBarLine(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
+
+        Writer.WriteLine("```");
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
 }
