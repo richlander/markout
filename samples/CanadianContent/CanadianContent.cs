@@ -235,32 +235,32 @@ else if (query.Contains("gosling") || query.Contains("reynolds"))
 }
 else if (query.Contains("tree"))
 {
-    writer.WriteHeading(1, "Canadian Content — Filmography Trees");
+    var view = new FilmographyTreeView
+    {
+        Title = "Canadian Content — Filmography Trees",
+        Filmography = actors
+            .Select(actor =>
+            {
+                var actorShows = shows
+                    .Where(s => s.CanadianActors.Contains(actor.Name))
+                    .ToList();
 
-    var actorNodes = actors
-        .Select(actor =>
-        {
-            var actorShows = shows
-                .Where(s => s.CanadianActors.Contains(actor.Name))
-                .ToList();
+                if (actorShows.Count == 0) return null;
 
-            if (actorShows.Count == 0) return null;
+                var cityNodes = actorShows
+                    .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+                    .OrderBy(g => g.Key)
+                    .Select(g => new TreeNode(
+                        g.Key,
+                        g.Select(s => $"{s.Title} ({s.Years})")))
+                    .ToList();
 
-            // Group shows by filming location
-            var cityNodes = actorShows
-                .GroupBy(s => s.Location.Replace("Filmed in ", ""))
-                .OrderBy(g => g.Key)
-                .Select(g => new TreeNode(
-                    g.Key,
-                    g.Select(s => $"{s.Title} ({s.Years})")))
-                .ToList();
-
-            return new TreeNode(actor.Name, cityNodes);
-        })
-        .Where(n => n is not null)
-        .ToList();
-
-    writer.WriteTree(actorNodes!);
+                return new TreeNode(actor.Name, cityNodes);
+            })
+            .Where(n => n is not null)
+            .ToList()!
+    };
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
 else
 {
@@ -427,6 +427,16 @@ public class ActorFilmography
     public List<ShowRow>? Filmography { get; set; }
 }
 
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class FilmographyTreeView
+{
+    [MarkoutIgnore]
+    public string Title { get; set; } = "";
+
+    [MarkoutIgnoreInTable]
+    public List<TreeNode>? Filmography { get; set; }
+}
+
 [MarkoutContext(typeof(CanConOverview))]
 [MarkoutContext(typeof(ActorRow))]
 [MarkoutContext(typeof(ActorDetailRow))]
@@ -436,4 +446,5 @@ public class ActorFilmography
 [MarkoutContext(typeof(LocationSearchResult))]
 [MarkoutContext(typeof(ShowDetailView))]
 [MarkoutContext(typeof(ActorFilmography))]
+[MarkoutContext(typeof(FilmographyTreeView))]
 public partial class CanConContext : MarkoutSerializerContext { }
