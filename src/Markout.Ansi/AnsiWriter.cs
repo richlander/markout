@@ -451,9 +451,7 @@ public class AnsiWriter : MarkoutWriter
             Writer.WriteLine(AnsiCodes.MakeBold(node.Label));
         else if (depth == 1)
         {
-            _terminal.SetColor(TerminalColor.DarkCyan);
             Writer.WriteLine(node.Label);
-            _terminal.ResetColor();
         }
         else
         {
