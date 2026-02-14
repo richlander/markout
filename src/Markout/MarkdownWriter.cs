@@ -286,7 +286,7 @@ public class MarkdownWriter : MarkoutWriter
             return;
 
         EnsureBlankLineIfNeeded();
-        Writer.WriteLine("```");
+        Writer.WriteLine("```text");
         // Delegate to base rendering (which writes individual bar lines)
         var maxValue = 0.0;
         var maxLabelWidth = 0;
