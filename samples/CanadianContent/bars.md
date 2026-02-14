@@ -1,6 +1,6 @@
 # Shows per Filming Location
 
-```
+```text
 Toronto         ██████████████████████████████ 5
 Vancouver       ██████████████████             3
 London          ████████████                   2

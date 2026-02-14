@@ -520,6 +520,45 @@ public class AnsiWriter : MarkoutWriter
     // ── Trees (continued) ──
 
     /// <inheritdoc/>
+    protected override void WriteVerticalBarRow(
+        (string Label, string ValueStr, int Height, int ColWidth)[] cols, int row)
+    {
+        for (int c = 0; c < cols.Length; c++)
+        {
+            if (c > 0) Writer.Write("  ");
+            if (cols[c].Height >= row)
+            {
+                var pad = cols[c].ColWidth - 1;
+                var leftPad = pad / 2;
+                Writer.Write(new string(' ', leftPad));
+                _terminal.SetColor(BarColor);
+                Writer.Write('█');
+                _terminal.ResetColor();
+                Writer.Write(new string(' ', pad - leftPad));
+            }
+            else
+            {
+                Writer.Write(new string(' ', cols[c].ColWidth));
+            }
+        }
+        Writer.WriteLine();
+    }
+
+    /// <inheritdoc/>
+    protected override void WriteVerticalBarValue(string valueStr, int colWidth)
+    {
+        var pad = colWidth - valueStr.Length;
+        var leftPad = pad / 2;
+        Writer.Write(new string(' ', leftPad));
+        _terminal.SetColor(BarValueColor);
+        Writer.Write(valueStr);
+        _terminal.ResetColor();
+        Writer.Write(new string(' ', pad - leftPad));
+    }
+
+    // ── Trees (node rendering) ──
+
+    /// <inheritdoc/>
     public override void WriteTree(IEnumerable<TreeNode>? nodes)
     {
         if (nodes == null || SectionExcluded) return;

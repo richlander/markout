@@ -92,6 +92,7 @@ if (query is "-h" or "--help" or "help")
           vancouver     Shows filmed in Vancouver
           tree          Filmography trees (shows grouped by filming location)
           bars          Bar chart of shows per filming city
+          vbars         Vertical bar chart of shows per filming city
 
         Examples:
           dotnet run
@@ -284,6 +285,16 @@ else if (query.Contains("tree"))
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
+else if (query.Contains("vbars"))
+{
+    var bars = shows
+        .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+        .OrderByDescending(g => g.Count())
+        .Select(g => new BarItem(g.Key, g.Count()))
+        .ToList();
+    writer.WriteHeading(1, "Shows per Filming Location");
+    writer.WriteVerticalBarChart(bars);
+}
 else if (query.Contains("bars"))
 {
     var view = new ShowsByLocationChart
@@ -300,7 +311,7 @@ else if (query.Contains("bars"))
 else
 {
     Console.Error.WriteLine($"Unknown query: {query}");
-    Console.Error.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars");
+    Console.Error.WriteLine("Try: ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars");
 }
 
 // --- JSON Models ---

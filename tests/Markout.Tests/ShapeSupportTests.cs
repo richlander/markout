@@ -231,4 +231,32 @@ public class ShapeSupportTests
             Console.SetError(origErr);
         }
     }
+
+    [Fact]
+    public void VerticalBarChart_OnBaseWriter()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteVerticalBarChart([
+            new BarItem("A", 10),
+            new BarItem("B", 5),
+            new BarItem("C", 1),
+        ], maxBarHeight: 5);
+        var output = writer.ToString();
+        Assert.Contains("█", output);
+        Assert.Contains("A", output);
+        Assert.Contains("B", output);
+        Assert.Contains("C", output);
+        Assert.Contains("10", output);
+        // Labels should be on last line
+        var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("A", lines[^1]);
+    }
+
+    [Fact]
+    public void VerticalBarChart_Empty_NoOutput()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteVerticalBarChart([]);
+        Assert.Equal("", writer.ToString());
+    }
 }
