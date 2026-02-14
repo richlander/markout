@@ -37,6 +37,14 @@ if (formatIndex >= 0 && formatIndex + 1 < argList.Count)
     format = argList[formatIndex + 1].ToLowerInvariant();
     argList.RemoveRange(formatIndex, 2);
 }
+else if (argList.Remove("--ansi"))
+{
+    format = "ansi";
+}
+else if (argList.Remove("--plain"))
+{
+    format = "plain";
+}
 
 var nIndex = argList.IndexOf("-n");
 if (nIndex >= 0 && nIndex + 1 < argList.Count && int.TryParse(argList[nIndex + 1], out var n))
@@ -52,7 +60,7 @@ if (query is "-h" or "--help" or "help")
     Console.WriteLine("""
         Canadian Content Database - CanCon. It's the law!
 
-        Usage: dotnet run -- [--format markdown|ansi|plain] [-n count] [query]
+        Usage: dotnet run -- [--format markdown|ansi|plain] [--ansi] [--plain] [-n count] [query]
 
         Formats:
           markdown      Markdown output (default)
