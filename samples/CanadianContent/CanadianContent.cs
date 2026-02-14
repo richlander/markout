@@ -237,26 +237,30 @@ else if (query.Contains("tree"))
 {
     writer.WriteHeading(1, "Canadian Content — Filmography Trees");
 
-    foreach (var actor in actors)
-    {
-        var actorShows = shows
-            .Where(s => s.CanadianActors.Contains(actor.Name))
-            .ToList();
+    var actorNodes = actors
+        .Select(actor =>
+        {
+            var actorShows = shows
+                .Where(s => s.CanadianActors.Contains(actor.Name))
+                .ToList();
 
-        if (actorShows.Count == 0) continue;
+            if (actorShows.Count == 0) return null;
 
-        // Group shows by filming location
-        var cityNodes = actorShows
-            .GroupBy(s => s.Location.Replace("Filmed in ", ""))
-            .OrderBy(g => g.Key)
-            .Select(g => new TreeNode(
-                g.Key,
-                g.Select(s => $"{s.Title} ({s.Years})")))
-            .ToList();
+            // Group shows by filming location
+            var cityNodes = actorShows
+                .GroupBy(s => s.Location.Replace("Filmed in ", ""))
+                .OrderBy(g => g.Key)
+                .Select(g => new TreeNode(
+                    g.Key,
+                    g.Select(s => $"{s.Title} ({s.Years})")))
+                .ToList();
 
-        writer.WriteTree([new TreeNode(actor.Name, cityNodes)]);
-        writer.WriteBlankLine();
-    }
+            return new TreeNode(actor.Name, cityNodes);
+        })
+        .Where(n => n is not null)
+        .ToList();
+
+    writer.WriteTree(actorNodes!);
 }
 else
 {
