@@ -1,0 +1,174 @@
+using Markout;
+
+namespace Markout.Tests;
+
+public class ShapeSupportTests
+{
+    /// <summary>
+    /// A test writer that only supports Tables.
+    /// </summary>
+    private class TablesOnlyWriter : MarkoutWriter
+    {
+        public TablesOnlyWriter() : base(new StringWriter()) { }
+        public override MarkoutShape SupportedShapes => MarkoutShape.Tables;
+    }
+
+    [Fact]
+    public void MarkoutShape_All_HasAllFlags()
+    {
+        var all = MarkoutShape.All;
+        Assert.True(all.HasFlag(MarkoutShape.Headings));
+        Assert.True(all.HasFlag(MarkoutShape.Paragraphs));
+        Assert.True(all.HasFlag(MarkoutShape.Fields));
+        Assert.True(all.HasFlag(MarkoutShape.CompactFields));
+        Assert.True(all.HasFlag(MarkoutShape.Tables));
+        Assert.True(all.HasFlag(MarkoutShape.Lists));
+        Assert.True(all.HasFlag(MarkoutShape.Trees));
+        Assert.True(all.HasFlag(MarkoutShape.CodeBlocks));
+        Assert.True(all.HasFlag(MarkoutShape.SimplePairs));
+    }
+
+    [Fact]
+    public void BaseWriter_SupportedShapes_IsAll()
+    {
+        var writer = new MarkoutWriter();
+        Assert.Equal(MarkoutShape.All, writer.SupportedShapes);
+    }
+
+    [Fact]
+    public void MarkdownWriter_SupportedShapes_IsAll()
+    {
+        var writer = new MarkdownWriter();
+        Assert.Equal(MarkoutShape.All, writer.SupportedShapes);
+    }
+
+    [Fact]
+    public void UnsupportedShape_WarnsOnce()
+    {
+        var errWriter = new StringWriter();
+        var origErr = Console.Error;
+        Console.SetError(errWriter);
+        try
+        {
+            var writer = new TablesOnlyWriter();
+            // Call unsupported shape three times
+            writer.WriteField("A", "1");
+            writer.WriteField("B", "2");
+            writer.WriteField("C", "3");
+
+            var warnings = errWriter.ToString();
+            // Should contain exactly one warning
+            var count = warnings.Split("does not support Fields").Length - 1;
+            Assert.Equal(1, count);
+        }
+        finally
+        {
+            Console.SetError(origErr);
+        }
+    }
+
+    [Fact]
+    public void UnsupportedShape_SkipsOutput()
+    {
+        var errWriter = new StringWriter();
+        var origErr = Console.Error;
+        Console.SetError(errWriter);
+        try
+        {
+            var writer = new TablesOnlyWriter();
+            writer.WriteHeading(1, "Title");
+            writer.WriteParagraph("text");
+            writer.WriteField("key", "value");
+            writer.WriteListItem("item");
+            writer.WriteSimplePair("a", "b");
+            // Should produce no output
+            Assert.Equal("", writer.ToString());
+        }
+        finally
+        {
+            Console.SetError(origErr);
+        }
+    }
+
+    [Fact]
+    public void SupportedShape_StillRenders()
+    {
+        var writer = new TablesOnlyWriter();
+        writer.WriteTableStart("Name");
+        writer.WriteTableRow("Alice");
+        writer.WriteTableEnd();
+        Assert.Contains("Alice", writer.ToString());
+    }
+
+    [Fact]
+    public void UnsupportedTable_StateStillTracked()
+    {
+        var errWriter = new StringWriter();
+        var origErr = Console.Error;
+        Console.SetError(errWriter);
+        try
+        {
+            // DiagramWriter doesn't support tables but state must be tracked
+            // so WriteTableRow/End don't throw
+            var sw = new StringWriter();
+            var writer = new DiagramWriter(sw);
+            writer.WriteTableStart("Col");
+            writer.WriteTableRow("val");
+            writer.WriteTableEnd();
+            // Should not throw, and should produce no table output
+            Assert.Equal("", sw.ToString());
+        }
+        finally
+        {
+            Console.SetError(origErr);
+        }
+    }
+
+    [Fact]
+    public void MaxItems_OnBaseWriter()
+    {
+        var options = new MarkoutWriterOptions { MaxItems = 2 };
+        var writer = new MarkoutWriter(options);
+        writer.WriteTableStart("Name");
+        writer.WriteTableRow("Alice");
+        writer.WriteTableRow("Bob");
+        writer.WriteTableRow("Carol");
+        writer.WriteTableRow("Dave");
+        writer.WriteTableEnd();
+        var output = writer.ToString();
+        Assert.Contains("Alice", output);
+        Assert.Contains("Bob", output);
+        Assert.DoesNotContain("Carol", output);
+        Assert.Contains("... and 2 more", output);
+    }
+
+    [Fact]
+    public void MaxItems_NullMeansNoLimit()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteTableStart("Name");
+        writer.WriteTableRow("Alice");
+        writer.WriteTableRow("Bob");
+        writer.WriteTableRow("Carol");
+        writer.WriteTableEnd();
+        var output = writer.ToString();
+        Assert.Contains("Alice", output);
+        Assert.Contains("Bob", output);
+        Assert.Contains("Carol", output);
+        Assert.DoesNotContain("more", output);
+    }
+
+    [Fact]
+    public void SpacePaddedTable_OnBaseWriter()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteTable(
+            ["Name", "City"],
+            [["Alice", "Toronto"], ["Bob", "Vancouver"]]);
+        var output = writer.ToString();
+        // Should be space-padded, not tab-separated
+        Assert.DoesNotContain("\t", output);
+        Assert.Contains("Name", output);
+        Assert.Contains("Alice", output);
+    }
+}
