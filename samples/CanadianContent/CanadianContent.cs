@@ -157,7 +157,7 @@ if (query.Contains("summary"))
             Title = s.Title,
             Type = s.Type,
             Years = s.Years,
-            FilmingLocation = s.Location
+            FilmingLocation = s.Location.Replace("Filmed in ", "")
         }).ToList(),
         Cities = shows
             .GroupBy(s => s.Location.Replace("Filmed in ", ""))
@@ -253,7 +253,7 @@ else if (query.Contains("toronto") || query.Contains("vancouver"))
             Title = s.Title,
             Type = s.Type,
             Years = s.Years,
-            FilmingLocation = s.Location
+            FilmingLocation = s.Location.Replace("Filmed in ", "")
         }).ToList()
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
@@ -275,7 +275,7 @@ else if (query.Contains("gosling") || query.Contains("reynolds"))
             Title = s.Title,
             Type = s.Type,
             Years = s.Years,
-            FilmingLocation = s.Location
+            FilmingLocation = s.Location.Replace("Filmed in ", "")
         }).ToList()
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
@@ -432,7 +432,7 @@ public class ShowRow
     public string Type { get; set; } = "";
     public string Years { get; set; } = "";
 
-    [MarkoutPropertyName("Filmed In")]
+    [MarkoutPropertyName("Location")]
     public string FilmingLocation { get; set; } = "";
 }
 
@@ -478,7 +478,7 @@ public class ShowDetailView
     public string Type { get; set; } = "";
     public string Years { get; set; } = "";
 
-    [MarkoutPropertyName("Filmed In")]
+    [MarkoutPropertyName("Location")]
     public string FilmingLocation { get; set; } = "";
 
     [MarkoutSection(Name = "Canadian Cast")]
