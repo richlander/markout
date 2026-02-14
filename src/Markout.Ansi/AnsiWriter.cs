@@ -528,13 +528,9 @@ public class AnsiWriter : MarkoutWriter
             if (c > 0) Writer.Write("  ");
             if (cols[c].Height >= row)
             {
-                var pad = cols[c].ColWidth - 1;
-                var leftPad = pad / 2;
-                Writer.Write(new string(' ', leftPad));
                 _terminal.SetColor(BarColor);
-                Writer.Write('█');
+                Writer.Write(new string('█', cols[c].ColWidth));
                 _terminal.ResetColor();
-                Writer.Write(new string(' ', pad - leftPad));
             }
             else
             {

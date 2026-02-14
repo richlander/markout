@@ -924,11 +924,7 @@ public class MarkoutWriter
             if (c > 0) _writer.Write("  ");
             if (cols[c].Height >= row)
             {
-                var pad = cols[c].ColWidth - 1;
-                var leftPad = pad / 2;
-                _writer.Write(new string(' ', leftPad));
-                _writer.Write('█');
-                _writer.Write(new string(' ', pad - leftPad));
+                _writer.Write(new string('█', cols[c].ColWidth));
             }
             else
             {
