@@ -73,6 +73,7 @@ HashSet<string>? includeSections = null;
 if (argList.Remove("--actors")) (includeSections ??= []).Add("Actors");
 if (argList.Remove("--shows")) (includeSections ??= []).Add("Shows");
 if (argList.Remove("--cities")) (includeSections ??= []).Add("Filming Locations");
+bool prettyTables = argList.Remove("--pretty");
 
 var query = argList.Count > 0 ? string.Join(" ", argList).ToLowerInvariant() : "";
 
@@ -93,6 +94,7 @@ if (query is "" or "-h" or "--help" or "help")
 
         Options:
           -n count      Limit table rows to count (e.g. -n 5)
+          --pretty      Pad table columns for aligned output
           --actors      Filter summary to actors table
           --shows       Filter summary to shows table
           --cities      Filter summary to filming locations table
@@ -123,7 +125,7 @@ if (query is "" or "-h" or "--help" or "help")
 }
 
 // Create the writer for the selected format
-var options = new MarkoutWriterOptions { MaxItems = maxItems, IncludeSections = includeSections };
+var options = new MarkoutWriterOptions { MaxItems = maxItems, IncludeSections = includeSections, PrettyTables = prettyTables };
 MarkoutWriter writer = format switch
 {
     "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),

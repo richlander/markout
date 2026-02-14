@@ -120,6 +120,41 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void WriteTable_PrettyTables_PadsColumns()
+    {
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { PrettyTables = true });
+        writer.WriteTableStart("File", "Arch", "Signed");
+        writer.WriteTableRow("Foo.dll", "AnyCPU", "yes");
+        writer.WriteTableRow("Bar.dll", "x64", "no");
+        writer.WriteTableEnd();
+
+        var expected = """
+            | File    | Arch   | Signed |
+            | ------- | ------ | ------ |
+            | Foo.dll | AnyCPU | yes    |
+            | Bar.dll | x64    | no     |
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteTable_Batch_PrettyTables_PadsColumns()
+    {
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { PrettyTables = true });
+        writer.WriteTable(
+            ["Name", "Born"],
+            [["Alice", "1990"], ["Bob", "1985"]]);
+
+        var expected = """
+            | Name  | Born |
+            | ----- | ---- |
+            | Alice | 1990 |
+            | Bob   | 1985 |
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
     public void WriteSimplePair_WritesTwoColumnData()
     {
         var writer = new MarkoutWriter();

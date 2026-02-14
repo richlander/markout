@@ -179,23 +179,46 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteTableStart(params string[] headers)
+    protected override void FlushStreamingTable(string[] headers, IList<string[]> rows, int skippedRows)
     {
-        if (InCodeBlock)
-            throw new InvalidOperationException("Cannot start a table inside a code block.");
-
-        if (SectionExcluded)
+        if (Options.PrettyTables)
         {
-            InTable = true;
-            return;
+            WritePrettyPipeTable(headers, rows, skippedRows);
         }
+        else
+        {
+            WriteCompactPipeTable(headers, rows, skippedRows);
+        }
+    }
 
-        if (headers.Length == 0)
-            throw new ArgumentException("At least one header is required.", nameof(headers));
+    /// <inheritdoc/>
+    public override void WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Tables))
+            return;
 
+        var headerArray = headers as string[] ?? headers.ToArray();
+        var rowList = rows as IList<string[]> ?? rows.ToList();
+
+        var maxItems = Options.MaxItems;
+        var visibleRows = maxItems.HasValue && rowList.Count > maxItems.Value
+            ? rowList.Take(maxItems.Value).ToList()
+            : rowList;
+        var skipped = rowList.Count - visibleRows.Count;
+
+        if (Options.PrettyTables)
+        {
+            WritePrettyPipeTable(headerArray, visibleRows, skipped);
+        }
+        else
+        {
+            WriteCompactPipeTable(headerArray, visibleRows, skipped);
+        }
+    }
+
+    private void WriteCompactPipeTable(string[] headers, IList<string[]> rows, int skippedRows)
+    {
         EnsureBlankLineIfNeeded();
-        InTable = true;
-        ResetTableRowTracking();
 
         // Header row
         Writer.Write('|');
@@ -217,41 +240,83 @@ public class MarkdownWriter : MarkoutWriter
             Writer.Write(" |");
         }
         Writer.WriteLine();
+
+        // Data rows
+        foreach (var row in rows)
+        {
+            Writer.Write('|');
+            foreach (var value in row)
+            {
+                Writer.Write(' ');
+                Writer.Write(EscapeTableCell(value));
+                Writer.Write(" |");
+            }
+            Writer.WriteLine();
+        }
+
+        if (skippedRows > 0)
+            Writer.WriteLine($"\n... and {skippedRows} more");
+
+        NeedsBlankLine = true;
         HasContent = true;
     }
 
-    /// <inheritdoc/>
-    public override void WriteTableRow(params string[] values)
+    private void WritePrettyPipeTable(string[] headers, IList<string[]> rows, int skippedRows)
     {
-        if (!InTable)
-            throw new InvalidOperationException("Cannot write table row without starting a table first.");
+        // Calculate column widths
+        var widths = new int[headers.Length];
+        for (int i = 0; i < headers.Length; i++)
+            widths[i] = headers[i].Length;
+        foreach (var row in rows)
+        {
+            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+            {
+                var escaped = EscapeTableCell(row[i]);
+                widths[i] = Math.Max(widths[i], escaped.Length);
+            }
+        }
 
-        if (SectionExcluded)
-            return;
+        EnsureBlankLineIfNeeded();
 
-        if (!ShouldWriteTableRow())
-            return;
-
+        // Header row
         Writer.Write('|');
-        foreach (var value in values)
+        for (int i = 0; i < headers.Length; i++)
         {
             Writer.Write(' ');
-            Writer.Write(EscapeTableCell(value));
+            Writer.Write(headers[i].PadRight(widths[i]));
             Writer.Write(" |");
         }
         Writer.WriteLine();
-    }
 
-    /// <inheritdoc/>
-    public override void WriteTableEnd()
-    {
-        InTable = false;
-        if (!SectionExcluded)
+        // Separator row
+        Writer.Write('|');
+        for (int i = 0; i < headers.Length; i++)
         {
-            if (TableRowsSkipped > 0)
-                Writer.WriteLine($"\n... and {TableRowsSkipped} more");
-            NeedsBlankLine = true;
+            Writer.Write(' ');
+            Writer.Write(new string('-', widths[i]));
+            Writer.Write(" |");
         }
+        Writer.WriteLine();
+
+        // Data rows
+        foreach (var row in rows)
+        {
+            Writer.Write('|');
+            for (int i = 0; i < headers.Length; i++)
+            {
+                Writer.Write(' ');
+                var value = i < row.Length ? EscapeTableCell(row[i]) : "";
+                Writer.Write(value.PadRight(widths[i]));
+                Writer.Write(" |");
+            }
+            Writer.WriteLine();
+        }
+
+        if (skippedRows > 0)
+            Writer.WriteLine($"\n... and {skippedRows} more");
+
+        NeedsBlankLine = true;
+        HasContent = true;
     }
 
     /// <inheritdoc/>
