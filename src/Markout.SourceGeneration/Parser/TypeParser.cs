@@ -592,7 +592,9 @@ internal static class TypeParser
         if (props == null) return false;
         return props.Any(p => !p.IsIgnored &&
             (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
-             p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree));
+             p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
+             p.Kind == PropertyKind.LabeledList || p.Kind == PropertyKind.BarChart ||
+             (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 
     private static (string? TitleProperty, string? TitleContextProperty, bool AutoFields, FieldLayoutKind FieldLayout) GetElementTypeSettings(ITypeSymbol type)

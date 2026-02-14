@@ -47,8 +47,8 @@ it's a nested view, not a flat row.
 The current formatter uses imperative `MarkoutWriter` calls because the serializer
 can't express the H2→H3→list nesting:
 
-- `DiffOutputFormatter.RenderFullMarkdown` — [src/dotnet-inspect/Output/DiffOutputFormatter.cs](https://github.com/AkkaNetContrib/dotnet-inspect/blob/main/src/dotnet-inspect/Output/DiffOutputFormatter.cs) (lines 67–97)
-- `WriteSection` helper — same file (lines 108–143)
+- `DiffOutputFormatter.RenderFullMarkdown` — [src/dotnet-inspect/Output/DiffOutputFormatter.cs](https://github.com/AkkaNetContrib/dotnet-inspect/blob/main/src/dotnet-inspect/Output/DiffOutputFormatter.cs) (lines 68–98)
+- `WriteSection` helper — same file (lines 109–144)
 
 With nested serialization, the view model would be:
 
