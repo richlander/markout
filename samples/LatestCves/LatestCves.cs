@@ -1,6 +1,3 @@
-#!/usr/bin/env dotnet run
-#:package Markout@0.5.0
-
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Markout;
@@ -99,7 +96,7 @@ var view = new LatestCvesView
     Title = ".NET Security Advisories",
     Span = $"{cutoff:MMM yyyy} \u2013 {DateTimeOffset.UtcNow:MMM yyyy}",
     CriticalWarning = criticalCount > 0
-        ? new Callout(CalloutSeverity.Critical, $"{criticalCount} critical severity CVE(s) found. Update affected runtimes immediately.")
+        ? new Callout(CalloutSeverity.Caution, $"{criticalCount} critical severity CVE(s) found. Update affected runtimes immediately.")
         : default,
     SeverityBreakdown = severityCounts.Count > 0
         ? [new Breakdown("By Severity", severityCounts.Select(kv => new Segment(kv.Key, kv.Value)).ToArray())]

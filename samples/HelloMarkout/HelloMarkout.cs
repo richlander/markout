@@ -1,6 +1,3 @@
-#!/usr/bin/env dotnet run
-#:package Markout@0.5.0
-
 using Markout;
 
 var city = new CityView
