@@ -1,6 +1,10 @@
 # Backlog
 
-## CodeSection — code blocks as section content
+## ~~CodeSection — code blocks as section content~~ ✅ Done
+
+## ~~Callout / Admonition~~ ✅ Done
+
+## Conditional column visibility
 
 A `CodeSection` record type recognized by the source generator, allowing code blocks
 to appear as properties in serializable types — including inside nested subsection items.
@@ -173,17 +177,6 @@ writer.WriteOrderedList(items);
 
 Renders as `1. item` / `2. item` instead of `- item`. Could also be a
 `WriteArray` overload with a `numbered: true` parameter.
-
-## Callout / Admonition
-
-Severity-tagged message blocks:
-
-```csharp
-writer.WriteCallout(CalloutSeverity.Warning, "This API is deprecated.");
-```
-
-Renders as GitHub-flavored `> [!WARNING]` in markdown, colored box in ANSI,
-`WARNING: ...` in plain text. Severities: Note, Tip, Important, Warning, Caution.
 
 ## Diagram shapes
 
