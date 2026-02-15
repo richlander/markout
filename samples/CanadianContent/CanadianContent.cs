@@ -112,6 +112,8 @@ if (query is "" or "-h" or "--help" or "help")
           tree          Filmography trees (shows grouped by filming location)
           bars          Bar chart of shows per filming city
           vbars         Vertical bar chart of shows per filming city
+          genre         Show type breakdown (Movie vs TV Series vs ...)
+          gallery       Shape gallery — all Markout shapes in one report
 
         Examples:
           dotnet run -- summary
@@ -119,6 +121,8 @@ if (query is "" or "-h" or "--help" or "help")
           dotnet run -- --format ansi toronto
           dotnet run -- --format plain tree
           dotnet run -- --format ansi bars
+          dotnet run -- genre
+          dotnet run -- gallery
           dotnet run -- --oneline summary --actors
         """);
     return;
@@ -334,10 +338,63 @@ else if (query.Contains("bars"))
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
+else if (query.Contains("genre"))
+{
+    var view = new GenreBreakdownView
+    {
+        Title = "Canadian Content — Genre Breakdown",
+        Breakdown = [new Breakdown("All Shows", shows
+            .GroupBy(s => s.Type)
+            .OrderByDescending(g => g.Count())
+            .Select(g => new Segment(g.Key, g.Count()))
+            .ToArray())]
+    };
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+}
+else if (query.Contains("gallery"))
+{
+    // Shape Gallery: one view demonstrating every Markout shape
+    var topActors = actors.Take(3).ToList();
+    var cityGroups = shows.GroupBy(s => s.Location).OrderByDescending(g => g.Count()).ToList();
+
+    var view = new ShapeGalleryView
+    {
+        Title = "Canadian Content — Shape Gallery",
+        Description = "The CRTC's Canadian content regulations require broadcasters to air a minimum percentage of Canadian programming. This gallery demonstrates every Markout shape using CanCon data.",
+        Mandate = new Callout(CalloutSeverity.Important, "Canadian content rules require 60% Canadian programming on conventional TV and 35% on radio."),
+        TopActors = topActors.Select(a => new ActorRow
+        {
+            Name = a.Name, Birthplace = a.Birthplace, BirthYear = a.BirthYear,
+            Citizenship = string.Join(", ", a.Citizenship)
+        }).ToList(),
+        ActorBios = topActors.Select(a => new Description(
+            a.Name,
+            $"Born {a.BirthYear} in {a.Birthplace}. Known for {string.Join(", ", a.Shows.Take(2))}."
+        )).ToList(),
+        ShowsPerCity = cityGroups
+            .Select(g => new Metric(g.Key, g.Count()))
+            .ToList(),
+        GenreMix = [new Breakdown("All Shows", shows
+            .GroupBy(s => s.Type)
+            .OrderByDescending(g => g.Count())
+            .Select(g => new Segment(g.Key, g.Count()))
+            .ToArray())],
+        FilmographyTree = topActors.Select(actor =>
+        {
+            var actorShows = shows.Where(s => s.CanadianActors.Contains(actor.Name)).ToList();
+            return new TreeNode(actor.Name,
+                actorShows.GroupBy(s => s.Location).Select(g =>
+                    new TreeNode(g.Key, g.Select(s => s.Title))));
+        }).ToList(),
+        SampleQuery = new CodeSection("bash", "dotnet run -- --format ansi summary"),
+        Quote = "The world needs more Canada.\n— Bono, 2003"
+    };
+    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+}
 else
 {
     Console.Error.WriteLine($"Unknown query: {query}");
-    Console.Error.WriteLine("Try: summary, ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars");
+    Console.Error.WriteLine("Try: summary, ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars, genre, gallery");
 }
 
 // --- JSON Models ---
@@ -519,6 +576,70 @@ public class ShowsByLocationChart
     public IReadOnlyList<Metric>? Bars { get; set; }
 }
 
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class GenreBreakdownView
+{
+    [MarkoutIgnore]
+    public string Title { get; set; } = "";
+
+    [MarkoutIgnoreInTable]
+    public IReadOnlyList<Breakdown>? Breakdown { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
+public class ShapeGalleryView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    [MarkoutIgnore] public string Description { get; set; } = "";
+
+    // Attention
+    [MarkoutIgnoreInTable]
+    [MarkoutSkipDefault]
+    public Callout Mandate { get; set; }
+
+    // Tabulation
+    [MarkoutSection(Name = "Top Actors")]
+    public List<ActorRow>? TopActors { get; set; }
+
+    // Description
+    [MarkoutSection(Name = "Actor Profiles")]
+    public List<Description>? ActorBios { get; set; }
+
+    // Measurement
+    [MarkoutSection(Name = "Shows per City")]
+    public IReadOnlyList<Metric>? ShowsPerCity { get; set; }
+
+    // Composition
+    [MarkoutSection(Name = "Genre Mix")]
+    public IReadOnlyList<Breakdown>? GenreMix { get; set; }
+
+    // Hierarchy
+    [MarkoutSection(Name = "Filmography")]
+    public List<TreeNode>? FilmographyTree { get; set; }
+
+    // Quotation (code)
+    [MarkoutSection(Name = "Example")]
+    [MarkoutIgnoreInTable]
+    [MarkoutSkipDefault]
+    public CodeSection SampleQuery { get; set; }
+
+    // Quotation (prose) — rendered via partial hook
+    [MarkoutIgnore]
+    public string? Quote { get; set; }
+}
+
+public partial class ShapeGalleryViewMarkoutTypeInfo
+{
+    partial void OnSerialized(MarkoutWriter writer, ShapeGalleryView value)
+    {
+        if (value.Quote != null)
+        {
+            writer.WriteHeading(2, "Quote");
+            writer.WriteBlockquote(value.Quote);
+        }
+    }
+}
+
 [MarkoutContext(typeof(CanConOverview))]
 [MarkoutContext(typeof(ActorRow))]
 [MarkoutContext(typeof(ActorDetailRow))]
@@ -530,4 +651,6 @@ public class ShowsByLocationChart
 [MarkoutContext(typeof(ActorFilmography))]
 [MarkoutContext(typeof(FilmographyTreeView))]
 [MarkoutContext(typeof(ShowsByLocationChart))]
+[MarkoutContext(typeof(GenreBreakdownView))]
+[MarkoutContext(typeof(ShapeGalleryView))]
 public partial class CanConContext : MarkoutSerializerContext { }
