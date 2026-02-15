@@ -393,9 +393,9 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteTree_WithIncludeIconsFalse_OmitsIcons()
+    public void WriteTree_WithIncludeBadgesFalse_OmitsBadges()
     {
-        var options = new MarkoutWriterOptions { IncludeIcons = false };
+        var options = new MarkoutWriterOptions { IncludeBadges = false };
         var writer = new MarkoutWriter(options);
         var nodes = new List<TreeNode>
         {
@@ -447,7 +447,7 @@ public class MarkoutWriterTests
     {
         var options = new MarkoutWriterOptions();
 
-        Assert.True(options.IncludeIcons);
+        Assert.True(options.IncludeBadges);
         Assert.True(options.IncludeDescription);
         Assert.False(options.BoldFieldNames);
         Assert.Null(options.IncludeSections);
@@ -468,7 +468,7 @@ public class MarkoutWriterTests
         options.MakeReadOnly();
 
         Assert.Throws<InvalidOperationException>(() => options.BoldFieldNames = false);
-        Assert.Throws<InvalidOperationException>(() => options.IncludeIcons = false);
+        Assert.Throws<InvalidOperationException>(() => options.IncludeBadges = false);
         Assert.Throws<InvalidOperationException>(() => options.IncludeDescription = false);
         Assert.Throws<InvalidOperationException>(() => options.IncludeSections = ["First"]);
         Assert.Throws<InvalidOperationException>(() => options.ExcludeSections = ["Second"]);

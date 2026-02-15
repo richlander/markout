@@ -12,7 +12,17 @@ internal static class EmitHelpers
     public static string GetScalarValueExpression(PropertyMetadata prop, string propAccess, bool nullable = false)
     {
         var access = nullable ? $"{propAccess}.Value" : propAccess;
+        var result = GetScalarValueExpressionCore(prop, propAccess, access);
 
+        // Value map badge prepends a mapped badge to the value
+        if (prop.ValueMap is { Count: > 0 } && prop.Kind == PropertyKind.String)
+            return WrapWithValueMapBadge(prop, propAccess, result);
+
+        return result;
+    }
+
+    private static string GetScalarValueExpressionCore(PropertyMetadata prop, string propAccess, string access)
+    {
         // Value formatter takes highest priority
         if (prop.ValueFormatterTypeName != null)
         {
@@ -85,6 +95,37 @@ internal static class EmitHelpers
     }
 
     /// <summary>
+    /// Generates a switch expression that maps a property value to a badge string via [MarkoutValueMap].
+    /// Returns null if the property has no value map.
+    /// </summary>
+    public static string? GetValueMapBadgeExpression(PropertyMetadata prop, string propAccess)
+    {
+        if (prop.ValueMap is null || prop.ValueMap.Count == 0)
+            return null;
+
+        var sb = new StringBuilder();
+        sb.Append($"({propAccess} switch {{ ");
+        foreach (var (key, value) in prop.ValueMap)
+            sb.Append($"\"{EscapeString(key)}\" => \"{EscapeString(value)}\", ");
+        sb.Append("_ => null })");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Wraps a value expression with a value map badge prefix if the property has [MarkoutValueMap].
+    /// Result: "badge value" when mapped, or just "value" when not.
+    /// </summary>
+    public static string WrapWithValueMapBadge(PropertyMetadata prop, string propAccess, string valueExpr)
+    {
+        var badgeExpr = GetValueMapBadgeExpression(prop, propAccess);
+        if (badgeExpr == null)
+            return valueExpr;
+
+        // Generates: badge != null ? badge + " " + value : value
+        return $"({badgeExpr} is {{ }} __badge ? __badge + \" \" + {valueExpr} : {valueExpr})";
+    }
+
+    /// <summary>
     /// Like GetScalarValueExpression but without DisplayFormat wrapping.
     /// Used when we need to apply TableDisplayFormat instead.
     /// </summary>
@@ -118,7 +159,13 @@ internal static class EmitHelpers
     {
         var propAccess = $"{itemExpr}.{prop.Name}";
         var result = GetTableCellValueCore(prop, propAccess, itemExpr);
-        return WrapWithLink(prop, result, itemExpr);
+        result = WrapWithLink(prop, result, itemExpr);
+
+        // Value map badge in table cells
+        if (prop.ValueMap is { Count: > 0 } && prop.Kind == PropertyKind.String)
+            return WrapWithValueMapBadge(prop, propAccess, result);
+
+        return result;
     }
 
     private static string GetTableCellValueCore(PropertyMetadata prop, string propAccess, string itemExpr)

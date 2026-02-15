@@ -29,7 +29,7 @@ public class MarkoutWriterOptions
     /// <summary>
     /// Whether to include icons in tree nodes. Default is true.
     /// </summary>
-    public bool IncludeIcons
+    public bool IncludeBadges
     {
         get => _includeIcons;
         set

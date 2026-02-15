@@ -148,6 +148,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? ShowWhenProperty { get; }
     public bool IsLink { get; }
     public string? LinkTextProperty { get; }
+    public IReadOnlyList<(string Key, string Value)>? ValueMap { get; }
 
     public PropertyMetadata(
         string name,
@@ -188,7 +189,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? tableDisplayFormat = null,
         string? showWhenProperty = null,
         bool isLink = false,
-        string? linkTextProperty = null)
+        string? linkTextProperty = null,
+        IReadOnlyList<(string Key, string Value)>? valueMap = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -229,6 +231,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         ShowWhenProperty = showWhenProperty;
         IsLink = isLink;
         LinkTextProperty = linkTextProperty;
+        ValueMap = valueMap;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -273,6 +276,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                ShowWhenProperty == other.ShowWhenProperty &&
                IsLink == other.IsLink &&
                LinkTextProperty == other.LinkTextProperty &&
+               ValueMapEqual(ValueMap, other.ValueMap) &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -302,6 +306,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (ShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ IsLink.GetHashCode();
             hash = hash * 397 ^ (LinkTextProperty?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (ValueMap?.Count ?? 0);
             return hash;
         }
     }
@@ -313,6 +318,16 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         if (a.Count != b.Count) return false;
         for (int i = 0; i < a.Count; i++)
             if (!a[i].Equals(b[i])) return false;
+        return true;
+    }
+
+    private static bool ValueMapEqual(IReadOnlyList<(string Key, string Value)>? a, IReadOnlyList<(string Key, string Value)>? b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a is null || b is null) return a is null && b is null;
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (a[i].Key != b[i].Key || a[i].Value != b[i].Value) return false;
         return true;
     }
 }

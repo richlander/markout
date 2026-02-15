@@ -8,7 +8,7 @@ namespace Markout;
 /// </summary>
 /// <example>
 ///   <code>
-///   [MarkoutContextOptions(BoldFieldNames = true, IncludeIcons = false)]
+///   [MarkoutContextOptions(BoldFieldNames = true, IncludeBadges = false)]
 ///   [MarkoutContext(typeof(MyType))]
 ///   public partial class MyContext : MarkoutSerializerContext { }
 ///   </code>
@@ -26,7 +26,7 @@ public sealed class MarkoutContextOptionsAttribute : Attribute
     /// Gets or sets whether to include icons in tree nodes.
     /// Default is true.
     /// </summary>
-    public bool IncludeIcons { get; set; } = true;
+    public bool IncludeBadges { get; set; } = true;
 
     /// <summary>
     /// Gets or sets whether to include the description paragraph.

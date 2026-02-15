@@ -28,6 +28,7 @@ internal static class TypeParser
     private const string MarkoutValueFormatterAttribute = "Markout.MarkoutValueFormatterAttribute";
     private const string MarkoutShowWhenAttribute = "Markout.MarkoutShowWhenAttribute";
     private const string MarkoutLinkAttribute = "Markout.MarkoutLinkAttribute";
+    private const string MarkoutValueMapAttribute = "Markout.MarkoutValueMapAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -58,7 +59,7 @@ internal static class TypeParser
             {
                 if (named.Key == "BoldFieldNames" && named.Value.Value is bool bf)
                     boldFieldNames = bf;
-                else if (named.Key == "IncludeIcons" && named.Value.Value is bool ii)
+                else if (named.Key == "IncludeBadges" && named.Value.Value is bool ii)
                     includeIcons = ii;
                 else if (named.Key == "IncludeDescription" && named.Value.Value is bool id)
                     includeDescription = id;
@@ -257,6 +258,29 @@ internal static class TypeParser
                 boolFalseValue = fv;
         }
 
+        // Parse [MarkoutValueMap] attribute
+        List<(string Key, string Value)>? valueMap = null;
+        var valueMapAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutValueMapAttribute);
+        if (valueMapAttr != null)
+        {
+            // Constructor takes params string[] — appears as a single array argument
+            var args = valueMapAttr.ConstructorArguments;
+            if (args.Length == 1 && args[0].Kind == TypedConstantKind.Array)
+            {
+                valueMap = new List<(string, string)>();
+                foreach (var entry in args[0].Values)
+                {
+                    if (entry.Value is string s)
+                    {
+                        var eqIndex = s.IndexOf('=');
+                        if (eqIndex > 0)
+                            valueMap.Add((s.Substring(0, eqIndex), s.Substring(eqIndex + 1)));
+                    }
+                }
+            }
+        }
+
         // Parse [MarkoutFormat] attribute
         string? customFormat = null;
         var formatAttr = prop.GetAttributes()
@@ -422,7 +446,8 @@ internal static class TypeParser
             tableDisplayFormat,
             showWhenProperty,
             isLink,
-            linkTextProperty);
+            linkTextProperty,
+            valueMap);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

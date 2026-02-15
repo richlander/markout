@@ -139,15 +139,15 @@ internal static class SerializerEmitter
         sb.AppendLine("{");
 
         // Constructor accepting options
-        if (context.BoldFieldNames != null || context.IncludeIcons != null || context.IncludeDescription != null)
+        if (context.BoldFieldNames != null || context.IncludeBadges != null || context.IncludeDescription != null)
         {
             // Generate default constructor that applies compile-time options
             sb.AppendLine($"    public {context.ClassName}() : base(new global::Markout.MarkoutWriterOptions");
             sb.AppendLine("    {");
             if (context.BoldFieldNames != null)
                 sb.AppendLine($"        BoldFieldNames = {(context.BoldFieldNames.Value ? "true" : "false")},");
-            if (context.IncludeIcons != null)
-                sb.AppendLine($"        IncludeIcons = {(context.IncludeIcons.Value ? "true" : "false")},");
+            if (context.IncludeBadges != null)
+                sb.AppendLine($"        IncludeBadges = {(context.IncludeBadges.Value ? "true" : "false")},");
             if (context.IncludeDescription != null)
                 sb.AppendLine($"        IncludeDescription = {(context.IncludeDescription.Value ? "true" : "false")},");
             sb.AppendLine("    }) { }");

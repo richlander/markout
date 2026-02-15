@@ -690,26 +690,26 @@ public class AnsiWriter : MarkoutWriter
         _terminal.ResetColor();
 
         // Icon (as-is) + label colored by depth
-        if (node.Icon != null && Options.IncludeIcons)
+        if (node.Badge != null && Options.IncludeBadges)
         {
-            Writer.Write(node.Icon);
+            Writer.Write(node.Badge);
             Writer.Write(' ');
         }
 
         if (depth == 0)
         {
             _terminal.SetColor(TerminalColor.Cyan);
-            Writer.WriteLine(AnsiCodes.MakeBold(node.Label));
+            Writer.WriteLine(AnsiCodes.MakeBold(node.Text));
             _terminal.ResetColor();
         }
         else if (depth == 1)
         {
-            Writer.WriteLine(node.Label);
+            Writer.WriteLine(node.Text);
         }
         else
         {
             _terminal.SetColor(TerminalColor.DarkGray);
-            Writer.WriteLine(node.Label);
+            Writer.WriteLine(node.Text);
             _terminal.ResetColor();
         }
 

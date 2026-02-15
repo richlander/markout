@@ -12,12 +12,12 @@ public class TreeNode
     /// <summary>
     /// The display text for this node.
     /// </summary>
-    public string Label { get; set; }
+    public string Text { get; set; }
     
     /// <summary>
-    /// Optional icon to display before the label (e.g., "📁", "🚢").
+    /// Optional badge to display before the text (e.g., "🔴", "📁").
     /// </summary>
-    public string? Icon { get; set; }
+    public string? Badge { get; set; }
     
     /// <summary>
     /// Child nodes, if any.
@@ -27,52 +27,52 @@ public class TreeNode
     /// <summary>
     /// Creates a tree node with an optional list of children.
     /// </summary>
-    public TreeNode(string label, IEnumerable<TreeNode>? children = null)
+    public TreeNode(string text, IEnumerable<TreeNode>? children = null)
     {
-        Label = label;
+        Text = text;
         Children = children?.ToList();
     }
     
     /// <summary>
-    /// Creates a tree node with an icon and optional list of children.
+    /// Creates a tree node with a badge and optional list of children.
     /// </summary>
-    public TreeNode(string label, string? icon, IEnumerable<TreeNode>? children = null)
+    public TreeNode(string text, string? badge, IEnumerable<TreeNode>? children = null)
     {
-        Label = label;
-        Icon = icon;
+        Text = text;
+        Badge = badge;
         Children = children?.ToList();
     }
     
     /// <summary>
     /// Creates a tree node with string children (convenience for leaf nodes).
     /// </summary>
-    public TreeNode(string label, IEnumerable<string>? children)
+    public TreeNode(string text, IEnumerable<string>? children)
     {
-        Label = label;
+        Text = text;
         Children = children?.Select(c => new TreeNode(c)).ToList();
     }
     
     /// <summary>
-    /// Creates a tree node with an icon and string children.
+    /// Creates a tree node with a badge and string children.
     /// </summary>
-    public TreeNode(string label, string? icon, IEnumerable<string>? children)
+    public TreeNode(string text, string? badge, IEnumerable<string>? children)
     {
-        Label = label;
-        Icon = icon;
+        Text = text;
+        Badge = badge;
         Children = children?.Select(c => new TreeNode(c)).ToList();
     }
     
     /// <summary>
     /// Creates a leaf node with no children.
     /// </summary>
-    public TreeNode(string label) : this(label, (IEnumerable<TreeNode>?)null)
+    public TreeNode(string text) : this(text, (IEnumerable<TreeNode>?)null)
     {
     }
     
     /// <summary>
-    /// Creates a leaf node with an icon and no children.
+    /// Creates a leaf node with a badge and no children.
     /// </summary>
-    public TreeNode(string label, string? icon) : this(label, icon, (IEnumerable<TreeNode>?)null)
+    public TreeNode(string text, string? badge) : this(text, badge, (IEnumerable<TreeNode>?)null)
     {
     }
 }

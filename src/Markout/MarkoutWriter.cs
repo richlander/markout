@@ -104,7 +104,7 @@ public class MarkoutWriter
     /// <summary>
     /// Gets whether to include icons in tree nodes.
     /// </summary>
-    public bool IncludeIcons => _options.IncludeIcons;
+    public bool IncludeBadges => _options.IncludeBadges;
 
     /// <summary>
     /// Gets the shapes this writer supports. Unsupported shapes produce a
@@ -821,12 +821,12 @@ public class MarkoutWriter
         EnsureBlankLineIfNeeded();
         _writer.Write(prefix);
         _writer.Write(isLast ? "└─ " : "├─ ");
-        if (node.Icon != null && _options.IncludeIcons)
+        if (node.Badge != null && _options.IncludeBadges)
         {
-            _writer.Write(node.Icon);
+            _writer.Write(node.Badge);
             _writer.Write(' ');
         }
-        _writer.WriteLine(node.Label);
+        _writer.WriteLine(node.Text);
         _hasContent = true;
         
         if (node.Children != null && node.Children.Count > 0)

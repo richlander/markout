@@ -584,18 +584,18 @@ public class SpectreWriter : MarkoutWriter
         WriteMarkup($"[grey]{Esc(prefix)}{Esc(isLast ? "└─ " : "├─ ")}[/]");
 
         // Icon
-        if (node.Icon != null && Options.IncludeIcons)
+        if (node.Badge != null && Options.IncludeBadges)
         {
-            _console.Write(new Text(node.Icon + " "));
+            _console.Write(new Text(node.Badge + " "));
         }
 
         // Label colored by depth
         if (depth == 0)
-            WriteMarkupLine($"[bold cyan]{Esc(node.Label)}[/]");
+            WriteMarkupLine($"[bold cyan]{Esc(node.Text)}[/]");
         else if (depth == 1)
-            _console.WriteLine(node.Label);
+            _console.WriteLine(node.Text);
         else
-            WriteMarkupLine($"[grey]{Esc(node.Label)}[/]");
+            WriteMarkupLine($"[grey]{Esc(node.Text)}[/]");
 
         HasContent = true;
 
