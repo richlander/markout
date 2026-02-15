@@ -398,7 +398,7 @@ public class SpectreWriter : MarkoutWriter
     // ── Simple pairs ──
 
     /// <inheritdoc/>
-    public override void WriteSimplePair(string name, string value, int nameWidth = 32)
+    public override void WritePair(string name, string value, int nameWidth = 32)
     {
         if (SectionExcluded)
             return;
@@ -412,9 +412,9 @@ public class SpectreWriter : MarkoutWriter
     // ── Labeled lists ──
 
     /// <inheritdoc/>
-    protected override void WriteLabeledListItem(LabeledItem item)
+    protected override void WriteDescription(Description item)
     {
-        WriteMarkupLine($"- [bold]{Esc(item.Label)}:[/] {Esc(item.Description)}");
+        WriteMarkupLine($"- [bold]{Esc(item.Term)}:[/] {Esc(item.Text)}");
 
         if (item.Detail != null)
         {
@@ -450,12 +450,12 @@ public class SpectreWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Distributions ──
+    // ── Breakdowns ──
 
     private static readonly string[] DistributionSpectreColors = ["red", "yellow", "cyan", "green", "purple", "blue"];
 
     /// <inheritdoc/>
-    protected override void WriteDistributionRow(DistributionBar item, List<string> categories, int labelWidth, double barScale)
+    protected override void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale)
     {
         WriteMarkup($"[bold]{Esc(item.Label.PadRight(labelWidth))}[/]  ");
 
@@ -472,7 +472,7 @@ public class SpectreWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    protected override void WriteDistributionLegend(List<string> categories)
+    protected override void WriteBreakdownLegend(List<string> categories)
     {
         for (int i = 0; i < categories.Count; i++)
         {
@@ -486,7 +486,7 @@ public class SpectreWriter : MarkoutWriter
     // ── Bar charts ──
 
     /// <inheritdoc/>
-    protected override void WriteBarLine(BarItem item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
+    protected override void WriteMetricBar(Metric item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
     {
         WriteMarkup($"[bold]{Esc(item.Label.PadRight(labelWidth))}[/]  ");
 
@@ -505,7 +505,7 @@ public class SpectreWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    protected override void WriteVerticalBarRow(
+    protected override void WriteVerticalMetricsRow(
         (string Label, string ValueStr, int Height, int ColWidth, int BarWidth)[] cols, int row)
     {
         for (int c = 0; c < cols.Length; c++)
@@ -528,7 +528,7 @@ public class SpectreWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    protected override void WriteVerticalBarValue(string valueStr, int colWidth)
+    protected override void WriteVerticalMetricsValue(string valueStr, int colWidth)
     {
         var pad = colWidth - valueStr.Length;
         var leftPad = pad / 2;

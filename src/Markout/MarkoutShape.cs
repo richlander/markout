@@ -35,21 +35,21 @@ public enum MarkoutShape
     /// <summary>Code blocks (fenced regions).</summary>
     CodeBlocks = 128,
 
-    /// <summary>Simple name-value pairs.</summary>
-    SimplePairs = 256,
+    /// <summary>Aligned name-value pairs.</summary>
+    Pairs = 256,
 
-    /// <summary>Horizontal bar charts.</summary>
-    BarCharts = 512,
+    /// <summary>Comparative labeled measurements.</summary>
+    Metrics = 512,
 
-    /// <summary>Labeled descriptive lists.</summary>
-    LabeledLists = 1024,
+    /// <summary>Terms with explanatory text.</summary>
+    Descriptions = 1024,
 
     /// <summary>Callout/admonition blocks.</summary>
     Callouts = 2048,
 
-    /// <summary>Distribution/stacked bars.</summary>
-    Distributions = 4096,
+    /// <summary>Proportional composition charts.</summary>
+    Breakdowns = 4096,
 
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts | LabeledLists | Callouts | Distributions
+    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | Pairs | Metrics | Descriptions | Callouts | Breakdowns
 }

@@ -320,12 +320,12 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    protected override void WriteLabeledListItem(LabeledItem item)
+    protected override void WriteDescription(Description item)
     {
         Writer.Write("- **");
-        Writer.Write(item.Label);
+        Writer.Write(item.Term);
         Writer.Write(":** ");
-        Writer.WriteLine(item.Description);
+        Writer.WriteLine(item.Text);
 
         if (item.Detail != null)
         {
@@ -388,9 +388,9 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteDistribution(IReadOnlyList<DistributionBar> items, int? maxBarWidth = null)
+    public override void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null)
     {
-        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Distributions))
+        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Breakdowns))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -416,19 +416,19 @@ public class MarkdownWriter : MarkoutWriter
         var barScale = maxBarWidth.HasValue ? (double)maxBarWidth.Value / maxTotal : 1.0;
 
         foreach (var item in items)
-            WriteDistributionRow(item, categories, maxLabelWidth, barScale);
+            WriteBreakdownRow(item, categories, maxLabelWidth, barScale);
 
         Writer.WriteLine();
-        WriteDistributionLegend(categories);
+        WriteBreakdownLegend(categories);
         Writer.WriteLine("```");
         NeedsBlankLine = true;
         HasContent = true;
     }
 
     /// <inheritdoc/>
-    public override void WriteBarChart(IReadOnlyList<BarItem> items, int maxBarWidth = 30)
+    public override void WriteMetrics(IReadOnlyList<Metric> items, int maxBarWidth = 30)
     {
-        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -447,7 +447,7 @@ public class MarkdownWriter : MarkoutWriter
         if (maxValue <= 0) maxValue = 1;
 
         foreach (var item in items)
-            WriteBarLine(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
+            WriteMetricBar(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
 
         Writer.WriteLine("```");
         NeedsBlankLine = true;
@@ -455,14 +455,14 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteVerticalBarChart(IReadOnlyList<BarItem> items, int maxBarHeight = 10, int? barWidth = null)
+    public override void WriteVerticalMetrics(IReadOnlyList<Metric> items, int maxBarHeight = 10, int? barWidth = null)
     {
-        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
         EnsureBlankLineIfNeeded();
         Writer.WriteLine("```text");
-        WriteVerticalBarBody(items, maxBarHeight, barWidth);
+        WriteVerticalMetricsBody(items, maxBarHeight, barWidth);
         Writer.WriteLine("```");
         NeedsBlankLine = true;
         HasContent = true;

@@ -316,10 +316,10 @@ else if (query.Contains("vbars"))
     var bars = shows
         .GroupBy(s => s.Location)
         .OrderByDescending(g => g.Count())
-        .Select(g => new BarItem(g.Key, g.Count()))
+        .Select(g => new Metric(g.Key, g.Count()))
         .ToList();
     writer.WriteHeading(1, "Shows per Filming Location");
-    writer.WriteVerticalBarChart(bars);
+    writer.WriteVerticalMetrics(bars);
 }
 else if (query.Contains("bars"))
 {
@@ -329,7 +329,7 @@ else if (query.Contains("bars"))
         Bars = shows
             .GroupBy(s => s.Location)
             .OrderByDescending(g => g.Count())
-            .Select(g => new BarItem(g.Key, g.Count()))
+            .Select(g => new Metric(g.Key, g.Count()))
             .ToList()
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
@@ -516,7 +516,7 @@ public class ShowsByLocationChart
     public string Title { get; set; } = "";
 
     [MarkoutIgnoreInTable]
-    public IReadOnlyList<BarItem>? Bars { get; set; }
+    public IReadOnlyList<Metric>? Bars { get; set; }
 }
 
 [MarkoutContext(typeof(CanConOverview))]

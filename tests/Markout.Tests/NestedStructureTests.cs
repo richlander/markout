@@ -892,7 +892,7 @@ public class CtorEmphasisView
     public List<ConstructorOverload>? Overloads { get; set; }
 }
 
-// Distribution: List<DistributionBar> as section for CVE severity breakdown
+// Distribution: List<Breakdown> as section for CVE severity breakdown
 [MarkoutSerializable(TitleProperty = nameof(Framework))]
 public class CveSummary
 {
@@ -901,7 +901,7 @@ public class CveSummary
 
     [MarkoutSection(Name = "Severity Distribution")]
     [MarkoutIgnoreInTable]
-    public List<DistributionBar>? Distribution { get; set; }
+    public List<Breakdown>? Distribution { get; set; }
 }
 
 [MarkoutContext(typeof(CveSummary))]

@@ -771,9 +771,9 @@ public class MarkoutWriter
     /// <summary>
     /// Writes a simple pair (two values separated by whitespace).
     /// </summary>
-    public virtual void WriteSimplePair(string name, string value, int nameWidth = 32)
+    public virtual void WritePair(string name, string value, int nameWidth = 32)
     {
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.SimplePairs))
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Pairs))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -841,12 +841,12 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a list of labeled items as a bullet list with bold labels.
+    /// Writes a list of descriptions as a bullet list with bold terms.
     /// Each item renders as "- Label: Description" with an optional indented detail line.
     /// </summary>
-    public virtual void WriteLabeledList(IReadOnlyList<LabeledItem> items)
+    public virtual void WriteDescriptions(IReadOnlyList<Description> items)
     {
-        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.LabeledLists))
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Descriptions))
             return;
 
         if (_hasContent)
@@ -854,21 +854,21 @@ public class MarkoutWriter
         EnsureBlankLineIfNeeded();
 
         foreach (var item in items)
-            WriteLabeledListItem(item);
+            WriteDescription(item);
 
         _needsBlankLine = true;
         _hasContent = true;
     }
 
     /// <summary>
-    /// Renders a single labeled list item. Override for custom styling (e.g., bold, color).
+    /// Renders a single description item. Override for custom styling (e.g., bold, color).
     /// </summary>
-    protected virtual void WriteLabeledListItem(LabeledItem item)
+    protected virtual void WriteDescription(Description item)
     {
         _writer.Write("- ");
-        _writer.Write(item.Label);
+        _writer.Write(item.Term);
         _writer.Write(": ");
-        _writer.WriteLine(item.Description);
+        _writer.WriteLine(item.Text);
 
         if (item.Detail != null)
         {
@@ -898,18 +898,18 @@ public class MarkoutWriter
         _hasContent = true;
     }
 
-    // Shade characters for distribution segments (decreasing intensity)
-    private static readonly char[] DistributionFills = ['█', '▓', '▒', '░'];
+    // Shade characters for breakdown segments (decreasing intensity)
+    private static readonly char[] BreakdownFills = ['█', '▓', '▒', '░'];
 
     /// <summary>
-    /// Writes a distribution chart showing proportional category breakdowns per row.
+    /// Writes a breakdown chart showing proportional category composition per row.
     /// Each row is a stacked bar with segments rendered using shade characters.
     /// </summary>
-    /// <param name="items">The labeled distribution rows.</param>
+    /// <param name="items">The breakdown rows.</param>
     /// <param name="maxBarWidth">Maximum bar width in characters. When null, 1 char = 1 count.</param>
-    public virtual void WriteDistribution(IReadOnlyList<DistributionBar> items, int? maxBarWidth = null)
+    public virtual void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null)
     {
-        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Distributions))
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Breakdowns))
             return;
 
         if (_hasContent)
@@ -943,20 +943,20 @@ public class MarkoutWriter
 
         // Render rows
         foreach (var item in items)
-            WriteDistributionRow(item, categories, maxLabelWidth, barScale);
+            WriteBreakdownRow(item, categories, maxLabelWidth, barScale);
 
         // Legend
         _writer.WriteLine();
-        WriteDistributionLegend(categories);
+        WriteBreakdownLegend(categories);
 
         _needsBlankLine = true;
         _hasContent = true;
     }
 
     /// <summary>
-    /// Renders a single distribution row. Override for custom styling.
+    /// Renders a single breakdown row. Override for custom styling.
     /// </summary>
-    protected virtual void WriteDistributionRow(DistributionBar item, List<string> categories, int labelWidth, double barScale)
+    protected virtual void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale)
     {
         _writer.Write(item.Label.PadRight(labelWidth));
         _writer.Write("  ");
@@ -965,7 +965,7 @@ public class MarkoutWriter
         foreach (var seg in item.Segments)
         {
             var catIndex = categories.IndexOf(seg.Category);
-            var fill = DistributionFills[catIndex % DistributionFills.Length];
+            var fill = BreakdownFills[catIndex % BreakdownFills.Length];
             var width = Math.Max(0, (int)Math.Round(seg.Count * barScale));
             _writer.Write(new string(fill, width));
         }
@@ -977,28 +977,28 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Renders the distribution legend. Override for custom styling.
+    /// Renders the breakdown legend. Override for custom styling.
     /// </summary>
-    protected virtual void WriteDistributionLegend(List<string> categories)
+    protected virtual void WriteBreakdownLegend(List<string> categories)
     {
         var parts = new List<string>();
         for (int i = 0; i < categories.Count; i++)
         {
-            var fill = DistributionFills[i % DistributionFills.Length];
+            var fill = BreakdownFills[i % BreakdownFills.Length];
             parts.Add($"{fill} {categories[i]}");
         }
         _writer.WriteLine(string.Join("  ", parts));
     }
 
     /// <summary>
-    /// Writes a horizontal bar chart from labeled values.
+    /// Writes horizontal metric bars from labeled measurements.
     /// Bars are scaled proportionally to the maximum value using block characters.
     /// </summary>
-    /// <param name="items">The labeled values to chart.</param>
+    /// <param name="items">The metrics to render.</param>
     /// <param name="maxBarWidth">Maximum width of the longest bar in characters. Default is 30.</param>
-    public virtual void WriteBarChart(IReadOnlyList<BarItem> items, int maxBarWidth = 30)
+    public virtual void WriteMetrics(IReadOnlyList<Metric> items, int maxBarWidth = 30)
     {
-        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -1018,7 +1018,7 @@ public class MarkoutWriter
 
         foreach (var item in items)
         {
-            WriteBarLine(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
+            WriteMetricBar(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
         }
 
         _needsBlankLine = true;
@@ -1028,7 +1028,7 @@ public class MarkoutWriter
     /// <summary>
     /// Renders a single bar line. Override for custom bar styling.
     /// </summary>
-    protected virtual void WriteBarLine(BarItem item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
+    protected virtual void WriteMetricBar(Metric item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
     {
         _writer.Write(item.Label.PadRight(labelWidth));
         _writer.Write("  ");
@@ -1057,28 +1057,28 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a vertical bar chart from labeled values.
+    /// Writes vertical metric bars from labeled measurements.
     /// Bars grow upward, with labels and values below.
     /// </summary>
-    /// <param name="items">The labeled values to chart.</param>
+    /// <param name="items">The metrics to render.</param>
     /// <param name="maxBarHeight">Maximum height of the tallest bar in rows. Default is 10.</param>
     /// <param name="barWidth">Width of each bar in characters. Null (default) fills the column width.</param>
-    public virtual void WriteVerticalBarChart(IReadOnlyList<BarItem> items, int maxBarHeight = 10, int? barWidth = null)
+    public virtual void WriteVerticalMetrics(IReadOnlyList<Metric> items, int maxBarHeight = 10, int? barWidth = null)
     {
-        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
         EnsureBlankLineIfNeeded();
-        WriteVerticalBarBody(items, maxBarHeight, barWidth);
+        WriteVerticalMetricsBody(items, maxBarHeight, barWidth);
         _needsBlankLine = true;
         _hasContent = true;
     }
 
     /// <summary>
-    /// Renders the vertical bar chart body (bars, values, labels).
+    /// Renders the vertical metrics body (bars, values, labels).
     /// Override for custom styling of the entire vertical chart.
     /// </summary>
-    protected virtual void WriteVerticalBarBody(IReadOnlyList<BarItem> items, int maxBarHeight, int? barWidth)
+    protected virtual void WriteVerticalMetricsBody(IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth)
     {
         var maxValue = 0.0;
         foreach (var item in items)
@@ -1100,14 +1100,14 @@ public class MarkoutWriter
         // Bar rows (top to bottom)
         for (int row = maxBarHeight; row >= 1; row--)
         {
-            WriteVerticalBarRow(cols, row);
+            WriteVerticalMetricsRow(cols, row);
         }
 
         // Value row
         for (int c = 0; c < cols.Length; c++)
         {
             if (c > 0) _writer.Write("  ");
-            WriteVerticalBarValue(cols[c].ValueStr, cols[c].ColWidth);
+            WriteVerticalMetricsValue(cols[c].ValueStr, cols[c].ColWidth);
         }
         _writer.WriteLine();
 
@@ -1123,7 +1123,7 @@ public class MarkoutWriter
     /// <summary>
     /// Renders one row of vertical bars. Override for custom bar colors.
     /// </summary>
-    protected virtual void WriteVerticalBarRow(
+    protected virtual void WriteVerticalMetricsRow(
         (string Label, string ValueStr, int Height, int ColWidth, int BarWidth)[] cols, int row)
     {
         for (int c = 0; c < cols.Length; c++)
@@ -1148,7 +1148,7 @@ public class MarkoutWriter
     /// <summary>
     /// Renders a single value label in the vertical chart value row.
     /// </summary>
-    protected virtual void WriteVerticalBarValue(string valueStr, int colWidth)
+    protected virtual void WriteVerticalMetricsValue(string valueStr, int colWidth)
     {
         var pad = colWidth - valueStr.Length;
         var leftPad = pad / 2;

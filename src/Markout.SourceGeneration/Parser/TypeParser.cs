@@ -546,39 +546,39 @@ internal static class TypeParser
                         }
                     }
 
-                    // Check for IReadOnlyList<BarItem> / List<BarItem> - renders as bar chart
-                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.BarItem))
+                    // Check for IReadOnlyList<Metric> / List<Metric> - renders as bar chart
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.Metric))
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.BarChart, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Metric, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
                         }
                     }
 
-                    // Check for IReadOnlyList<LabeledItem> / List<LabeledItem> - renders as labeled list
-                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.LabeledItem))
+                    // Check for IReadOnlyList<Description> / List<Description> - renders as labeled list
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.Description))
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.LabeledList, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Description, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
                         }
                     }
 
-                    // Check for IReadOnlyList<DistributionBar> / List<DistributionBar> - renders as distribution chart
-                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.DistributionBar))
+                    // Check for IReadOnlyList<Breakdown> / List<Breakdown> - renders as distribution chart
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.Breakdown))
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.Distribution, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Breakdown, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
                         }
                     }
 
@@ -617,8 +617,8 @@ internal static class TypeParser
         return props.Any(p => !p.IsIgnored &&
             (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
-             p.Kind == PropertyKind.LabeledList || p.Kind == PropertyKind.BarChart ||
-             p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Distribution ||
+             p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
+             p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
              (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 

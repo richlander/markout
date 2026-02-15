@@ -155,11 +155,11 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteSimplePair_WritesTwoColumnData()
+    public void WritePair_WritesTwoColumnData()
     {
         var writer = new MarkoutWriter();
-        writer.WriteSimplePair("Microsoft.CSharp", "4.7.0", 32);
-        writer.WriteSimplePair("System.Memory", "4.5.5", 32);
+        writer.WritePair("Microsoft.CSharp", "4.7.0", 32);
+        writer.WritePair("System.Memory", "4.5.5", 32);
 
         var expected = """
             Microsoft.CSharp                4.7.0
@@ -551,12 +551,12 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteLabeledList_PlainText_WritesLabelAndDescription()
+    public void WriteDescriptions_PlainText_WritesLabelAndDescription()
     {
         var writer = new MarkoutWriter();
-        writer.WriteLabeledList([
-            new LabeledItem("Insight", "What does the generic math hierarchy look like?"),
-            new LabeledItem("Discovery", "What can JsonSerializer do?"),
+        writer.WriteDescriptions([
+            new Description("Insight", "What does the generic math hierarchy look like?"),
+            new Description("Discovery", "What can JsonSerializer do?"),
         ]);
 
         var expected = """
@@ -567,11 +567,11 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteLabeledList_PlainText_WithDetail_IndentsDetail()
+    public void WriteDescriptions_PlainText_WithDetail_IndentsDetail()
     {
         var writer = new MarkoutWriter();
-        writer.WriteLabeledList([
-            new LabeledItem("Insight", "What does the generic math hierarchy look like?", "dotnet-inspect api System.Runtime"),
+        writer.WriteDescriptions([
+            new Description("Insight", "What does the generic math hierarchy look like?", "dotnet-inspect api System.Runtime"),
         ]);
 
         var expected = """
@@ -582,12 +582,12 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteLabeledList_Markdown_BoldsLabel()
+    public void WriteDescriptions_Markdown_BoldsLabel()
     {
         var writer = new MarkdownWriter();
-        writer.WriteLabeledList([
-            new LabeledItem("Insight", "What does the generic math hierarchy look like?"),
-            new LabeledItem("Discovery", "What can JsonSerializer do?"),
+        writer.WriteDescriptions([
+            new Description("Insight", "What does the generic math hierarchy look like?"),
+            new Description("Discovery", "What can JsonSerializer do?"),
         ]);
 
         var expected = """
@@ -598,11 +598,11 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteLabeledList_Markdown_WithDetail_IndentsDetail()
+    public void WriteDescriptions_Markdown_WithDetail_IndentsDetail()
     {
         var writer = new MarkdownWriter();
-        writer.WriteLabeledList([
-            new LabeledItem("Insight", "Hierarchy overview", "dotnet-inspect api System.Runtime"),
+        writer.WriteDescriptions([
+            new Description("Insight", "Hierarchy overview", "dotnet-inspect api System.Runtime"),
         ]);
 
         var expected = """
@@ -676,15 +676,15 @@ public class MarkoutWriterTests
     #region Distribution
 
     [Fact]
-    public void WriteDistribution_PlainText_RendersStackedBars()
+    public void WriteBreakdown_PlainText_RendersStackedBars()
     {
         var writer = new MarkoutWriter();
-        var items = new List<DistributionBar>
+        var items = new List<Breakdown>
         {
             new("Jan 2025", [new("Critical", 1), new("High", 3)]),
             new("Feb 2025", [new("Critical", 2), new("High", 1)]),
         };
-        writer.WriteDistribution(items);
+        writer.WriteBreakdown(items);
 
         var output = writer.ToString();
         Assert.Contains("Jan 2025", output);
@@ -699,14 +699,14 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteDistribution_Markdown_WrapsInCodeFence()
+    public void WriteBreakdown_Markdown_WrapsInCodeFence()
     {
         var writer = new MarkdownWriter();
-        var items = new List<DistributionBar>
+        var items = new List<Breakdown>
         {
             new("v9.0", [new("Critical", 2), new("High", 4)]),
         };
-        writer.WriteDistribution(items);
+        writer.WriteBreakdown(items);
 
         var output = writer.ToString();
         Assert.Contains("```text", output);
@@ -716,23 +716,23 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteDistribution_EmptyItems_WritesNothing()
+    public void WriteBreakdown_EmptyItems_WritesNothing()
     {
         var writer = new MarkoutWriter();
-        writer.WriteDistribution(new List<DistributionBar>());
+        writer.WriteBreakdown(new List<Breakdown>());
         Assert.Equal("", writer.ToString());
     }
 
     [Fact]
-    public void WriteDistribution_ScaledWidth_ProportionalBars()
+    public void WriteBreakdown_ScaledWidth_ProportionalBars()
     {
         var writer = new MarkoutWriter();
-        var items = new List<DistributionBar>
+        var items = new List<Breakdown>
         {
             new("Row1", [new("A", 10), new("B", 20)]),
             new("Row2", [new("A", 5), new("B", 5)]),
         };
-        writer.WriteDistribution(items, maxBarWidth: 30);
+        writer.WriteBreakdown(items, maxBarWidth: 30);
 
         var output = writer.ToString();
         // The longest row (30 total) should use full width

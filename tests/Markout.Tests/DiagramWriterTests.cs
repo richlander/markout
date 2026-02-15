@@ -5,10 +5,10 @@ namespace Markout.Tests;
 public class DiagramWriterTests
 {
     [Fact]
-    public void SupportedShapes_ReturnsHeadingsTreesAndBarCharts()
+    public void SupportedShapes_ReturnsHeadingsTreesAndMetrics()
     {
         var writer = new DiagramWriter(TextWriter.Null);
-        Assert.Equal(MarkoutShape.Headings | MarkoutShape.Trees | MarkoutShape.BarCharts, writer.SupportedShapes);
+        Assert.Equal(MarkoutShape.Headings | MarkoutShape.Trees | MarkoutShape.Metrics, writer.SupportedShapes);
     }
 
     [Fact]
@@ -82,13 +82,13 @@ public class DiagramWriterTests
     }
 
     [Fact]
-    public void WriteBarChart_Renders()
+    public void WriteMetrics_Renders()
     {
         var sw = new StringWriter();
         var writer = new DiagramWriter(sw);
-        writer.WriteBarChart([
-            new BarItem("Toronto", 8),
-            new BarItem("Vancouver", 3),
+        writer.WriteMetrics([
+            new Metric("Toronto", 8),
+            new Metric("Vancouver", 3),
         ]);
         var output = sw.ToString();
         Assert.Contains("Toronto", output);
@@ -99,13 +99,13 @@ public class DiagramWriterTests
     }
 
     [Fact]
-    public void WriteBarChart_ScalesProportionally()
+    public void WriteMetrics_ScalesProportionally()
     {
         var sw = new StringWriter();
         var writer = new DiagramWriter(sw);
-        writer.WriteBarChart([
-            new BarItem("Big", 10),
-            new BarItem("Small", 1),
+        writer.WriteMetrics([
+            new Metric("Big", 10),
+            new Metric("Small", 1),
         ], maxBarWidth: 20);
         var output = sw.ToString();
         var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);

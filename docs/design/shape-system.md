@@ -1,0 +1,139 @@
+# Markout Shape System
+
+## Vision
+
+HTML defines elements by visual form: `<table>`, `<ul>`, `<blockquote>`.
+Markout defines shapes by data relationship: **tabulation**, **enumeration**, **description**.
+
+An HTML element prescribes appearance. A Markout shape describes what the data *is* and leaves each renderer to choose the best visual form for its medium. The same `Metric` property renders as text-art bars in Markdown, colored blocks in ANSI, and an interactive chart in a web UI — without the developer making visual decisions.
+
+## The Data Projection Model
+
+Every C# property on a serializable type has a **data topology** — the structural relationship between its elements. Markout's source generator recognizes nine fundamental data relationships and projects each onto a document element:
+
+| Relationship | What it captures | C# type pattern | Document form |
+|---|---|---|---|
+| **Identity** | A named value | `string`, `int`, `bool`, `DateTime`, ... | `Key: value` |
+| **Enumeration** | An ordered sequence of items | `string[]`, `List<string>` | `- item` |
+| **Tabulation** | Uniform records with fields | `List<T>` where T has properties | `\| col \| col \|` |
+| **Description** | Terms with explanations | `List<Description>` | **Term:** text |
+| **Measurement** | Labeled quantities | `List<Metric>` | `Label ████░░ 45` |
+| **Composition** | Parts of a whole | `List<Breakdown>` | `██▓▓▒░ 1 crit, 3 high` |
+| **Hierarchy** | Parent-child structure | `List<TreeNode>` | `├── node` |
+| **Quotation** | Verbatim content | `CodeSection` | `` ```lang ... ``` `` |
+| **Attention** | Important messages | `Callout` | `> [!WARNING] ...` |
+
+These relationships are domain-independent. A Kubernetes status report has identity (fields), enumeration (pod names), tabulation (container specs), hierarchy (cluster → namespace → pod), and attention (warnings). A build report has measurement (timings), composition (test results by outcome), and quotation (compiler output).
+
+## Shape Tiers
+
+Shapes are organized into three tiers based on how fundamental they are to document rendering:
+
+### Tier 1: Document Primitives
+
+Every document format supports these. They map directly to Markdown elements and represent the core structural vocabulary.
+
+| Shape | Relationship | Writer method | Record type |
+|---|---|---|---|
+| **Headings** | Structure | `WriteHeading` | — |
+| **Paragraphs** | Structure | `WriteParagraph` | — |
+| **Fields** | Identity | `WriteField` | — |
+| **Lists** | Enumeration | `WriteListItem`, `WriteArray` | — |
+| **Tables** | Tabulation | `WriteTable`, `WriteTableStart/Row/End` | — |
+| **CodeBlocks** | Quotation | `WriteCodeBlockStart/End` | `CodeSection` |
+
+### Tier 2: Semantic Extensions
+
+These add meaning beyond raw document structure. They represent specific data relationships that appear frequently across domains.
+
+| Shape | Relationship | Writer method | Record type |
+|---|---|---|---|
+| **CompactFields** | Identity (multi) | `WriteCompactFields` | `MarkoutField` |
+| **Pairs** | Identity (aligned) | `WritePair` | — |
+| **Descriptions** | Description | `WriteDescriptions` | `Description` |
+| **Callouts** | Attention | `WriteCallout` | `Callout` |
+| **Trees** | Hierarchy | `WriteTree` | `TreeNode` |
+
+### Tier 3: Data Visualizations
+
+These render quantitative patterns. They may degrade gracefully in simpler renderers (e.g., falling back to a table).
+
+| Shape | Relationship | Writer method | Record type |
+|---|---|---|---|
+| **Metrics** | Measurement | `WriteMetrics` | `Metric` |
+| **Breakdowns** | Composition | `WriteBreakdown` | `Breakdown` |
+
+Renderers declare which tiers they support via `SupportedShapes`. A minimal plain-text renderer might support only Tier 1. A full ANSI renderer supports all three tiers with colored output.
+
+## Record Types
+
+Markout provides record types for shapes that need structured input beyond scalar values. Each captures a specific data relationship:
+
+```csharp
+// Measurement — a labeled quantity for comparative display
+public readonly record struct Metric(string Label, double Value);
+
+// Description — a term with explanatory text
+public readonly record struct Description(string Term, string Text, string? Detail = null);
+
+// Composition — a labeled breakdown of proportional parts
+public readonly record struct Segment(string Category, int Count);
+public readonly record struct Breakdown(string Label, Segment[] Segments);
+
+// Hierarchy — a recursive node with children
+public class TreeNode { ... }
+
+// Quotation — verbatim content with optional language
+public readonly record struct CodeSection(string? Language, string Content);
+
+// Attention — a message with severity level
+public readonly record struct Callout(CalloutSeverity Severity, string Message);
+
+// Association — a dynamic key-value pair
+public readonly record struct MarkoutField(string Key, string? Value);
+```
+
+The naming convention is deliberate: types are named for what the data **is** (a metric, a description, a breakdown), not what it **looks like** (a bar, a bullet, a stacked chart).
+
+## Shape Admission Criteria
+
+A new shape belongs in Markout if it passes **all five** criteria:
+
+1. **Type-recognizable** — The source generator can identify it from the C# type signature alone. No runtime configuration or attributes are needed to select the shape.
+
+2. **Semantically distinct** — It captures a data relationship that no existing shape covers. Visual variants of existing shapes (e.g., numbered lists vs. bullet lists) are parameters, not new shapes.
+
+3. **Multi-renderer** — At least three renderers (plain text, Markdown, ANSI) can produce a meaningful representation. If only one medium can express it, it belongs in a renderer-specific extension, not in the core shape vocabulary.
+
+4. **Compositional** — It can appear as a standalone property, inside a `[MarkoutSection]`, or as part of a larger document. Shapes that only work at the top level aren't shapes — they're document templates.
+
+5. **Domain-independent** — The data relationship appears across problem domains: build systems, API documentation, infrastructure monitoring, data analysis. If only one application needs it, it's an application concern, not a shape.
+
+## Evaluating Future Shapes
+
+Applying the admission criteria to candidates:
+
+| Candidate | Relationship | Criteria assessment | Verdict |
+|---|---|---|---|
+| **Blockquote** | Quotation (prose) | ✅ All five. Distinct from CodeSection (prose vs. code). | **Accept** |
+| **Matrix** | Tabulation (2D) | ✅ All five. Row+column headers distinct from flat table. | **Accept** |
+| StatusItem | Measurement | ❌ #2: Same relationship as Metric (value relative to max). | Metric with options |
+| DefinitionItem | Description | ❌ #2: Same relationship as Description. | Use Description |
+| LinkItem | Reference | ⚠️ #2: Could be a format attribute on fields. | Attribute preferred |
+| OrderedList | Enumeration | ❌ #2: Visual variant of List. | Parameter on WriteArray |
+| FlameGraph | Hierarchy + Measurement | ⚠️ #3: Hard to express in plain text. | Defer |
+| Gantt / Timeline | Measurement + Time | ⚠️ #3: Hard to express in plain text. | Defer |
+
+## Design Principles
+
+1. **Shapes describe data, not appearance.** The name "Metric" tells you the data represents a measurement. The name "BarChart" tells you what it looks like. Markout uses the former. Renderers decide the latter.
+
+2. **Renderers choose visual form.** A `Metric` might render as horizontal bars in text, colored blocks in ANSI, or sparklines in a web UI. The shape contract is "comparative labeled quantities" — the visual representation is a renderer decision.
+
+3. **Tiers enable graceful degradation.** When a renderer doesn't support a Tier 3 visualization, the source generator can fall back to a Tier 1 table. The data is never lost; only the visual sophistication changes.
+
+4. **Source generation maps types to shapes.** Property types are resolved to shapes at compile time. `List<Metric>` is always a measurement visualization. No runtime reflection, no manual writer calls for standard patterns.
+
+5. **Composition over configuration.** Complex documents are built from shape primitives composed in sections, not from complex shape configurations. A build report is headings + fields + metrics + tables + callouts, each as a property.
+
+6. **The shape vocabulary is finite and curated.** Not every data pattern needs a dedicated shape. Shapes are admitted through explicit criteria, not accumulated through feature requests. This keeps the API learnable and the generated code predictable.

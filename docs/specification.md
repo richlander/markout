@@ -133,7 +133,7 @@ For collections of objects with consistent fields:
 - Separator row with `|---|` required
 - Cell values follow scalar typing rules
 
-### Simple Pairs
+### Pairs
 
 For two-column data where headers are obvious (e.g., name + version):
 

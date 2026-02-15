@@ -540,28 +540,28 @@ internal static class SerializerEmitter
             }
             sb.AppendLine($"{indent}}}");
         }
-        else if (prop.Kind == PropertyKind.BarChart)
+        else if (prop.Kind == PropertyKind.Metric)
         {
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteBarChart({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteMetrics({propAccess});");
             sb.AppendLine($"{indent}}}");
         }
-        else if (prop.Kind == PropertyKind.LabeledList)
+        else if (prop.Kind == PropertyKind.Description)
         {
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteLabeledList({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteDescriptions({propAccess});");
             sb.AppendLine($"{indent}}}");
         }
-        else if (prop.Kind == PropertyKind.Distribution)
+        else if (prop.Kind == PropertyKind.Breakdown)
         {
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteDistribution({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
             sb.AppendLine($"{indent}}}");
         }
         else if (prop.Kind == PropertyKind.CodeSection)
@@ -624,14 +624,14 @@ internal static class SerializerEmitter
                 sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
                 break;
 
-            case PropertyKind.BarChart:
+            case PropertyKind.Metric:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteBarChart({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteMetrics({propAccess});");
                 break;
 
-            case PropertyKind.LabeledList:
+            case PropertyKind.Description:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteLabeledList({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteDescriptions({propAccess});");
                 break;
 
             case PropertyKind.CodeSection:
@@ -648,9 +648,9 @@ internal static class SerializerEmitter
                 sb.AppendLine($"{indent}    writer.WriteCallout({propAccess}.Severity, {propAccess}.Message);");
                 break;
 
-            case PropertyKind.Distribution:
+            case PropertyKind.Breakdown:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteDistribution({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
                 break;
 
             case PropertyKind.ComplexArray:
@@ -844,13 +844,13 @@ internal static class SerializerEmitter
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (fields)";
             if (prop.Kind == PropertyKind.Tree)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (tree)";
-            if (prop.Kind == PropertyKind.BarChart)
+            if (prop.Kind == PropertyKind.Metric)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (bar chart)";
-            if (prop.Kind == PropertyKind.LabeledList)
+            if (prop.Kind == PropertyKind.Description)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (labeled list)";
             if (prop.Kind == PropertyKind.CodeSection)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (code block)";
-            if (prop.Kind == PropertyKind.Distribution)
+            if (prop.Kind == PropertyKind.Breakdown)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (distribution)";
             return $"H{prop.SectionLevel} Section \"{sectionName}\"";
         }
@@ -871,11 +871,11 @@ internal static class SerializerEmitter
             PropertyKind.NestedObject => "Fields",
             PropertyKind.Formattable => "Custom (IMarkoutFormattable)",
             PropertyKind.Tree => "Tree",
-            PropertyKind.BarChart => "Bar chart",
-            PropertyKind.LabeledList => "Labeled list",
+            PropertyKind.Metric => "Metric",
+            PropertyKind.Description => "Description",
             PropertyKind.CodeSection => "Code block",
             PropertyKind.Callout => "Callout",
-            PropertyKind.Distribution => "Distribution chart",
+            PropertyKind.Breakdown => "Breakdown",
             _ => "Field"
         };
     }

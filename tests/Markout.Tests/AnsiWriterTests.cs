@@ -265,10 +265,10 @@ public class AnsiWriterTests
     // ── Simple pairs ──
 
     [Fact]
-    public void WriteSimplePair_RendersDimName()
+    public void WritePair_RendersDimName()
     {
         var (writer, terminal) = Create();
-        writer.WriteSimplePair("Package", "1.0.0", 20);
+        writer.WritePair("Package", "1.0.0", 20);
 
         var output = terminal.Output;
         Assert.Contains("Package", output);
