@@ -13,12 +13,23 @@ var json = await http.GetStringAsync(
 var index = JsonSerializer.Deserialize(json, ReleasesJsonContext.Default.ReleaseIndex)!;
 
 // Project to view model
+var releases = index.Embedded?.Releases ?? [];
+var unsupported = releases.Where(r => !r.Supported).ToList();
+
 var view = new ReleasesView
 {
     Title = index.Title ?? ".NET Releases",
     LatestMajor = index.LatestMajor,
     LatestLtsMajor = index.LatestLtsMajor,
-    Releases = index.Embedded?.Releases?.Select(r => new ReleaseRow
+    EolWarning = unsupported.Count > 0
+        ? new Callout(CalloutSeverity.Warning, $"{unsupported.Count} release(s) are end-of-life and no longer receive security patches.")
+        : default,
+    TypeBreakdown = [new Breakdown("Release Types", releases
+        .GroupBy(r => r.ReleaseType?.ToUpperInvariant() ?? "UNKNOWN")
+        .OrderByDescending(g => g.Count())
+        .Select(g => new Segment(g.Key, g.Count()))
+        .ToArray())],
+    Releases = releases.Select(r => new ReleaseRow
     {
         Version = r.Version,
         Type = r.ReleaseType?.ToUpperInvariant() ?? "",
@@ -44,6 +55,14 @@ public class ReleasesView
     [MarkoutPropertyName("Latest LTS")]
     [MarkoutSkipNull]
     public string? LatestLtsMajor { get; set; }
+
+    [MarkoutIgnoreInTable]
+    [MarkoutSkipDefault]
+    public Callout EolWarning { get; set; }
+
+    [MarkoutSection(Name = "Type Distribution")]
+    [MarkoutIgnoreInTable]
+    public IReadOnlyList<Breakdown>? TypeBreakdown { get; set; }
     
     [MarkoutSection(Name = "All Releases")]
     public List<ReleaseRow>? Releases { get; set; }

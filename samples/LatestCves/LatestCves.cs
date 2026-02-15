@@ -86,11 +86,24 @@ foreach (var (version, vi) in versionData.OrderByDescending(v => decimal.TryPars
     tree.Add(new TreeNode($"{version} (last updated: {date})", cves));
 }
 
+// Count severity distribution
+var severityCounts = cveInfo.Values
+    .GroupBy(v => v.Severity?.ToUpperInvariant() ?? "UNKNOWN")
+    .OrderByDescending(g => g.Key switch { "CRITICAL" => 0, "HIGH" => 1, "MEDIUM" => 2, "LOW" => 3, _ => 4 })
+    .ToDictionary(g => g.Key, g => g.Count());
+var criticalCount = severityCounts.GetValueOrDefault("CRITICAL");
+
 // Serialize to markdown
 var view = new LatestCvesView
 {
     Title = ".NET Security Advisories",
     Span = $"{cutoff:MMM yyyy} \u2013 {DateTimeOffset.UtcNow:MMM yyyy}",
+    CriticalWarning = criticalCount > 0
+        ? new Callout(CalloutSeverity.Critical, $"{criticalCount} critical severity CVE(s) found. Update affected runtimes immediately.")
+        : default,
+    SeverityBreakdown = severityCounts.Count > 0
+        ? [new Breakdown("By Severity", severityCounts.Select(kv => new Segment(kv.Key, kv.Value)).ToArray())]
+        : null,
     Releases = tree
 };
 MarkoutSerializer.Serialize(view, Console.Out, LatestCvesContext.Default);
@@ -104,6 +117,14 @@ public class LatestCvesView
     public string Title { get; set; } = "";
 
     public string Span { get; set; } = "";
+
+    [MarkoutIgnoreInTable]
+    [MarkoutSkipDefault]
+    public Callout CriticalWarning { get; set; }
+
+    [MarkoutSection(Name = "Severity Distribution")]
+    [MarkoutIgnoreInTable]
+    public IReadOnlyList<Breakdown>? SeverityBreakdown { get; set; }
 
     [MarkoutIgnoreInTable]
     public List<TreeNode>? Releases { get; set; }
