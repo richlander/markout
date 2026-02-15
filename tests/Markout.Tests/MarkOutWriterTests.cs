@@ -7,7 +7,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_Level1_WritesCorrectMarkdown()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package");
 
         Assert.Equal("# Package", writer.ToString());
@@ -16,7 +16,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_Level2_WritesCorrectMarkdown()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(2, "Dependencies");
 
         Assert.Equal("## Dependencies", writer.ToString());
@@ -25,7 +25,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_WithContext_WritesCorrectMarkdown()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(2, "Dependencies", "net6.0");
 
         Assert.Equal("## Dependencies (net6.0)", writer.ToString());
@@ -104,7 +104,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteTable_WritesMarkdownTable()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteTableStart("File", "Arch", "Signed");
         writer.WriteTableRow("Foo.dll", "AnyCPU", "yes");
         writer.WriteTableRow("Bar.dll", "x64", "no");
@@ -115,6 +115,41 @@ public class MarkoutWriterTests
             | ---- | ---- | ------ |
             | Foo.dll | AnyCPU | yes |
             | Bar.dll | x64 | no |
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteTable_PrettyTables_PadsColumns()
+    {
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { PrettyTables = true });
+        writer.WriteTableStart("File", "Arch", "Signed");
+        writer.WriteTableRow("Foo.dll", "AnyCPU", "yes");
+        writer.WriteTableRow("Bar.dll", "x64", "no");
+        writer.WriteTableEnd();
+
+        var expected = """
+            | File    | Arch   | Signed |
+            | ------- | ------ | ------ |
+            | Foo.dll | AnyCPU | yes    |
+            | Bar.dll | x64    | no     |
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteTable_Batch_PrettyTables_PadsColumns()
+    {
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { PrettyTables = true });
+        writer.WriteTable(
+            ["Name", "Born"],
+            [["Alice", "1990"], ["Bob", "1985"]]);
+
+        var expected = """
+            | Name  | Born |
+            | ----- | ---- |
+            | Alice | 1990 |
+            | Bob   | 1985 |
             """;
         Assert.Equal(expected, writer.ToString());
     }
@@ -136,7 +171,7 @@ public class MarkoutWriterTests
     [Fact]
     public void MultipleElements_AddsBlankLinesBetweenSections()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package");
         writer.WriteField("Name", "Test");
         writer.WriteField("Version", "1.0.0");
@@ -160,7 +195,7 @@ public class MarkoutWriterTests
     [Fact]
     public void IncludeSections_FiltersToSpecifiedSections()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = ["First"] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = ["First"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Intro");
@@ -178,7 +213,7 @@ public class MarkoutWriterTests
     [Fact]
     public void ExcludeSections_SkipsSpecifiedSections()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = ["Second"] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { ExcludeSections = ["Second"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "First");    // included
@@ -195,7 +230,7 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_ContentBeforeFirstH2_AlwaysIncluded()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = ["Second"] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = ["Second"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("This is before any H2");
@@ -211,7 +246,7 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_TableSpanningExcludedSection_NotWritten()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { ExcludeSections = ["Data"] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { ExcludeSections = ["Data"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "Data");     // excluded
@@ -269,7 +304,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteCompactFields_AfterHeading_AddsBlankLine()
     {
-        var writer = new MarkoutWriter();
+        var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package 1.0.0");
         writer.WriteCompactFields(
             new MarkoutField("Type", "Library"),
@@ -454,7 +489,7 @@ public class MarkoutWriterTests
     [Fact]
     public void IncludeSections_EmptySet_IncludesPreambleOnly()
     {
-        var writer = new MarkoutWriter(new MarkoutWriterOptions { IncludeSections = [] });
+        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = [] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Preamble text");
@@ -514,4 +549,196 @@ public class MarkoutWriterTests
         writer.WriteCodeBlockStart();
         Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart("A"));
     }
+
+    [Fact]
+    public void WriteLabeledList_PlainText_WritesLabelAndDescription()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteLabeledList([
+            new LabeledItem("Insight", "What does the generic math hierarchy look like?"),
+            new LabeledItem("Discovery", "What can JsonSerializer do?"),
+        ]);
+
+        var expected = """
+            - Insight: What does the generic math hierarchy look like?
+            - Discovery: What can JsonSerializer do?
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteLabeledList_PlainText_WithDetail_IndentsDetail()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteLabeledList([
+            new LabeledItem("Insight", "What does the generic math hierarchy look like?", "dotnet-inspect api System.Runtime"),
+        ]);
+
+        var expected = """
+            - Insight: What does the generic math hierarchy look like?
+              dotnet-inspect api System.Runtime
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteLabeledList_Markdown_BoldsLabel()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteLabeledList([
+            new LabeledItem("Insight", "What does the generic math hierarchy look like?"),
+            new LabeledItem("Discovery", "What can JsonSerializer do?"),
+        ]);
+
+        var expected = """
+            - **Insight:** What does the generic math hierarchy look like?
+            - **Discovery:** What can JsonSerializer do?
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteLabeledList_Markdown_WithDetail_IndentsDetail()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteLabeledList([
+            new LabeledItem("Insight", "Hierarchy overview", "dotnet-inspect api System.Runtime"),
+        ]);
+
+        var expected = """
+            - **Insight:** Hierarchy overview
+              dotnet-inspect api System.Runtime
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCallout_PlainText_WritesLabelAndMessage()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCallout(CalloutSeverity.Warning, "3 known vulnerabilities found.");
+
+        var output = writer.ToString();
+        Assert.Contains("WARNING: 3 known vulnerabilities found.", output);
+    }
+
+    [Fact]
+    public void WriteCallout_Markdown_WritesGitHubFlavor()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteCallout(CalloutSeverity.Warning, "3 known vulnerabilities found.");
+
+        var expected = """
+            > [!WARNING]
+            > 3 known vulnerabilities found.
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCallout_Markdown_AllSeverities()
+    {
+        foreach (var severity in Enum.GetValues<CalloutSeverity>())
+        {
+            var writer = new MarkdownWriter();
+            writer.WriteCallout(severity, "test");
+            var output = writer.ToString();
+            Assert.Contains($"> [!{severity.ToString().ToUpperInvariant()}]", output);
+        }
+    }
+
+    [Fact]
+    public void WriteCallout_Markdown_Caution_RendersCorrectly()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteCallout(CalloutSeverity.Caution, "This package has critical vulnerabilities.");
+
+        var expected = """
+            > [!CAUTION]
+            > This package has critical vulnerabilities.
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCallout_Markdown_Note_RendersCorrectly()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteCallout(CalloutSeverity.Note, "SourceLink is available.");
+
+        var expected = """
+            > [!NOTE]
+            > SourceLink is available.
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    #region Distribution
+
+    [Fact]
+    public void WriteDistribution_PlainText_RendersStackedBars()
+    {
+        var writer = new MarkoutWriter();
+        var items = new List<DistributionBar>
+        {
+            new("Jan 2025", [new("Critical", 1), new("High", 3)]),
+            new("Feb 2025", [new("Critical", 2), new("High", 1)]),
+        };
+        writer.WriteDistribution(items);
+
+        var output = writer.ToString();
+        Assert.Contains("Jan 2025", output);
+        Assert.Contains("Feb 2025", output);
+        Assert.Contains("█", output);
+        Assert.Contains("▓", output);
+        Assert.Contains("1 Critical, 3 High", output);
+        Assert.Contains("2 Critical, 1 High", output);
+        // Legend
+        Assert.Contains("█ Critical", output);
+        Assert.Contains("▓ High", output);
+    }
+
+    [Fact]
+    public void WriteDistribution_Markdown_WrapsInCodeFence()
+    {
+        var writer = new MarkdownWriter();
+        var items = new List<DistributionBar>
+        {
+            new("v9.0", [new("Critical", 2), new("High", 4)]),
+        };
+        writer.WriteDistribution(items);
+
+        var output = writer.ToString();
+        Assert.Contains("```text", output);
+        Assert.Contains("```", output);
+        Assert.Contains("v9.0", output);
+        Assert.Contains("2 Critical, 4 High", output);
+    }
+
+    [Fact]
+    public void WriteDistribution_EmptyItems_WritesNothing()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteDistribution(new List<DistributionBar>());
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteDistribution_ScaledWidth_ProportionalBars()
+    {
+        var writer = new MarkoutWriter();
+        var items = new List<DistributionBar>
+        {
+            new("Row1", [new("A", 10), new("B", 20)]),
+            new("Row2", [new("A", 5), new("B", 5)]),
+        };
+        writer.WriteDistribution(items, maxBarWidth: 30);
+
+        var output = writer.ToString();
+        // The longest row (30 total) should use full width
+        Assert.Contains("Row1", output);
+        Assert.Contains("Row2", output);
+    }
+
+    #endregion
 }

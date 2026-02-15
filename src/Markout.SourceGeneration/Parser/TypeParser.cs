@@ -198,6 +198,7 @@ internal static class TypeParser
         string? sectionFormatterTypeName = null;
         string? sectionColumnName = null;
         string? sectionShowWhenProperty = null;
+        string? sectionGroupByProperty = null;
 
         if (isSection)
         {
@@ -221,6 +222,8 @@ internal static class TypeParser
                         sectionColumnName = cn;
                     else if (named.Key == "ShowWhenProperty" && named.Value.Value is string swp)
                         sectionShowWhenProperty = swp;
+                    else if (named.Key == "GroupBy" && named.Value.Value is string gb)
+                        sectionGroupByProperty = gb;
                 }
             }
         }
@@ -389,6 +392,7 @@ internal static class TypeParser
             sectionFormatterTypeName,
             sectionColumnName,
             sectionShowWhenProperty,
+            sectionGroupByProperty,
             elementTypeName,
             elementProperties,
             hasNestedContent,
@@ -445,6 +449,14 @@ internal static class TypeParser
             return (PropertyKind.DateTime, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTimeOffset))
             return (PropertyKind.DateTimeOffset, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+
+        // CodeSection type - renders as code block
+        if (SymbolEqualityComparer.Default.Equals(type, knownTypes.CodeSection))
+            return (PropertyKind.CodeSection, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+
+        // Callout type - renders as admonition block
+        if (SymbolEqualityComparer.Default.Equals(type, knownTypes.Callout))
+            return (PropertyKind.Callout, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
         // Enum types
         if (type.TypeKind == TypeKind.Enum)
@@ -534,6 +546,42 @@ internal static class TypeParser
                         }
                     }
 
+                    // Check for IReadOnlyList<BarItem> / List<BarItem> - renders as bar chart
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.BarItem))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.BarChart, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                        }
+                    }
+
+                    // Check for IReadOnlyList<LabeledItem> / List<LabeledItem> - renders as labeled list
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.LabeledItem))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.LabeledList, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                        }
+                    }
+
+                    // Check for IReadOnlyList<DistributionBar> / List<DistributionBar> - renders as distribution chart
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.DistributionBar))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.Distribution, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                        }
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
@@ -568,7 +616,10 @@ internal static class TypeParser
         if (props == null) return false;
         return props.Any(p => !p.IsIgnored &&
             (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
-             p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree));
+             p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
+             p.Kind == PropertyKind.LabeledList || p.Kind == PropertyKind.BarChart ||
+             p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Distribution ||
+             (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 
     private static (string? TitleProperty, string? TitleContextProperty, bool AutoFields, FieldLayoutKind FieldLayout) GetElementTypeSettings(ITypeSymbol type)

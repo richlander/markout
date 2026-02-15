@@ -805,3 +805,611 @@ public class NestedStructureRealWorldTests
         Assert.Contains("Public Methods: 892", mdf);
     }
 }
+
+#region CodeSection Models
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ConstructorOverload
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    [MarkoutIgnoreInTable]
+    public CodeSection Signature { get; set; }
+
+    [MarkoutSection(Name = "Parameters")]
+    public List<ParameterRow>? Parameters { get; set; }
+}
+
+[MarkoutSerializable]
+public class ParameterRow
+{
+    public string Parameter { get; set; } = "";
+    public string Type { get; set; } = "";
+    public string Notes { get; set; } = "";
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ApiMethodView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Kind { get; set; } = "";
+    [MarkoutIgnoreInTable]
+    public CodeSection Source { get; set; }
+}
+
+[MarkoutContext(typeof(ConstructorOverload))]
+[MarkoutContext(typeof(ApiMethodView))]
+[MarkoutContext(typeof(ILView))]
+[MarkoutContext(typeof(VulnerabilityReport))]
+[MarkoutContext(typeof(CtorEmphasisView))]
+public partial class CodeSectionTestContext : MarkoutSerializerContext
+{
+}
+
+// Sectioned CodeSection: [MarkoutSection] on CodeSection renders heading + code block
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ILView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Kind { get; set; } = "";
+
+    [MarkoutSection(Name = "IL")]
+    [MarkoutIgnoreInTable]
+    public CodeSection IlCode { get; set; }
+
+    [MarkoutSection(Name = "Source")]
+    [MarkoutIgnoreInTable]
+    public CodeSection SourceCode { get; set; }
+}
+
+// Callout as property type
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class VulnerabilityReport
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+    [MarkoutIgnoreInTable]
+    public Callout Alert { get; set; }
+
+    [MarkoutSection(Name = "Vulnerabilities")]
+    public List<VulnRow>? Vulnerabilities { get; set; }
+}
+
+[MarkoutSerializable]
+public class VulnRow
+{
+    public string Severity { get; set; } = "";
+    public string Advisory { get; set; } = "";
+}
+
+// Nested ctor overloads: List<ConstructorOverload> with CodeSection + table
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class CtorEmphasisView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Kind { get; set; } = "";
+
+    [MarkoutSection(Name = "Constructors")]
+    public List<ConstructorOverload>? Overloads { get; set; }
+}
+
+// Distribution: List<DistributionBar> as section for CVE severity breakdown
+[MarkoutSerializable(TitleProperty = nameof(Framework))]
+public class CveSummary
+{
+    [MarkoutIgnore] public string Framework { get; set; } = "";
+    public string TotalCves { get; set; } = "";
+
+    [MarkoutSection(Name = "Severity Distribution")]
+    [MarkoutIgnoreInTable]
+    public List<DistributionBar>? Distribution { get; set; }
+}
+
+[MarkoutContext(typeof(CveSummary))]
+public partial class DistributionTestContext : MarkoutSerializerContext
+{
+}
+
+// Multi-column IgnoreProperty: comma-separated property names
+[MarkoutSerializable]
+public record ApiMemberRow(string? Select, string Name, string Signature, string? Description);
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class MultiIgnoreView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Members", IgnoreProperty = "Description,Select")]
+    public List<ApiMemberRow>? MembersCompact { get; set; }
+
+    [MarkoutSection(Name = "Members", IgnoreProperty = "Select")]
+    public List<ApiMemberRow>? MembersWithDocs { get; set; }
+
+    [MarkoutSection(Name = "Members", IgnoreProperty = "Description")]
+    public List<ApiMemberRow>? MembersWithSelect { get; set; }
+
+    [MarkoutSection(Name = "Members")]
+    public List<ApiMemberRow>? MembersAll { get; set; }
+}
+
+[MarkoutContext(typeof(MultiIgnoreView))]
+public partial class MultiIgnoreTestContext : MarkoutSerializerContext
+{
+}
+
+// GroupBy: items grouped by a property, each group gets a subheading
+[MarkoutSerializable]
+public record DiffChange(
+    [property: MarkoutIgnore] string TypeName,
+    string Message);
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class DiffReport
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Versions { get; set; } = "";
+
+    [MarkoutSection(Name = "Breaking Changes", GroupBy = nameof(DiffChange.TypeName))]
+    public List<DiffChange>? BreakingChanges { get; set; }
+
+    [MarkoutSection(Name = "Additive Changes", GroupBy = nameof(DiffChange.TypeName))]
+    public List<DiffChange>? AdditiveChanges { get; set; }
+}
+
+// GroupBy with table rows (multiple visible properties)
+[MarkoutSerializable]
+public record GroupedMetric(
+    [property: MarkoutIgnore] string Category,
+    string Name,
+    string Value);
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class MetricReport
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Metrics", GroupBy = nameof(GroupedMetric.Category))]
+    public List<GroupedMetric>? Metrics { get; set; }
+}
+
+[MarkoutContext(typeof(DiffReport))]
+[MarkoutContext(typeof(MetricReport))]
+public partial class GroupByTestContext : MarkoutSerializerContext
+{
+}
+
+#endregion
+
+public class CodeSectionTests
+{
+    [Fact]
+    public void Serialize_CodeSection_RendersCodeBlock()
+    {
+        var view = new ApiMethodView
+        {
+            Title = "JsonSerializer.Serialize",
+            Kind = "Method",
+            Source = new CodeSection("csharp", "public static string Serialize(object? value);")
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        Assert.Contains("# JsonSerializer.Serialize", mdf);
+        Assert.Contains("Kind: Method", mdf);
+        Assert.Contains("```csharp", mdf);
+        Assert.Contains("public static string Serialize(object? value);", mdf);
+        Assert.Contains("```", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CodeSection_WithNestedTable()
+    {
+        var overload = new ConstructorOverload
+        {
+            Title = "Overload 1: 2 parameters",
+            Signature = new CodeSection("csharp", "new JsonSerializerOptions(JsonSerializerDefaults defaults)"),
+            Parameters =
+            [
+                new ParameterRow { Parameter = "defaults", Type = "JsonSerializerDefaults", Notes = "required" },
+                new ParameterRow { Parameter = "options", Type = "JsonSerializerOptions?", Notes = "optional" }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(overload, CodeSectionTestContext.Default);
+
+        Assert.Contains("# Overload 1: 2 parameters", mdf);
+        Assert.Contains("```csharp", mdf);
+        Assert.Contains("new JsonSerializerOptions", mdf);
+        Assert.Contains("```", mdf);
+        Assert.Contains("## Parameters", mdf);
+        Assert.Contains("defaults", mdf);
+        Assert.Contains("JsonSerializerDefaults", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CodeSection_DefaultContent_SkipsBlock()
+    {
+        var view = new ApiMethodView
+        {
+            Title = "Test",
+            Kind = "Method",
+            Source = default  // Content is null
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        Assert.Contains("# Test", mdf);
+        Assert.Contains("Kind: Method", mdf);
+        Assert.DoesNotContain("```", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SectionedCodeSection_RendersHeadingAndCodeBlock()
+    {
+        var view = new ILView
+        {
+            Title = "JsonSerializer.Serialize",
+            Kind = "Method",
+            IlCode = new CodeSection("il", ".method public static string Serialize(object)"),
+            SourceCode = new CodeSection("csharp", "public static string Serialize(object? value) => ...")
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        Assert.Contains("# JsonSerializer.Serialize", mdf);
+        Assert.Contains("Kind: Method", mdf);
+
+        // IL section with heading + code block
+        Assert.Contains("## IL", mdf);
+        Assert.Contains("```il", mdf);
+        Assert.Contains(".method public static string Serialize(object)", mdf);
+
+        // Source section with heading + code block
+        Assert.Contains("## Source", mdf);
+        Assert.Contains("```csharp", mdf);
+        Assert.Contains("public static string Serialize(object? value) => ...", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SectionedCodeSection_SkipsWhenDefault()
+    {
+        var view = new ILView
+        {
+            Title = "Test",
+            Kind = "Method",
+            IlCode = default,
+            SourceCode = default
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        Assert.Contains("# Test", mdf);
+        Assert.DoesNotContain("## IL", mdf);
+        Assert.DoesNotContain("## Source", mdf);
+        Assert.DoesNotContain("```", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CalloutProperty_RendersCallout()
+    {
+        var report = new VulnerabilityReport
+        {
+            Name = "System.Text.Json",
+            Version = "6.0.0",
+            Alert = new Callout(CalloutSeverity.Warning, "3 known vulnerabilities found."),
+            Vulnerabilities =
+            [
+                new VulnRow { Severity = "High", Advisory = "CVE-2024-1234" },
+                new VulnRow { Severity = "Medium", Advisory = "CVE-2024-5678" }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, CodeSectionTestContext.Default);
+
+        Assert.Contains("# System.Text.Json", mdf);
+        Assert.Contains("Version: 6.0.0", mdf);
+
+        // Callout rendered in markdown format
+        Assert.Contains("> [!WARNING]", mdf);
+        Assert.Contains("> 3 known vulnerabilities found.", mdf);
+
+        // Vulnerabilities table
+        Assert.Contains("## Vulnerabilities", mdf);
+        Assert.Contains("CVE-2024-1234", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CalloutProperty_SkipsWhenDefault()
+    {
+        var report = new VulnerabilityReport
+        {
+            Name = "Safe.Package",
+            Version = "1.0.0",
+            Alert = default  // Message is null
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, CodeSectionTestContext.Default);
+
+        Assert.Contains("# Safe.Package", mdf);
+        Assert.DoesNotContain("[!WARNING]", mdf);
+        Assert.DoesNotContain("WARNING", mdf);
+    }
+
+    [Fact]
+    public void Serialize_NestedCtorOverloads_RendersSubsections()
+    {
+        var view = new CtorEmphasisView
+        {
+            Title = "JsonSerializerOptions",
+            Kind = "Class",
+            Overloads =
+            [
+                new ConstructorOverload
+                {
+                    Title = "Overload 1: 0 parameters",
+                    Signature = new CodeSection("csharp", "new JsonSerializerOptions()"),
+                },
+                new ConstructorOverload
+                {
+                    Title = "Overload 2: 1 parameter",
+                    Signature = new CodeSection("csharp", "new JsonSerializerOptions(JsonSerializerDefaults defaults)"),
+                    Parameters =
+                    [
+                        new ParameterRow { Parameter = "defaults", Type = "JsonSerializerDefaults", Notes = "required" }
+                    ]
+                }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        // Top level
+        Assert.Contains("# JsonSerializerOptions", mdf);
+        Assert.Contains("Kind: Class", mdf);
+
+        // Section heading
+        Assert.Contains("## Constructors", mdf);
+
+        // Subsection per overload
+        Assert.Contains("### Overload 1: 0 parameters", mdf);
+        Assert.Contains("new JsonSerializerOptions()", mdf);
+
+        Assert.Contains("### Overload 2: 1 parameter", mdf);
+        Assert.Contains("new JsonSerializerOptions(JsonSerializerDefaults defaults)", mdf);
+
+        // Nested parameter table
+        Assert.Contains("#### Parameters", mdf);
+        Assert.Contains("defaults", mdf);
+        Assert.Contains("JsonSerializerDefaults", mdf);
+    }
+}
+
+public class DistributionTests
+{
+    [Fact]
+    public void Serialize_DistributionProperty_RendersDistributionChart()
+    {
+        var summary = new CveSummary
+        {
+            Framework = ".NET 9",
+            TotalCves = "12",
+            Distribution =
+            [
+                new("Jan 2025", [new("Critical", 1), new("High", 3), new("Medium", 2)]),
+                new("Feb 2025", [new("Critical", 2), new("High", 1)]),
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(summary, DistributionTestContext.Default);
+
+        Assert.Contains("# .NET 9", mdf);
+        Assert.Contains("TotalCves: 12", mdf);
+        Assert.Contains("## Severity Distribution", mdf);
+        Assert.Contains("Jan 2025", mdf);
+        Assert.Contains("Feb 2025", mdf);
+        Assert.Contains("1 Critical, 3 High, 2 Medium", mdf);
+    }
+
+    [Fact]
+    public void Serialize_DistributionProperty_SkipsWhenEmpty()
+    {
+        var summary = new CveSummary
+        {
+            Framework = ".NET 8",
+            TotalCves = "0",
+            Distribution = []
+        };
+
+        var mdf = MarkoutSerializer.Serialize(summary, DistributionTestContext.Default);
+
+        Assert.Contains("# .NET 8", mdf);
+        Assert.DoesNotContain("Severity Distribution", mdf);
+    }
+}
+
+public class MultiIgnorePropertyTests
+{
+    private static readonly List<ApiMemberRow> TestRows =
+    [
+        new("`Parse:1`", "Parse", "`string Parse(string)`", "Parses input"),
+        new("`Parse:2`", "Parse", "`string Parse(ReadOnlySpan<char>)`", "Parses span"),
+    ];
+
+    [Fact]
+    public void Serialize_IgnoreTwoProperties_ShowsOnlyNameAndSignature()
+    {
+        var view = new MultiIgnoreView
+        {
+            Title = "TestType",
+            MembersCompact = TestRows
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, MultiIgnoreTestContext.Default);
+
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Signature", mdf);
+        Assert.DoesNotContain("Select", mdf);
+        Assert.DoesNotContain("Description", mdf);
+    }
+
+    [Fact]
+    public void Serialize_IgnoreSelect_ShowsNameSignatureDescription()
+    {
+        var view = new MultiIgnoreView
+        {
+            Title = "TestType",
+            MembersWithDocs = TestRows
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, MultiIgnoreTestContext.Default);
+
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Signature", mdf);
+        Assert.Contains("| Description", mdf);
+        Assert.DoesNotContain("Select", mdf);
+        Assert.Contains("Parses input", mdf);
+    }
+
+    [Fact]
+    public void Serialize_IgnoreDescription_ShowsSelectNameSignature()
+    {
+        var view = new MultiIgnoreView
+        {
+            Title = "TestType",
+            MembersWithSelect = TestRows
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, MultiIgnoreTestContext.Default);
+
+        Assert.Contains("| Select", mdf);
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Signature", mdf);
+        Assert.DoesNotContain("Description", mdf);
+        Assert.Contains("`Parse:1`", mdf);
+    }
+
+    [Fact]
+    public void Serialize_NoIgnore_ShowsAllColumns()
+    {
+        var view = new MultiIgnoreView
+        {
+            Title = "TestType",
+            MembersAll = TestRows
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, MultiIgnoreTestContext.Default);
+
+        Assert.Contains("| Select", mdf);
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Signature", mdf);
+        Assert.Contains("| Description", mdf);
+        Assert.Contains("`Parse:1`", mdf);
+        Assert.Contains("Parses input", mdf);
+    }
+}
+
+public class GroupByTests
+{
+    [Fact]
+    public void Serialize_GroupBy_SingleProperty_RendersListItemsPerGroup()
+    {
+        var report = new DiffReport
+        {
+            Title = "API Diff: MyLib",
+            Versions = "1.0 → 2.0",
+            BreakingChanges =
+            [
+                new("StringBuilder", "Method removed: Clear()"),
+                new("StringBuilder", "Property changed: Length"),
+                new("String", "Method removed: Copy()"),
+            ],
+            AdditiveChanges =
+            [
+                new("String", "Method added: ReplaceLineEndings()"),
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, GroupByTestContext.Default);
+
+        // Section heading
+        Assert.Contains("## Breaking Changes", mdf);
+
+        // Group subheadings
+        Assert.Contains("### StringBuilder", mdf);
+        Assert.Contains("### String", mdf);
+
+        // List items under groups
+        Assert.Contains("Method removed: Clear()", mdf);
+        Assert.Contains("Property changed: Length", mdf);
+        Assert.Contains("Method removed: Copy()", mdf);
+
+        // Additive section
+        Assert.Contains("## Additive Changes", mdf);
+        Assert.Contains("Method added: ReplaceLineEndings()", mdf);
+
+        // TypeName should NOT appear as a column or field
+        Assert.DoesNotContain("| TypeName", mdf);
+    }
+
+    [Fact]
+    public void Serialize_GroupBy_MultipleProperties_RendersTablePerGroup()
+    {
+        var report = new MetricReport
+        {
+            Title = "Perf Results",
+            Metrics =
+            [
+                new("CPU", "Allocation", "12 MB"),
+                new("CPU", "Duration", "3.2s"),
+                new("Memory", "Peak", "256 MB"),
+                new("Memory", "Average", "128 MB"),
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, GroupByTestContext.Default);
+
+        // Group subheadings
+        Assert.Contains("### CPU", mdf);
+        Assert.Contains("### Memory", mdf);
+
+        // Table headers (Name and Value, not Category)
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Value", mdf);
+        Assert.DoesNotContain("| Category", mdf);
+
+        // Table data
+        Assert.Contains("Allocation", mdf);
+        Assert.Contains("12 MB", mdf);
+        Assert.Contains("Peak", mdf);
+        Assert.Contains("256 MB", mdf);
+    }
+
+    [Fact]
+    public void Serialize_GroupBy_EmptyList_SkipsSection()
+    {
+        var report = new DiffReport
+        {
+            Title = "No Changes",
+            Versions = "1.0 → 1.0",
+            BreakingChanges = []
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, GroupByTestContext.Default);
+
+        Assert.DoesNotContain("Breaking Changes", mdf);
+    }
+
+    [Fact]
+    public void Serialize_GroupBy_NullList_SkipsSection()
+    {
+        var report = new DiffReport
+        {
+            Title = "No Changes",
+            Versions = "1.0 → 1.0",
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, GroupByTestContext.Default);
+
+        Assert.DoesNotContain("Breaking Changes", mdf);
+        Assert.DoesNotContain("Additive Changes", mdf);
+    }
+}

@@ -9,6 +9,8 @@ public class MarkoutWriterOptions
     private bool _includeIcons = true;
     private bool _includeDescription = true;
     private bool _boldFieldNames;
+    private bool _prettyTables;
+    private int? _maxItems;
     private HashSet<string>? _includeSections;
     private HashSet<string>? _excludeSections;
 
@@ -60,6 +62,35 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _boldFieldNames = value;
+        }
+    }
+
+    /// <summary>
+    /// Whether to pad table columns for aligned output. When true, pipe tables
+    /// and plain tables are rendered with space-padded columns. Default is false.
+    /// </summary>
+    public bool PrettyTables
+    {
+        get => _prettyTables;
+        set
+        {
+            ThrowIfReadOnly();
+            _prettyTables = value;
+        }
+    }
+
+    /// <summary>
+    /// Maximum number of rows to display in tables. When set, tables are
+    /// truncated after this many rows with an ellipsis showing the remaining count.
+    /// Default is null (no limit).
+    /// </summary>
+    public int? MaxItems
+    {
+        get => _maxItems;
+        set
+        {
+            ThrowIfReadOnly();
+            _maxItems = value;
         }
     }
 

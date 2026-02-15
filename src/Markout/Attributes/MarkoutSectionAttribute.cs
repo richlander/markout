@@ -46,4 +46,11 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// When the property value is <c>false</c>, the section is skipped entirely.
     /// </summary>
     public string? ShowWhenProperty { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of an element property to group items by.
+    /// Each distinct value becomes a subheading, with items rendered beneath.
+    /// The group-by property is excluded from per-item rendering (it becomes the heading).
+    /// </summary>
+    public string? GroupBy { get; set; }
 }

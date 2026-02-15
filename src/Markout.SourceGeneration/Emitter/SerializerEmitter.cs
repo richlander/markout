@@ -472,7 +472,12 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
             
-            if (prop.MaxItems != null)
+            if (prop.SectionGroupByProperty != null)
+            {
+                // Grouped rendering: partition by property, subheading per group
+                CollectionEmitter.EmitGroupedSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel);
+            }
+            else if (prop.MaxItems != null)
             {
                 var innerIndent = indent + "    ";
                 var (truncVar, _) = EmitHelpers.EmitMaxItemsTruncation(sb, prop, propAccess, innerIndent, nestingDepth);
@@ -535,6 +540,40 @@ internal static class SerializerEmitter
             }
             sb.AppendLine($"{indent}}}");
         }
+        else if (prop.Kind == PropertyKind.BarChart)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteBarChart({propAccess});");
+            sb.AppendLine($"{indent}}}");
+        }
+        else if (prop.Kind == PropertyKind.LabeledList)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteLabeledList({propAccess});");
+            sb.AppendLine($"{indent}}}");
+        }
+        else if (prop.Kind == PropertyKind.Distribution)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteDistribution({propAccess});");
+            sb.AppendLine($"{indent}}}");
+        }
+        else if (prop.Kind == PropertyKind.CodeSection)
+        {
+            sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteCodeBlockStart({propAccess}.Language);");
+            sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
+            sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
+            sb.AppendLine($"{indent}}}");
+        }
         else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
         {
             sb.AppendLine($"{indent}if ({propAccess} != null)");
@@ -583,6 +622,35 @@ internal static class SerializerEmitter
             case PropertyKind.Tree:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
                 sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+                break;
+
+            case PropertyKind.BarChart:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteBarChart({propAccess});");
+                break;
+
+            case PropertyKind.LabeledList:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteLabeledList({propAccess});");
+                break;
+
+            case PropertyKind.CodeSection:
+                sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
+                sb.AppendLine($"{indent}{{");
+                sb.AppendLine($"{indent}    writer.WriteCodeBlockStart({propAccess}.Language);");
+                sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
+                sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
+                sb.AppendLine($"{indent}}}");
+                break;
+
+            case PropertyKind.Callout:
+                sb.AppendLine($"{indent}if ({propAccess}.Message != null)");
+                sb.AppendLine($"{indent}    writer.WriteCallout({propAccess}.Severity, {propAccess}.Message);");
+                break;
+
+            case PropertyKind.Distribution:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteDistribution({propAccess});");
                 break;
 
             case PropertyKind.ComplexArray:
@@ -776,6 +844,14 @@ internal static class SerializerEmitter
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (fields)";
             if (prop.Kind == PropertyKind.Tree)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (tree)";
+            if (prop.Kind == PropertyKind.BarChart)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (bar chart)";
+            if (prop.Kind == PropertyKind.LabeledList)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (labeled list)";
+            if (prop.Kind == PropertyKind.CodeSection)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (code block)";
+            if (prop.Kind == PropertyKind.Distribution)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (distribution)";
             return $"H{prop.SectionLevel} Section \"{sectionName}\"";
         }
 
@@ -795,6 +871,11 @@ internal static class SerializerEmitter
             PropertyKind.NestedObject => "Fields",
             PropertyKind.Formattable => "Custom (IMarkoutFormattable)",
             PropertyKind.Tree => "Tree",
+            PropertyKind.BarChart => "Bar chart",
+            PropertyKind.LabeledList => "Labeled list",
+            PropertyKind.CodeSection => "Code block",
+            PropertyKind.Callout => "Callout",
+            PropertyKind.Distribution => "Distribution chart",
             _ => "Field"
         };
     }

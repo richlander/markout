@@ -91,7 +91,7 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MarkoutWriter(options);
+        var writer = new MarkdownWriter(options);
         typeInfo.Serialize(writer, value);
         return writer.ToString();
     }
@@ -144,7 +144,7 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MarkoutWriter(output, options);
+        var writer = new MarkdownWriter(output, options);
         typeInfo.Serialize(writer, value);
         writer.Flush();
     }
