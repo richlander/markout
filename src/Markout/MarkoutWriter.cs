@@ -449,6 +449,15 @@ public class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes a sequence of strings as bullet list items.
+    /// </summary>
+    public void WriteList(IEnumerable<string> items)
+    {
+        foreach (var item in items)
+            WriteListItem(item);
+    }
+
+    /// <summary>
     /// Writes multiple key-value fields on a single line, separated by pipes.
     /// Useful for compact summary lines with essential metadata.
     /// </summary>
