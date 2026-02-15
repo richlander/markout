@@ -179,6 +179,83 @@ public class Person
         public OrgNode? Manager { get; set; }
     }
 
+    // Mutual recursion — A references B, B references A
+    [MarkoutSerializable(TitleProperty = nameof(Name))]
+    public class CycleDepartment
+    {
+        public string Name { get; set; } = "";
+
+        [MarkoutIgnoreInTable]
+        [MarkoutSection(Name = "Lead")]
+        public Employee? Lead { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Employee
+    {
+        public string Name { get; set; } = "";
+        public string Title { get; set; } = "";
+
+        [MarkoutIgnoreInTable]
+        [MarkoutSection(Name = "Department")]
+        public CycleDepartment? Department { get; set; }
+    }
+
+    // Deep nesting — 6+ levels to test heading cap
+    [MarkoutSerializable(TitleProperty = nameof(Name))]
+    public class Level1
+    {
+        public string Name { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level2? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level2
+    {
+        public string Value2 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level3? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level3
+    {
+        public string Value3 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level4? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level4
+    {
+        public string Value4 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level5? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level5
+    {
+        public string Value5 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level6? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level6
+    {
+        public string Value6 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level7? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level7
+    {
+        public string Value7 { get; set; } = "";
+    }
+
 #endregion
 
 #region Nested Structure Test Context
@@ -191,6 +268,8 @@ public class Person
 [MarkoutContext(typeof(Configuration))]
 [MarkoutContext(typeof(Application))]
 [MarkoutContext(typeof(OrgNode))]
+[MarkoutContext(typeof(CycleDepartment))]
+[MarkoutContext(typeof(Level1))]
 public partial class NestedTestContext : MarkoutSerializerContext
 {
 }
@@ -568,14 +647,11 @@ public class NestedStructureTests
 
     #endregion
 
-    #region Cycle Protection: Self-Referential Types
+    #region Cycle Protection and Heading Depth
 
     [Fact]
-    public void SelfReferentialType_DoesNotInfiniteLoop()
+    public void SelfReferentialType_RendersOneLevel_StopsAtCycle()
     {
-        // OrgNode.Manager is of type OrgNode — without cycle protection,
-        // the source generator would recurse infinitely during parsing.
-        // The cycle guard stops recursion, treating the back-reference as a leaf.
         var node = new OrgNode
         {
             Name = "Alice",
@@ -585,9 +661,118 @@ public class NestedStructureTests
 
         var mdf = MarkoutSerializer.Serialize(node, NestedTestContext.Default);
 
-        // Root object renders with fields
+        // Root renders with title and field
         Assert.Contains("# Alice", mdf);
         Assert.Contains("Role: Engineer", mdf);
+
+        // Nested Manager renders as section with fields
+        Assert.Contains("## Manager", mdf);
+        Assert.Contains("Name: Bob", mdf);
+        Assert.Contains("Role: Director", mdf);
+
+        // Manager.Manager is NOT rendered (cycle stopped)
+        // Only one "## Manager" heading should exist
+        Assert.Equal(1, mdf.Split("## Manager").Length - 1);
+    }
+
+    [Fact]
+    public void SelfReferentialType_NullBackReference_OmitsSection()
+    {
+        var node = new OrgNode
+        {
+            Name = "Alice",
+            Role = "Engineer",
+            Manager = null
+        };
+
+        var mdf = MarkoutSerializer.Serialize(node, NestedTestContext.Default);
+
+        Assert.Contains("# Alice", mdf);
+        Assert.DoesNotContain("## Manager", mdf);
+    }
+
+    [Fact]
+    public void MutualRecursion_DepartmentToEmployee_StopsBeforeInfiniteLoop()
+    {
+        // CycleDepartment → Employee → CycleDepartment → Employee (stopped)
+        var dept = new CycleDepartment
+        {
+            Name = "Engineering",
+            Lead = new Employee
+            {
+                Name = "Alice",
+                Title = "VP Engineering",
+                Department = new CycleDepartment
+                {
+                    Name = "Inner Dept",
+                    Lead = new Employee { Name = "Should not appear", Title = "Ghost" }
+                }
+            }
+        };
+
+        var mdf = MarkoutSerializer.Serialize(dept, NestedTestContext.Default);
+
+        // Root CycleDepartment renders
+        Assert.Contains("# Engineering", mdf);
+
+        // Employee section renders with fields
+        Assert.Contains("## Lead", mdf);
+        Assert.Contains("Name: Alice", mdf);
+        Assert.Contains("Title: VP Engineering", mdf);
+
+        // Inner CycleDepartment renders one level (name only)
+        Assert.Contains("Inner Dept", mdf);
+
+        // But the inner Employee (Lead inside inner CycleDepartment) is stopped by cycle guard
+        Assert.DoesNotContain("Should not appear", mdf);
+    }
+
+    [Fact]
+    public void DeepNesting_HeadingsCapAtH6()
+    {
+        var data = new Level1
+        {
+            Name = "Root",
+            Child = new Level2
+            {
+                Value2 = "L2",
+                Child = new Level3
+                {
+                    Value3 = "L3",
+                    Child = new Level4
+                    {
+                        Value4 = "L4",
+                        Child = new Level5
+                        {
+                            Value5 = "L5",
+                            Child = new Level6
+                            {
+                                Value6 = "L6",
+                                Child = new Level7 { Value7 = "L7" }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var mdf = MarkoutSerializer.Serialize(data, NestedTestContext.Default);
+
+        // All values should be present
+        Assert.Contains("# Root", mdf);      // H1 — root title
+        Assert.Contains("Value2: L2", mdf);
+        Assert.Contains("Value3: L3", mdf);
+        Assert.Contains("Value4: L4", mdf);
+        Assert.Contains("Value5: L5", mdf);
+        Assert.Contains("Value6: L6", mdf);
+        Assert.Contains("Value7: L7", mdf);
+
+        // Heading levels: H1 (root), H2 (Child), H3 (Child), H4, H5, H6
+        // H7 should NOT exist — capped at H6
+        Assert.DoesNotContain("####### ", mdf);
+
+        // H6 should exist (level 5's Child section or level 6's Child section)
+        Assert.Contains("###### Child", mdf);
     }
 
     #endregion

@@ -128,6 +128,12 @@ internal static class TypeParser
         var properties = new List<PropertyMetadata>();
         var diagnostics = new List<DiagnosticInfo>();
 
+        // Seed visited set with the root type for cycle protection.
+        // This prevents infinite recursion when a property's type graph
+        // leads back to the root (direct or mutual). The root type stays
+        // in the set for the entire parse; nested types use add/remove.
+        var visitedTypes = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+
         foreach (var member in typeSymbol.GetMembers())
         {
             if (member is not IPropertySymbol prop)
@@ -139,7 +145,7 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics);
+            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
@@ -601,12 +607,9 @@ internal static class TypeParser
             return (PropertyKind.Formattable, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
         }
 
-        // Nested object (with cycle protection)
+        // Nested object
         if (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct)
         {
-            if (visitedTypes != null && visitedTypes.Contains(type))
-                return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
-
             var props = GetTypeProperties(type, compilation, knownTypes, diagnostics, visitedTypes);
             if (props.Count > 0)
                 return (PropertyKind.NestedObject, null, props, false, null, null, true, FieldLayoutKind.OneLine, false);
