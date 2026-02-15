@@ -450,6 +450,27 @@ public class SpectreWriter : MarkoutWriter
         HasContent = true;
     }
 
+    // ── Blockquotes ──
+
+    /// <inheritdoc/>
+    public override void WriteBlockquote(string text)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Blockquotes))
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        foreach (var line in text.Split('\n'))
+        {
+            WriteMarkupLine($"[grey]│[/] {Esc(line)}");
+        }
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
     // ── Breakdowns ──
 
     private static readonly string[] DistributionSpectreColors = ["red", "yellow", "cyan", "green", "purple", "blue"];

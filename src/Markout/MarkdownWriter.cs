@@ -363,6 +363,112 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
+    public override void WriteBlockquote(string text)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Blockquotes))
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        foreach (var line in text.Split('\n'))
+        {
+            Writer.Write("> ");
+            Writer.WriteLine(line);
+        }
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    /// <inheritdoc/>
+    public override void WriteHorizontalRule()
+    {
+        if (SectionExcluded)
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        Writer.WriteLine("---");
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    /// <inheritdoc/>
+    public override void WriteMatrix(string[] rowHeaders, string[] colHeaders, string?[,] values)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Matrices))
+            return;
+
+        if (rowHeaders.Length == 0 || colHeaders.Length == 0)
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        // Calculate column widths (first column is row header)
+        var colWidths = new int[colHeaders.Length + 1];
+        colWidths[0] = rowHeaders.Max(h => h.Length);
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            colWidths[c + 1] = colHeaders[c].Length;
+            for (int r = 0; r < rowHeaders.Length; r++)
+            {
+                var val = values[r, c] ?? "";
+                if (val.Length > colWidths[c + 1])
+                    colWidths[c + 1] = val.Length;
+            }
+        }
+
+        // Header row: | (empty) | Col1 | Col2 | ...
+        Writer.Write("| ");
+        Writer.Write("".PadRight(colWidths[0]));
+        Writer.Write(" ");
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            Writer.Write("| ");
+            Writer.Write(colHeaders[c].PadRight(colWidths[c + 1]));
+            Writer.Write(" ");
+        }
+        Writer.WriteLine("|");
+
+        // Separator row
+        Writer.Write("| ");
+        Writer.Write(new string('-', colWidths[0]));
+        Writer.Write(" ");
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            Writer.Write("| ");
+            Writer.Write(new string('-', colWidths[c + 1]));
+            Writer.Write(" ");
+        }
+        Writer.WriteLine("|");
+
+        // Data rows
+        for (int r = 0; r < rowHeaders.Length; r++)
+        {
+            Writer.Write("| ");
+            Writer.Write(rowHeaders[r].PadRight(colWidths[0]));
+            Writer.Write(" ");
+            for (int c = 0; c < colHeaders.Length; c++)
+            {
+                Writer.Write("| ");
+                Writer.Write((values[r, c] ?? "").PadRight(colWidths[c + 1]));
+                Writer.Write(" ");
+            }
+            Writer.WriteLine("|");
+        }
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    /// <inheritdoc/>
     public override void WriteArray(string key, IEnumerable<string>? items)
     {
         if (SectionExcluded)

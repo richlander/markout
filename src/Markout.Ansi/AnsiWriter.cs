@@ -497,6 +497,58 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
+    // ── Blockquotes ──
+
+    /// <inheritdoc/>
+    public override void WriteBlockquote(string text)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Blockquotes))
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        _terminal.SetColor(TerminalColor.DarkGray);
+        Writer.Write("│ ");
+        _terminal.ResetColor();
+
+        var lines = text.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (i > 0)
+            {
+                _terminal.SetColor(TerminalColor.DarkGray);
+                Writer.Write("│ ");
+                _terminal.ResetColor();
+            }
+            Writer.WriteLine(lines[i]);
+        }
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    // ── Horizontal Rule ──
+
+    /// <inheritdoc/>
+    public override void WriteHorizontalRule()
+    {
+        if (SectionExcluded)
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        _terminal.SetColor(TerminalColor.DarkGray);
+        Writer.WriteLine("────────────────────────────────");
+        _terminal.ResetColor();
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
     // ── Breakdowns ──
 
     // Colors cycle for distribution segments (most severe → least)

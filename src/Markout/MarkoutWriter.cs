@@ -898,6 +898,109 @@ public class MarkoutWriter
         _hasContent = true;
     }
 
+    // ── Blockquotes ──
+
+    /// <summary>
+    /// Writes a blockquote — a prose quotation distinct from code blocks.
+    /// </summary>
+    public virtual void WriteBlockquote(string text)
+    {
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Blockquotes))
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        foreach (var line in text.Split('\n'))
+        {
+            _writer.Write("  ");
+            _writer.WriteLine(line);
+        }
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    // ── Horizontal Rule ──
+
+    /// <summary>
+    /// Writes a horizontal rule separator between content sections.
+    /// </summary>
+    public virtual void WriteHorizontalRule()
+    {
+        if (_sectionExcluded)
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        _writer.WriteLine("────────────────────────────────");
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    // ── Matrices ──
+
+    /// <summary>
+    /// Writes a 2D matrix with row and column headers.
+    /// </summary>
+    /// <param name="rowHeaders">Labels for each row.</param>
+    /// <param name="colHeaders">Labels for each column.</param>
+    /// <param name="values">2D array of cell values [row, col]. Null cells render as empty.</param>
+    public virtual void WriteMatrix(string[] rowHeaders, string[] colHeaders, string?[,] values)
+    {
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Matrices))
+            return;
+
+        if (rowHeaders.Length == 0 || colHeaders.Length == 0)
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        // Calculate column widths
+        var colWidths = new int[colHeaders.Length + 1]; // +1 for row header column
+        colWidths[0] = rowHeaders.Max(h => h.Length);
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            colWidths[c + 1] = colHeaders[c].Length;
+            for (int r = 0; r < rowHeaders.Length; r++)
+            {
+                var val = values[r, c] ?? "";
+                if (val.Length > colWidths[c + 1])
+                    colWidths[c + 1] = val.Length;
+            }
+        }
+
+        // Header row
+        _writer.Write("".PadRight(colWidths[0]));
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            _writer.Write("  ");
+            _writer.Write(colHeaders[c].PadRight(colWidths[c + 1]));
+        }
+        _writer.WriteLine();
+
+        // Data rows
+        for (int r = 0; r < rowHeaders.Length; r++)
+        {
+            _writer.Write(rowHeaders[r].PadRight(colWidths[0]));
+            for (int c = 0; c < colHeaders.Length; c++)
+            {
+                _writer.Write("  ");
+                _writer.Write((values[r, c] ?? "").PadRight(colWidths[c + 1]));
+            }
+            _writer.WriteLine();
+        }
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
     // Shade characters for breakdown segments (decreasing intensity)
     private static readonly char[] BreakdownFills = ['█', '▓', '▒', '░'];
 

@@ -50,6 +50,12 @@ public enum MarkoutShape
     /// <summary>Proportional composition charts.</summary>
     Breakdowns = 4096,
 
+    /// <summary>Prose quotation blocks.</summary>
+    Blockquotes = 8192,
+
+    /// <summary>2D grid with row and column headers.</summary>
+    Matrices = 16384,
+
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | Pairs | Metrics | Descriptions | Callouts | Breakdowns
+    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | Pairs | Metrics | Descriptions | Callouts | Breakdowns | Blockquotes | Matrices
 }
