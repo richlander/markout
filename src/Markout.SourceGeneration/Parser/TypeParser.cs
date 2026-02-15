@@ -566,6 +566,18 @@ internal static class TypeParser
                         }
                     }
 
+                    // Check for IReadOnlyList<DistributionBar> / List<DistributionBar> - renders as distribution chart
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.DistributionBar))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.Distribution, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                        }
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
@@ -602,7 +614,7 @@ internal static class TypeParser
             (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.LabeledList || p.Kind == PropertyKind.BarChart ||
-             p.Kind == PropertyKind.CodeSection ||
+             p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Distribution ||
              (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 

@@ -47,6 +47,9 @@ public enum MarkoutShape
     /// <summary>Callout/admonition blocks.</summary>
     Callouts = 2048,
 
+    /// <summary>Distribution/stacked bars.</summary>
+    Distributions = 4096,
+
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts | LabeledLists | Callouts
+    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts | LabeledLists | Callouts | Distributions
 }

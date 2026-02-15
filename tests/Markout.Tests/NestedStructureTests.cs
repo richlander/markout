@@ -892,6 +892,23 @@ public class CtorEmphasisView
     public List<ConstructorOverload>? Overloads { get; set; }
 }
 
+// Distribution: List<DistributionBar> as section for CVE severity breakdown
+[MarkoutSerializable(TitleProperty = nameof(Framework))]
+public class CveSummary
+{
+    [MarkoutIgnore] public string Framework { get; set; } = "";
+    public string TotalCves { get; set; } = "";
+
+    [MarkoutSection(Name = "Severity Distribution")]
+    [MarkoutIgnoreInTable]
+    public List<DistributionBar>? Distribution { get; set; }
+}
+
+[MarkoutContext(typeof(CveSummary))]
+public partial class DistributionTestContext : MarkoutSerializerContext
+{
+}
+
 #endregion
 
 public class CodeSectionTests
@@ -1095,5 +1112,48 @@ public class CodeSectionTests
         Assert.Contains("#### Parameters", mdf);
         Assert.Contains("defaults", mdf);
         Assert.Contains("JsonSerializerDefaults", mdf);
+    }
+}
+
+public class DistributionTests
+{
+    [Fact]
+    public void Serialize_DistributionProperty_RendersDistributionChart()
+    {
+        var summary = new CveSummary
+        {
+            Framework = ".NET 9",
+            TotalCves = "12",
+            Distribution =
+            [
+                new("Jan 2025", [new("Critical", 1), new("High", 3), new("Medium", 2)]),
+                new("Feb 2025", [new("Critical", 2), new("High", 1)]),
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(summary, DistributionTestContext.Default);
+
+        Assert.Contains("# .NET 9", mdf);
+        Assert.Contains("TotalCves: 12", mdf);
+        Assert.Contains("## Severity Distribution", mdf);
+        Assert.Contains("Jan 2025", mdf);
+        Assert.Contains("Feb 2025", mdf);
+        Assert.Contains("1 Critical, 3 High, 2 Medium", mdf);
+    }
+
+    [Fact]
+    public void Serialize_DistributionProperty_SkipsWhenEmpty()
+    {
+        var summary = new CveSummary
+        {
+            Framework = ".NET 8",
+            TotalCves = "0",
+            Distribution = []
+        };
+
+        var mdf = MarkoutSerializer.Serialize(summary, DistributionTestContext.Default);
+
+        Assert.Contains("# .NET 8", mdf);
+        Assert.DoesNotContain("Severity Distribution", mdf);
     }
 }

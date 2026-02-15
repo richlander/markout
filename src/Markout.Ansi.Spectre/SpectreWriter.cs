@@ -450,6 +450,39 @@ public class SpectreWriter : MarkoutWriter
         HasContent = true;
     }
 
+    // ── Distributions ──
+
+    private static readonly string[] DistributionSpectreColors = ["red", "yellow", "cyan", "green", "purple", "blue"];
+
+    /// <inheritdoc/>
+    protected override void WriteDistributionRow(DistributionBar item, List<string> categories, int labelWidth, double barScale)
+    {
+        WriteMarkup($"[bold]{Esc(item.Label.PadRight(labelWidth))}[/]  ");
+
+        foreach (var seg in item.Segments)
+        {
+            var catIndex = categories.IndexOf(seg.Category);
+            var color = DistributionSpectreColors[catIndex % DistributionSpectreColors.Length];
+            var width = Math.Max(0, (int)Math.Round(seg.Count * barScale));
+            WriteMarkup($"[{color}]{new string('█', width)}[/]");
+        }
+
+        var parts = item.Segments.Where(s => s.Count > 0).Select(s => $"{s.Count} {s.Category}");
+        WriteMarkupLine($"  [grey]{Esc(string.Join(", ", parts))}[/]");
+    }
+
+    /// <inheritdoc/>
+    protected override void WriteDistributionLegend(List<string> categories)
+    {
+        for (int i = 0; i < categories.Count; i++)
+        {
+            if (i > 0) WriteMarkup("  ");
+            var color = DistributionSpectreColors[i % DistributionSpectreColors.Length];
+            WriteMarkup($"[{color}]█[/] {Esc(categories[i])}");
+        }
+        _console.WriteLine();
+    }
+
     // ── Bar charts ──
 
     /// <inheritdoc/>

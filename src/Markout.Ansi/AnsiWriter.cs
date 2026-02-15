@@ -497,6 +497,50 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
+    // ── Distributions ──
+
+    // Colors cycle for distribution segments (most severe → least)
+    private static readonly TerminalColor[] DistributionColors =
+        [TerminalColor.Red, TerminalColor.Yellow, TerminalColor.Cyan, TerminalColor.Green, TerminalColor.Magenta, TerminalColor.Blue];
+
+    /// <inheritdoc/>
+    protected override void WriteDistributionRow(DistributionBar item, List<string> categories, int labelWidth, double barScale)
+    {
+        Writer.Write(AnsiCodes.MakeBold(item.Label.PadRight(labelWidth)));
+        Writer.Write("  ");
+
+        foreach (var seg in item.Segments)
+        {
+            var catIndex = categories.IndexOf(seg.Category);
+            var color = DistributionColors[catIndex % DistributionColors.Length];
+            var width = Math.Max(0, (int)Math.Round(seg.Count * barScale));
+            _terminal.SetColor(color);
+            Writer.Write(new string('█', width));
+            _terminal.ResetColor();
+        }
+
+        Writer.Write("  ");
+        _terminal.SetColor(TerminalColor.DarkGray);
+        var parts = item.Segments.Where(s => s.Count > 0).Select(s => $"{s.Count} {s.Category}");
+        Writer.WriteLine(string.Join(", ", parts));
+        _terminal.ResetColor();
+    }
+
+    /// <inheritdoc/>
+    protected override void WriteDistributionLegend(List<string> categories)
+    {
+        for (int i = 0; i < categories.Count; i++)
+        {
+            if (i > 0) Writer.Write("  ");
+            var color = DistributionColors[i % DistributionColors.Length];
+            _terminal.SetColor(color);
+            Writer.Write('█');
+            _terminal.ResetColor();
+            Writer.Write($" {categories[i]}");
+        }
+        Writer.WriteLine();
+    }
+
     // ── Bar charts ──
 
     /// <inheritdoc/>

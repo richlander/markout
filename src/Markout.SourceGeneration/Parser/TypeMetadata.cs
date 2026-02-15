@@ -348,5 +348,6 @@ internal enum PropertyKind
     LabeledList,
     CodeSection,
     Callout,
+    Distribution,
     Other
 }

@@ -551,6 +551,14 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}    writer.WriteLabeledList({propAccess});");
             sb.AppendLine($"{indent}}}");
         }
+        else if (prop.Kind == PropertyKind.Distribution)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteDistribution({propAccess});");
+            sb.AppendLine($"{indent}}}");
+        }
         else if (prop.Kind == PropertyKind.CodeSection)
         {
             sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
@@ -633,6 +641,11 @@ internal static class SerializerEmitter
             case PropertyKind.Callout:
                 sb.AppendLine($"{indent}if ({propAccess}.Message != null)");
                 sb.AppendLine($"{indent}    writer.WriteCallout({propAccess}.Severity, {propAccess}.Message);");
+                break;
+
+            case PropertyKind.Distribution:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteDistribution({propAccess});");
                 break;
 
             case PropertyKind.ComplexArray:
@@ -832,6 +845,8 @@ internal static class SerializerEmitter
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (labeled list)";
             if (prop.Kind == PropertyKind.CodeSection)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (code block)";
+            if (prop.Kind == PropertyKind.Distribution)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (distribution)";
             return $"H{prop.SectionLevel} Section \"{sectionName}\"";
         }
 
@@ -855,6 +870,7 @@ internal static class SerializerEmitter
             PropertyKind.LabeledList => "Labeled list",
             PropertyKind.CodeSection => "Code block",
             PropertyKind.Callout => "Callout",
+            PropertyKind.Distribution => "Distribution chart",
             _ => "Field"
         };
     }

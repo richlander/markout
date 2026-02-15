@@ -388,6 +388,44 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
+    public override void WriteDistribution(IReadOnlyList<DistributionBar> items, int? maxBarWidth = null)
+    {
+        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Distributions))
+            return;
+
+        EnsureBlankLineIfNeeded();
+        Writer.WriteLine("```text");
+
+        // Reuse base rendering logic for the content
+        var categories = new List<string>();
+        foreach (var item in items)
+            foreach (var seg in item.Segments)
+                if (!categories.Contains(seg.Category))
+                    categories.Add(seg.Category);
+
+        var maxLabelWidth = 0;
+        var maxTotal = 0;
+        foreach (var item in items)
+        {
+            if (item.Label.Length > maxLabelWidth) maxLabelWidth = item.Label.Length;
+            var total = 0;
+            foreach (var seg in item.Segments) total += seg.Count;
+            if (total > maxTotal) maxTotal = total;
+        }
+        if (maxTotal == 0) maxTotal = 1;
+        var barScale = maxBarWidth.HasValue ? (double)maxBarWidth.Value / maxTotal : 1.0;
+
+        foreach (var item in items)
+            WriteDistributionRow(item, categories, maxLabelWidth, barScale);
+
+        Writer.WriteLine();
+        WriteDistributionLegend(categories);
+        Writer.WriteLine("```");
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    /// <inheritdoc/>
     public override void WriteBarChart(IReadOnlyList<BarItem> items, int maxBarWidth = 30)
     {
         if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))

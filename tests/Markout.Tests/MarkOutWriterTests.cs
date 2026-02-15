@@ -672,4 +672,73 @@ public class MarkoutWriterTests
             """;
         Assert.Equal(expected, writer.ToString());
     }
+
+    #region Distribution
+
+    [Fact]
+    public void WriteDistribution_PlainText_RendersStackedBars()
+    {
+        var writer = new MarkoutWriter();
+        var items = new List<DistributionBar>
+        {
+            new("Jan 2025", [new("Critical", 1), new("High", 3)]),
+            new("Feb 2025", [new("Critical", 2), new("High", 1)]),
+        };
+        writer.WriteDistribution(items);
+
+        var output = writer.ToString();
+        Assert.Contains("Jan 2025", output);
+        Assert.Contains("Feb 2025", output);
+        Assert.Contains("█", output);
+        Assert.Contains("▓", output);
+        Assert.Contains("1 Critical, 3 High", output);
+        Assert.Contains("2 Critical, 1 High", output);
+        // Legend
+        Assert.Contains("█ Critical", output);
+        Assert.Contains("▓ High", output);
+    }
+
+    [Fact]
+    public void WriteDistribution_Markdown_WrapsInCodeFence()
+    {
+        var writer = new MarkdownWriter();
+        var items = new List<DistributionBar>
+        {
+            new("v9.0", [new("Critical", 2), new("High", 4)]),
+        };
+        writer.WriteDistribution(items);
+
+        var output = writer.ToString();
+        Assert.Contains("```text", output);
+        Assert.Contains("```", output);
+        Assert.Contains("v9.0", output);
+        Assert.Contains("2 Critical, 4 High", output);
+    }
+
+    [Fact]
+    public void WriteDistribution_EmptyItems_WritesNothing()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteDistribution(new List<DistributionBar>());
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteDistribution_ScaledWidth_ProportionalBars()
+    {
+        var writer = new MarkoutWriter();
+        var items = new List<DistributionBar>
+        {
+            new("Row1", [new("A", 10), new("B", 20)]),
+            new("Row2", [new("A", 5), new("B", 5)]),
+        };
+        writer.WriteDistribution(items, maxBarWidth: 30);
+
+        var output = writer.ToString();
+        // The longest row (30 total) should use full width
+        Assert.Contains("Row1", output);
+        Assert.Contains("Row2", output);
+    }
+
+    #endregion
 }

@@ -889,6 +889,98 @@ public class MarkoutWriter
         _hasContent = true;
     }
 
+    // Shade characters for distribution segments (decreasing intensity)
+    private static readonly char[] DistributionFills = ['█', '▓', '▒', '░'];
+
+    /// <summary>
+    /// Writes a distribution chart showing proportional category breakdowns per row.
+    /// Each row is a stacked bar with segments rendered using shade characters.
+    /// </summary>
+    /// <param name="items">The labeled distribution rows.</param>
+    /// <param name="maxBarWidth">Maximum bar width in characters. When null, 1 char = 1 count.</param>
+    public virtual void WriteDistribution(IReadOnlyList<DistributionBar> items, int? maxBarWidth = null)
+    {
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Distributions))
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        // Build category order from first appearance across all items
+        var categories = new List<string>();
+        foreach (var item in items)
+        {
+            foreach (var seg in item.Segments)
+            {
+                if (!categories.Contains(seg.Category))
+                    categories.Add(seg.Category);
+            }
+        }
+
+        // Calculate label width and max total count
+        var maxLabelWidth = 0;
+        var maxTotal = 0;
+        foreach (var item in items)
+        {
+            if (item.Label.Length > maxLabelWidth) maxLabelWidth = item.Label.Length;
+            var total = 0;
+            foreach (var seg in item.Segments) total += seg.Count;
+            if (total > maxTotal) maxTotal = total;
+        }
+
+        if (maxTotal == 0) maxTotal = 1;
+        var barScale = maxBarWidth.HasValue ? (double)maxBarWidth.Value / maxTotal : 1.0;
+
+        // Render rows
+        foreach (var item in items)
+            WriteDistributionRow(item, categories, maxLabelWidth, barScale);
+
+        // Legend
+        _writer.WriteLine();
+        WriteDistributionLegend(categories);
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Renders a single distribution row. Override for custom styling.
+    /// </summary>
+    protected virtual void WriteDistributionRow(DistributionBar item, List<string> categories, int labelWidth, double barScale)
+    {
+        _writer.Write(item.Label.PadRight(labelWidth));
+        _writer.Write("  ");
+
+        // Draw stacked bar
+        foreach (var seg in item.Segments)
+        {
+            var catIndex = categories.IndexOf(seg.Category);
+            var fill = DistributionFills[catIndex % DistributionFills.Length];
+            var width = Math.Max(0, (int)Math.Round(seg.Count * barScale));
+            _writer.Write(new string(fill, width));
+        }
+
+        // Summary
+        _writer.Write("  ");
+        var parts = item.Segments.Where(s => s.Count > 0).Select(s => $"{s.Count} {s.Category}");
+        _writer.WriteLine(string.Join(", ", parts));
+    }
+
+    /// <summary>
+    /// Renders the distribution legend. Override for custom styling.
+    /// </summary>
+    protected virtual void WriteDistributionLegend(List<string> categories)
+    {
+        var parts = new List<string>();
+        for (int i = 0; i < categories.Count; i++)
+        {
+            var fill = DistributionFills[i % DistributionFills.Length];
+            parts.Add($"{fill} {categories[i]}");
+        }
+        _writer.WriteLine(string.Join("  ", parts));
+    }
+
     /// <summary>
     /// Writes a horizontal bar chart from labeled values.
     /// Bars are scaled proportionally to the maximum value using block characters.
