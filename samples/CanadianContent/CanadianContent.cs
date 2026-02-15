@@ -112,8 +112,8 @@ if (query is "" or "-h" or "--help" or "help")
           tree          Filmography trees (shows grouped by filming location)
           bars          Bar chart of shows per filming city
           vbars         Vertical bar chart of shows per filming city
-          genre         Show type breakdown (Movie vs TV Series vs ...)
-          gallery       Shape gallery — all Markout shapes in one report
+          genre         Show type distribution (Movie vs TV Series vs ...)
+          report        Comprehensive CanCon report
 
         Examples:
           dotnet run -- summary
@@ -122,7 +122,7 @@ if (query is "" or "-h" or "--help" or "help")
           dotnet run -- --format plain tree
           dotnet run -- --format ansi bars
           dotnet run -- genre
-          dotnet run -- gallery
+          dotnet run -- report
           dotnet run -- --oneline summary --actors
         """);
     return;
@@ -351,16 +351,15 @@ else if (query.Contains("genre"))
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
 }
-else if (query.Contains("gallery"))
+else if (query.Contains("report"))
 {
-    // Shape Gallery: one view demonstrating every Markout shape
     var topActors = actors.Take(3).ToList();
     var cityGroups = shows.GroupBy(s => s.Location).OrderByDescending(g => g.Count()).ToList();
 
-    var view = new ShapeGalleryView
+    var view = new CanConReportView
     {
-        Title = "Canadian Content — Shape Gallery",
-        Description = "The CRTC's Canadian content regulations require broadcasters to air a minimum percentage of Canadian programming. This gallery demonstrates every Markout shape using CanCon data.",
+        Title = "Canadian Content Report",
+        Description = "The CRTC's Canadian content regulations require broadcasters to air a minimum percentage of Canadian programming. This report covers top actors, filming locations, and genre distribution.",
         Mandate = new Callout(CalloutSeverity.Important, "Canadian content rules require 60% Canadian programming on conventional TV and 35% on radio."),
         TopActors = topActors.Select(a => new ActorRow
         {
@@ -386,7 +385,6 @@ else if (query.Contains("gallery"))
                 actorShows.GroupBy(s => s.Location).Select(g =>
                     new TreeNode(g.Key, g.Select(s => s.Title))));
         }).ToList(),
-        SampleQuery = new CodeSection("bash", "dotnet run -- --format ansi summary"),
         Quote = "The world needs more Canada.\n— Bono, 2003"
     };
     MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
@@ -394,7 +392,7 @@ else if (query.Contains("gallery"))
 else
 {
     Console.Error.WriteLine($"Unknown query: {query}");
-    Console.Error.WriteLine("Try: summary, ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars, genre, gallery");
+    Console.Error.WriteLine("Try: summary, ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars, genre, report");
 }
 
 // --- JSON Models ---
@@ -587,54 +585,40 @@ public class GenreBreakdownView
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
-public class ShapeGalleryView
+public class CanConReportView
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
     [MarkoutIgnore] public string Description { get; set; } = "";
 
-    // Attention
     [MarkoutIgnoreInTable]
     [MarkoutSkipDefault]
     public Callout Mandate { get; set; }
 
-    // Tabulation
     [MarkoutSection(Name = "Top Actors")]
     public List<ActorRow>? TopActors { get; set; }
 
-    // Description
     [MarkoutSection(Name = "Actor Profiles")]
     public List<Description>? ActorBios { get; set; }
 
-    // Measurement
     [MarkoutSection(Name = "Shows per City")]
     public IReadOnlyList<Metric>? ShowsPerCity { get; set; }
 
-    // Composition
     [MarkoutSection(Name = "Genre Mix")]
     public IReadOnlyList<Breakdown>? GenreMix { get; set; }
 
-    // Hierarchy
     [MarkoutSection(Name = "Filmography")]
     public List<TreeNode>? FilmographyTree { get; set; }
 
-    // Quotation (code)
-    [MarkoutSection(Name = "Example")]
-    [MarkoutIgnoreInTable]
-    [MarkoutSkipDefault]
-    public CodeSection SampleQuery { get; set; }
-
-    // Quotation (prose) — rendered via partial hook
     [MarkoutIgnore]
     public string? Quote { get; set; }
 }
 
-public partial class ShapeGalleryViewMarkoutTypeInfo
+public partial class CanConReportViewMarkoutTypeInfo
 {
-    partial void OnSerialized(MarkoutWriter writer, ShapeGalleryView value)
+    partial void OnSerialized(MarkoutWriter writer, CanConReportView value)
     {
         if (value.Quote != null)
         {
-            writer.WriteHeading(2, "Quote");
             writer.WriteBlockquote(value.Quote);
         }
     }
@@ -652,5 +636,5 @@ public partial class ShapeGalleryViewMarkoutTypeInfo
 [MarkoutContext(typeof(FilmographyTreeView))]
 [MarkoutContext(typeof(ShowsByLocationChart))]
 [MarkoutContext(typeof(GenreBreakdownView))]
-[MarkoutContext(typeof(ShapeGalleryView))]
+[MarkoutContext(typeof(CanConReportView))]
 public partial class CanConContext : MarkoutSerializerContext { }
