@@ -486,6 +486,7 @@ public class ActorDetailRow
 public class ShowRow
 {
     public string Title { get; set; } = "";
+    [MarkoutValueMap("Movie=🎬", "TV Series=📺", "TV Miniseries=📺")]
     public string Type { get; set; } = "";
     public string Years { get; set; } = "";
 
@@ -532,6 +533,7 @@ public class ShowDetailView
     [MarkoutIgnore]
     public string Title { get; set; } = "";
 
+    [MarkoutValueMap("Movie=🎬", "TV Series=📺", "TV Miniseries=📺")]
     public string Type { get; set; } = "";
     public string Years { get; set; } = "";
 
