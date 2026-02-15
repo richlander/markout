@@ -8,100 +8,120 @@ Add a `LineBreaksBr` value to `FieldLayout` that renders each field on its own l
 - `LineBreaksDoubleSpace` — trailing `  ` (markdown hard line break)
 - `LineBreaksBr` — trailing `<br>` (explicit HTML tag)
 
-## MarkoutField — structured labeled list
+## DefinitionItem — definition lists
 
-A `List<MarkoutField>` type that renders as a numbered list with a bold label,
-separator, description, and optional detail line.
+A `List<DefinitionItem>` type that renders as a definition list. Similar to `LabeledItem`
+but semantically different — no bullet prefix, renders as `<dl>` in HTML.
 
 ```csharp
-record MarkoutField(string Label, string Description, string? Detail = null);
+record DefinitionItem(string Term, string Definition);
 ```
 
-Rendered output:
+Rendered as:
 
 ```text
-  1. **Insight** -- What does the generic math hierarchy look like?
-     dotnet-inspect api System.Runtime "INumber<TSelf>" --shape
-  2. **Discovery** -- What can JsonSerializer do?
-     dotnet-inspect api System.Text.Json JsonSerializer
+**Term**
+  Definition text here.
 ```
 
-Markout handles numbering, column alignment, bold rendering (ANSI on TTY),
-and the `--` separator. The `Detail` line is optional and indented to align
-with the description. This is a general-purpose pattern useful for any
-categorized list (demos, search results, diagnostics).
+In markdown: bold term on its own line, indented definition. In ANSI: bold/colored term.
+In HTML: `<dt>`/`<dd>` tags. Follows the BarItem/LabeledItem source-gen pattern.
 
-## Nested serializable types in sections
+## StatusItem — progress gauges
 
-When a `[MarkoutSection]` contains `List<T>` where `T` is itself `[MarkoutSerializable]`,
-recursively serialize each item instead of rendering as table rows. Heading levels
-increment automatically (section H2 → item title H3 → nested sections H4, etc.).
-
-Today the serializer treats any `List<SerializableRecord>` as a table. The new behavior
-would apply when the element type has its own sections or nested collections — indicating
-it's a nested view, not a flat row.
-
-### Use case: API diff hierarchy
-
-`dotnet-inspect`'s diff command renders breaking/additive changes grouped by type.
-The current formatter uses imperative `MarkoutWriter` calls because the serializer
-can't express the H2→H3→list nesting:
-
-- `DiffOutputFormatter.RenderFullMarkdown` — [src/dotnet-inspect/Output/DiffOutputFormatter.cs](https://github.com/AkkaNetContrib/dotnet-inspect/blob/main/src/dotnet-inspect/Output/DiffOutputFormatter.cs) (lines 68–98)
-- `WriteSection` helper — same file (lines 109–144)
-
-With nested serialization, the view model would be:
+A `List<StatusItem>` type that renders as horizontal progress bars.
 
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
-public class DiffFullView
-{
-    [MarkoutIgnore] public string Title { get; set; } = "";
-    [MarkoutIgnore] [MarkoutSkipNull] public string? Description { get; set; }
-    public string Versions { get; set; } = "";
-    public string Summary { get; set; } = "";
-
-    [MarkoutSection(Name = "Breaking Changes")]
-    public List<DiffTypeChanges>? Breaking { get; set; }
-
-    [MarkoutSection(Name = "Potentially Breaking")]
-    public List<DiffTypeChanges>? PotentiallyBreaking { get; set; }
-
-    [MarkoutSection(Name = "Additive Changes")]
-    public List<DiffTypeChanges>? Additive { get; set; }
-}
-
-[MarkoutSerializable(TitleProperty = nameof(Type))]
-public class DiffTypeChanges
-{
-    [MarkoutIgnore] public string Type { get; set; } = "";
-    public List<string>? Changes { get; set; }  // → WriteArray (bullet list)
-}
+record StatusItem(string Label, double Progress, double Max = 100);
 ```
 
-Producing:
+Rendered as:
 
-```markdown
-# API Diff: System.Text.Json
-
-## Breaking Changes
-
-### JsonSerializer
-- Member removed: Serialize(object)
-- Member signature changed: `Deserialize(string)` → `Deserialize(ReadOnlySpan<char>)`
-
-### JsonElement
-- Type kind changed
-
-## Additive Changes
-
-### JsonSerializerOptions
-- Member added: PropertyNameCaseInsensitive
+```text
+Build     [████████░░░░░░░░] 50%
+Tests     [████████████░░░░] 75%
+Coverage  [██████████████░░] 92%
 ```
 
-### Implementation notes
+ANSI renderer can color-code by percentage (green/yellow/red). Follows the BarItem pattern
+but with fill-gauge rendering instead of proportional bars.
 
-Source generator change: add a `PropertyKind.NestedList` (or similar) in `SerializerEmitter`.
-When the element type of a `[MarkoutSection]` list is itself `[MarkoutSerializable]` and has
-sections or nested collections, emit recursive `Serialize(item, writer)` calls instead of
-`WriteTable`. The heading level for nested items should be `parentSectionLevel + 1`.
+## LinkItem — link lists
+
+A `List<LinkItem>` type that renders as a list of hyperlinks.
+
+```csharp
+record LinkItem(string Text, string Url);
+```
+
+Rendered as:
+
+- Markdown: `- [Text](url)`
+- ANSI: underlined clickable link (OSC 8)
+- Plain: `- Text (url)`
+
+## Blockquote
+
+A writer-level method (no source-gen collection type needed):
+
+```csharp
+writer.WriteBlockquote("This is a quoted passage.");
+```
+
+Renders as `> text` in markdown, indented/colored in ANSI, indented in plain text.
+
+## HorizontalRule
+
+A writer-level separator method:
+
+```csharp
+writer.WriteHorizontalRule();
+```
+
+Renders as `---` in markdown, `────────` in ANSI, blank line in plain text.
+Useful between sections when headings are suppressed.
+
+## OrderedList
+
+A numbered variant of the existing bullet list:
+
+```csharp
+writer.WriteOrderedList(items);
+```
+
+Renders as `1. item` / `2. item` instead of `- item`. Could also be a
+`WriteArray` overload with a `numbered: true` parameter.
+
+## Callout / Admonition
+
+Severity-tagged message blocks:
+
+```csharp
+writer.WriteCallout(CalloutSeverity.Warning, "This API is deprecated.");
+```
+
+Renders as GitHub-flavored `> [!WARNING]` in markdown, colored box in ANSI,
+`WARNING: ...` in plain text. Severities: Note, Tip, Important, Warning, Caution.
+
+## Diagram shapes
+
+Future diagram-oriented renderers (extending DiagramWriter):
+
+### FlameGraph
+
+Nested call stack visualization. Record type TBD — likely a tree of
+`(string Name, double Duration)` nodes rendered as stacked horizontal bars.
+
+### Gantt / Timeline
+
+Sequential labeled time spans for build pipelines, deployment stages, etc.
+
+```csharp
+record TimelineItem(string Label, DateTimeOffset Start, DateTimeOffset End, string? Status = null);
+```
+
+### Matrix
+
+2D grid with row/column headers and cell values (pivot table).
+Could extend the existing table shape with a `WriteMatrix` method that takes
+row headers, column headers, and a 2D value array.
