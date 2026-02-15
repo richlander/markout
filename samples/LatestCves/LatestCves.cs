@@ -1,6 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Markout;
+using Markout.Ansi.Spectre;
+using Spectre.Console;
+using TreeNode = Markout.TreeNode;
 
 var cutoff = DateTimeOffset.UtcNow.AddMonths(-6);
 
@@ -103,7 +106,8 @@ var view = new LatestCvesView
         : null,
     Releases = tree
 };
-MarkoutSerializer.Serialize(view, Console.Out, LatestCvesContext.Default);
+var writer = new SpectreWriter(AnsiConsole.Console);
+MarkoutSerializer.Serialize(view, writer, LatestCvesContext.Default);
 
 // --- View Model ---
 
