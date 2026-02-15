@@ -44,6 +44,9 @@ public enum MarkoutShape
     /// <summary>Labeled descriptive lists.</summary>
     LabeledLists = 1024,
 
+    /// <summary>Callout/admonition blocks.</summary>
+    Callouts = 2048,
+
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts | LabeledLists
+    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts | LabeledLists | Callouts
 }

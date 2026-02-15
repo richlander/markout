@@ -335,6 +335,34 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
+    public override void WriteCallout(CalloutSeverity severity, string message)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Callouts))
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        var label = severity switch
+        {
+            CalloutSeverity.Note => "NOTE",
+            CalloutSeverity.Tip => "TIP",
+            CalloutSeverity.Important => "IMPORTANT",
+            CalloutSeverity.Warning => "WARNING",
+            CalloutSeverity.Caution => "CAUTION",
+            _ => severity.ToString().ToUpperInvariant()
+        };
+
+        Writer.WriteLine($"> [!{label}]");
+        Writer.Write("> ");
+        Writer.WriteLine(message);
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    /// <inheritdoc/>
     public override void WriteArray(string key, IEnumerable<string>? items)
     {
         if (SectionExcluded)

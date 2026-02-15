@@ -465,6 +465,38 @@ public class AnsiWriter : MarkoutWriter
         }
     }
 
+    // ── Callouts ──
+
+    /// <inheritdoc/>
+    public override void WriteCallout(CalloutSeverity severity, string message)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Callouts))
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        var (label, color) = severity switch
+        {
+            CalloutSeverity.Note => ("NOTE", TerminalColor.Cyan),
+            CalloutSeverity.Tip => ("TIP", TerminalColor.Green),
+            CalloutSeverity.Important => ("IMPORTANT", TerminalColor.Magenta),
+            CalloutSeverity.Warning => ("WARNING", TerminalColor.Yellow),
+            CalloutSeverity.Caution => ("CAUTION", TerminalColor.Red),
+            _ => (severity.ToString().ToUpperInvariant(), TerminalColor.White)
+        };
+
+        _terminal.SetColor(color);
+        Writer.Write(AnsiCodes.MakeBold(label));
+        _terminal.ResetColor();
+        Writer.Write(": ");
+        Writer.WriteLine(message);
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
     // ── Bar charts ──
 
     /// <inheritdoc/>

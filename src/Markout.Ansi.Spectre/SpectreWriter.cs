@@ -422,6 +422,34 @@ public class SpectreWriter : MarkoutWriter
         }
     }
 
+    // ── Callouts ──
+
+    /// <inheritdoc/>
+    public override void WriteCallout(CalloutSeverity severity, string message)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Callouts))
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        var (label, color) = severity switch
+        {
+            CalloutSeverity.Note => ("NOTE", "cyan"),
+            CalloutSeverity.Tip => ("TIP", "green"),
+            CalloutSeverity.Important => ("IMPORTANT", "purple"),
+            CalloutSeverity.Warning => ("WARNING", "yellow"),
+            CalloutSeverity.Caution => ("CAUTION", "red"),
+            _ => (severity.ToString().ToUpperInvariant(), "white")
+        };
+
+        WriteMarkupLine($"[bold {color}]{label}[/]: {Esc(message)}");
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
     // ── Bar charts ──
 
     /// <inheritdoc/>

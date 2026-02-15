@@ -28,6 +28,7 @@ public class ShapeSupportTests
         Assert.True(all.HasFlag(MarkoutShape.SimplePairs));
         Assert.True(all.HasFlag(MarkoutShape.BarCharts));
         Assert.True(all.HasFlag(MarkoutShape.LabeledLists));
+        Assert.True(all.HasFlag(MarkoutShape.Callouts));
     }
 
     [Fact]

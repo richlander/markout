@@ -869,6 +869,27 @@ public class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes a callout/admonition block with a severity level and message.
+    /// </summary>
+    public virtual void WriteCallout(CalloutSeverity severity, string message)
+    {
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Callouts))
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        var label = severity.ToString().ToUpperInvariant();
+        _writer.Write(label);
+        _writer.Write(": ");
+        _writer.WriteLine(message);
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    /// <summary>
     /// Writes a horizontal bar chart from labeled values.
     /// Bars are scaled proportionally to the maximum value using block characters.
     /// </summary>

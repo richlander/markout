@@ -611,4 +611,65 @@ public class MarkoutWriterTests
             """;
         Assert.Equal(expected, writer.ToString());
     }
+
+    [Fact]
+    public void WriteCallout_PlainText_WritesLabelAndMessage()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteCallout(CalloutSeverity.Warning, "3 known vulnerabilities found.");
+
+        var output = writer.ToString();
+        Assert.Contains("WARNING: 3 known vulnerabilities found.", output);
+    }
+
+    [Fact]
+    public void WriteCallout_Markdown_WritesGitHubFlavor()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteCallout(CalloutSeverity.Warning, "3 known vulnerabilities found.");
+
+        var expected = """
+            > [!WARNING]
+            > 3 known vulnerabilities found.
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCallout_Markdown_AllSeverities()
+    {
+        foreach (var severity in Enum.GetValues<CalloutSeverity>())
+        {
+            var writer = new MarkdownWriter();
+            writer.WriteCallout(severity, "test");
+            var output = writer.ToString();
+            Assert.Contains($"> [!{severity.ToString().ToUpperInvariant()}]", output);
+        }
+    }
+
+    [Fact]
+    public void WriteCallout_Markdown_Caution_RendersCorrectly()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteCallout(CalloutSeverity.Caution, "This package has critical vulnerabilities.");
+
+        var expected = """
+            > [!CAUTION]
+            > This package has critical vulnerabilities.
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
+
+    [Fact]
+    public void WriteCallout_Markdown_Note_RendersCorrectly()
+    {
+        var writer = new MarkdownWriter();
+        writer.WriteCallout(CalloutSeverity.Note, "SourceLink is available.");
+
+        var expected = """
+            > [!NOTE]
+            > SourceLink is available.
+            """;
+        Assert.Equal(expected, writer.ToString());
+    }
 }
