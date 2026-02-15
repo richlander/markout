@@ -936,6 +936,47 @@ public partial class MultiIgnoreTestContext : MarkoutSerializerContext
 {
 }
 
+// GroupBy: items grouped by a property, each group gets a subheading
+[MarkoutSerializable]
+public record DiffChange(
+    [property: MarkoutIgnore] string TypeName,
+    string Message);
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class DiffReport
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Versions { get; set; } = "";
+
+    [MarkoutSection(Name = "Breaking Changes", GroupBy = nameof(DiffChange.TypeName))]
+    public List<DiffChange>? BreakingChanges { get; set; }
+
+    [MarkoutSection(Name = "Additive Changes", GroupBy = nameof(DiffChange.TypeName))]
+    public List<DiffChange>? AdditiveChanges { get; set; }
+}
+
+// GroupBy with table rows (multiple visible properties)
+[MarkoutSerializable]
+public record GroupedMetric(
+    [property: MarkoutIgnore] string Category,
+    string Name,
+    string Value);
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class MetricReport
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Metrics", GroupBy = nameof(GroupedMetric.Category))]
+    public List<GroupedMetric>? Metrics { get; set; }
+}
+
+[MarkoutContext(typeof(DiffReport))]
+[MarkoutContext(typeof(MetricReport))]
+public partial class GroupByTestContext : MarkoutSerializerContext
+{
+}
+
 #endregion
 
 public class CodeSectionTests
@@ -1263,5 +1304,112 @@ public class MultiIgnorePropertyTests
         Assert.Contains("| Description", mdf);
         Assert.Contains("`Parse:1`", mdf);
         Assert.Contains("Parses input", mdf);
+    }
+}
+
+public class GroupByTests
+{
+    [Fact]
+    public void Serialize_GroupBy_SingleProperty_RendersListItemsPerGroup()
+    {
+        var report = new DiffReport
+        {
+            Title = "API Diff: MyLib",
+            Versions = "1.0 → 2.0",
+            BreakingChanges =
+            [
+                new("StringBuilder", "Method removed: Clear()"),
+                new("StringBuilder", "Property changed: Length"),
+                new("String", "Method removed: Copy()"),
+            ],
+            AdditiveChanges =
+            [
+                new("String", "Method added: ReplaceLineEndings()"),
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, GroupByTestContext.Default);
+
+        // Section heading
+        Assert.Contains("## Breaking Changes", mdf);
+
+        // Group subheadings
+        Assert.Contains("### StringBuilder", mdf);
+        Assert.Contains("### String", mdf);
+
+        // List items under groups
+        Assert.Contains("Method removed: Clear()", mdf);
+        Assert.Contains("Property changed: Length", mdf);
+        Assert.Contains("Method removed: Copy()", mdf);
+
+        // Additive section
+        Assert.Contains("## Additive Changes", mdf);
+        Assert.Contains("Method added: ReplaceLineEndings()", mdf);
+
+        // TypeName should NOT appear as a column or field
+        Assert.DoesNotContain("| TypeName", mdf);
+    }
+
+    [Fact]
+    public void Serialize_GroupBy_MultipleProperties_RendersTablePerGroup()
+    {
+        var report = new MetricReport
+        {
+            Title = "Perf Results",
+            Metrics =
+            [
+                new("CPU", "Allocation", "12 MB"),
+                new("CPU", "Duration", "3.2s"),
+                new("Memory", "Peak", "256 MB"),
+                new("Memory", "Average", "128 MB"),
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, GroupByTestContext.Default);
+
+        // Group subheadings
+        Assert.Contains("### CPU", mdf);
+        Assert.Contains("### Memory", mdf);
+
+        // Table headers (Name and Value, not Category)
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Value", mdf);
+        Assert.DoesNotContain("| Category", mdf);
+
+        // Table data
+        Assert.Contains("Allocation", mdf);
+        Assert.Contains("12 MB", mdf);
+        Assert.Contains("Peak", mdf);
+        Assert.Contains("256 MB", mdf);
+    }
+
+    [Fact]
+    public void Serialize_GroupBy_EmptyList_SkipsSection()
+    {
+        var report = new DiffReport
+        {
+            Title = "No Changes",
+            Versions = "1.0 → 1.0",
+            BreakingChanges = []
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, GroupByTestContext.Default);
+
+        Assert.DoesNotContain("Breaking Changes", mdf);
+    }
+
+    [Fact]
+    public void Serialize_GroupBy_NullList_SkipsSection()
+    {
+        var report = new DiffReport
+        {
+            Title = "No Changes",
+            Versions = "1.0 → 1.0",
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, GroupByTestContext.Default);
+
+        Assert.DoesNotContain("Breaking Changes", mdf);
+        Assert.DoesNotContain("Additive Changes", mdf);
     }
 }

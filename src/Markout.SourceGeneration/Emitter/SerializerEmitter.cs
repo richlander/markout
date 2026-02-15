@@ -472,7 +472,12 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
             
-            if (prop.MaxItems != null)
+            if (prop.SectionGroupByProperty != null)
+            {
+                // Grouped rendering: partition by property, subheading per group
+                CollectionEmitter.EmitGroupedSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel);
+            }
+            else if (prop.MaxItems != null)
             {
                 var innerIndent = indent + "    ";
                 var (truncVar, _) = EmitHelpers.EmitMaxItemsTruncation(sb, prop, propAccess, innerIndent, nestingDepth);

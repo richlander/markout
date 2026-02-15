@@ -129,4 +129,63 @@ internal static class CollectionEmitter
 
         sb.AppendLine($"{indent}}}");
     }
+
+    /// <summary>
+    /// Emits grouped rendering: items partitioned by a property, each group gets a subheading.
+    /// Within each group, items render as list items (1 visible prop) or table rows (multiple).
+    /// </summary>
+    public static void EmitGroupedSerialization(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        int indentLevel,
+        int parentSectionLevel = 2)
+    {
+        if (prop.ElementProperties == null || prop.ElementProperties.Count == 0)
+            return;
+
+        var indent = new string(' ', indentLevel * 4);
+        var groupByProp = prop.SectionGroupByProperty!;
+        var subsectionLevel = parentSectionLevel + 1;
+
+        // Determine visible properties (exclude group-by property and ignored)
+        var ignoreNames = prop.SectionIgnoreProperty != null
+            ? new HashSet<string>(prop.SectionIgnoreProperty.Split(',').Select(s => s.Trim()))
+            : new HashSet<string>();
+        ignoreNames.Add(groupByProp);
+
+        var visibleProps = prop.ElementProperties
+            .Where(p => !p.IsIgnored && !ignoreNames.Contains(p.Name))
+            .ToList();
+
+        // Group by the specified property
+        sb.AppendLine($"{indent}foreach (var __grp in {propAccess}.GroupBy(__i => __i.{groupByProp}))");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}    writer.WriteHeading({subsectionLevel}, __grp.Key);");
+
+        if (visibleProps.Count == 1 && visibleProps[0].Kind == PropertyKind.String)
+        {
+            // Single string property → list items
+            var singleProp = visibleProps[0];
+            sb.AppendLine($"{indent}    foreach (var __item in __grp)");
+            sb.AppendLine($"{indent}        writer.WriteListItem(__item.{singleProp.Name} ?? \"\");");
+        }
+        else if (visibleProps.Count > 0)
+        {
+            // Multiple properties → table per group
+            var headers = string.Join(", ", visibleProps.Select(p =>
+                $"\"{EmitHelpers.EscapeString(p.DisplayName)}\""));
+            sb.AppendLine($"{indent}    writer.WriteTableStart({headers});");
+            sb.AppendLine($"{indent}    foreach (var __item in __grp)");
+            sb.AppendLine($"{indent}    {{");
+
+            var values = visibleProps.Select(p => EmitHelpers.GetTableCellValue(p, "__item")).ToList();
+            sb.AppendLine($"{indent}        writer.WriteTableRow({string.Join(", ", values)});");
+
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine($"{indent}    writer.WriteTableEnd();");
+        }
+
+        sb.AppendLine($"{indent}}}");
+    }
 }

@@ -198,6 +198,7 @@ internal static class TypeParser
         string? sectionFormatterTypeName = null;
         string? sectionColumnName = null;
         string? sectionShowWhenProperty = null;
+        string? sectionGroupByProperty = null;
 
         if (isSection)
         {
@@ -221,6 +222,8 @@ internal static class TypeParser
                         sectionColumnName = cn;
                     else if (named.Key == "ShowWhenProperty" && named.Value.Value is string swp)
                         sectionShowWhenProperty = swp;
+                    else if (named.Key == "GroupBy" && named.Value.Value is string gb)
+                        sectionGroupByProperty = gb;
                 }
             }
         }
@@ -389,6 +392,7 @@ internal static class TypeParser
             sectionFormatterTypeName,
             sectionColumnName,
             sectionShowWhenProperty,
+            sectionGroupByProperty,
             elementTypeName,
             elementProperties,
             hasNestedContent,

@@ -124,6 +124,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? SectionFormatterTypeName { get; }
     public string? SectionColumnName { get; }
     public string? SectionShowWhenProperty { get; }
+    public string? SectionGroupByProperty { get; }
     public string? ElementTypeName { get; }
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
     public bool ElementHasNestedContent { get; }
@@ -164,6 +165,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? sectionFormatterTypeName = null,
         string? sectionColumnName = null,
         string? sectionShowWhenProperty = null,
+        string? sectionGroupByProperty = null,
         string? elementTypeName = null,
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
         bool elementHasNestedContent = false,
@@ -203,6 +205,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionFormatterTypeName = sectionFormatterTypeName;
         SectionColumnName = sectionColumnName;
         SectionShowWhenProperty = sectionShowWhenProperty;
+        SectionGroupByProperty = sectionGroupByProperty;
         ElementTypeName = elementTypeName;
         ElementProperties = elementProperties;
         ElementHasNestedContent = elementHasNestedContent;
@@ -247,6 +250,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionFormatterTypeName == other.SectionFormatterTypeName &&
                SectionColumnName == other.SectionColumnName &&
                SectionShowWhenProperty == other.SectionShowWhenProperty &&
+               SectionGroupByProperty == other.SectionGroupByProperty &&
                ElementTypeName == other.ElementTypeName &&
                ElementHasNestedContent == other.ElementHasNestedContent &&
                ElementTitleProperty == other.ElementTitleProperty &&
@@ -293,6 +297,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionFormatterTypeName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionColumnName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionShowWhenProperty?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (SectionGroupByProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (ValueFormatterTypeName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (ShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ IsLink.GetHashCode();
