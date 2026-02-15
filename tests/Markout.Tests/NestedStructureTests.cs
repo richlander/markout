@@ -168,6 +168,17 @@ public class Person
         public bool Enabled { get; set; }
     }
 
+    // Self-referential type — tests cycle protection in the parser
+    [MarkoutSerializable(TitleProperty = nameof(Name))]
+    public class OrgNode
+    {
+        public string Name { get; set; } = "";
+        public string Role { get; set; } = "";
+
+        [MarkoutIgnoreInTable]
+        public OrgNode? Manager { get; set; }
+    }
+
 #endregion
 
 #region Nested Structure Test Context
@@ -179,6 +190,7 @@ public class Person
 [MarkoutContext(typeof(Organization))]
 [MarkoutContext(typeof(Configuration))]
 [MarkoutContext(typeof(Application))]
+[MarkoutContext(typeof(OrgNode))]
 public partial class NestedTestContext : MarkoutSerializerContext
 {
 }
@@ -552,6 +564,30 @@ public class NestedStructureTests
 
         // Should still create section even if all fields are null/default
         Assert.Contains("## Contact Info", mdf);
+    }
+
+    #endregion
+
+    #region Cycle Protection: Self-Referential Types
+
+    [Fact]
+    public void SelfReferentialType_DoesNotInfiniteLoop()
+    {
+        // OrgNode.Manager is of type OrgNode — without cycle protection,
+        // the source generator would recurse infinitely during parsing.
+        // The cycle guard stops recursion, treating the back-reference as a leaf.
+        var node = new OrgNode
+        {
+            Name = "Alice",
+            Role = "Engineer",
+            Manager = new OrgNode { Name = "Bob", Role = "Director" }
+        };
+
+        var mdf = MarkoutSerializer.Serialize(node, NestedTestContext.Default);
+
+        // Root object renders with fields
+        Assert.Contains("# Alice", mdf);
+        Assert.Contains("Role: Engineer", mdf);
     }
 
     #endregion

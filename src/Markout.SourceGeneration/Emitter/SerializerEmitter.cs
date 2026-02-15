@@ -231,6 +231,9 @@ internal static class SerializerEmitter
         string? rootValueExpr = null,
         string? rootTypeName = null)
     {
+        // Cap heading level at H6 (Markdown maximum)
+        if (baseHeadingLevel > 6) baseHeadingLevel = 6;
+
         var indent = new string(' ', indentLevel * 4);
 
         // Separate into three groups:
