@@ -21,8 +21,11 @@ internal static class CollectionEmitter
             return;
 
         var indent = new string(' ', indentLevel * 4);
+        var ignoreNames = prop.SectionIgnoreProperty != null
+            ? new HashSet<string>(prop.SectionIgnoreProperty.Split(',').Select(s => s.Trim()))
+            : new HashSet<string>();
         var visibleProps = prop.ElementProperties
-            .Where(p => !p.IsIgnored && p.Name != prop.SectionIgnoreProperty)
+            .Where(p => !p.IsIgnored && !ignoreNames.Contains(p.Name))
             .ToList();
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
 

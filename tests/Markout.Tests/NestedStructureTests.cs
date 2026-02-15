@@ -909,6 +909,33 @@ public partial class DistributionTestContext : MarkoutSerializerContext
 {
 }
 
+// Multi-column IgnoreProperty: comma-separated property names
+[MarkoutSerializable]
+public record ApiMemberRow(string? Select, string Name, string Signature, string? Description);
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class MultiIgnoreView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Members", IgnoreProperty = "Description,Select")]
+    public List<ApiMemberRow>? MembersCompact { get; set; }
+
+    [MarkoutSection(Name = "Members", IgnoreProperty = "Select")]
+    public List<ApiMemberRow>? MembersWithDocs { get; set; }
+
+    [MarkoutSection(Name = "Members", IgnoreProperty = "Description")]
+    public List<ApiMemberRow>? MembersWithSelect { get; set; }
+
+    [MarkoutSection(Name = "Members")]
+    public List<ApiMemberRow>? MembersAll { get; set; }
+}
+
+[MarkoutContext(typeof(MultiIgnoreView))]
+public partial class MultiIgnoreTestContext : MarkoutSerializerContext
+{
+}
+
 #endregion
 
 public class CodeSectionTests
@@ -1155,5 +1182,86 @@ public class DistributionTests
 
         Assert.Contains("# .NET 8", mdf);
         Assert.DoesNotContain("Severity Distribution", mdf);
+    }
+}
+
+public class MultiIgnorePropertyTests
+{
+    private static readonly List<ApiMemberRow> TestRows =
+    [
+        new("`Parse:1`", "Parse", "`string Parse(string)`", "Parses input"),
+        new("`Parse:2`", "Parse", "`string Parse(ReadOnlySpan<char>)`", "Parses span"),
+    ];
+
+    [Fact]
+    public void Serialize_IgnoreTwoProperties_ShowsOnlyNameAndSignature()
+    {
+        var view = new MultiIgnoreView
+        {
+            Title = "TestType",
+            MembersCompact = TestRows
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, MultiIgnoreTestContext.Default);
+
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Signature", mdf);
+        Assert.DoesNotContain("Select", mdf);
+        Assert.DoesNotContain("Description", mdf);
+    }
+
+    [Fact]
+    public void Serialize_IgnoreSelect_ShowsNameSignatureDescription()
+    {
+        var view = new MultiIgnoreView
+        {
+            Title = "TestType",
+            MembersWithDocs = TestRows
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, MultiIgnoreTestContext.Default);
+
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Signature", mdf);
+        Assert.Contains("| Description", mdf);
+        Assert.DoesNotContain("Select", mdf);
+        Assert.Contains("Parses input", mdf);
+    }
+
+    [Fact]
+    public void Serialize_IgnoreDescription_ShowsSelectNameSignature()
+    {
+        var view = new MultiIgnoreView
+        {
+            Title = "TestType",
+            MembersWithSelect = TestRows
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, MultiIgnoreTestContext.Default);
+
+        Assert.Contains("| Select", mdf);
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Signature", mdf);
+        Assert.DoesNotContain("Description", mdf);
+        Assert.Contains("`Parse:1`", mdf);
+    }
+
+    [Fact]
+    public void Serialize_NoIgnore_ShowsAllColumns()
+    {
+        var view = new MultiIgnoreView
+        {
+            Title = "TestType",
+            MembersAll = TestRows
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, MultiIgnoreTestContext.Default);
+
+        Assert.Contains("| Select", mdf);
+        Assert.Contains("| Name", mdf);
+        Assert.Contains("| Signature", mdf);
+        Assert.Contains("| Description", mdf);
+        Assert.Contains("`Parse:1`", mdf);
+        Assert.Contains("Parses input", mdf);
     }
 }
