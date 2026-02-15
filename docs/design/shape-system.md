@@ -16,6 +16,7 @@ Every C# property on a serializable type has a **data topology** — the structu
 | **Identity** | A named value | `string`, `int`, `bool`, `DateTime`, ... | `Key: value` |
 | **Enumeration** | An ordered sequence of items | `string[]`, `List<string>` | `- item` |
 | **Tabulation** | Uniform records with fields | `List<T>` where T has properties | `\| col \| col \|` |
+| **Section** | A logical grouping of related data | `[MarkoutSection]`, nested object | `## Heading` + content |
 | **Description** | Terms with explanations | `List<Description>` | **Term:** text |
 | **Measurement** | Labeled quantities | `List<Metric>` | `Label ████░░ 45` |
 | **Composition** | Parts of a whole | `List<Breakdown>` | `██▓▓▒░ 1 crit, 3 high` |
@@ -23,7 +24,80 @@ Every C# property on a serializable type has a **data topology** — the structu
 | **Quotation** | Verbatim content | `CodeSection` | `` ```lang ... ``` `` |
 | **Attention** | Important messages | `Callout` | `> [!WARNING] ...` |
 
-These relationships are domain-independent. A Kubernetes status report has identity (fields), enumeration (pod names), tabulation (container specs), hierarchy (cluster → namespace → pod), and attention (warnings). A build report has measurement (timings), composition (test results by outcome), and quotation (compiler output).
+These relationships are domain-independent. A Kubernetes status report has identity (fields), enumeration (pod names), tabulation (container specs), sections (resource groups), hierarchy (cluster → namespace → pod), and attention (warnings). A build report has sections (per project), measurement (timings), composition (test results by outcome), and quotation (compiler output).
+
+## Document Structure
+
+Markout maps object nesting to heading depth. The heading level is not chosen by the developer — it's determined by where the data lives in the object graph:
+
+```
+Object nesting                          Document heading
+─────────────────────────────────       ────────────────
+Root object (TitleProperty)         →   # H1
+├── [MarkoutSection] property       →   ## H2
+│   ├── Nested object (Title)       →   ### H3
+│   │   └── [MarkoutSection]        →   #### H4
+│   └── Collection item (Title)     →   ### H3
+└── Scalar properties               →   (fields under H1)
+```
+
+This means a complex document with H1–H4 headings is just a nested object graph:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Title))]        // → # Package Report
+public class PackageReport
+{
+    [MarkoutIgnore] public string Title { get; set; }
+    public string Author { get; set; }                       // → Author: Alice
+    public string License { get; set; }                      // → License: MIT
+
+    [MarkoutSection(Name = "Assemblies")]                    // → ## Assemblies
+    public List<AssemblyView> Assemblies { get; set; }       //   each item → ### name
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name))]          // → ### Foo.dll
+public class AssemblyView
+{
+    [MarkoutIgnore] public string Name { get; set; }
+    public string Architecture { get; set; }                 //   Architecture: AnyCPU
+    public bool Signed { get; set; }                         //   Signed: yes
+
+    [MarkoutSection(Name = "API Surface")]                   // → #### API Surface
+    public ApiSurface? Surface { get; set; }                 //   Types: 42, Methods: 156
+}
+```
+
+Produces:
+
+```markdown
+# Package Report
+
+Author: Alice
+License: MIT
+
+## Assemblies
+
+### Foo.dll
+
+Architecture: AnyCPU
+Signed: yes
+
+#### API Surface
+
+Types: 42
+Methods: 156
+
+### Bar.dll
+
+Architecture: x64
+Signed: no
+```
+
+The heading hierarchy emerges from the object structure — no heading levels are specified in code. The source generator assigns H1 to the root `TitleProperty`, H2 to top-level `[MarkoutSection]` properties, and increments for each nesting level. This means:
+
+- **Rearranging sections** (reordering properties) doesn't change heading levels
+- **Adding depth** (nesting another object) automatically gets the right heading
+- **Extracting a subtree** (serializing an inner object standalone) still produces valid Markdown starting at H1
 
 ## Shape Tiers
 
@@ -35,8 +109,8 @@ Every document format supports these. They map directly to Markdown elements and
 
 | Shape | Relationship | Writer method | Record type |
 |---|---|---|---|
-| **Headings** | Structure | `WriteHeading` | — |
-| **Paragraphs** | Structure | `WriteParagraph` | — |
+| **Headings** | Section | `WriteHeading` | — |
+| **Paragraphs** | Identity (prose) | `WriteParagraph` | — |
 | **Fields** | Identity | `WriteField` | — |
 | **Lists** | Enumeration | `WriteListItem`, `WriteArray` | — |
 | **Tables** | Tabulation | `WriteTable`, `WriteTableStart/Row/End` | — |
