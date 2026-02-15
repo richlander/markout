@@ -446,6 +446,10 @@ internal static class TypeParser
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTimeOffset))
             return (PropertyKind.DateTimeOffset, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
+        // CodeSection type - renders as code block
+        if (SymbolEqualityComparer.Default.Equals(type, knownTypes.CodeSection))
+            return (PropertyKind.CodeSection, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+
         // Enum types
         if (type.TypeKind == TypeKind.Enum)
             return (PropertyKind.Enum, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
@@ -594,6 +598,7 @@ internal static class TypeParser
             (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.LabeledList || p.Kind == PropertyKind.BarChart ||
+             p.Kind == PropertyKind.CodeSection ||
              (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 

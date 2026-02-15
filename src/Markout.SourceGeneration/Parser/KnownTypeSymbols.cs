@@ -22,6 +22,9 @@ internal sealed class KnownTypeSymbols
     private INamedTypeSymbol? _labeledItem;
     private bool _labeledItemResolved;
 
+    private INamedTypeSymbol? _codeSection;
+    private bool _codeSectionResolved;
+
     private INamedTypeSymbol? _dateTime;
     private bool _dateTimeResolved;
 
@@ -46,6 +49,7 @@ internal sealed class KnownTypeSymbols
     public INamedTypeSymbol? TreeNode => Resolve(ref _treeNode, ref _treeNodeResolved, "Markout.TreeNode");
     public INamedTypeSymbol? BarItem => Resolve(ref _barItem, ref _barItemResolved, "Markout.BarItem");
     public INamedTypeSymbol? LabeledItem => Resolve(ref _labeledItem, ref _labeledItemResolved, "Markout.LabeledItem");
+    public INamedTypeSymbol? CodeSection => Resolve(ref _codeSection, ref _codeSectionResolved, "Markout.CodeSection");
     public INamedTypeSymbol? DateTime => Resolve(ref _dateTime, ref _dateTimeResolved, "System.DateTime");
     public INamedTypeSymbol? DateTimeOffset => Resolve(ref _dateTimeOffset, ref _dateTimeOffsetResolved, "System.DateTimeOffset");
     public INamedTypeSymbol? IDictionary => Resolve(ref _iDictionary, ref _iDictionaryResolved, "System.Collections.Generic.IDictionary`2");

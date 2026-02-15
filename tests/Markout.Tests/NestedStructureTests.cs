@@ -805,3 +805,105 @@ public class NestedStructureRealWorldTests
         Assert.Contains("Public Methods: 892", mdf);
     }
 }
+
+#region CodeSection Models
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ConstructorOverload
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    [MarkoutIgnoreInTable]
+    public CodeSection Signature { get; set; }
+
+    [MarkoutSection(Name = "Parameters")]
+    public List<ParameterRow>? Parameters { get; set; }
+}
+
+[MarkoutSerializable]
+public class ParameterRow
+{
+    public string Parameter { get; set; } = "";
+    public string Type { get; set; } = "";
+    public string Notes { get; set; } = "";
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ApiMethodView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Kind { get; set; } = "";
+    [MarkoutIgnoreInTable]
+    public CodeSection Source { get; set; }
+}
+
+[MarkoutContext(typeof(ConstructorOverload))]
+[MarkoutContext(typeof(ApiMethodView))]
+public partial class CodeSectionTestContext : MarkoutSerializerContext
+{
+}
+
+#endregion
+
+public class CodeSectionTests
+{
+    [Fact]
+    public void Serialize_CodeSection_RendersCodeBlock()
+    {
+        var view = new ApiMethodView
+        {
+            Title = "JsonSerializer.Serialize",
+            Kind = "Method",
+            Source = new CodeSection("csharp", "public static string Serialize(object? value);")
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        Assert.Contains("# JsonSerializer.Serialize", mdf);
+        Assert.Contains("Kind: Method", mdf);
+        Assert.Contains("```csharp", mdf);
+        Assert.Contains("public static string Serialize(object? value);", mdf);
+        Assert.Contains("```", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CodeSection_WithNestedTable()
+    {
+        var overload = new ConstructorOverload
+        {
+            Title = "Overload 1: 2 parameters",
+            Signature = new CodeSection("csharp", "new JsonSerializerOptions(JsonSerializerDefaults defaults)"),
+            Parameters =
+            [
+                new ParameterRow { Parameter = "defaults", Type = "JsonSerializerDefaults", Notes = "required" },
+                new ParameterRow { Parameter = "options", Type = "JsonSerializerOptions?", Notes = "optional" }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(overload, CodeSectionTestContext.Default);
+
+        Assert.Contains("# Overload 1: 2 parameters", mdf);
+        Assert.Contains("```csharp", mdf);
+        Assert.Contains("new JsonSerializerOptions", mdf);
+        Assert.Contains("```", mdf);
+        Assert.Contains("## Parameters", mdf);
+        Assert.Contains("defaults", mdf);
+        Assert.Contains("JsonSerializerDefaults", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CodeSection_DefaultContent_SkipsBlock()
+    {
+        var view = new ApiMethodView
+        {
+            Title = "Test",
+            Kind = "Method",
+            Source = default  // Content is null
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        Assert.Contains("# Test", mdf);
+        Assert.Contains("Kind: Method", mdf);
+        Assert.DoesNotContain("```", mdf);
+    }
+}

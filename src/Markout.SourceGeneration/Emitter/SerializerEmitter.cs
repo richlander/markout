@@ -611,6 +611,15 @@ internal static class SerializerEmitter
                 sb.AppendLine($"{indent}    writer.WriteLabeledList({propAccess});");
                 break;
 
+            case PropertyKind.CodeSection:
+                sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
+                sb.AppendLine($"{indent}{{");
+                sb.AppendLine($"{indent}    writer.WriteCodeBlockStart({propAccess}.Language);");
+                sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
+                sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
+                sb.AppendLine($"{indent}}}");
+                break;
+
             case PropertyKind.ComplexArray:
                 if (prop.ElementProperties != null && prop.ElementProperties.Count > 0)
                 {
@@ -827,6 +836,7 @@ internal static class SerializerEmitter
             PropertyKind.Tree => "Tree",
             PropertyKind.BarChart => "Bar chart",
             PropertyKind.LabeledList => "Labeled list",
+            PropertyKind.CodeSection => "Code block",
             _ => "Field"
         };
     }
