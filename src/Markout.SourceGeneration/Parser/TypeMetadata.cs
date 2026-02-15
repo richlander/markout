@@ -347,5 +347,6 @@ internal enum PropertyKind
     BarChart,
     LabeledList,
     CodeSection,
+    Callout,
     Other
 }

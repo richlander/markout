@@ -551,6 +551,16 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}    writer.WriteLabeledList({propAccess});");
             sb.AppendLine($"{indent}}}");
         }
+        else if (prop.Kind == PropertyKind.CodeSection)
+        {
+            sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteCodeBlockStart({propAccess}.Language);");
+            sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
+            sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
+            sb.AppendLine($"{indent}}}");
+        }
         else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
         {
             sb.AppendLine($"{indent}if ({propAccess} != null)");
@@ -618,6 +628,11 @@ internal static class SerializerEmitter
                 sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
                 sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
                 sb.AppendLine($"{indent}}}");
+                break;
+
+            case PropertyKind.Callout:
+                sb.AppendLine($"{indent}if ({propAccess}.Message != null)");
+                sb.AppendLine($"{indent}    writer.WriteCallout({propAccess}.Severity, {propAccess}.Message);");
                 break;
 
             case PropertyKind.ComplexArray:
@@ -815,6 +830,8 @@ internal static class SerializerEmitter
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (bar chart)";
             if (prop.Kind == PropertyKind.LabeledList)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (labeled list)";
+            if (prop.Kind == PropertyKind.CodeSection)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (code block)";
             return $"H{prop.SectionLevel} Section \"{sectionName}\"";
         }
 
@@ -837,6 +854,7 @@ internal static class SerializerEmitter
             PropertyKind.BarChart => "Bar chart",
             PropertyKind.LabeledList => "Labeled list",
             PropertyKind.CodeSection => "Code block",
+            PropertyKind.Callout => "Callout",
             _ => "Field"
         };
     }

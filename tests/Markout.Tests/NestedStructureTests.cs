@@ -838,8 +838,58 @@ public class ApiMethodView
 
 [MarkoutContext(typeof(ConstructorOverload))]
 [MarkoutContext(typeof(ApiMethodView))]
+[MarkoutContext(typeof(ILView))]
+[MarkoutContext(typeof(VulnerabilityReport))]
+[MarkoutContext(typeof(CtorEmphasisView))]
 public partial class CodeSectionTestContext : MarkoutSerializerContext
 {
+}
+
+// Sectioned CodeSection: [MarkoutSection] on CodeSection renders heading + code block
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ILView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Kind { get; set; } = "";
+
+    [MarkoutSection(Name = "IL")]
+    [MarkoutIgnoreInTable]
+    public CodeSection IlCode { get; set; }
+
+    [MarkoutSection(Name = "Source")]
+    [MarkoutIgnoreInTable]
+    public CodeSection SourceCode { get; set; }
+}
+
+// Callout as property type
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class VulnerabilityReport
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+    [MarkoutIgnoreInTable]
+    public Callout Alert { get; set; }
+
+    [MarkoutSection(Name = "Vulnerabilities")]
+    public List<VulnRow>? Vulnerabilities { get; set; }
+}
+
+[MarkoutSerializable]
+public class VulnRow
+{
+    public string Severity { get; set; } = "";
+    public string Advisory { get; set; } = "";
+}
+
+// Nested ctor overloads: List<ConstructorOverload> with CodeSection + table
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class CtorEmphasisView
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Kind { get; set; } = "";
+
+    [MarkoutSection(Name = "Constructors")]
+    public List<ConstructorOverload>? Overloads { get; set; }
 }
 
 #endregion
@@ -905,5 +955,145 @@ public class CodeSectionTests
         Assert.Contains("# Test", mdf);
         Assert.Contains("Kind: Method", mdf);
         Assert.DoesNotContain("```", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SectionedCodeSection_RendersHeadingAndCodeBlock()
+    {
+        var view = new ILView
+        {
+            Title = "JsonSerializer.Serialize",
+            Kind = "Method",
+            IlCode = new CodeSection("il", ".method public static string Serialize(object)"),
+            SourceCode = new CodeSection("csharp", "public static string Serialize(object? value) => ...")
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        Assert.Contains("# JsonSerializer.Serialize", mdf);
+        Assert.Contains("Kind: Method", mdf);
+
+        // IL section with heading + code block
+        Assert.Contains("## IL", mdf);
+        Assert.Contains("```il", mdf);
+        Assert.Contains(".method public static string Serialize(object)", mdf);
+
+        // Source section with heading + code block
+        Assert.Contains("## Source", mdf);
+        Assert.Contains("```csharp", mdf);
+        Assert.Contains("public static string Serialize(object? value) => ...", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SectionedCodeSection_SkipsWhenDefault()
+    {
+        var view = new ILView
+        {
+            Title = "Test",
+            Kind = "Method",
+            IlCode = default,
+            SourceCode = default
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        Assert.Contains("# Test", mdf);
+        Assert.DoesNotContain("## IL", mdf);
+        Assert.DoesNotContain("## Source", mdf);
+        Assert.DoesNotContain("```", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CalloutProperty_RendersCallout()
+    {
+        var report = new VulnerabilityReport
+        {
+            Name = "System.Text.Json",
+            Version = "6.0.0",
+            Alert = new Callout(CalloutSeverity.Warning, "3 known vulnerabilities found."),
+            Vulnerabilities =
+            [
+                new VulnRow { Severity = "High", Advisory = "CVE-2024-1234" },
+                new VulnRow { Severity = "Medium", Advisory = "CVE-2024-5678" }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, CodeSectionTestContext.Default);
+
+        Assert.Contains("# System.Text.Json", mdf);
+        Assert.Contains("Version: 6.0.0", mdf);
+
+        // Callout rendered in markdown format
+        Assert.Contains("> [!WARNING]", mdf);
+        Assert.Contains("> 3 known vulnerabilities found.", mdf);
+
+        // Vulnerabilities table
+        Assert.Contains("## Vulnerabilities", mdf);
+        Assert.Contains("CVE-2024-1234", mdf);
+    }
+
+    [Fact]
+    public void Serialize_CalloutProperty_SkipsWhenDefault()
+    {
+        var report = new VulnerabilityReport
+        {
+            Name = "Safe.Package",
+            Version = "1.0.0",
+            Alert = default  // Message is null
+        };
+
+        var mdf = MarkoutSerializer.Serialize(report, CodeSectionTestContext.Default);
+
+        Assert.Contains("# Safe.Package", mdf);
+        Assert.DoesNotContain("[!WARNING]", mdf);
+        Assert.DoesNotContain("WARNING", mdf);
+    }
+
+    [Fact]
+    public void Serialize_NestedCtorOverloads_RendersSubsections()
+    {
+        var view = new CtorEmphasisView
+        {
+            Title = "JsonSerializerOptions",
+            Kind = "Class",
+            Overloads =
+            [
+                new ConstructorOverload
+                {
+                    Title = "Overload 1: 0 parameters",
+                    Signature = new CodeSection("csharp", "new JsonSerializerOptions()"),
+                },
+                new ConstructorOverload
+                {
+                    Title = "Overload 2: 1 parameter",
+                    Signature = new CodeSection("csharp", "new JsonSerializerOptions(JsonSerializerDefaults defaults)"),
+                    Parameters =
+                    [
+                        new ParameterRow { Parameter = "defaults", Type = "JsonSerializerDefaults", Notes = "required" }
+                    ]
+                }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
+
+        // Top level
+        Assert.Contains("# JsonSerializerOptions", mdf);
+        Assert.Contains("Kind: Class", mdf);
+
+        // Section heading
+        Assert.Contains("## Constructors", mdf);
+
+        // Subsection per overload
+        Assert.Contains("### Overload 1: 0 parameters", mdf);
+        Assert.Contains("new JsonSerializerOptions()", mdf);
+
+        Assert.Contains("### Overload 2: 1 parameter", mdf);
+        Assert.Contains("new JsonSerializerOptions(JsonSerializerDefaults defaults)", mdf);
+
+        // Nested parameter table
+        Assert.Contains("#### Parameters", mdf);
+        Assert.Contains("defaults", mdf);
+        Assert.Contains("JsonSerializerDefaults", mdf);
     }
 }

@@ -450,6 +450,10 @@ internal static class TypeParser
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.CodeSection))
             return (PropertyKind.CodeSection, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
+        // Callout type - renders as admonition block
+        if (SymbolEqualityComparer.Default.Equals(type, knownTypes.Callout))
+            return (PropertyKind.Callout, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+
         // Enum types
         if (type.TypeKind == TypeKind.Enum)
             return (PropertyKind.Enum, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
