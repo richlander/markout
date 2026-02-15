@@ -68,7 +68,7 @@ foreach (var (version, vi) in versionData.OrderByDescending(v => decimal.TryPars
         {
             var (url, severity) = cveInfo.TryGetValue(id, out var info) ? info : ("", null);
             var label = !string.IsNullOrEmpty(url) ? $"[{id}]({url})" : id;
-            var icon = severity?.ToUpperInvariant() switch
+            var badge = severity?.ToUpperInvariant() switch
             {
                 "CRITICAL" => "🔴",
                 "HIGH" => "🟠",
@@ -76,7 +76,7 @@ foreach (var (version, vi) in versionData.OrderByDescending(v => decimal.TryPars
                 "LOW" => "🟢",
                 _ => null
             };
-            return new TreeNode(label, icon);
+            return new TreeNode(label, badge);
         })
         .ToList();
 
