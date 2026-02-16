@@ -494,7 +494,7 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null)
+    public override void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null, bool uniformBarWidth = true)
     {
         if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Breakdowns))
             return;
@@ -519,10 +519,20 @@ public class MarkdownWriter : MarkoutWriter
             if (total > maxTotal) maxTotal = total;
         }
         if (maxTotal == 0) maxTotal = 1;
-        var barScale = maxBarWidth.HasValue ? (double)maxBarWidth.Value / maxTotal : 1.0;
+        var effectiveBarWidth = maxBarWidth ?? Math.Min(maxTotal, 30);
 
         foreach (var item in items)
-            WriteBreakdownRow(item, categories, maxLabelWidth, barScale);
+        {
+            var rowTotal = 0;
+            foreach (var seg in item.Segments) rowTotal += seg.Count;
+            if (rowTotal == 0) rowTotal = 1;
+
+            var barScale = uniformBarWidth
+                ? (double)effectiveBarWidth / rowTotal
+                : (double)effectiveBarWidth / maxTotal;
+
+            WriteBreakdownRow(item, categories, maxLabelWidth, barScale, effectiveBarWidth);
+        }
 
         Writer.WriteLine();
         WriteBreakdownLegend(categories);

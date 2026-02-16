@@ -556,11 +556,12 @@ public class AnsiWriter : MarkoutWriter
         [TerminalColor.Red, TerminalColor.Yellow, TerminalColor.Cyan, TerminalColor.Green, TerminalColor.Magenta, TerminalColor.Blue];
 
     /// <inheritdoc/>
-    protected override void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale)
+    protected override void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale, int maxBarChars = 0)
     {
         Writer.Write(AnsiCodes.MakeBold(item.Label.PadRight(labelWidth)));
         Writer.Write("  ");
 
+        var barWidth = 0;
         foreach (var seg in item.Segments)
         {
             var catIndex = categories.IndexOf(seg.Category);
@@ -569,7 +570,11 @@ public class AnsiWriter : MarkoutWriter
             _terminal.SetColor(color);
             Writer.Write(new string('█', width));
             _terminal.ResetColor();
+            barWidth += width;
         }
+
+        if (maxBarChars > barWidth)
+            Writer.Write(new string(' ', maxBarChars - barWidth));
 
         Writer.Write("  ");
         _terminal.SetColor(TerminalColor.DarkGray);

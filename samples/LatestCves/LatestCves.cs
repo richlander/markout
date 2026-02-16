@@ -114,7 +114,6 @@ MarkoutSerializer.Serialize(view, writer, LatestCvesContext.Default);
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class LatestCvesView
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     public string Span { get; set; } = "";

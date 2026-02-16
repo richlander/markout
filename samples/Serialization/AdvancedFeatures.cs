@@ -27,7 +27,6 @@ public class ServerView
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
 public class AuditReport
 {
-    [MarkoutIgnore]
     public string? Title { get; set; }
 
     public bool HasWarnings { get; set; }

@@ -163,6 +163,7 @@ The package includes the source generator — no additional packages needed.
 
 ## Samples
 
+- **[RecordDemo](samples/RecordDemo)** — Simplest possible example: a record, a context, one line of serialization
 - **[CanadianContent](samples/CanadianContent)** — Canadian actors and shows with tables, trees, metrics, and multiple renderers
 - **[LatestCves](samples/LatestCves)** — .NET security advisories with trees and severity breakdowns
 - **[DotNetReleases](samples/DotNetReleases)** — .NET release information from GitHub

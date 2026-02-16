@@ -296,6 +296,26 @@ public class MarkoutWriter
     }
 
     /// <summary>
+    /// Begins a section with a heading. Override to add visual framing (e.g., panel borders).
+    /// The default implementation delegates to <see cref="WriteHeading(int, string, string?)"/>.
+    /// </summary>
+    /// <param name="level">Heading level (1-6).</param>
+    /// <param name="text">Section title text.</param>
+    /// <param name="context">Optional context to append in parentheses.</param>
+    public virtual void WriteSectionStart(int level, string text, string? context = null)
+    {
+        WriteHeading(level, text, context);
+    }
+
+    /// <summary>
+    /// Ends a section previously started with <see cref="WriteSectionStart"/>.
+    /// Override to add visual framing (e.g., panel bottom border).
+    /// </summary>
+    public virtual void WriteSectionEnd()
+    {
+    }
+
+    /// <summary>
     /// Writes a paragraph of text.
     /// </summary>
     /// <param name="text">The paragraph text.</param>
@@ -1010,7 +1030,7 @@ public class MarkoutWriter
     /// </summary>
     /// <param name="items">The breakdown rows.</param>
     /// <param name="maxBarWidth">Maximum bar width in characters. When null, 1 char = 1 count.</param>
-    public virtual void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null)
+    public virtual void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null, bool uniformBarWidth = true)
     {
         if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Breakdowns))
             return;
@@ -1042,11 +1062,21 @@ public class MarkoutWriter
         }
 
         if (maxTotal == 0) maxTotal = 1;
-        var barScale = maxBarWidth.HasValue ? (double)maxBarWidth.Value / maxTotal : 1.0;
+        var effectiveBarWidth = maxBarWidth ?? Math.Min(maxTotal, 30);
 
         // Render rows
         foreach (var item in items)
-            WriteBreakdownRow(item, categories, maxLabelWidth, barScale);
+        {
+            var rowTotal = 0;
+            foreach (var seg in item.Segments) rowTotal += seg.Count;
+            if (rowTotal == 0) rowTotal = 1;
+
+            var barScale = uniformBarWidth
+                ? (double)effectiveBarWidth / rowTotal
+                : (double)effectiveBarWidth / maxTotal;
+
+            WriteBreakdownRow(item, categories, maxLabelWidth, barScale, effectiveBarWidth);
+        }
 
         // Legend
         _writer.WriteLine();
@@ -1059,19 +1089,25 @@ public class MarkoutWriter
     /// <summary>
     /// Renders a single breakdown row. Override for custom styling.
     /// </summary>
-    protected virtual void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale)
+    protected virtual void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale, int maxBarChars = 0)
     {
         _writer.Write(item.Label.PadRight(labelWidth));
         _writer.Write("  ");
 
         // Draw stacked bar
+        var barWidth = 0;
         foreach (var seg in item.Segments)
         {
             var catIndex = categories.IndexOf(seg.Category);
             var fill = BreakdownFills[catIndex % BreakdownFills.Length];
             var width = Math.Max(0, (int)Math.Round(seg.Count * barScale));
             _writer.Write(new string(fill, width));
+            barWidth += width;
         }
+
+        // Pad to align summary text
+        if (maxBarChars > barWidth)
+            _writer.Write(new string(' ', maxBarChars - barWidth));
 
         // Summary
         _writer.Write("  ");

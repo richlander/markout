@@ -42,7 +42,6 @@ MarkoutSerializer.Serialize(view, Console.Out, ReleasesContext.Default);
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class ReleasesView
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
     
     [MarkoutPropertyName("Latest Major")]

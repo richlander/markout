@@ -133,13 +133,13 @@ public class SpectreWriter : MarkoutWriter
         _console.WriteLine();
     }
 
-    private void WriteRuleLine(int length, bool fadeInward)
+    private void WriteRuleLine(int length, bool fadeInward, char ch = '─')
     {
         if (length <= 0) return;
 
         if (!RuleGradient)
         {
-            WriteMarkup($"[{RuleLineColor.ToMarkup()}]{new string('─', length)}[/]");
+            WriteMarkup($"[{RuleLineColor.ToMarkup()}]{new string(ch, length)}[/]");
             return;
         }
 
@@ -156,7 +156,7 @@ public class SpectreWriter : MarkoutWriter
             byte g = (byte)(g2 + (g1 - g2) * t);
             byte b = (byte)(b2 + (b1 - b2) * t);
 
-            WriteMarkup($"[rgb({r},{g},{b})]─[/]");
+            WriteMarkup($"[rgb({r},{g},{b})]{ch}[/]");
         }
     }
 
@@ -476,17 +476,22 @@ public class SpectreWriter : MarkoutWriter
     private static readonly string[] DistributionSpectreColors = ["red", "yellow", "cyan", "green", "purple", "blue"];
 
     /// <inheritdoc/>
-    protected override void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale)
+    protected override void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale, int maxBarChars = 0)
     {
         WriteMarkup($"[bold]{Esc(item.Label.PadRight(labelWidth))}[/]  ");
 
+        var barWidth = 0;
         foreach (var seg in item.Segments)
         {
             var catIndex = categories.IndexOf(seg.Category);
             var color = DistributionSpectreColors[catIndex % DistributionSpectreColors.Length];
             var width = Math.Max(0, (int)Math.Round(seg.Count * barScale));
             WriteMarkup($"[{color}]{new string('█', width)}[/]");
+            barWidth += width;
         }
+
+        if (maxBarChars > barWidth)
+            _console.Write(new Text(new string(' ', maxBarChars - barWidth)));
 
         var parts = item.Segments.Where(s => s.Count > 0).Select(s => $"{s.Count} {s.Category}");
         WriteMarkupLine($"  [grey]{Esc(string.Join(", ", parts))}[/]");
@@ -607,6 +612,113 @@ public class SpectreWriter : MarkoutWriter
                 var isChildLast = i == node.Children.Count - 1;
                 WriteSpectreTreeNode(node.Children[i], childPrefix, isChildLast, depth + 1);
             }
+        }
+    }
+
+    // ── Section framing ──
+
+    /// <summary>
+    /// Color for section panel borders. Default is grey.
+    /// </summary>
+    public Color PanelBorderColor { get; set; } = Color.Grey;
+
+    /// <summary>
+    /// Alignment of the title within the panel top border.
+    /// Default is <see cref="Justify.Left"/>.
+    /// </summary>
+    public Justify PanelTitleAlignment { get; set; } = Justify.Left;
+
+    private int _sectionDepth;
+
+    /// <inheritdoc/>
+    public override void WriteSectionStart(int level, string text, string? context = null)
+    {
+        if (level == 1)
+        {
+            _sectionDepth++;
+            var fullText = string.IsNullOrEmpty(context) ? text : $"{text} ({context})";
+
+            UpdateSectionState(level, text);
+
+            if (SectionExcluded)
+                return;
+
+            if (HasContent)
+                _console.WriteLine();
+
+            // Draw top border with title: ╭── Title ──────────────────╮
+            int width = ConsoleWidth;
+            string padded = $" {fullText} ";
+            int remaining = width - padded.Length - 2; // -2 for ╭ and ╮
+
+            if (remaining <= 0)
+            {
+                WriteMarkupLine($"[{PanelBorderColor.ToMarkup()}]╭─[/] [bold {RuleLabelColor.ToMarkup()}]{Esc(fullText)}[/]");
+            }
+            else
+            {
+                int left, right;
+                switch (PanelTitleAlignment)
+                {
+                    case Justify.Right:
+                        left = remaining;
+                        right = 0;
+                        break;
+                    case Justify.Center:
+                        left = remaining / 2;
+                        right = remaining - left;
+                        break;
+                    default: // Left
+                        left = Math.Min(2, remaining);
+                        right = remaining - left;
+                        break;
+                }
+
+                WriteMarkup($"[{PanelBorderColor.ToMarkup()}]╭[/]");
+                if (left > 0)
+                {
+                    if (PanelTitleAlignment == Justify.Left)
+                        WriteMarkup($"[{PanelBorderColor.ToMarkup()}]{new string('─', left)}[/]");
+                    else
+                        WriteRuleLine(left, fadeInward: true);
+                }
+                WriteMarkup($"[bold {RuleLabelColor.ToMarkup()}]{Esc(padded)}[/]");
+                if (right > 0)
+                {
+                    if (PanelTitleAlignment == Justify.Right)
+                        WriteMarkup($"[{PanelBorderColor.ToMarkup()}]{new string('─', right)}[/]");
+                    else
+                        WriteRuleLine(right, fadeInward: false);
+                }
+                WriteMarkupLine($"[{PanelBorderColor.ToMarkup()}]╮[/]");
+            }
+
+            NeedsBlankLine = true;
+            HasContent = true;
+        }
+        else
+        {
+            // Sub-sections use the regular heading style
+            WriteHeading(level, text, context);
+        }
+    }
+
+    /// <inheritdoc/>
+    public override void WriteSectionEnd()
+    {
+        if (_sectionDepth > 0)
+        {
+            _sectionDepth--;
+
+            if (SectionExcluded)
+                return;
+
+            _console.WriteLine();
+            int width = ConsoleWidth;
+            WriteMarkup($"[{PanelBorderColor.ToMarkup()}]╰[/]");
+            WriteRuleLine(width - 2, fadeInward: true);
+            WriteMarkupLine($"[{PanelBorderColor.ToMarkup()}]╯[/]");
+            NeedsBlankLine = true;
         }
     }
 }

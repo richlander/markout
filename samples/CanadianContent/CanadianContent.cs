@@ -1,5 +1,6 @@
 // CanCon. It's the law!
 
+using System.CommandLine;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Markout;
@@ -9,390 +10,332 @@ using Microsoft.Extensions.Terminal;
 using Spectre.Console;
 using TreeNode = Markout.TreeNode;
 
-// Load data from JSON files
-var basePath = AppContext.BaseDirectory;
-var actorsJson = await File.ReadAllTextAsync(Path.Combine(basePath, "actors.json"));
-var showsJson = await File.ReadAllTextAsync(Path.Combine(basePath, "shows.json"));
+var formatOption = new Option<string>("--format", "-f") { DefaultValueFactory = _ => "markdown", Description = "Output format" };
+formatOption.AcceptOnlyFromAmong("markdown", "ansi", "spectre", "plain", "oneline", "diagram");
 
-var actors = JsonSerializer.Deserialize(actorsJson, CanConJsonContext.Default.ListActor)!;
-var shows = JsonSerializer.Deserialize(showsJson, CanConJsonContext.Default.ListShow)!;
+var maxItemsOption = new Option<int?>("-n") { Description = "Limit table rows" };
+var prettyOption = new Option<bool>("--pretty") { Description = "Pad table columns for aligned output" };
+var actorsOption = new Option<bool>("--actors") { Description = "Filter summary to actors table" };
+var showsOption = new Option<bool>("--shows") { Description = "Filter summary to shows table" };
+var citiesOption = new Option<bool>("--cities") { Description = "Filter summary to filming locations table" };
+var queryArg = new Argument<string>("query") { DefaultValueFactory = _ => "help", Description = "Query to run" };
 
-var cityCountry = new Dictionary<string, string>
+var rootCommand = new RootCommand("Canadian Content Database — CanCon. It's the law!")
 {
-    ["Toronto"] = "Canada",
-    ["Vancouver"] = "Canada",
-    ["Ontario"] = "Canada",
-    ["London"] = "England",
-    ["Sydney"] = "Australia",
-    ["South Carolina"] = "USA",
-    ["Budapest"] = "Hungary",
-    ["Los Angeles"] = "USA",
+    formatOption, maxItemsOption, prettyOption,
+    actorsOption, showsOption, citiesOption, queryArg
 };
 
-// Parse arguments: [--format markdown|ansi|plain] [-n count] [query]
-var argList = args.ToList();
-var format = "markdown";
-int? maxItems = null;
+rootCommand.SetAction(Run);
+var parseResult = rootCommand.Parse(args);
+return await parseResult.InvokeAsync();
 
-var formatIndex = argList.IndexOf("--format");
-if (formatIndex >= 0 && formatIndex + 1 < argList.Count)
+async Task Run(ParseResult parseResult, CancellationToken ct)
 {
-    format = argList[formatIndex + 1].ToLowerInvariant();
-    argList.RemoveRange(formatIndex, 2);
-}
-else if (argList.Remove("--ansi"))
-{
-    format = "ansi";
-}
-else if (argList.Remove("--plain"))
-{
-    format = "plain";
-}
-else if (argList.Remove("--oneline"))
-{
-    format = "oneline";
-}
-else if (argList.Remove("--diagram"))
-{
-    format = "diagram";
-}
-else if (argList.Remove("--spectre"))
-{
-    format = "spectre";
-}
+    var format = parseResult.GetValue(formatOption)!;
+    var maxItems = parseResult.GetValue(maxItemsOption);
+    bool prettyTables = parseResult.GetValue(prettyOption);
+    var query = parseResult.GetValue(queryArg)!.ToLowerInvariant();
 
-var nIndex = argList.IndexOf("-n");
-if (nIndex >= 0 && nIndex + 1 < argList.Count && int.TryParse(argList[nIndex + 1], out var n))
-{
-    maxItems = n;
-    argList.RemoveRange(nIndex, 2);
-}
+    HashSet<string>? includeSections = null;
+    if (parseResult.GetValue(actorsOption)) (includeSections ??= []).Add("Actors");
+    if (parseResult.GetValue(showsOption)) (includeSections ??= []).Add("Shows");
+    if (parseResult.GetValue(citiesOption)) (includeSections ??= []).Add("Filming Locations");
 
-// Section filters for summary command
-HashSet<string>? includeSections = null;
-if (argList.Remove("--actors")) (includeSections ??= []).Add("Actors");
-if (argList.Remove("--shows")) (includeSections ??= []).Add("Shows");
-if (argList.Remove("--cities")) (includeSections ??= []).Add("Filming Locations");
-bool prettyTables = argList.Remove("--pretty");
+    // Load data from JSON files
+    var basePath = AppContext.BaseDirectory;
+    var actorsJson = await File.ReadAllTextAsync(Path.Combine(basePath, "actors.json"), ct);
+    var showsJson = await File.ReadAllTextAsync(Path.Combine(basePath, "shows.json"), ct);
+    var citiesJson = await File.ReadAllTextAsync(Path.Combine(basePath, "cities.json"), ct);
 
-var query = argList.Count > 0 ? string.Join(" ", argList).ToLowerInvariant() : "";
+    var actors = JsonSerializer.Deserialize(actorsJson, CanConJsonContext.Default.ListActor)!;
+    var shows = JsonSerializer.Deserialize(showsJson, CanConJsonContext.Default.ListShow)!;
+    var cityCountry = JsonSerializer.Deserialize(citiesJson, CanConJsonContext.Default.ListCity)!
+        .ToDictionary(c => c.CityName, c => c.Country);
+    var options = new MarkoutWriterOptions { MaxItems = maxItems, IncludeSections = includeSections, PrettyTables = prettyTables };
 
-if (query is "" or "-h" or "--help" or "help")
-{
-    Console.WriteLine("""
-        Canadian Content Database - CanCon. It's the law!
-
-        Usage: dotnet run -- [--format markdown|ansi|spectre|plain|oneline|diagram] [--ansi] [--spectre] [--plain] [--oneline] [--diagram] [-n count] [query]
-
-        Formats:
-          markdown      Markdown output (default)
-          ansi          ANSI terminal output with colors
-          spectre       ANSI terminal output via Spectre.Console
-          plain         Plain text output
-          oneline       Compact columnar tables only
-          diagram       Tree/diagram output only
-
-        Options:
-          -n count      Limit table rows to count (e.g. -n 5)
-          --pretty      Pad table columns for aligned output
-          --actors      Filter summary to actors table
-          --shows       Filter summary to shows table
-          --cities      Filter summary to filming locations table
-
-        Queries:
-          summary       Show all actors, shows, and filming locations
-          ryan          Actors named Ryan (Gosling, Reynolds)
-          rachel        Actors named Rachel (McAdams, Skarsten)
-          gosling       Ryan Gosling's filmography
-          reynolds      Ryan Reynolds' filmography
-          expanse       The Expanse with Canadian cast
-          schitt        Schitt's Creek with Canadian cast
-          toronto       Shows filmed in Toronto
-          vancouver     Shows filmed in Vancouver
-          tree          Filmography trees (shows grouped by filming location)
-          bars          Bar chart of shows per filming city
-          vbars         Vertical bar chart of shows per filming city
-          genre         Show type distribution (Movie vs TV Series vs ...)
-          report        Comprehensive CanCon report
-
-        Examples:
-          dotnet run -- summary
-          dotnet run -- ryan
-          dotnet run -- --format ansi toronto
-          dotnet run -- --format plain tree
-          dotnet run -- --format ansi bars
-          dotnet run -- genre
-          dotnet run -- report
-          dotnet run -- --oneline summary --actors
-        """);
-    return;
-}
-
-// Create the writer for the selected format
-var options = new MarkoutWriterOptions { MaxItems = maxItems, IncludeSections = includeSections, PrettyTables = prettyTables };
-MarkoutWriter writer = format switch
-{
-    "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),
-    "spectre" => new SpectreWriter(AnsiConsole.Console, options),
-    "plain" => new MarkoutWriter(Console.Out, options),
-    "oneline" => new OneLineWriter(Console.Out, options),
-    "diagram" => new DiagramWriter(Console.Out, options),
-    _ => new MarkdownWriter(Console.Out, options),
-};
-
-if (query.Contains("summary"))
-{
-    if (format == "oneline" && includeSections == null)
+    (MarkoutWriter writer, StringWriter output) CreateWriter()
     {
-        Console.Error.WriteLine("oneline format requires a section flag with summary: --actors, --shows, or --cities");
+        var sw = new StringWriter();
+        MarkoutWriter w = format switch
+        {
+            "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),
+            "spectre" => new SpectreWriter(AnsiConsole.Console, options),
+            "plain" => new MarkoutWriter(sw, options),
+            "oneline" => new OneLineWriter(sw, options),
+            "diagram" => new DiagramWriter(sw, options),
+            _ => new MarkdownWriter(sw, options),
+        };
+        return (w, sw);
+    }
+
+    StringWriter? result = query switch
+    {
+        var q when q.Contains("summary") => Summary(),
+        var q when q.Contains("ryan") => ActorsByName("Ryan"),
+        var q when q.Contains("rachel") => ActorsByName("Rachel"),
+        var q when q.Contains("expanse") => ShowDetail("Expanse"),
+        var q when q.Contains("schitt") => ShowDetail("Schitt"),
+        var q when q.Contains("toronto") => ShowsByLocation("Toronto"),
+        var q when q.Contains("vancouver") => ShowsByLocation("Vancouver"),
+        var q when q.Contains("gosling") => Filmography("Gosling"),
+        var q when q.Contains("reynolds") => Filmography("Reynolds"),
+        var q when q.Contains("tree") => FilmographyTrees(),
+        var q when q.Contains("vbars") => VerticalBars(),
+        var q when q.Contains("bars") => HorizontalBars(),
+        var q when q.Contains("genre") => GenreBreakdown(),
+        var q when q.Contains("report") => Report(),
+        _ => null
+    };
+
+    if (result is null)
+    {
+        Console.Error.WriteLine($"Unknown query: {query}\nTry: summary, ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars, genre, report");
         return;
     }
-    // Show all actors and shows
-    var overview = new CanConOverview
+
+    Console.Out.Write(result.ToString());
+
+    // ── Query implementations ──
+
+    StringWriter Summary()
     {
-        Title = "Canadian Content Database",
-        Actors = actors.Select(a => new ActorRow
+        var (writer, output) = CreateWriter();
+        if (format == "oneline" && includeSections == null)
         {
-            Name = a.Name,
-            Birthplace = a.Birthplace,
-            BirthYear = a.BirthYear,
-            Citizenship = string.Join(", ", a.Citizenship)
-        }).ToList(),
-        Shows = shows.Select(s => new ShowRow
+            Console.Error.WriteLine("oneline format requires a section flag with summary: --actors, --shows, or --cities");
+            return output;
+        }
+        var overview = new CanConOverview
         {
-            Title = s.Title,
-            Type = s.Type,
-            Years = s.Years,
-            FilmingLocation = s.Location
-        }).ToList(),
-        Cities = shows
-            .GroupBy(s => s.Location)
-            .OrderByDescending(g => g.Count())
-            .Select(g =>
+            Title = "Canadian Content Database",
+            Actors = actors.Select(a => new ActorRow
             {
-                var mostRecent = g.OrderByDescending(s => s.Years).First();
-                return new CityRow
+                Name = a.Name,
+                Birthplace = a.Birthplace,
+                BirthYear = a.BirthYear,
+                Citizenship = string.Join(", ", a.Citizenship)
+            }).ToList(),
+            Shows = shows.Select(s => new ShowRow
+            {
+                Title = s.Title,
+                Type = s.Type,
+                Years = s.Years,
+                FilmingLocation = s.Location
+            }).ToList(),
+            Cities = shows
+                .GroupBy(s => s.Location)
+                .OrderByDescending(g => g.Count())
+                .Select(g =>
                 {
-                    City = g.Key,
-                    Country = cityCountry.GetValueOrDefault(g.Key, ""),
-                    ShowCount = g.Count(),
-                    MostRecent = $"{mostRecent.Title} ({mostRecent.Years})"
-                };
-            }).ToList()
-    };
-    MarkoutSerializer.Serialize(overview, writer, CanConContext.Default);
-}
-else if (query.Contains("ryan") || query.Contains("rachel"))
-{
-    // Filter actors by first name
-    var nameFilter = query.Contains("ryan") ? "Ryan" : "Rachel";
-    var filtered = actors
-        .Where(a => a.Name.StartsWith(nameFilter, StringComparison.OrdinalIgnoreCase))
-        .ToList();
+                    var mostRecent = g.OrderByDescending(s => s.Years).First();
+                    return new CityRow
+                    {
+                        City = g.Key,
+                        Country = cityCountry.GetValueOrDefault(g.Key, ""),
+                        ShowCount = g.Count(),
+                        MostRecent = $"{mostRecent.Title} ({mostRecent.Years})"
+                    };
+                }).ToList()
+        };
+        MarkoutSerializer.Serialize(overview, writer, CanConContext.Default);
+        return output;
+    }
 
-    var view = new ActorSearchResult
+    StringWriter ActorsByName(string nameFilter)
     {
-        Title = $"Actors Named {nameFilter}",
-        Results = filtered.Select(a => new ActorDetailRow
+        var (writer, output) = CreateWriter();
+        var filtered = actors
+            .Where(a => a.Name.StartsWith(nameFilter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var view = new ActorSearchResult
         {
-            Name = a.Name,
-            Birthplace = a.Birthplace,
-            BirthYear = a.BirthYear,
-            Citizenship = string.Join(", ", a.Citizenship),
-            KnownFor = string.Join(", ", a.Shows.Take(3))
-        }).ToList()
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else if (query.Contains("expanse"))
-{
-    var show = shows.First(s => s.Title.Contains("Expanse", StringComparison.OrdinalIgnoreCase));
-    var castActors = actors.Where(a => show.CanadianActors.Contains(a.Name)).ToList();
-
-    var view = new ShowDetailView
-    {
-        Title = show.Title,
-        Type = show.Type,
-        Years = show.Years,
-        FilmingLocation = show.Location,
-        Cast = castActors.Select(a => new ActorRow
-        {
-            Name = a.Name,
-            Birthplace = a.Birthplace,
-            BirthYear = a.BirthYear,
-            Citizenship = string.Join(", ", a.Citizenship)
-        }).ToList()
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else if (query.Contains("schitt"))
-{
-    var show = shows.First(s => s.Title.Contains("Schitt", StringComparison.OrdinalIgnoreCase));
-    var castActors = actors.Where(a => show.CanadianActors.Contains(a.Name)).ToList();
-
-    var view = new ShowDetailView
-    {
-        Title = show.Title,
-        Type = show.Type,
-        Years = show.Years,
-        FilmingLocation = show.Location,
-        Cast = castActors.Select(a => new ActorRow
-        {
-            Name = a.Name,
-            Birthplace = a.Birthplace,
-            BirthYear = a.BirthYear,
-            Citizenship = string.Join(", ", a.Citizenship)
-        }).ToList()
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else if (query.Contains("toronto") || query.Contains("vancouver"))
-{
-    var city = query.Contains("toronto") ? "Toronto" : "Vancouver";
-    var filtered = shows.Where(s => s.Location.Contains(city, StringComparison.OrdinalIgnoreCase)).ToList();
-
-    var view = new LocationSearchResult
-    {
-        Title = $"Shows Filmed in {city}",
-        Results = filtered.Select(s => new ShowRow
-        {
-            Title = s.Title,
-            Type = s.Type,
-            Years = s.Years,
-            FilmingLocation = s.Location
-        }).ToList()
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else if (query.Contains("gosling") || query.Contains("reynolds"))
-{
-    var lastName = query.Contains("gosling") ? "Gosling" : "Reynolds";
-    var actor = actors.First(a => a.Name.Contains(lastName, StringComparison.OrdinalIgnoreCase));
-    var actorShows = shows.Where(s => s.CanadianActors.Contains(actor.Name)).ToList();
-
-    var view = new ActorFilmography
-    {
-        Name = actor.Name,
-        Birthplace = actor.Birthplace,
-        BirthYear = actor.BirthYear,
-        Citizenship = string.Join(", ", actor.Citizenship),
-        Filmography = actorShows.Select(s => new ShowRow
-        {
-            Title = s.Title,
-            Type = s.Type,
-            Years = s.Years,
-            FilmingLocation = s.Location
-        }).ToList()
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else if (query.Contains("tree"))
-{
-    var view = new FilmographyTreeView
-    {
-        Title = "Canadian Content — Filmography Trees",
-        Filmography = actors
-            .Select(actor =>
+            Title = $"Actors Named {nameFilter}",
+            Results = filtered.Select(a => new ActorDetailRow
             {
-                var actorShows = shows
-                    .Where(s => s.CanadianActors.Contains(actor.Name))
-                    .ToList();
+                Name = a.Name,
+                Birthplace = a.Birthplace,
+                BirthYear = a.BirthYear,
+                Citizenship = string.Join(", ", a.Citizenship),
+                KnownFor = string.Join(", ", a.Shows.Take(3))
+            }).ToList()
+        };
+        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        return output;
+    }
 
-                if (actorShows.Count == 0) return null;
-
-                var cityNodes = actorShows
-                    .GroupBy(s => s.Location)
-                    .OrderBy(g => g.Key)
-                    .Select(g => new TreeNode(
-                        g.Key,
-                        g.Select(s => $"{s.Title} ({s.Years})")))
-                    .ToList();
-
-                return new TreeNode(actor.Name, cityNodes);
-            })
-            .Where(n => n is not null)
-            .ToList()!
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else if (query.Contains("vbars"))
-{
-    var bars = shows
-        .GroupBy(s => s.Location)
-        .OrderByDescending(g => g.Count())
-        .Select(g => new Metric(g.Key, g.Count()))
-        .ToList();
-    writer.WriteHeading(1, "Shows per Filming Location");
-    writer.WriteVerticalMetrics(bars);
-}
-else if (query.Contains("bars"))
-{
-    var view = new ShowsByLocationChart
+    StringWriter ShowDetail(string titleFragment)
     {
-        Title = "Shows per Filming Location",
-        Bars = shows
+        var (writer, output) = CreateWriter();
+        var show = shows.First(s => s.Title.Contains(titleFragment, StringComparison.OrdinalIgnoreCase));
+        var castActors = actors.Where(a => show.CanadianActors.Contains(a.Name)).ToList();
+        var view = new ShowDetailView
+        {
+            Title = show.Title,
+            Type = show.Type,
+            Years = show.Years,
+            FilmingLocation = show.Location,
+            Cast = castActors.Select(a => new ActorRow
+            {
+                Name = a.Name,
+                Birthplace = a.Birthplace,
+                BirthYear = a.BirthYear,
+                Citizenship = string.Join(", ", a.Citizenship)
+            }).ToList()
+        };
+        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        return output;
+    }
+
+    StringWriter ShowsByLocation(string city)
+    {
+        var (writer, output) = CreateWriter();
+        var filtered = shows.Where(s => s.Location.Contains(city, StringComparison.OrdinalIgnoreCase)).ToList();
+        var view = new LocationSearchResult
+        {
+            Title = $"Shows Filmed in {city}",
+            Results = filtered.Select(s => new ShowRow
+            {
+                Title = s.Title,
+                Type = s.Type,
+                Years = s.Years,
+                FilmingLocation = s.Location
+            }).ToList()
+        };
+        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        return output;
+    }
+
+    StringWriter Filmography(string lastName)
+    {
+        var (writer, output) = CreateWriter();
+        var actor = actors.First(a => a.Name.Contains(lastName, StringComparison.OrdinalIgnoreCase));
+        var actorShows = shows.Where(s => s.CanadianActors.Contains(actor.Name)).ToList();
+        var view = new ActorFilmography
+        {
+            Name = actor.Name,
+            Birthplace = actor.Birthplace,
+            BirthYear = actor.BirthYear,
+            Citizenship = string.Join(", ", actor.Citizenship),
+            Filmography = actorShows.Select(s => new ShowRow
+            {
+                Title = s.Title,
+                Type = s.Type,
+                Years = s.Years,
+                FilmingLocation = s.Location
+            }).ToList()
+        };
+        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        return output;
+    }
+
+    StringWriter FilmographyTrees()
+    {
+        var (writer, output) = CreateWriter();
+        var view = new FilmographyTreeView
+        {
+            Title = "Canadian Content — Filmography Trees",
+            Filmography = actors
+                .Select(actor =>
+                {
+                    var actorShows = shows
+                        .Where(s => s.CanadianActors.Contains(actor.Name))
+                        .ToList();
+                    if (actorShows.Count == 0) return null;
+                    return new TreeNode(actor.Name,
+                        actorShows.GroupBy(s => s.Location).OrderBy(g => g.Key)
+                            .Select(g => new TreeNode(g.Key, g.Select(s => $"{s.Title} ({s.Years})"))));
+                })
+                .Where(n => n is not null)
+                .ToList()!
+        };
+        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        return output;
+    }
+
+    StringWriter VerticalBars()
+    {
+        var (writer, output) = CreateWriter();
+        var bars = shows
             .GroupBy(s => s.Location)
             .OrderByDescending(g => g.Count())
             .Select(g => new Metric(g.Key, g.Count()))
-            .ToList()
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else if (query.Contains("genre"))
-{
-    var view = new GenreBreakdownView
-    {
-        Title = "Canadian Content — Genre Breakdown",
-        Breakdown = [new Breakdown("All Shows", shows
-            .GroupBy(s => s.Type)
-            .OrderByDescending(g => g.Count())
-            .Select(g => new Segment(g.Key, g.Count()))
-            .ToArray())]
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else if (query.Contains("report"))
-{
-    var topActors = actors.Take(3).ToList();
-    var cityGroups = shows.GroupBy(s => s.Location).OrderByDescending(g => g.Count()).ToList();
+            .ToList();
+        writer.WriteHeading(1, "Shows per Filming Location");
+        writer.WriteVerticalMetrics(bars);
+        return output;
+    }
 
-    var view = new CanConReportView
+    StringWriter HorizontalBars()
     {
-        Title = "Canadian Content Report",
-        Description = "The CRTC's Canadian content regulations require broadcasters to air a minimum percentage of Canadian programming. This report covers top actors, filming locations, and genre distribution.",
-        Mandate = new Callout(CalloutSeverity.Important, "Canadian content rules require 60% Canadian programming on conventional TV and 35% on radio."),
-        TopActors = topActors.Select(a => new ActorRow
+        var (writer, output) = CreateWriter();
+        var view = new ShowsByLocationChart
         {
-            Name = a.Name, Birthplace = a.Birthplace, BirthYear = a.BirthYear,
-            Citizenship = string.Join(", ", a.Citizenship)
-        }).ToList(),
-        ActorBios = topActors.Select(a => new Description(
-            a.Name,
-            $"Born {a.BirthYear} in {a.Birthplace}. Known for {string.Join(", ", a.Shows.Take(2))}."
-        )).ToList(),
-        ShowsPerCity = cityGroups
-            .Select(g => new Metric(g.Key, g.Count()))
-            .ToList(),
-        GenreMix = [new Breakdown("All Shows", shows
-            .GroupBy(s => s.Type)
-            .OrderByDescending(g => g.Count())
-            .Select(g => new Segment(g.Key, g.Count()))
-            .ToArray())],
-        FilmographyTree = topActors.Select(actor =>
+            Title = "Shows per Filming Location",
+            Bars = shows
+                .GroupBy(s => s.Location)
+                .OrderByDescending(g => g.Count())
+                .Select(g => new Metric(g.Key, g.Count()))
+                .ToList()
+        };
+        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        return output;
+    }
+
+    StringWriter GenreBreakdown()
+    {
+        var (writer, output) = CreateWriter();
+        var view = new GenreBreakdownView
         {
-            var actorShows = shows.Where(s => s.CanadianActors.Contains(actor.Name)).ToList();
-            return new TreeNode(actor.Name,
-                actorShows.GroupBy(s => s.Location).Select(g =>
-                    new TreeNode(g.Key, g.Select(s => s.Title))));
-        }).ToList(),
-        Quote = "The world needs more Canada.\n— Bono, 2003"
-    };
-    MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
-}
-else
-{
-    Console.Error.WriteLine($"Unknown query: {query}");
-    Console.Error.WriteLine("Try: summary, ryan, rachel, gosling, reynolds, expanse, schitt, toronto, vancouver, tree, bars, vbars, genre, report");
+            Title = "Canadian Content — Genre Breakdown",
+            Breakdown = [new Breakdown("All Shows", shows
+                .GroupBy(s => s.Type)
+                .OrderByDescending(g => g.Count())
+                .Select(g => new Segment(g.Key, g.Count()))
+                .ToArray())]
+        };
+        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        return output;
+    }
+
+    StringWriter Report()
+    {
+        var (writer, output) = CreateWriter();
+        var topActors = actors.Take(3).ToList();
+        var view = new CanConReportView
+        {
+            Title = "Canadian Content Report",
+            Description = "The CRTC's Canadian content regulations require broadcasters to air a minimum percentage of Canadian programming. This report covers top actors, filming locations, and genre distribution.",
+            Mandate = new Callout(CalloutSeverity.Important, "Canadian content rules require 60% Canadian programming on conventional TV and 35% on radio."),
+            TopActors = topActors.Select(a => new ActorRow
+            {
+                Name = a.Name, Birthplace = a.Birthplace, BirthYear = a.BirthYear,
+                Citizenship = string.Join(", ", a.Citizenship)
+            }).ToList(),
+            ActorBios = topActors.Select(a => new Description(
+                a.Name,
+                $"Born {a.BirthYear} in {a.Birthplace}. Known for {string.Join(", ", a.Shows.Take(2))}."
+            )).ToList(),
+            ShowsPerCity = shows.GroupBy(s => s.Location).OrderByDescending(g => g.Count())
+                .Select(g => new Metric(g.Key, g.Count()))
+                .ToList(),
+            GenreMix = [new Breakdown("All Shows", shows
+                .GroupBy(s => s.Type)
+                .OrderByDescending(g => g.Count())
+                .Select(g => new Segment(g.Key, g.Count()))
+                .ToArray())],
+            FilmographyTree = topActors.Select(actor =>
+            {
+                var actorShows = shows.Where(s => s.CanadianActors.Contains(actor.Name)).ToList();
+                return new TreeNode(actor.Name,
+                    actorShows.GroupBy(s => s.Location).Select(g =>
+                        new TreeNode(g.Key, g.Select(s => s.Title))));
+            }).ToList(),
+            Quote = "The world needs more Canada.\n— Bono, 2003"
+        };
+        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        return output;
+    }
 }
 
 // --- JSON Models ---
@@ -433,8 +376,18 @@ public class Show
     public List<string> CanadianActors { get; set; } = new();
 }
 
+public class City
+{
+    [JsonPropertyName("city")]
+    public string CityName { get; set; } = "";
+
+    [JsonPropertyName("country")]
+    public string Country { get; set; } = "";
+}
+
 [JsonSerializable(typeof(List<Actor>))]
 [JsonSerializable(typeof(List<Show>))]
+[JsonSerializable(typeof(List<City>))]
 internal partial class CanConJsonContext : JsonSerializerContext { }
 
 // --- Markout View Models ---
@@ -442,7 +395,6 @@ internal partial class CanConJsonContext : JsonSerializerContext { }
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class CanConOverview
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutSection(Name = "Actors")]
@@ -510,7 +462,6 @@ public class CityRow
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class ActorSearchResult
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutSection(Name = "Results")]
@@ -520,7 +471,6 @@ public class ActorSearchResult
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class LocationSearchResult
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutSection(Name = "Results")]
@@ -530,7 +480,6 @@ public class LocationSearchResult
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class ShowDetailView
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutValueMap("Movie=🎬", "TV Series=📺", "TV Miniseries=📺")]
@@ -540,7 +489,7 @@ public class ShowDetailView
     [MarkoutPropertyName("Location")]
     public string FilmingLocation { get; set; } = "";
 
-    [MarkoutSection(Name = "Canadian Cast")]
+    [MarkoutSection(Name = "Cast")]
     public List<ActorRow>? Cast { get; set; }
 }
 
@@ -559,7 +508,6 @@ public class ActorFilmography
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class FilmographyTreeView
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutIgnoreInTable]
@@ -569,7 +517,6 @@ public class FilmographyTreeView
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class ShowsByLocationChart
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutIgnoreInTable]
@@ -579,7 +526,6 @@ public class ShowsByLocationChart
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class GenreBreakdownView
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
 
     [MarkoutIgnoreInTable]
@@ -589,8 +535,8 @@ public class GenreBreakdownView
 [MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
 public class CanConReportView
 {
-    [MarkoutIgnore] public string Title { get; set; } = "";
-    [MarkoutIgnore] public string Description { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
 
     [MarkoutIgnoreInTable]
     [MarkoutSkipDefault]
