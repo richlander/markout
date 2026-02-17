@@ -102,7 +102,7 @@ public class MarkoutWriter
     public bool IncludeDescription => _options.IncludeDescription;
 
     /// <summary>
-    /// Gets whether to include icons in tree nodes.
+    /// Gets whether to include badges in tree nodes.
     /// </summary>
     public bool IncludeBadges => _options.IncludeBadges;
 

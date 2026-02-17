@@ -48,7 +48,7 @@ internal static class TypeParser
 
         // Parse [MarkoutContextOptions] attribute (before processing types, as options affect type parsing)
         bool? boldFieldNames = null;
-        bool? includeIcons = null;
+        bool? includeBadges = null;
         bool? includeDescription = null;
         bool suppressTableWarnings = false;
         var optionsAttr = classSymbol.GetAttributes()
@@ -60,7 +60,7 @@ internal static class TypeParser
                 if (named.Key == "BoldFieldNames" && named.Value.Value is bool bf)
                     boldFieldNames = bf;
                 else if (named.Key == "IncludeBadges" && named.Value.Value is bool ii)
-                    includeIcons = ii;
+                    includeBadges = ii;
                 else if (named.Key == "IncludeDescription" && named.Value.Value is bool id)
                     includeDescription = id;
                 else if (named.Key == "SuppressTableWarnings" && named.Value.Value is bool stw)
@@ -84,7 +84,7 @@ internal static class TypeParser
             ? string.Empty
             : classSymbol.ContainingNamespace.ToDisplayString();
 
-        return new ContextMetadata(ns, classSymbol.Name, types, boldFieldNames, includeIcons, includeDescription, suppressTableWarnings);
+        return new ContextMetadata(ns, classSymbol.Name, types, boldFieldNames, includeBadges, includeDescription, suppressTableWarnings);
     }
 
     private static TypeMetadata? ParseTypeSymbol(

@@ -678,7 +678,7 @@ public class AnsiWriter : MarkoutWriter
         Writer.Write(isLast ? "└─ " : "├─ ");
         _terminal.ResetColor();
 
-        // Icon (as-is) + label colored by depth
+        // Badge (as-is) + label colored by depth
         if (node.Badge != null && Options.IncludeBadges)
         {
             Writer.Write(node.Badge);

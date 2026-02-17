@@ -20,7 +20,7 @@ public enum MarkoutShape
     /// <summary>Key-value fields (scalar and formatted).</summary>
     Fields = 4,
 
-    /// <summary>Multi-field single-line layout.</summary>
+    /// <summary>Multi-field summary line.</summary>
     FieldList = 8,
 
     /// <summary>Tables (streaming and batch).</summary>

@@ -574,7 +574,7 @@ public class SpectreWriter : MarkoutWriter
         // Dim box-drawing characters
         WriteMarkup($"[grey]{Esc(prefix)}{Esc(isLast ? "└─ " : "├─ ")}[/]");
 
-        // Icon
+        // Badge
         if (node.Badge != null && Options.IncludeBadges)
         {
             _console.Write(new Text(node.Badge + " "));

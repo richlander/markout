@@ -6,14 +6,51 @@ Markout is a source-generated .NET serializer that projects objects into human-r
 
 The name captures the philosophy: where markup layers formatting instructions onto content, Markout works in the opposite direction, stripping an object graph down to what the data *is* — a measurement, a breakdown, a hierarchy — and letting the renderer decide what it *looks like*. The word also nods to an older tradition. Long before digital markup languages, typesetters performed two complementary acts: marking *up* a manuscript with rendering instructions, and marking *out* content that didn't belong in the final form. Computing formalized markup into an entire paradigm (GML, SGML, HTML, XML) but largely forgot its counterpart. Markout reclaims that half of the craft.
 
-## Two Lines of Code
+## Quick Start
 
 ```csharp
-// Define a view model
+using Markout;
+
+var artist = new ArtistView(
+    Name: "Sarah McLachlan",
+    Genre: "Pop / Adult Contemporary",
+    Origin: "Halifax, Nova Scotia",
+    DebutYear: 1988,
+    BestKnownFor: "Angel, Building a Mystery, Adia");
+
+MarkoutSerializer.Serialize(artist, Console.Out, ArtistContext.Default);
+
+[MarkoutSerializable(TitleProperty = nameof(ArtistView.Name))]
+public record ArtistView(
+    string Name,
+    string Genre,
+    string Origin,
+    int DebutYear,
+    string BestKnownFor);
+
+[MarkoutContext(typeof(ArtistView))]
+public partial class ArtistContext : MarkoutSerializerContext { }
+```
+
+**Output:**
+
+```markdown
+# Sarah McLachlan
+
+Genre: Pop / Adult Contemporary | Origin: Halifax, Nova Scotia | DebutYear: 1988 | BestKnownFor: Angel, Building a Mystery, Adia
+```
+
+Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as fields. See the [RecordDemo](samples/RecordDemo) sample.
+
+## Sections and Tables
+
+Add `[MarkoutSection]` to group properties with headings, and use `List<T>` for tables:
+
+```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class CityReport
 {
-    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Title { get; set; } = "";
     public string Province { get; set; } = "";
     public int Population { get; set; }
 
@@ -32,11 +69,10 @@ public class LandmarkRow
 [MarkoutContext(typeof(CityReport))]
 public partial class ReportContext : MarkoutSerializerContext { }
 
-// Serialize — one line
 MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default);
 ```
 
-**Markdown output:**
+**Output:**
 
 ```markdown
 # Vancouver

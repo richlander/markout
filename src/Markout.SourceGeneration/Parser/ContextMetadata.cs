@@ -17,14 +17,14 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
     public bool SuppressTableWarnings { get; }
 
     public ContextMetadata(string @namespace, string className, IReadOnlyList<TypeMetadata> types,
-        bool? boldFieldNames = null, bool? includeIcons = null, bool? includeDescription = null,
+        bool? boldFieldNames = null, bool? includeBadges = null, bool? includeDescription = null,
         bool suppressTableWarnings = false)
     {
         Namespace = @namespace;
         ClassName = className;
         Types = types;
         BoldFieldNames = boldFieldNames;
-        IncludeBadges = includeIcons;
+        IncludeBadges = includeBadges;
         IncludeDescription = includeDescription;
         SuppressTableWarnings = suppressTableWarnings;
     }

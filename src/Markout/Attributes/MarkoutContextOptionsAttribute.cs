@@ -23,7 +23,7 @@ public sealed class MarkoutContextOptionsAttribute : Attribute
     public bool BoldFieldNames { get; set; }
 
     /// <summary>
-    /// Gets or sets whether to include icons in tree nodes.
+    /// Gets or sets whether to include badges in tree nodes.
     /// Default is true.
     /// </summary>
     public bool IncludeBadges { get; set; } = true;
