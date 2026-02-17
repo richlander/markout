@@ -85,7 +85,8 @@ internal static class FieldEmitter
                 }
                 else if (prop.Kind == PropertyKind.String)
                 {
-                    var valueStr = EmitHelpers.WrapWithLink(prop, propAccess, valueExpr);
+                    var valueStr = EmitHelpers.WrapWithValueMap(prop, propAccess);
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
                     sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
                     sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
@@ -288,7 +289,8 @@ internal static class FieldEmitter
             }
             else if (prop.Kind == PropertyKind.String)
             {
-                var valueStr = EmitHelpers.WrapWithLink(prop, propAccess, valueExpr);
+                var valueStr = EmitHelpers.WrapWithValueMap(prop, propAccess);
+                valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
                 sb.AppendLine($"{emitIndent}if ({propAccess} != null)");
                 if (renderedVar != null)
                 {
@@ -434,7 +436,8 @@ internal static class FieldEmitter
             }
             else if (prop.Kind == PropertyKind.String)
             {
-                var valueStr = EmitHelpers.WrapWithLink(prop, propAccess, valueExpr);
+                var valueStr = EmitHelpers.WrapWithValueMap(prop, propAccess);
+                valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
                 sb.AppendLine($"{emitIndent}if ({propAccess} != null)");
                 if (renderedVar != null)
                 {

@@ -45,10 +45,11 @@ internal static class EmitHelpers
         // DisplayFormat wraps the final value
         if (prop.DisplayFormat != null)
         {
-            return $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.DisplayFormat)}\", {access})";
+            var fmtExpr = $"string.Format(System.Globalization.CultureInfo.InvariantCulture, \"{EscapeString(prop.DisplayFormat)}\", {access})";
+            return WrapWithValueMap(prop, fmtExpr);
         }
 
-        return prop.Kind switch
+        var result = prop.Kind switch
         {
             PropertyKind.Boolean => $"({access} ? \"yes\" : \"no\")",
             PropertyKind.String => $"{propAccess} ?? \"\"",
@@ -59,6 +60,7 @@ internal static class EmitHelpers
             PropertyKind.Enum => $"{access}.ToString()",
             _ => $"{propAccess}?.ToString() ?? \"\""
         };
+        return WrapWithValueMap(prop, result);
     }
 
     private static string WrapWithDisplayFormat(PropertyMetadata prop, string innerExpr)
@@ -118,6 +120,7 @@ internal static class EmitHelpers
     {
         var propAccess = $"{itemExpr}.{prop.Name}";
         var result = GetTableCellValueCore(prop, propAccess, itemExpr);
+        result = WrapWithValueMap(prop, result);
         return WrapWithLink(prop, result, itemExpr);
     }
 
@@ -214,6 +217,27 @@ internal static class EmitHelpers
 
         // [url](url) — bare link
         return $"$\"[{{{innerExpr}}}]({{{innerExpr}}})\"";
+    }
+
+    /// <summary>
+    /// Wraps a string value expression with a value-map switch expression that prepends a badge.
+    /// Unmatched values pass through unchanged.
+    /// </summary>
+    public static string WrapWithValueMap(PropertyMetadata prop, string innerExpr)
+    {
+        if (prop.ValueMap == null || prop.ValueMap.Count == 0)
+            return innerExpr;
+
+        // Generate: ((value) switch { "key1" => "badge1 " + value, "key2" => "badge2 " + value, _ => value })
+        // Parenthesize innerExpr to avoid precedence issues (e.g. ?? vs switch)
+        var arms = new StringBuilder();
+        foreach (var (key, badge) in prop.ValueMap)
+        {
+            arms.Append($"\"{EscapeString(key)}\" => \"{EscapeString(badge)} \" + {innerExpr}, ");
+        }
+        arms.Append($"_ => {innerExpr}");
+
+        return $"(({innerExpr}) switch {{ {arms} }})";
     }
 
     public static string GetCollectionCountCheck(PropertyMetadata prop, string propAccess)

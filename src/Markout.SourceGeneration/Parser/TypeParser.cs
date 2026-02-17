@@ -28,6 +28,7 @@ internal static class TypeParser
     private const string MarkoutValueFormatterAttribute = "Markout.MarkoutValueFormatterAttribute";
     private const string MarkoutShowWhenAttribute = "Markout.MarkoutShowWhenAttribute";
     private const string MarkoutLinkAttribute = "Markout.MarkoutLinkAttribute";
+    private const string MarkoutValueMapAttribute = "Markout.MarkoutValueMapAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -349,6 +350,30 @@ internal static class TypeParser
             }
         }
 
+        // Parse [MarkoutValueMap] attribute
+        IReadOnlyList<(string Key, string Value)>? valueMap = null;
+        var valueMapAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutValueMapAttribute);
+        if (valueMapAttr != null && valueMapAttr.ConstructorArguments.Length > 0)
+        {
+            var entries = new List<(string Key, string Value)>();
+            var arg = valueMapAttr.ConstructorArguments[0];
+            if (arg.Kind == TypedConstantKind.Array)
+            {
+                foreach (var item in arg.Values)
+                {
+                    if (item.Value is string entry)
+                    {
+                        var eqIdx = entry.IndexOf('=');
+                        if (eqIdx > 0)
+                            entries.Add((entry.Substring(0, eqIdx), entry.Substring(eqIdx + 1)));
+                    }
+                }
+            }
+            if (entries.Count > 0)
+                valueMap = entries;
+        }
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -415,7 +440,8 @@ internal static class TypeParser
             tableDisplayFormat,
             showWhenProperty,
             isLink,
-            linkTextProperty);
+            linkTextProperty,
+            valueMap);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

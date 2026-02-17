@@ -1390,6 +1390,46 @@ public class SerializerTests
         Assert.Contains("Assemblies", mdf);
         Assert.Contains("Test.dll", mdf);
     }
+
+    // --- ValueMap tests ---
+
+    [Fact]
+    public void Serialize_ValueMap_PrependsBadge()
+    {
+        var item = new CveItem { Id = "CVE-2025-001", Severity = "CRITICAL" };
+        var mdf = MarkoutSerializer.Serialize(item, ValueMapTestContext.Default);
+
+        Assert.Contains("🔴 CRITICAL", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ValueMap_UnmappedValuePassesThrough()
+    {
+        var item = new CveItem { Id = "CVE-2025-002", Severity = "UNKNOWN" };
+        var mdf = MarkoutSerializer.Serialize(item, ValueMapTestContext.Default);
+
+        Assert.Contains("UNKNOWN", mdf);
+        Assert.DoesNotContain("🔴", mdf);
+        Assert.DoesNotContain("🟠", mdf);
+    }
+
+    [Fact]
+    public void Serialize_ValueMap_InTableContext()
+    {
+        var report = new CveReport
+        {
+            Title = "Security Report",
+            Items =
+            [
+                new() { Id = "CVE-2025-001", Severity = "HIGH" },
+                new() { Id = "CVE-2025-002", Severity = "LOW" }
+            ]
+        };
+        var mdf = MarkoutSerializer.Serialize(report, ValueMapTestContext.Default);
+
+        Assert.Contains("🟠 HIGH", mdf);
+        Assert.Contains("🟢 LOW", mdf);
+    }
 }
 
 [MarkoutSerializable]
@@ -2062,5 +2102,32 @@ public class FieldCollectionBeforeSections
 [MarkoutContext(typeof(ScalarSectionLineBreaks))]
 [MarkoutContext(typeof(FieldCollectionBeforeSections))]
 public partial class ScalarSectionTestContext : MarkoutSerializerContext
+{
+}
+
+// --- ValueMap test types ---
+
+[MarkoutSerializable]
+public class CveItem
+{
+    public string Id { get; set; } = "";
+
+    [MarkoutValueMap("CRITICAL=🔴", "HIGH=🟠", "MEDIUM=🟡", "LOW=🟢")]
+    public string Severity { get; set; } = "";
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class CveReport
+{
+    [MarkoutIgnore]
+    public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Vulnerabilities")]
+    public List<CveItem>? Items { get; set; }
+}
+
+[MarkoutContext(typeof(CveItem))]
+[MarkoutContext(typeof(CveReport))]
+public partial class ValueMapTestContext : MarkoutSerializerContext
 {
 }
