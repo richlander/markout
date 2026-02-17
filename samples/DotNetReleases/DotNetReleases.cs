@@ -1,6 +1,3 @@
-#!/usr/bin/env dotnet run
-#:package Markout@0.5.0
-
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Markout;
@@ -13,12 +10,23 @@ var json = await http.GetStringAsync(
 var index = JsonSerializer.Deserialize(json, ReleasesJsonContext.Default.ReleaseIndex)!;
 
 // Project to view model
+var releases = index.Embedded?.Releases ?? [];
+var unsupported = releases.Where(r => !r.Supported).ToList();
+
 var view = new ReleasesView
 {
     Title = index.Title ?? ".NET Releases",
     LatestMajor = index.LatestMajor,
     LatestLtsMajor = index.LatestLtsMajor,
-    Releases = index.Embedded?.Releases?.Select(r => new ReleaseRow
+    EolWarning = unsupported.Count > 0
+        ? new Callout(CalloutSeverity.Warning, $"{unsupported.Count} release(s) are end-of-life and no longer receive security patches.")
+        : default,
+    TypeBreakdown = [new Breakdown("Release Types", releases
+        .GroupBy(r => r.ReleaseType?.ToUpperInvariant() ?? "UNKNOWN")
+        .OrderByDescending(g => g.Count())
+        .Select(g => new Segment(g.Key, g.Count()))
+        .ToArray())],
+    Releases = releases.Select(r => new ReleaseRow
     {
         Version = r.Version,
         Type = r.ReleaseType?.ToUpperInvariant() ?? "",
@@ -34,17 +42,24 @@ MarkoutSerializer.Serialize(view, Console.Out, ReleasesContext.Default);
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class ReleasesView
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
-    
+
     [MarkoutPropertyName("Latest Major")]
     [MarkoutSkipNull]
     public string? LatestMajor { get; set; }
-    
+
     [MarkoutPropertyName("Latest LTS")]
     [MarkoutSkipNull]
     public string? LatestLtsMajor { get; set; }
-    
+
+    [MarkoutIgnoreInTable]
+    [MarkoutSkipDefault]
+    public Callout EolWarning { get; set; }
+
+    [MarkoutSection(Name = "Type Distribution")]
+    [MarkoutIgnoreInTable]
+    public IReadOnlyList<Breakdown>? TypeBreakdown { get; set; }
+
     [MarkoutSection(Name = "All Releases")]
     public List<ReleaseRow>? Releases { get; set; }
 }
@@ -68,13 +83,13 @@ public class ReleaseIndex
 {
     [JsonPropertyName("title")]
     public string? Title { get; set; }
-    
+
     [JsonPropertyName("latest_major")]
     public string? LatestMajor { get; set; }
-    
+
     [JsonPropertyName("latest_lts_major")]
     public string? LatestLtsMajor { get; set; }
-    
+
     [JsonPropertyName("_embedded")]
     public EmbeddedReleases? Embedded { get; set; }
 }
@@ -89,10 +104,10 @@ public class Release
 {
     [JsonPropertyName("version")]
     public string Version { get; set; } = "";
-    
+
     [JsonPropertyName("release_type")]
     public string? ReleaseType { get; set; }
-    
+
     [JsonPropertyName("supported")]
     public bool Supported { get; set; }
 }

@@ -1,0 +1,10 @@
+[
+  { "city": "Budapest", "country": "Hungary" },
+  { "city": "London", "country": "England" },
+  { "city": "Los Angeles", "country": "USA" },
+  { "city": "Ontario", "country": "Canada" },
+  { "city": "South Carolina", "country": "USA" },
+  { "city": "Sydney", "country": "Australia" },
+  { "city": "Toronto", "country": "Canada" },
+  { "city": "Vancouver", "country": "Canada" }
+]

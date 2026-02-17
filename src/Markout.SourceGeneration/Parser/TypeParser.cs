@@ -129,6 +129,12 @@ internal static class TypeParser
         var properties = new List<PropertyMetadata>();
         var diagnostics = new List<DiagnosticInfo>();
 
+        // Seed visited set with the root type for cycle protection.
+        // This prevents infinite recursion when a property's type graph
+        // leads back to the root (direct or mutual). The root type stays
+        // in the set for the entire parse; nested types use add/remove.
+        var visitedTypes = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+
         foreach (var member in typeSymbol.GetMembers())
         {
             if (member is not IPropertySymbol prop)
@@ -140,7 +146,7 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics);
+            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
@@ -187,7 +193,8 @@ internal static class TypeParser
         IPropertySymbol prop,
         Compilation compilation,
         KnownTypeSymbols knownTypes,
-        List<DiagnosticInfo> diagnostics)
+        List<DiagnosticInfo> diagnostics,
+        HashSet<ITypeSymbol>? visitedTypes = null)
     {
         var isIgnored = HasAttribute(prop, MarkoutIgnoreAttribute);
         var isIgnoredInTable = HasAttribute(prop, MarkoutIgnoreInTableAttribute);
@@ -382,7 +389,7 @@ internal static class TypeParser
             isNullableValueType = true;
         }
 
-        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault());
+        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault(), visitedTypes);
 
         // Determine if property is unsupported in table context
         // Joined string arrays are treated as scalars, so they're fine in tables
@@ -445,7 +452,7 @@ internal static class TypeParser
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
-        DeterminePropertyKind(ITypeSymbol type, Compilation compilation, KnownTypeSymbols knownTypes, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
+        DeterminePropertyKind(ITypeSymbol type, Compilation compilation, KnownTypeSymbols knownTypes, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null, HashSet<ITypeSymbol>? visitedTypes = null)
     {
         // Check for nullable value types
         if (type is INamedTypeSymbol namedType &&
@@ -463,12 +470,12 @@ internal static class TypeParser
             SpecialType.System_Int64 => (PropertyKind.Int64, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
             SpecialType.System_Double => (PropertyKind.Double, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
             SpecialType.System_Decimal => (PropertyKind.Decimal, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
-            _ => DetermineComplexPropertyKind(type, compilation, knownTypes, diagnostics, propertyName, propertyLocation)
+            _ => DetermineComplexPropertyKind(type, compilation, knownTypes, diagnostics, propertyName, propertyLocation, visitedTypes)
         };
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
-        DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, KnownTypeSymbols knownTypes, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null)
+        DetermineComplexPropertyKind(ITypeSymbol type, Compilation compilation, KnownTypeSymbols knownTypes, List<DiagnosticInfo>? diagnostics = null, string? propertyName = null, Location? propertyLocation = null, HashSet<ITypeSymbol>? visitedTypes = null)
     {
         // DateTime types
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTime))
@@ -476,7 +483,7 @@ internal static class TypeParser
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTimeOffset))
             return (PropertyKind.DateTimeOffset, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
-        // CodeSection type - renders as code region
+        // CodeSection type - renders as code
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.CodeSection))
             return (PropertyKind.CodeSection, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
@@ -500,7 +507,7 @@ internal static class TypeParser
             if (elementType.SpecialType == SpecialType.System_String)
                 return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, true);
 
-            var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics);
+            var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes);
             var hasNested = HasNestedContent(elementProps);
             var elementSettings = GetElementTypeSettings(elementType);
             return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, elementSettings.TitleProperty, elementSettings.TitleContextProperty, elementSettings.AutoFields, elementSettings.FieldLayout, true);
@@ -572,46 +579,46 @@ internal static class TypeParser
                         }
                     }
 
-                    // Check for IReadOnlyList<BarItem> / List<BarItem> - renders as bar chart
-                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.BarItem))
+                    // Check for IReadOnlyList<Metric> / List<Metric> - renders as bar chart
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.Metric))
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.BarChart, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Metric, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
                         }
                     }
 
-                    // Check for IReadOnlyList<LabeledItem> / List<LabeledItem> - renders as labeled list
-                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.LabeledItem))
+                    // Check for IReadOnlyList<Description> / List<Description> - renders as labeled list
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.Description))
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.LabeledList, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Description, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
                         }
                     }
 
-                    // Check for IReadOnlyList<DistributionBar> / List<DistributionBar> - renders as distribution chart
-                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.DistributionBar))
+                    // Check for IReadOnlyList<Breakdown> / List<Breakdown> - renders as distribution chart
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.Breakdown))
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.Distribution, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Breakdown, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
                         }
                     }
 
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
-                    var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics);
+                    var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes);
                     var hasNested = HasNestedContent(elementProps);
                     var elementSettings = GetElementTypeSettings(elementType);
                     return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, elementSettings.TitleProperty, elementSettings.TitleContextProperty, elementSettings.AutoFields, elementSettings.FieldLayout, false);
@@ -629,7 +636,7 @@ internal static class TypeParser
         // Nested object
         if (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct)
         {
-            var props = GetTypeProperties(type, compilation, knownTypes, diagnostics);
+            var props = GetTypeProperties(type, compilation, knownTypes, diagnostics, visitedTypes);
             if (props.Count > 0)
                 return (PropertyKind.NestedObject, null, props, false, null, null, true, FieldLayoutKind.OneLine, false);
         }
@@ -643,8 +650,8 @@ internal static class TypeParser
         return props.Any(p => !p.IsIgnored &&
             (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
-             p.Kind == PropertyKind.LabeledList || p.Kind == PropertyKind.BarChart ||
-             p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Distribution ||
+             p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
+             p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
              (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 
@@ -683,7 +690,8 @@ internal static class TypeParser
         ITypeSymbol type,
         Compilation compilation,
         KnownTypeSymbols? knownTypes = null,
-        List<DiagnosticInfo>? diagnostics = null)
+        List<DiagnosticInfo>? diagnostics = null,
+        HashSet<ITypeSymbol>? visitedTypes = null)
     {
         var properties = new List<PropertyMetadata>();
         diagnostics ??= new List<DiagnosticInfo>();
@@ -692,20 +700,32 @@ internal static class TypeParser
         if (type is not INamedTypeSymbol namedType)
             return properties;
 
-        foreach (var member in namedType.GetMembers())
+        // Cycle protection: track types being parsed
+        visitedTypes ??= new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+        if (!visitedTypes.Add(type))
+            return properties;
+
+        try
         {
-            if (member is not IPropertySymbol prop)
-                continue;
+            foreach (var member in namedType.GetMembers())
+            {
+                if (member is not IPropertySymbol prop)
+                    continue;
 
-            if (prop.DeclaredAccessibility != Accessibility.Public)
-                continue;
+                if (prop.DeclaredAccessibility != Accessibility.Public)
+                    continue;
 
-            if (prop.GetMethod == null)
-                continue;
+                if (prop.GetMethod == null)
+                    continue;
 
-            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics);
-            if (propMeta != null)
-                properties.Add(propMeta);
+                var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes);
+                if (propMeta != null)
+                    properties.Add(propMeta);
+            }
+        }
+        finally
+        {
+            visitedTypes.Remove(type);
         }
 
         return properties;

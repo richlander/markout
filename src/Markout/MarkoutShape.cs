@@ -32,21 +32,27 @@ public enum MarkoutShape
     /// <summary>Tree structures (TreeNode hierarchies).</summary>
     Trees = 64,
 
-    /// <summary>Code regions.</summary>
+    /// <summary>Fenced code regions.</summary>
     Code = 128,
 
-    /// <summary>Horizontal bar charts.</summary>
-    BarCharts = 512,
+    /// <summary>Comparative labeled measurements.</summary>
+    Metrics = 512,
 
-    /// <summary>Labeled descriptive lists.</summary>
-    LabeledLists = 1024,
+    /// <summary>Terms with explanatory text.</summary>
+    Descriptions = 1024,
 
     /// <summary>Callout/admonition blocks.</summary>
     Callouts = 2048,
 
-    /// <summary>Distribution/stacked bars.</summary>
-    Distributions = 4096,
+    /// <summary>Proportional composition charts.</summary>
+    Breakdowns = 4096,
+
+    /// <summary>Prose quotation blocks.</summary>
+    Quotation = 8192,
+
+    /// <summary>2D grid with row and column headers.</summary>
+    Matrices = 16384,
 
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | FieldList | Tables | Lists | Trees | Code | BarCharts | LabeledLists | Callouts | Distributions
+    All = Headings | Paragraphs | Fields | FieldList | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation | Matrices
 }

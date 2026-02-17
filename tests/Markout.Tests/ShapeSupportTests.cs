@@ -25,10 +25,12 @@ public class ShapeSupportTests
         Assert.True(all.HasFlag(MarkoutShape.Lists));
         Assert.True(all.HasFlag(MarkoutShape.Trees));
         Assert.True(all.HasFlag(MarkoutShape.Code));
-        Assert.True(all.HasFlag(MarkoutShape.BarCharts));
-        Assert.True(all.HasFlag(MarkoutShape.LabeledLists));
+        Assert.True(all.HasFlag(MarkoutShape.Metrics));
+        Assert.True(all.HasFlag(MarkoutShape.Descriptions));
         Assert.True(all.HasFlag(MarkoutShape.Callouts));
-        Assert.True(all.HasFlag(MarkoutShape.Distributions));
+        Assert.True(all.HasFlag(MarkoutShape.Breakdowns));
+        Assert.True(all.HasFlag(MarkoutShape.Quotation));
+        Assert.True(all.HasFlag(MarkoutShape.Matrices));
     }
 
     [Fact]
@@ -178,10 +180,10 @@ public class ShapeSupportTests
     public void BarChart_OnBaseWriter()
     {
         var writer = new MarkoutWriter();
-        writer.WriteBarChart([
-            new BarItem("Alpha", 10),
-            new BarItem("Beta", 5),
-            new BarItem("Gamma", 1),
+        writer.WriteMetrics([
+            new Metric("Alpha", 10),
+            new Metric("Beta", 5),
+            new Metric("Gamma", 1),
         ]);
         var output = writer.ToString();
         Assert.Contains("Alpha", output);
@@ -195,9 +197,9 @@ public class ShapeSupportTests
     public void BarChart_HalfBlock_ForFractions()
     {
         var writer = new MarkoutWriter();
-        writer.WriteBarChart([
-            new BarItem("Full", 10),
-            new BarItem("Half", 5),
+        writer.WriteMetrics([
+            new Metric("Full", 10),
+            new Metric("Half", 5),
         ], maxBarWidth: 10);
         var output = writer.ToString();
         // Half at 50% of 10 chars = 5 full blocks, no half
@@ -210,7 +212,7 @@ public class ShapeSupportTests
     public void BarChart_Empty_NoOutput()
     {
         var writer = new MarkoutWriter();
-        writer.WriteBarChart([]);
+        writer.WriteMetrics([]);
         Assert.Equal("", writer.ToString());
     }
 
@@ -223,9 +225,9 @@ public class ShapeSupportTests
         try
         {
             var writer = new TablesOnlyWriter();
-            writer.WriteBarChart([new BarItem("X", 5)]);
+            writer.WriteMetrics([new Metric("X", 5)]);
             Assert.Equal("", writer.ToString());
-            Assert.Contains("does not support BarCharts", errWriter.ToString());
+            Assert.Contains("does not support Metrics", errWriter.ToString());
         }
         finally
         {
@@ -237,10 +239,10 @@ public class ShapeSupportTests
     public void VerticalBarChart_OnBaseWriter()
     {
         var writer = new MarkoutWriter();
-        writer.WriteVerticalBarChart([
-            new BarItem("A", 10),
-            new BarItem("B", 5),
-            new BarItem("C", 1),
+        writer.WriteVerticalMetrics([
+            new Metric("A", 10),
+            new Metric("B", 5),
+            new Metric("C", 1),
         ], maxBarHeight: 5);
         var output = writer.ToString();
         Assert.Contains("█", output);
@@ -257,7 +259,7 @@ public class ShapeSupportTests
     public void VerticalBarChart_Empty_NoOutput()
     {
         var writer = new MarkoutWriter();
-        writer.WriteVerticalBarChart([]);
+        writer.WriteVerticalMetrics([]);
         Assert.Equal("", writer.ToString());
     }
 }

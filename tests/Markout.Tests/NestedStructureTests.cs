@@ -10,7 +10,7 @@ public class Person
     {
         public string Name { get; set; } = "";
         public int Age { get; set; }
-        
+
         [MarkoutSection(Name = "Contact Info")]
         public ContactInfo? Contact { get; set; }
     }
@@ -48,7 +48,7 @@ public class Person
     {
         public string Name { get; set; } = "";
         public string Version { get; set; } = "";
-        
+
         [MarkoutSection(Name = "Team Info")]
         public TeamInfo? Team { get; set; }
     }
@@ -76,7 +76,7 @@ public class Person
         [MarkoutPropertyName("Package")]
         public string PackageName { get; set; } = "";
         public string Version { get; set; } = "";
-        
+
         [MarkoutSection(Name = "Dependencies")]
         public List<DependencyGroup>? Dependencies { get; set; }
     }
@@ -86,7 +86,7 @@ public class Person
     {
         [MarkoutPropertyName("Target Framework")]
         public string TargetFramework { get; set; } = "";
-        
+
         [MarkoutIgnore]  // Cannot be rendered in table - would need pivot strategy
         public List<Dependency>? Packages { get; set; }
     }
@@ -103,7 +103,7 @@ public class Person
     public class Organization
     {
         public string Name { get; set; } = "";
-        
+
         [MarkoutSection(Name = "Departments")]
         public List<Department>? Departments { get; set; }
     }
@@ -112,7 +112,7 @@ public class Person
     public class Department
     {
         public string Name { get; set; } = "";
-        
+
         [MarkoutIgnore]  // Cannot be rendered in table - demonstrates deep nesting limitation
         public List<Team2>? Teams { get; set; }
     }
@@ -122,7 +122,7 @@ public class Person
     {
         public string Name { get; set; } = "";
         public int MemberCount { get; set; }
-        
+
         [MarkoutIgnore]  // Cannot be rendered in table - demonstrates deep nesting limitation
         public List<string>? Projects { get; set; }
     }
@@ -132,7 +132,7 @@ public class Person
     public class Configuration
     {
         public string Name { get; set; } = "";
-        
+
         [MarkoutSection(Name = "Settings")]
         public List<Setting>? Settings { get; set; }
     }
@@ -149,13 +149,13 @@ public class Person
     public class Application
     {
         public string Name { get; set; } = "";
-        
+
         [MarkoutSection(Name = "Services")]
         public List<Service>? Services { get; set; }
-        
+
         [MarkoutSection(Name = "Dependencies")]
         public List<Dependency>? Dependencies { get; set; }
-        
+
         [MarkoutIgnoreInTable]
         public List<string>? Features { get; set; }
     }
@@ -166,6 +166,94 @@ public class Person
         public string Name { get; set; } = "";
         public string Url { get; set; } = "";
         public bool Enabled { get; set; }
+    }
+
+    // Self-referential type — tests cycle protection in the parser
+    [MarkoutSerializable(TitleProperty = nameof(Name))]
+    public class OrgNode
+    {
+        public string Name { get; set; } = "";
+        public string Role { get; set; } = "";
+
+        [MarkoutIgnoreInTable]
+        public OrgNode? Manager { get; set; }
+    }
+
+    // Mutual recursion — A references B, B references A
+    [MarkoutSerializable(TitleProperty = nameof(Name))]
+    public class CycleDepartment
+    {
+        public string Name { get; set; } = "";
+
+        [MarkoutIgnoreInTable]
+        [MarkoutSection(Name = "Lead")]
+        public Employee? Lead { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Employee
+    {
+        public string Name { get; set; } = "";
+        public string Title { get; set; } = "";
+
+        [MarkoutIgnoreInTable]
+        [MarkoutSection(Name = "Department")]
+        public CycleDepartment? Department { get; set; }
+    }
+
+    // Deep nesting — 6+ levels to test heading cap
+    [MarkoutSerializable(TitleProperty = nameof(Name))]
+    public class Level1
+    {
+        public string Name { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level2? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level2
+    {
+        public string Value2 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level3? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level3
+    {
+        public string Value3 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level4? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level4
+    {
+        public string Value4 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level5? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level5
+    {
+        public string Value5 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level6? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level6
+    {
+        public string Value6 { get; set; } = "";
+        [MarkoutSection(Name = "Child")]
+        public Level7? Child { get; set; }
+    }
+
+    [MarkoutSerializable]
+    public class Level7
+    {
+        public string Value7 { get; set; } = "";
     }
 
 #endregion
@@ -179,6 +267,9 @@ public class Person
 [MarkoutContext(typeof(Organization))]
 [MarkoutContext(typeof(Configuration))]
 [MarkoutContext(typeof(Application))]
+[MarkoutContext(typeof(OrgNode))]
+[MarkoutContext(typeof(CycleDepartment))]
+[MarkoutContext(typeof(Level1))]
 public partial class NestedTestContext : MarkoutSerializerContext
 {
 }
@@ -212,13 +303,13 @@ public class NestedStructureTests
 
         // Should have title
         Assert.Contains("# John Doe", mdf);
-        
+
         // Should have top-level fields
         Assert.Contains("Age: 30", mdf);
-        
+
         // Should have section for nested object
         Assert.Contains("## Contact Info", mdf);
-        
+
         // Should have nested object fields
         Assert.Contains("Email: john@example.com", mdf);
         Assert.Contains("Phone: 555-1234", mdf);
@@ -265,13 +356,13 @@ public class NestedStructureTests
 
         // Title
         Assert.Contains("# Engineering", mdf);
-        
+
         // String array
         Assert.Contains("Tags:", mdf);
         Assert.Contains("- backend", mdf);
         Assert.Contains("- frontend", mdf);
         Assert.Contains("- devops", mdf);
-        
+
         // Table for complex objects
         Assert.Contains("## Members", mdf);
         Assert.Contains("| Name |", mdf);
@@ -326,12 +417,12 @@ public class NestedStructureTests
         // Title and top-level fields
         Assert.Contains("# Markout Library", mdf);
         Assert.Contains("Version: 1.0.0", mdf);
-        
+
         // Nested object section
         Assert.Contains("## Team Info", mdf);
         Assert.Contains("Lead: Alice", mdf);
         Assert.Contains("Size: 3", mdf);
-        
+
         // List within nested object - should become table
         Assert.Contains("## Contributors", mdf);
         Assert.Contains("| Name |", mdf);
@@ -378,15 +469,15 @@ public class NestedStructureTests
         // Title
         Assert.Contains("# Newtonsoft.Json", mdf);
         Assert.Contains("Version: 13.0.3", mdf);
-        
+
         // Main section for dependencies
         Assert.Contains("## Dependencies", mdf);
-        
+
         // Should have table with framework info
         Assert.Contains("| Target Framework |", mdf);
         Assert.Contains("| net6.0 |", mdf);
         Assert.Contains("| net8.0 |", mdf);
-        
+
         // Question: How should nested lists be represented?
         // This is a key design decision for the format
         // Currently, nested lists within table items cannot be shown in table format
@@ -430,12 +521,12 @@ public class NestedStructureTests
 
         // Title
         Assert.Contains("# TechCorp", mdf);
-        
+
         // Level 1: Departments section
         Assert.Contains("## Departments", mdf);
         Assert.Contains("| Name |", mdf);
         Assert.Contains("| Engineering |", mdf);
-        
+
         // Level 2: Teams within Department
         // This is problematic - tables can't contain nested lists
         // The format likely needs constraints or a different representation
@@ -463,7 +554,7 @@ public class NestedStructureTests
 
         Assert.Contains("# Production", mdf);
         Assert.Contains("## Settings", mdf);
-        
+
         // Should use table format (not simple pairs)
         Assert.Contains("| Key |", mdf);
         Assert.Contains("| Value |", mdf);
@@ -498,17 +589,17 @@ public class NestedStructureTests
 
         // Title
         Assert.Contains("# MyApp", mdf);
-        
+
         // String array
         Assert.Contains("Features:", mdf);
         Assert.Contains("- Auth", mdf);
-        
+
         // First complex list
         Assert.Contains("## Services", mdf);
         Assert.Contains("| Name |", mdf);
         Assert.Contains("| Url |", mdf);
         Assert.Contains("| API |", mdf);
-        
+
         // Second complex list
         Assert.Contains("## Dependencies", mdf);
         Assert.Contains("| React |", mdf);
@@ -552,6 +643,136 @@ public class NestedStructureTests
 
         // Should still create section even if all fields are null/default
         Assert.Contains("## Contact Info", mdf);
+    }
+
+    #endregion
+
+    #region Cycle Protection and Heading Depth
+
+    [Fact]
+    public void SelfReferentialType_RendersOneLevel_StopsAtCycle()
+    {
+        var node = new OrgNode
+        {
+            Name = "Alice",
+            Role = "Engineer",
+            Manager = new OrgNode { Name = "Bob", Role = "Director" }
+        };
+
+        var mdf = MarkoutSerializer.Serialize(node, NestedTestContext.Default);
+
+        // Root renders with title and field
+        Assert.Contains("# Alice", mdf);
+        Assert.Contains("Role: Engineer", mdf);
+
+        // Nested Manager renders as section with fields
+        Assert.Contains("## Manager", mdf);
+        Assert.Contains("Name: Bob", mdf);
+        Assert.Contains("Role: Director", mdf);
+
+        // Manager.Manager is NOT rendered (cycle stopped)
+        // Only one "## Manager" heading should exist
+        Assert.Equal(1, mdf.Split("## Manager").Length - 1);
+    }
+
+    [Fact]
+    public void SelfReferentialType_NullBackReference_OmitsSection()
+    {
+        var node = new OrgNode
+        {
+            Name = "Alice",
+            Role = "Engineer",
+            Manager = null
+        };
+
+        var mdf = MarkoutSerializer.Serialize(node, NestedTestContext.Default);
+
+        Assert.Contains("# Alice", mdf);
+        Assert.DoesNotContain("## Manager", mdf);
+    }
+
+    [Fact]
+    public void MutualRecursion_DepartmentToEmployee_StopsBeforeInfiniteLoop()
+    {
+        // CycleDepartment → Employee → CycleDepartment → Employee (stopped)
+        var dept = new CycleDepartment
+        {
+            Name = "Engineering",
+            Lead = new Employee
+            {
+                Name = "Alice",
+                Title = "VP Engineering",
+                Department = new CycleDepartment
+                {
+                    Name = "Inner Dept",
+                    Lead = new Employee { Name = "Should not appear", Title = "Ghost" }
+                }
+            }
+        };
+
+        var mdf = MarkoutSerializer.Serialize(dept, NestedTestContext.Default);
+
+        // Root CycleDepartment renders
+        Assert.Contains("# Engineering", mdf);
+
+        // Employee section renders with fields
+        Assert.Contains("## Lead", mdf);
+        Assert.Contains("Name: Alice", mdf);
+        Assert.Contains("Title: VP Engineering", mdf);
+
+        // Inner CycleDepartment renders one level (name only)
+        Assert.Contains("Inner Dept", mdf);
+
+        // But the inner Employee (Lead inside inner CycleDepartment) is stopped by cycle guard
+        Assert.DoesNotContain("Should not appear", mdf);
+    }
+
+    [Fact]
+    public void DeepNesting_HeadingsCapAtH6()
+    {
+        var data = new Level1
+        {
+            Name = "Root",
+            Child = new Level2
+            {
+                Value2 = "L2",
+                Child = new Level3
+                {
+                    Value3 = "L3",
+                    Child = new Level4
+                    {
+                        Value4 = "L4",
+                        Child = new Level5
+                        {
+                            Value5 = "L5",
+                            Child = new Level6
+                            {
+                                Value6 = "L6",
+                                Child = new Level7 { Value7 = "L7" }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var mdf = MarkoutSerializer.Serialize(data, NestedTestContext.Default);
+
+        // All values should be present
+        Assert.Contains("# Root", mdf);      // H1 — root title
+        Assert.Contains("Value2: L2", mdf);
+        Assert.Contains("Value3: L3", mdf);
+        Assert.Contains("Value4: L4", mdf);
+        Assert.Contains("Value5: L5", mdf);
+        Assert.Contains("Value6: L6", mdf);
+        Assert.Contains("Value7: L7", mdf);
+
+        // Heading levels: H1 (root), H2 (Child), H3 (Child), H4, H5, H6
+        // H7 should NOT exist — capped at H6
+        Assert.DoesNotContain("####### ", mdf);
+
+        // H6 should exist (level 5's Child section or level 6's Child section)
+        Assert.Contains("###### Child", mdf);
     }
 
     #endregion
@@ -717,10 +938,10 @@ public class AssemblyTest
     public string Name { get; set; } = "";
     public string Architecture { get; set; } = "";
     public bool Signed { get; set; }
-    
+
     [MarkoutSection(Name = "Assembly Info")]
     public AssemblyMetadata? Metadata { get; set; }
-    
+
     [MarkoutSection(Name = "API Surface")]
     public ApiInfo? Api { get; set; }
 }
@@ -730,10 +951,10 @@ public class AssemblyMetadata
 {
     [MarkoutPropertyName("Assembly Version")]
     public string? AssemblyVersion { get; set; }
-    
+
     [MarkoutPropertyName("File Version")]
     public string? FileVersion { get; set; }
-    
+
     [MarkoutPropertyName("Target Framework")]
     public string? TargetFramework { get; set; }
 }
@@ -743,11 +964,11 @@ public class ApiInfo
 {
     [MarkoutPropertyName("Public Types")]
     public int PublicTypes { get; set; }
-    
+
     [MarkoutPropertyName("Public Methods")]
     public int PublicMethods { get; set; }
-    
-    // Note: In real dotnet-inspector, this has [MarkoutIgnore] 
+
+    // Note: In real dotnet-inspector, this has [MarkoutIgnore]
     // because showing full API in table format would be too verbose
     [MarkoutIgnore]
     public List<string>? TypeNames { get; set; }
@@ -788,17 +1009,17 @@ public class NestedStructureRealWorldTests
 
         // Title
         Assert.Contains("# System.Text.Json", mdf);
-        
+
         // Top-level fields
         Assert.Contains("Architecture: AnyCPU", mdf);
         Assert.Contains("Signed: yes", mdf);
-        
+
         // First nested section
         Assert.Contains("## Assembly Info", mdf);
         Assert.Contains("Assembly Version: 6.0.0.0", mdf);
         Assert.Contains("File Version: 6.0.21.52210", mdf);
         Assert.Contains("Target Framework: net6.0", mdf);
-        
+
         // Second nested section
         Assert.Contains("## API Surface", mdf);
         Assert.Contains("Public Types: 144", mdf);
@@ -892,7 +1113,7 @@ public class CtorEmphasisView
     public List<ConstructorOverload>? Overloads { get; set; }
 }
 
-// Distribution: List<DistributionBar> as section for CVE severity breakdown
+// Distribution: List<Breakdown> as section for CVE severity breakdown
 [MarkoutSerializable(TitleProperty = nameof(Framework))]
 public class CveSummary
 {
@@ -901,7 +1122,7 @@ public class CveSummary
 
     [MarkoutSection(Name = "Severity Distribution")]
     [MarkoutIgnoreInTable]
-    public List<DistributionBar>? Distribution { get; set; }
+    public List<Breakdown>? Distribution { get; set; }
 }
 
 [MarkoutContext(typeof(CveSummary))]

@@ -116,7 +116,7 @@ public class MarkoutWriter
     /// Gets the current rendering context, indicating what Markdown constructs are valid.
     /// </summary>
     public MarkoutRenderContext CurrentContext =>
-        _inCode ? MarkoutRenderContext.Code :
+        _inCode ? MarkoutRenderContext.CodeBlock :
         _inTable ? MarkoutRenderContext.Table :
         MarkoutRenderContext.Block;
 
@@ -293,6 +293,26 @@ public class MarkoutWriter
         _writer.WriteLine();
         _needsBlankLine = true;
         _hasContent = true;
+    }
+
+    /// <summary>
+    /// Begins a section with a heading. Override to add visual framing (e.g., panel borders).
+    /// The default implementation delegates to <see cref="WriteHeading(int, string, string?)"/>.
+    /// </summary>
+    /// <param name="level">Heading level (1-6).</param>
+    /// <param name="text">Section title text.</param>
+    /// <param name="context">Optional context to append in parentheses.</param>
+    public virtual void WriteSectionStart(int level, string text, string? context = null)
+    {
+        WriteHeading(level, text, context);
+    }
+
+    /// <summary>
+    /// Ends a section previously started with <see cref="WriteSectionStart"/>.
+    /// Override to add visual framing (e.g., panel bottom border).
+    /// </summary>
+    public virtual void WriteSectionEnd()
+    {
     }
 
     /// <summary>
@@ -526,7 +546,7 @@ public class MarkoutWriter
     {
         if (fields.Count == 0)
             return;
-        
+
         WriteTableStart("Property", "Value");
         for (int i = 0; i < fields.Count; i++)
         {
@@ -790,7 +810,7 @@ public class MarkoutWriter
     public virtual void WriteTree(IEnumerable<TreeNode>? nodes)
     {
         if (nodes == null || _sectionExcluded || ShapeUnsupported(MarkoutShape.Trees)) return;
-        
+
         var nodeList = nodes as IList<TreeNode> ?? [.. nodes];
         for (int i = 0; i < nodeList.Count; i++)
         {
@@ -814,7 +834,7 @@ public class MarkoutWriter
         }
         _writer.WriteLine(node.Text);
         _hasContent = true;
-        
+
         if (node.Children != null && node.Children.Count > 0)
         {
             var childPrefix = prefix + (isLast ? "   " : "│  ");
@@ -827,12 +847,12 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a list of labeled items as a bullet list with bold labels.
+    /// Writes a list of descriptions as a bullet list with bold terms.
     /// Each item renders as "- Label: Description" with an optional indented detail line.
     /// </summary>
-    public virtual void WriteLabeledList(IReadOnlyList<LabeledItem> items)
+    public virtual void WriteDescriptions(IReadOnlyList<Description> items)
     {
-        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.LabeledLists))
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Descriptions))
             return;
 
         if (_hasContent)
@@ -840,21 +860,21 @@ public class MarkoutWriter
         EnsureBlankLineIfNeeded();
 
         foreach (var item in items)
-            WriteLabeledListItem(item);
+            WriteDescription(item);
 
         _needsBlankLine = true;
         _hasContent = true;
     }
 
     /// <summary>
-    /// Renders a single labeled list item. Override for custom styling (e.g., bold, color).
+    /// Renders a single description item. Override for custom styling (e.g., bold, color).
     /// </summary>
-    protected virtual void WriteLabeledListItem(LabeledItem item)
+    protected virtual void WriteDescription(Description item)
     {
         _writer.Write("- ");
-        _writer.Write(item.Label);
+        _writer.Write(item.Term);
         _writer.Write(": ");
-        _writer.WriteLine(item.Description);
+        _writer.WriteLine(item.Text);
 
         if (item.Detail != null)
         {
@@ -884,18 +904,121 @@ public class MarkoutWriter
         _hasContent = true;
     }
 
-    // Shade characters for distribution segments (decreasing intensity)
-    private static readonly char[] DistributionFills = ['█', '▓', '▒', '░'];
+    // ── Quotation ──
 
     /// <summary>
-    /// Writes a distribution chart showing proportional category breakdowns per row.
+    /// Writes a quotation — a prose quotation distinct from code regions.
+    /// </summary>
+    public virtual void WriteQuotation(string text)
+    {
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Quotation))
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        foreach (var line in text.Split('\n'))
+        {
+            _writer.Write("  ");
+            _writer.WriteLine(line);
+        }
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    // ── Rule ──
+
+    /// <summary>
+    /// Writes a rule separator between content sections.
+    /// </summary>
+    public virtual void WriteRule()
+    {
+        if (_sectionExcluded)
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        _writer.WriteLine("────────────────────────────────");
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    // ── Matrices ──
+
+    /// <summary>
+    /// Writes a 2D matrix with row and column headers.
+    /// </summary>
+    /// <param name="rowHeaders">Labels for each row.</param>
+    /// <param name="colHeaders">Labels for each column.</param>
+    /// <param name="values">2D array of cell values [row, col]. Null cells render as empty.</param>
+    public virtual void WriteMatrix(string[] rowHeaders, string[] colHeaders, string?[,] values)
+    {
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Matrices))
+            return;
+
+        if (rowHeaders.Length == 0 || colHeaders.Length == 0)
+            return;
+
+        if (_hasContent)
+            _needsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        // Calculate column widths
+        var colWidths = new int[colHeaders.Length + 1]; // +1 for row header column
+        colWidths[0] = rowHeaders.Max(h => h.Length);
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            colWidths[c + 1] = colHeaders[c].Length;
+            for (int r = 0; r < rowHeaders.Length; r++)
+            {
+                var val = values[r, c] ?? "";
+                if (val.Length > colWidths[c + 1])
+                    colWidths[c + 1] = val.Length;
+            }
+        }
+
+        // Header row
+        _writer.Write("".PadRight(colWidths[0]));
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            _writer.Write("  ");
+            _writer.Write(colHeaders[c].PadRight(colWidths[c + 1]));
+        }
+        _writer.WriteLine();
+
+        // Data rows
+        for (int r = 0; r < rowHeaders.Length; r++)
+        {
+            _writer.Write(rowHeaders[r].PadRight(colWidths[0]));
+            for (int c = 0; c < colHeaders.Length; c++)
+            {
+                _writer.Write("  ");
+                _writer.Write((values[r, c] ?? "").PadRight(colWidths[c + 1]));
+            }
+            _writer.WriteLine();
+        }
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    // Shade characters for breakdown segments (decreasing intensity)
+    private static readonly char[] BreakdownFills = ['█', '▓', '▒', '░'];
+
+    /// <summary>
+    /// Writes a breakdown chart showing proportional category composition per row.
     /// Each row is a stacked bar with segments rendered using shade characters.
     /// </summary>
-    /// <param name="items">The labeled distribution rows.</param>
+    /// <param name="items">The breakdown rows.</param>
     /// <param name="maxBarWidth">Maximum bar width in characters. When null, 1 char = 1 count.</param>
-    public virtual void WriteDistribution(IReadOnlyList<DistributionBar> items, int? maxBarWidth = null)
+    public virtual void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null, bool uniformBarWidth = true)
     {
-        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Distributions))
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Breakdowns))
             return;
 
         if (_hasContent)
@@ -925,36 +1048,52 @@ public class MarkoutWriter
         }
 
         if (maxTotal == 0) maxTotal = 1;
-        var barScale = maxBarWidth.HasValue ? (double)maxBarWidth.Value / maxTotal : 1.0;
+        var effectiveBarWidth = maxBarWidth ?? Math.Min(maxTotal, 30);
 
         // Render rows
         foreach (var item in items)
-            WriteDistributionRow(item, categories, maxLabelWidth, barScale);
+        {
+            var rowTotal = 0;
+            foreach (var seg in item.Segments) rowTotal += seg.Count;
+            if (rowTotal == 0) rowTotal = 1;
+
+            var barScale = uniformBarWidth
+                ? (double)effectiveBarWidth / rowTotal
+                : (double)effectiveBarWidth / maxTotal;
+
+            WriteBreakdownRow(item, categories, maxLabelWidth, barScale, effectiveBarWidth);
+        }
 
         // Legend
         _writer.WriteLine();
-        WriteDistributionLegend(categories);
+        WriteBreakdownLegend(categories);
 
         _needsBlankLine = true;
         _hasContent = true;
     }
 
     /// <summary>
-    /// Renders a single distribution row. Override for custom styling.
+    /// Renders a single breakdown row. Override for custom styling.
     /// </summary>
-    protected virtual void WriteDistributionRow(DistributionBar item, List<string> categories, int labelWidth, double barScale)
+    protected virtual void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale, int maxBarChars = 0)
     {
         _writer.Write(item.Label.PadRight(labelWidth));
         _writer.Write("  ");
 
         // Draw stacked bar
+        var barWidth = 0;
         foreach (var seg in item.Segments)
         {
             var catIndex = categories.IndexOf(seg.Category);
-            var fill = DistributionFills[catIndex % DistributionFills.Length];
+            var fill = BreakdownFills[catIndex % BreakdownFills.Length];
             var width = Math.Max(0, (int)Math.Round(seg.Count * barScale));
             _writer.Write(new string(fill, width));
+            barWidth += width;
         }
+
+        // Pad to align summary text
+        if (maxBarChars > barWidth)
+            _writer.Write(new string(' ', maxBarChars - barWidth));
 
         // Summary
         _writer.Write("  ");
@@ -963,28 +1102,28 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Renders the distribution legend. Override for custom styling.
+    /// Renders the breakdown legend. Override for custom styling.
     /// </summary>
-    protected virtual void WriteDistributionLegend(List<string> categories)
+    protected virtual void WriteBreakdownLegend(List<string> categories)
     {
         var parts = new List<string>();
         for (int i = 0; i < categories.Count; i++)
         {
-            var fill = DistributionFills[i % DistributionFills.Length];
+            var fill = BreakdownFills[i % BreakdownFills.Length];
             parts.Add($"{fill} {categories[i]}");
         }
         _writer.WriteLine(string.Join("  ", parts));
     }
 
     /// <summary>
-    /// Writes a horizontal bar chart from labeled values.
+    /// Writes horizontal metric bars from labeled measurements.
     /// Bars are scaled proportionally to the maximum value using block characters.
     /// </summary>
-    /// <param name="items">The labeled values to chart.</param>
+    /// <param name="items">The metrics to render.</param>
     /// <param name="maxBarWidth">Maximum width of the longest bar in characters. Default is 30.</param>
-    public virtual void WriteBarChart(IReadOnlyList<BarItem> items, int maxBarWidth = 30)
+    public virtual void WriteMetrics(IReadOnlyList<Metric> items, int maxBarWidth = 30)
     {
-        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -1004,7 +1143,7 @@ public class MarkoutWriter
 
         foreach (var item in items)
         {
-            WriteBarLine(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
+            WriteMetricBar(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
         }
 
         _needsBlankLine = true;
@@ -1014,7 +1153,7 @@ public class MarkoutWriter
     /// <summary>
     /// Renders a single bar line. Override for custom bar styling.
     /// </summary>
-    protected virtual void WriteBarLine(BarItem item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
+    protected virtual void WriteMetricBar(Metric item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
     {
         _writer.Write(item.Label.PadRight(labelWidth));
         _writer.Write("  ");
@@ -1043,28 +1182,28 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a vertical bar chart from labeled values.
+    /// Writes vertical metric bars from labeled measurements.
     /// Bars grow upward, with labels and values below.
     /// </summary>
-    /// <param name="items">The labeled values to chart.</param>
+    /// <param name="items">The metrics to render.</param>
     /// <param name="maxBarHeight">Maximum height of the tallest bar in rows. Default is 10.</param>
     /// <param name="barWidth">Width of each bar in characters. Null (default) fills the column width.</param>
-    public virtual void WriteVerticalBarChart(IReadOnlyList<BarItem> items, int maxBarHeight = 10, int? barWidth = null)
+    public virtual void WriteVerticalMetrics(IReadOnlyList<Metric> items, int maxBarHeight = 10, int? barWidth = null)
     {
-        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+        if (items.Count == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
         EnsureBlankLineIfNeeded();
-        WriteVerticalBarBody(items, maxBarHeight, barWidth);
+        WriteVerticalMetricsBody(items, maxBarHeight, barWidth);
         _needsBlankLine = true;
         _hasContent = true;
     }
 
     /// <summary>
-    /// Renders the vertical bar chart body (bars, values, labels).
+    /// Renders the vertical metrics body (bars, values, labels).
     /// Override for custom styling of the entire vertical chart.
     /// </summary>
-    protected virtual void WriteVerticalBarBody(IReadOnlyList<BarItem> items, int maxBarHeight, int? barWidth)
+    protected virtual void WriteVerticalMetricsBody(IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth)
     {
         var maxValue = 0.0;
         foreach (var item in items)
@@ -1086,14 +1225,14 @@ public class MarkoutWriter
         // Bar rows (top to bottom)
         for (int row = maxBarHeight; row >= 1; row--)
         {
-            WriteVerticalBarRow(cols, row);
+            WriteVerticalMetricsRow(cols, row);
         }
 
         // Value row
         for (int c = 0; c < cols.Length; c++)
         {
             if (c > 0) _writer.Write("  ");
-            WriteVerticalBarValue(cols[c].ValueStr, cols[c].ColWidth);
+            WriteVerticalMetricsValue(cols[c].ValueStr, cols[c].ColWidth);
         }
         _writer.WriteLine();
 
@@ -1109,7 +1248,7 @@ public class MarkoutWriter
     /// <summary>
     /// Renders one row of vertical bars. Override for custom bar colors.
     /// </summary>
-    protected virtual void WriteVerticalBarRow(
+    protected virtual void WriteVerticalMetricsRow(
         (string Label, string ValueStr, int Height, int ColWidth, int BarWidth)[] cols, int row)
     {
         for (int c = 0; c < cols.Length; c++)
@@ -1134,7 +1273,7 @@ public class MarkoutWriter
     /// <summary>
     /// Renders a single value label in the vertical chart value row.
     /// </summary>
-    protected virtual void WriteVerticalBarValue(string valueStr, int colWidth)
+    protected virtual void WriteVerticalMetricsValue(string valueStr, int colWidth)
     {
         var pad = colWidth - valueStr.Length;
         var leftPad = pad / 2;

@@ -1,328 +1,154 @@
 # Markout
 
-**Human-readable structured data serialization to Markdown**
+**Markup adds instructions to content. Markout removes structure from data.**
 
-Markout projects .NET objects into clean, readable documents. Perfect for logs, reports, documentation, and any output that humans and LLMs need to read.
+Markout is a source-generated .NET serializer that projects objects into human-readable documents instead of data formats like JSON. You annotate view models with attributes that describe data relationships — identity, enumeration, tabulation, measurement, hierarchy — and the source generator emits code that writes through an abstract renderer. The same object graph produces Markdown tables, ANSI terminal output with colored bars, plain text with aligned columns, or one-line summaries, without the developer making visual decisions.
 
-Markout offers three ways to produce documents, all rendering through the same writer pipeline:
-
-| Mode | Best for | Input |
-| ---- | -------- | ----- |
-| **Standalone API** | Direct writer calls | Code |
-| **Source generator** | Type-driven documents | Annotated classes |
-| **Templates** | Human-authored documents with data slots | `.md` template files |
-
-```
-Standalone API:    writer.WriteHeading() / WriteTable() / WriteField()  → MarkoutWriter
-Source Generator:  [MarkoutSerializable] Type → Generated TypeInfo      → MarkoutWriter
-Templates:         .md Template + Bindings → MarkoutTemplate            → MarkoutWriter
-                                                                            ↓
-                                                              Markdown, plain text, ANSI, ...
-```
-
-## Why Markdown for Structured Output?
-
-CLI tools need to produce output that works for multiple audiences: humans reading in terminals, scripts parsing programmatically, and increasingly, LLMs consuming tool output. Each format has tradeoffs:
-
-| Format | Human-Readable | Machine-Parseable | LLM-Friendly | Challenges |
-|--------|---------------|-------------------|--------------|------------|
-| **Terminal text** | ✓ Good | ✗ Poor | ~ Moderate | Custom formatting, non-uniform delimiters, animation artifacts, ANSI codes |
-| **JSON** | ✗ Poor | ✓ Excellent | ~ Moderate | Verbose, hard to scan, quotes everywhere, nested structures hard to follow |
-| **Markdown** | ✓ Excellent | ✓ Good | ✓ Excellent | Limited nesting in tables, requires careful structure |
-
-**Terminal loggers** (like the dotnet CLI's animated output) optimize for interactive human use but produce output that's difficult to parse. Custom spacing, non-uniform separators, and ANSI escape codes make programmatic consumption fragile.
-
-**JSON** is perfectly machine-parseable but painful to read. Deeply nested structures, required quoting, and lack of visual hierarchy make it poor for human consumption. LLMs can parse JSON, but the token overhead is significant.
-
-**Markdown** hits the sweet spot: tables are scannable by humans, headings provide natural hierarchy, and the format is both well-defined enough for parsing and natural enough for LLMs to understand without special handling.
-
-### Data Shape vs. Data Results
-
-JSON serialization is typically oriented on pure data shape—mirroring the structure of objects and their relationships. Markout can do that too. However, much of the time what's desired is serializing a *data result*: a transformed, filtered, or aggregated view of data tailored for a specific query or report.
-
-We call this approach a **pivot table**. Instead of dumping raw object graphs, you project your data into view models designed for human consumption—flattening nested structures, joining related data, and presenting exactly what the reader needs to see.
-
-## Features
-
-- **Tables** - `List<T>` serializes to Markdown tables
-- **Sections** - Nested objects become H2 sections
-- **Type-safe** - Source generator provides compile-time validation
-- **Zero allocation** - Direct string writing, no intermediate objects
-- **Compile-time errors** - Prevents common mistakes like nested lists in tables
+The name captures the philosophy: where markup layers formatting instructions onto content, Markout works in the opposite direction, stripping an object graph down to what the data *is* — a measurement, a breakdown, a hierarchy — and letting the renderer decide what it *looks like*. The word also nods to an older tradition. Long before digital markup languages, typesetters performed two complementary acts: marking *up* a manuscript with rendering instructions, and marking *out* content that didn't belong in the final form. Computing formalized markup into an entire paradigm (GML, SGML, HTML, XML) but largely forgot its counterpart. Markout reclaims that half of the craft.
 
 ## Quick Start
-
-This example from [samples/CanadianContent](samples/CanadianContent) shows actors with their filmography:
 
 ```csharp
 using Markout;
 
-[MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ActorFilmography
-{
-    [MarkoutIgnore]
-    public string Title { get; set; } = "";
-    public string Birthplace { get; set; } = "";
-    
-    [MarkoutPropertyName("Born")]
-    public int BirthYear { get; set; }
+var artist = new ArtistView(
+    Name: "Sarah McLachlan",
+    Genre: "Pop / Adult Contemporary",
+    Origin: "Halifax, Nova Scotia",
+    DebutYear: 1988,
+    BestKnownFor: "Angel, Building a Mystery, Adia");
 
-    [MarkoutSection(Name = "Filmography")]
-    public List<ShowRow>? Filmography { get; set; }
-}
+MarkoutSerializer.Serialize(artist, Console.Out, ArtistContext.Default);
 
-[MarkoutSerializable]
-public class ShowRow
-{
-    public string Title { get; set; } = "";
-    public string Type { get; set; } = "";
-    public string Years { get; set; } = "";
+[MarkoutSerializable(TitleProperty = nameof(ArtistView.Name))]
+public record ArtistView(
+    string Name,
+    string Genre,
+    string Origin,
+    int DebutYear,
+    string BestKnownFor);
 
-    [MarkoutPropertyName("Filmed In")]
-    public string FilmingLocation { get; set; } = "";
-}
-
-[MarkoutContext(typeof(ActorFilmography))]
-[MarkoutContext(typeof(ShowRow))]
-public partial class CanConContext : MarkoutSerializerContext { }
-
-// Serialize
-MarkoutSerializer.Serialize(actor, Console.Out, CanConContext.Default);
+[MarkoutContext(typeof(ArtistView))]
+public partial class ArtistContext : MarkoutSerializerContext { }
 ```
 
 **Output:**
 
 ```markdown
-# Ryan Gosling
+# Sarah McLachlan
 
-Birthplace: London, Ontario  
-Born: 1980  
-
-## Filmography
-
-| Title | Type | Years | Filmed In |
-| ----- | ---- | ----- | --------- |
-| The Notebook | Movie | 2004 | Filmed in South Carolina |
-| Blade Runner 2049 | Movie | 2017 | Filmed in Budapest |
-| Barbie | Movie | 2023 | Filmed in London |
+Genre: Pop / Adult Contemporary | Origin: Halifax, Nova Scotia | DebutYear: 1988 | BestKnownFor: Angel, Building a Mystery, Adia
 ```
 
-## Installation
+Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as fields. See the [RecordDemo](samples/RecordDemo) sample.
 
-```bash
-dotnet add package Markout
-```
+## Sections and Tables
 
-The package includes the source generator - no additional packages needed.
-
-## Common Patterns
-
-### List as Table
-
-From [samples/CanadianContent](samples/CanadianContent) — querying shows filmed in Toronto:
+Add `[MarkoutSection]` to group properties with headings, and use `List<T>` for tables:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class LocationSearchResult
+public class CityReport
 {
-    [MarkoutIgnore]
     public string Title { get; set; } = "";
+    public string Province { get; set; } = "";
+    public int Population { get; set; }
 
-    [MarkoutSection(Name = "Results")]
-    public List<ShowRow>? Results { get; set; }
+    [MarkoutSection(Name = "Landmarks")]
+    public List<LandmarkRow>? Landmarks { get; set; }
 }
 
 [MarkoutSerializable]
-public class ShowRow
+public class LandmarkRow
 {
-    public string Title { get; set; } = "";
-    public string Type { get; set; } = "";
-    public string Years { get; set; } = "";
-
-    [MarkoutPropertyName("Filmed In")]
-    public string FilmingLocation { get; set; } = "";
-}
-```
-
-**Output:**
-
-```markdown
-# Shows Filmed in Toronto
-
-## Results
-
-| Title | Type | Years | Filmed In |
-| ----- | ---- | ----- | --------- |
-| The Expanse | TV Series | 2015-2022 | Filmed in Toronto |
-| Station Eleven | TV Miniseries | 2021-2022 | Filmed in Toronto |
-| Lost Girl | TV Series | 2010-2016 | Filmed in Toronto |
-| Orphan Black | TV Series | 2013-2017 | Filmed in Toronto |
-| The Umbrella Academy | TV Series | 2019-2023 | Filmed in Toronto |
-```
-
-### Nested Objects as Sections
-
-From [samples/DotNetReleases](samples/DotNetReleases) — fetching .NET release info from GitHub:
-
-```csharp
-[MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ReleasesView
-{
-    [MarkoutIgnore]
-    public string Title { get; set; } = "";
-    
-    [MarkoutPropertyName("Latest Major")]
-    public string? LatestMajor { get; set; }
-    
-    [MarkoutPropertyName("Latest LTS")]
-    public string? LatestLtsMajor { get; set; }
-    
-    [MarkoutSection(Name = "All Releases")]
-    public List<ReleaseRow>? Releases { get; set; }
-}
-
-[MarkoutSerializable]
-public class ReleaseRow
-{
-    public string Version { get; set; } = "";
-    public string Type { get; set; } = "";
-    public bool Supported { get; set; }
-}
-
-// Serialize to console
-MarkoutSerializer.Serialize(view, Console.Out, ReleasesContext.Default);
-```
-
-**Output:**
-
-```markdown
-# .NET Releases
-
-Latest Major: 10.0  
-Latest LTS: 10.0  
-
-## All Releases
-
-| Version | Type | Supported |
-| ------- | ---- | --------- |
-| 10.0 | lts | yes |
-| 9.0 | sts | yes |
-| 8.0 | lts | yes |
-| 7.0 | sts | no |
-| 6.0 | lts | no |
-```
-
-## Attributes
-
-- **`[MarkoutSerializable]`** - Marks a type for serialization
-  - `TitleProperty` - Property to use as H1 title
-  - `DescriptionProperty` - Property to render as paragraph after title
-  - `AutoFields` - When `false`, only sections and field collections render (default: `true`)
-- **`[MarkoutPropertyName("...")]`** - Custom property display name
-- **`[MarkoutIgnore]`** - Excludes a property from output
-- **`[MarkoutIgnoreInTable]`** - Excludes a property only in table context (silences MARKOUT001 warning)
-- **`[MarkoutSection(Name = "...")]`** - Groups property under an H2 section (scalars grouped by name, collections as tables/lists)
-- **`[MarkoutBoolFormat]`** - Custom true/false display values
-- **`[MarkoutValueMap("key=badge", ...)]`** - Maps string values to badge-prefixed output (e.g., `"class"` → `"📦 class"`)
-- **`[MarkoutContext(typeof(...))]`** - Registers types for source generation
-
-## Field Collections
-
-For dynamic metadata, use `List<MarkoutField>` properties:
-
-```csharp
-[MarkoutSerializable(AutoFields = false)]
-public class PackageInfo
-{
-    public string Name { get; set; }
-    
-    // Renders as: Type: Library | TFM: net8.0 | Updated: 2026-01-15
-    public List<MarkoutField> Summary => GetSummaryFields();
-    
-    // Renders as H2 section with Property/Value table
-    [MarkoutSection(Name = "Metadata")]
-    public List<MarkoutField> Metadata => GetMetadataFields();
-    
-    private List<MarkoutField> GetSummaryFields() =>
-    [
-        new("Type", PackageType),
-        MarkoutField.Create("Updated", LastUpdated)
-    ];
-}
-```
-
-Field collections must use `List<MarkoutField>`, `IReadOnlyList<MarkoutField>`, or `MarkoutField[]` (not `IEnumerable<MarkoutField>`) to avoid double-enumeration issues.
-
-## Trees
-
-For hierarchical data, use `List<TreeNode>` properties:
-
-```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name))]
-public class TypeShape
-{
-    [MarkoutIgnore]
     public string Name { get; set; } = "";
-    
-    public string Kind { get; set; } = "";
-    
-    // Renders as tree with box-drawing characters
-    public List<TreeNode> Members { get; set; } = [];
+    public string Type { get; set; } = "";
+    public int Year { get; set; }
 }
 
-// Build the tree
-var type = new TypeShape
-{
-    Name = "MyClass",
-    Kind = "class",
-    Members = new List<TreeNode>
-    {
-        new("Inherits", new[] { "BaseClass" }),
-        new("Properties (2)", new[] { "string Name", "int Count" })
-    }
-};
+[MarkoutContext(typeof(CityReport))]
+public partial class ReportContext : MarkoutSerializerContext { }
+
+MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default);
 ```
 
 **Output:**
 
 ```markdown
-# MyClass
+# Vancouver
 
-Kind: class
+Province: British Columbia
+Population: 2632000
 
-├─ Inherits
-│  └─ BaseClass
-└─ Properties (2)
-   ├─ string Name
-   └─ int Count
+## Landmarks
+
+| Name             | Type       | Year |
+| ---------------- | ---------- | ---- |
+| Stanley Park     | Park       | 1888 |
+| Gastown          | Historic   | 1867 |
+| Science World    | Museum     | 1989 |
 ```
 
-TreeNode supports an optional `Icon` property for visual indicators:
+Same object, different renderer:
 
 ```csharp
-new TreeNode("local.dll", icon: "📁"),
-new TreeNode("platform.dll", icon: "🚢")
-// Renders as: └─ 📁 local.dll
+// ANSI terminal — colored headings, bold field names
+MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default, new AnsiWriter(Console.Out));
+
+// One-line summary — tables only, no headings or fields
+MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default, new OneLineWriter(Console.Out));
 ```
 
-## Nested Lists
+## Shape Library
 
-If you have `List<Group>` where `Group` contains `List<Item>`, you'll get a compile-time warning:
+Markout is a serializer for a **shape library**. Each property on a view model maps to a data relationship, not a visual element. Renderers decide how to present each shape.
 
+| Relationship | C# type | What it means | Markdown | ANSI |
+|---|---|---|---|---|
+| **Identity** | `string`, `int`, `bool` | Named value | `Key: value` | Bold key, value |
+| **Enumeration** | `string[]` | Sequence of items | `- item` | Bullet list |
+| **Tabulation** | `List<T>` | Uniform records | `\| col \| col \|` | Space-padded table |
+| **Section** | `[MarkoutSection]` | Logical grouping | `## Heading` | Colored heading |
+| **Description** | `List<Description>` | Terms with explanations | `- **Term:** text` | Bold term, text |
+| **Measurement** | `List<Metric>` | Comparative quantities | `Label ████░░ 45` | Colored bars |
+| **Composition** | `List<Breakdown>` | Parts of a whole | `██▓▓▒░` stacked | Colored segments |
+| **Hierarchy** | `List<TreeNode>` | Parent-child structure | `├── node` | Box-drawing tree |
+| **Quotation** | `CodeSection` | Verbatim content | ` ```code``` ` | Syntax display |
+| **Attention** | `Callout` | Important messages | `> [!WARNING]` | Colored label |
+
+Plus structural shapes: **Quotation** (prose quotation), **Matrix** (2D pivot grid), **Rule** (section separator).
+
+### Record Types
+
+Shapes that need structured input provide record types named for what the data *is*, not what it *looks like*:
+
+```csharp
+new Metric("Build Time", 4.2)                                    // measurement
+new Description("dotnet-inspect", "API surface inspection tool")  // term + explanation
+new Breakdown("Jan 2025", [new("Critical", 1), new("High", 3)])  // proportional composition
+new Callout(CalloutSeverity.Warning, "3 vulnerabilities found")   // attention
+new CodeSection("csharp", "public class Foo { }")                 // verbatim content
 ```
-warning MARKOUT001: Property 'Items' in type 'Group' is an array of complex 
-objects and will be skipped in table context. Add [MarkoutIgnoreInTable] to 
-silence this warning.
-```
 
-This is intentional! Markdown tables can't contain lists. Choose a transformation strategy:
+## Renderers
 
-1. **Pivot Table** - Compare items across groups
-2. **Multiple Tables** - One table per group
-3. **Multiple Lists** - Simple bullet lists per group
-4. **Flatten** - Single table with group as a column
+Markout ships four renderers. The serializer writes through `MarkoutWriter` — swap the writer, change the output.
 
-📖 **See [Nested Lists Guide](docs/nested-lists-guide.md)** for complete examples and code
+| Renderer | Output | Use case |
+|---|---|---|
+| **MarkdownWriter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
+| **MarkoutWriter** | Plain text, space-padded | Log files, piped output, terminals without ANSI |
+| **OneLineWriter** | Tables only, no headings | Compact summaries, grep-friendly output |
+| **DiagramWriter** | Trees and structural diagrams | Dependency graphs, file trees |
+
+Optional packages:
+
+| Package | Renderer | Use case |
+|---|---|---|
+| **Markout.Ansi** | `AnsiWriter` | Colored terminal output with bold, gradients |
+| **Markout.Ansi.Spectre** | `SpectreWriter` | Rich terminal UI via Spectre.Console |
+
+Renderers declare which shapes they support via `SupportedShapes`. Unsupported shapes are silently skipped — the data is never lost, only the visual sophistication changes.
 
 ## Templates
 
@@ -392,29 +218,73 @@ dotnet run --project tools/markout-template -- template.md date="February 2026" 
 
 Unbound block placeholders are skipped, so you can render partial templates. Pipe `key=value` lines on stdin for additional bindings.
 
+## Customization Layers
+
+Markout provides multiple layers of control, from zero-config to full custom:
+
+**Layer 1 — Attributes** (compile-time): Control what's rendered and how.
+
+```csharp
+[MarkoutPropertyName("Born")]          // rename a field
+[MarkoutSkipNull]                      // hide when null
+[MarkoutSection(Name = "Details")]     // group into a section
+[MarkoutDisplayFormat("N0")]           // format numbers
+[MarkoutShowWhen(nameof(HasDetails))]  // conditional rendering
+[MarkoutMaxItems(10)]                  // truncate long lists
+[MarkoutValueMap("k=badge", ...)]      // map values to badge-prefixed output
+```
+
+**Layer 2 — Writer Options** (runtime): Control which sections appear.
+
+```csharp
+var options = new MarkoutWriterOptions
+{
+    IncludeSections = new HashSet<string> { "Summary", "Errors" },  // only these sections
+    BoldFieldNames = true
+};
+var writer = new MarkdownWriter(Console.Out, options);
+```
+
+**Layer 3 — Renderer Subclass** (code): Override any shape for custom visual treatment.
+
+```csharp
+public class MyWriter : MarkdownWriter
+{
+    protected override void WriteDescription(Description item)
+    {
+        // Custom rendering for descriptions
+        Writer.WriteLine($"{item.Term}: {item.Text}");
+    }
+}
+```
+
+## Installation
+
+```bash
+dotnet add package Markout
+```
+
+The package includes the source generator — no additional packages needed.
+
 ## Samples
 
-- **[TemplateDemo](samples/TemplateDemo)** - Document template with inline tables, conditional sections, and multi-format rendering
-
-- **[CanadianContent](samples/CanadianContent)** - Query Canadian actors and shows with searchable filters (file-based app)
-- **[DotNetReleases](samples/DotNetReleases)** - Fetch and display .NET release information from GitHub (file-based app)
-- **[Serialization](samples/Serialization)** - Basic usage patterns, section filtering, and MarkoutWriter examples
+- **[RecordDemo](samples/RecordDemo)** — Simplest possible example: a record, a context, one line of serialization
+- **[CanadianContent](samples/CanadianContent)** — Canadian actors and shows with tables, trees, metrics, and multiple renderers
+- **[LatestCves](samples/LatestCves)** — .NET security advisories with trees and severity breakdowns
+- **[DotNetReleases](samples/DotNetReleases)** — .NET release information from GitHub
+- **[Serialization](samples/Serialization)** — Shape gallery, section filtering, and writer API examples
+- **[TemplateDemo](samples/TemplateDemo)** — Document template with inline tables, conditional sections, and multi-format rendering
 
 ## Real-World Usage
 
-Markout was created for [dotnet-inspect](https://github.com/richlander/dotnet-inspect) to generate readable inspection reports. It excels at:
-
-- Build/test results
-- Dependency reports
-- API inspection output
-- Configuration summaries
-- Error reports
+Markout was created for [dotnet-inspect](https://github.com/richlander/dotnet-inspect), which uses all ten data relationships across 49 view models to generate API inspection reports, diff analysis, dependency trees, and security summaries.
 
 ## Documentation
 
-- **[Nested Lists Guide](docs/nested-lists-guide.md)** - Handling nested data structures
-- **[Specification](docs/specification.md)** - Complete format specification
-- **[Design Docs](docs/design/)** - Implementation details
+- **[User Guide](docs/user-guide.md)** — Complete tutorial with attribute reference
+- **[Shape System Design](docs/design/shape-system.md)** — Data projection model, shape tiers, admission criteria
+- **[Specification](docs/specification.md)** — Format grammar and type inference rules
+- **[Nested Lists Guide](docs/nested-lists-guide.md)** — Strategies for nested data structures
 
 ## License
 
