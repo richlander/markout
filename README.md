@@ -2,7 +2,23 @@
 
 **Human-readable structured data serialization to Markdown**
 
-Markout serializes .NET objects to clean, readable Markdown format. Perfect for logs, reports, documentation, and any output that humans and LLMs need to read.
+Markout projects .NET objects into clean, readable documents. Perfect for logs, reports, documentation, and any output that humans and LLMs need to read.
+
+Markout offers three ways to produce documents, all rendering through the same writer pipeline:
+
+| Mode | Best for | Input |
+| ---- | -------- | ----- |
+| **Standalone API** | Direct writer calls | Code |
+| **Source generator** | Type-driven documents | Annotated classes |
+| **Templates** | Human-authored documents with data slots | `.md` template files |
+
+```
+Standalone API:    writer.WriteHeading() / WriteTable() / WriteField()  → MarkoutWriter
+Source Generator:  [MarkoutSerializable] Type → Generated TypeInfo      → MarkoutWriter
+Templates:         .md Template + Bindings → MarkoutTemplate            → MarkoutWriter
+                                                                            ↓
+                                                              Markdown, plain text, ANSI, ...
+```
 
 ## Why Markdown for Structured Output?
 
@@ -308,7 +324,77 @@ This is intentional! Markdown tables can't contain lists. Choose a transformatio
 
 📖 **See [Nested Lists Guide](docs/nested-lists-guide.md)** for complete examples and code
 
+## Templates
+
+Templates let you author document structure in Markdown and fill data slots at runtime. The same template renders to any format — Markdown, plain text, or ANSI terminal.
+
+**template.md:**
+
+```markdown
+# .NET Security Report for {{date}}
+
+The following vulnerabilities were disclosed this month.
+
+{{vuln-table}}
+
+| Level | CVSS Range | Response |
+| ----- | ---------- | -------- |
+| Critical | 9.0–10.0 | Patch immediately |
+| High | 7.0–8.9 | Patch within 30 days |
+
+{{#if commits}}
+## Commits
+
+{{commit-table}}
+{{/if}}
+```
+
+**Program.cs:**
+
+```csharp
+using Markout;
+using Markout.Templates;
+
+var template = MarkoutTemplate.Load("template.md");
+template.TableOptions = new TableFormatterOptions(); // smooth column widths
+
+template.Bind("date", "February 2026");
+template.Bind("vuln-table", vulnerabilityData);  // IMarkoutFormattable
+template.Bind("commits", hasCommits ? "yes" : null);
+template.Bind("commit-table", commitData);
+
+// Markdown output
+Console.WriteLine(template.Render(new MarkoutWriterOptions { PrettyTables = true }));
+
+// Plain text output — same template, different writer
+var plainWriter = new MarkoutWriter();
+template.Render(plainWriter);
+```
+
+Templates support:
+
+- **`{{key}}`** — inline substitution in headings and prose, or block-level data rendering
+- **`{{#if key}}`** / **`{{/if}}`** — conditional sections (included when key is bound and non-null)
+- **Pipe tables** — parsed and re-rendered through the writer's table shape, with optional statistical column-width optimization
+- **`IMarkoutFormattable`** and **`MarkoutTypeInfo<T>`** bindings for shape-aware data rendering
+
+```bash
+dotnet add package Markout.Templates
+```
+
+### Template Runner Tool
+
+A basic CLI tool is included for rendering templates with string bindings:
+
+```bash
+dotnet run --project tools/markout-template -- template.md date="February 2026" title="Report"
+```
+
+Unbound block placeholders are skipped, so you can render partial templates. Pipe `key=value` lines on stdin for additional bindings.
+
 ## Samples
+
+- **[TemplateDemo](samples/TemplateDemo)** - Document template with inline tables, conditional sections, and multi-format rendering
 
 - **[CanadianContent](samples/CanadianContent)** - Query Canadian actors and shows with searchable filters (file-based app)
 - **[DotNetReleases](samples/DotNetReleases)** - Fetch and display .NET release information from GitHub (file-based app)

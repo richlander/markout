@@ -25,6 +25,12 @@ public class MarkoutTemplate
     /// </summary>
     public TableFormatterOptions? TableOptions { get; set; }
 
+    /// <summary>
+    /// When true, unbound block placeholders are silently skipped instead of throwing.
+    /// Useful for CLI tools and partial rendering scenarios.
+    /// </summary>
+    public bool SkipUnboundPlaceholders { get; set; }
+
     private MarkoutTemplate(List<TemplateNode> nodes)
     {
         _nodes = nodes;
@@ -183,7 +189,7 @@ public class MarkoutTemplate
                 {
                     binding.Render(writer);
                 }
-                else
+                else if (!SkipUnboundPlaceholders)
                 {
                     throw new InvalidOperationException($"No binding found for placeholder '{placeholder.Key}'.");
                 }
