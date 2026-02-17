@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Markout\Markout.csproj" />
+    <ProjectReference Include="..\MarkdownTable.Formatting\MarkdownTable.Formatting.csproj" />
   </ItemGroup>
 
 </Project>

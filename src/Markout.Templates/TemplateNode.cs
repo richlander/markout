@@ -36,3 +36,9 @@ public record ConditionalEndNode() : TemplateNode;
 /// A blank line in the template, preserved for structural spacing.
 /// </summary>
 public record BlankLineNode() : TemplateNode;
+
+/// <summary>
+/// A pipe table parsed from the template. Headers and rows are extracted
+/// so the table can be re-rendered through the writer's table shape.
+/// </summary>
+public record TableNode(string[] Headers, List<string[]> Rows) : TemplateNode;

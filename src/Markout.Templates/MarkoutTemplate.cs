@@ -184,6 +184,10 @@ public class MarkoutTemplate
             case BlankLineNode:
                 // The writer's spacing state handles blank lines naturally
                 break;
+
+            case TableNode table:
+                writer.WriteTable(table.Headers, table.Rows);
+                break;
         }
     }
 

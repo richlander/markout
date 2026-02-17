@@ -251,6 +251,42 @@ public class MarkoutTemplateTests
         Assert.DoesNotContain("Has data.", result);
     }
 
+    [Fact]
+    public void Render_InlineTable_RenderedThroughWriter()
+    {
+        var text = """
+            # Report
+
+            | Name | Value |
+            | ---- | ----- |
+            | Alpha | 1 |
+            | Beta  | 2 |
+            """;
+
+        var template = MarkoutTemplate.Parse(text);
+        var result = template.Render();
+
+        // Table should be rendered through the writer's table shape
+        Assert.Contains("# Report", result);
+        Assert.Contains("Alpha", result);
+        Assert.Contains("Beta", result);
+        Assert.Contains("|", result);
+    }
+
+    [Fact]
+    public void Render_InlineTable_PlainText()
+    {
+        var text = "| Name | Value |\n| ---- | ----- |\n| A | 1 |";
+        var template = MarkoutTemplate.Parse(text);
+        var writer = new MarkoutWriter();
+        template.Render(writer);
+        var result = writer.ToString();
+
+        // Plain text writer renders tables without pipes
+        Assert.Contains("Name", result);
+        Assert.Contains("A", result);
+    }
+
     // Test helpers
 
     private class TestFormattable : IMarkoutFormattable

@@ -1,3 +1,5 @@
+using MarkdownTable.Formatting;
+
 namespace Markout.Templates;
 
 /// <summary>
@@ -18,6 +20,7 @@ public static class TemplateParser
         ArgumentNullException.ThrowIfNull(text);
         var nodes = new List<TemplateNode>();
         List<string>? paragraphLines = null;
+        List<string>? tableLines = null;
 
         using var reader = new StringReader(text);
         string? line;
@@ -27,9 +30,23 @@ public static class TemplateParser
             // Blank line
             if (string.IsNullOrWhiteSpace(line))
             {
+                FlushTable(nodes, ref tableLines);
                 FlushParagraph(nodes, ref paragraphLines);
                 nodes.Add(new BlankLineNode());
                 continue;
+            }
+
+            // If we're accumulating table lines, check if this continues the table
+            if (tableLines is not null)
+            {
+                if (TableParser.IsPipeTableLine(line))
+                {
+                    tableLines.Add(line);
+                    continue;
+                }
+
+                // Not a table line — flush the table and fall through
+                FlushTable(nodes, ref tableLines);
             }
 
             // Conditional: {{#if key}} or {{/if}}
@@ -56,11 +73,20 @@ public static class TemplateParser
                 continue;
             }
 
+            // Pipe table start — a line with pipes that isn't a heading or placeholder
+            if (TableParser.IsPipeTableLine(line))
+            {
+                FlushParagraph(nodes, ref paragraphLines);
+                tableLines = [line];
+                continue;
+            }
+
             // Prose — accumulate into paragraph
             paragraphLines ??= [];
             paragraphLines.Add(line);
         }
 
+        FlushTable(nodes, ref tableLines);
         FlushParagraph(nodes, ref paragraphLines);
         return nodes;
     }
@@ -72,6 +98,25 @@ public static class TemplateParser
 
         var text = string.Join('\n', lines);
         nodes.Add(new ParagraphNode(text));
+        lines = null;
+    }
+
+    private static void FlushTable(List<TemplateNode> nodes, ref List<string>? lines)
+    {
+        if (lines is null || lines.Count == 0)
+            return;
+
+        if (TableParser.TryParse(lines, out var headers, out var rows))
+        {
+            nodes.Add(new TableNode(headers, rows));
+        }
+        else
+        {
+            // Not a valid table — treat as paragraph text
+            var text = string.Join('\n', lines);
+            nodes.Add(new ParagraphNode(text));
+        }
+
         lines = null;
     }
 

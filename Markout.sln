@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Markout.Templates.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TemplateDemo", "samples\TemplateDemo\TemplateDemo.csproj", "{868726C4-8E35-4141-A7E0-9B9A6EF0608A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownTable.Formatting", "src\MarkdownTable.Formatting\MarkdownTable.Formatting.csproj", "{320DD635-60CE-446F-B4B6-D22B062CEE46}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{868726C4-8E35-4141-A7E0-9B9A6EF0608A}.Release|x64.Build.0 = Release|Any CPU
 		{868726C4-8E35-4141-A7E0-9B9A6EF0608A}.Release|x86.ActiveCfg = Release|Any CPU
 		{868726C4-8E35-4141-A7E0-9B9A6EF0608A}.Release|x86.Build.0 = Release|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Debug|x64.Build.0 = Debug|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Debug|x86.Build.0 = Debug|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Release|x64.ActiveCfg = Release|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Release|x64.Build.0 = Release|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Release|x86.ActiveCfg = Release|Any CPU
+		{320DD635-60CE-446F-B4B6-D22B062CEE46}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -138,5 +152,6 @@ Global
 		{2FBCC45A-444A-444D-96D4-475718EA2A1E} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{0D4A6074-FFD5-47C3-8AED-CF354E24B2C7} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{868726C4-8E35-4141-A7E0-9B9A6EF0608A} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{320DD635-60CE-446F-B4B6-D22B062CEE46} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

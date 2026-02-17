@@ -149,4 +149,26 @@ public class TemplateParserTests
         var para = Assert.IsType<ParagraphNode>(Assert.Single(nodes));
         Assert.Equal("#notaheading", para.Text);
     }
+
+    [Fact]
+    public void Parse_PipeTable()
+    {
+        var text = "| Name | Value |\n| ---- | ----- |\n| A    | 1     |";
+        var nodes = TemplateParser.Parse(text);
+        var table = Assert.IsType<TableNode>(Assert.Single(nodes));
+        Assert.Equal(["Name", "Value"], table.Headers);
+        Assert.Single(table.Rows);
+        Assert.Equal("A", table.Rows[0][0]);
+    }
+
+    [Fact]
+    public void Parse_TableBetweenContent()
+    {
+        var text = "# Title\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\nAfter.";
+        var nodes = TemplateParser.Parse(text);
+
+        Assert.IsType<HeadingNode>(nodes[0]);
+        Assert.Contains(nodes, n => n is TableNode);
+        Assert.Contains(nodes, n => n is ParagraphNode { Text: "After." });
+    }
 }
