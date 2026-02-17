@@ -207,6 +207,7 @@ Latest LTS: 10.0
 - **`[MarkoutIgnoreInTable]`** - Excludes a property only in table context (silences MARKOUT001 warning)
 - **`[MarkoutSection(Name = "...")]`** - Groups property under an H2 section (scalars grouped by name, collections as tables/lists)
 - **`[MarkoutBoolFormat]`** - Custom true/false display values
+- **`[MarkoutValueMap("key=badge", ...)]`** - Maps string values to badge-prefixed output (e.g., `"class"` → `"📦 class"`)
 - **`[MarkoutContext(typeof(...))]`** - Registers types for source generation
 
 ## Field Collections

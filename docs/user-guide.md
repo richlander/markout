@@ -526,6 +526,23 @@ When `IsVerified` is `false`, `VerifiedBy` is not rendered — even if it has a 
 
 > From the [AdvancedFeatures](../samples/Serialization/AdvancedFeatures.cs) sample.
 
+### Value Maps
+
+Use `[MarkoutValueMap]` to prepend a badge to string values based on a lookup:
+
+```csharp
+[MarkoutSerializable]
+public class CveItem
+{
+    public string Id { get; set; } = "";
+
+    [MarkoutValueMap("CRITICAL=🔴", "HIGH=🟠", "MEDIUM=🟡", "LOW=🟢")]
+    public string Severity { get; set; } = "";
+}
+```
+
+Each entry is `"value=badge"`. When the property value matches a key, the badge is prepended with a space: `"🔴 CRITICAL"`. Unmatched values pass through unchanged. Works in both field and table contexts.
+
 ## Sections and Collections
 
 Use `[MarkoutSection]` to group properties under a heading. It works on both scalar properties and collections.
@@ -939,3 +956,4 @@ writer.WriteCodeEnd();
 | `[MarkoutLink]` | Property | Renders a string as a Markdown `[url](url)` link. Set `TextProperty` for `[text](url)`. |
 | `[MarkoutMaxItems(n)]` | Property | Limits collection rendering to `n` items. Set `EllipsisFormat` to customize the overflow message. |
 | `[MarkoutValueFormatter(typeof(...))]` | Property | Uses a custom `IMarkoutValueFormatter<T>` to format the value. |
+| `[MarkoutValueMap("k=v", ...)]` | Property | Maps string values to badge-prefixed output. Each entry is `"value=badge"`. Unmatched values pass through unchanged. |
