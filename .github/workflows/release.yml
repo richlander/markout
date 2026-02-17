@@ -14,6 +14,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'publish'
+    permissions:
+      id-token: write   # Required for NuGet trusted publishing (OIDC)
+      actions: read      # Required to download artifacts from another run
     steps:
       - name: Download packages from CI run
         uses: actions/download-artifact@v4
@@ -31,19 +34,24 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: NuGet login (trusted publishing)
+        uses: nuget/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Publish to NuGet
         run: |
           for pkg in packages/*.nupkg; do
             name=$(basename "$pkg")
             case "$name" in
               Markout.[0-9]*)
+                echo "Publishing: $name"
                 dotnet nuget push "$pkg" \
-                  --api-key ${{ secrets.NUGET_API_KEY }} \
                   --source https://api.nuget.org/v3/index.json \
                   --skip-duplicate
                 ;;
               *)
-                echo "Skipping sample package: $name"
+                echo "Skipping: $name"
                 ;;
             esac
           done
