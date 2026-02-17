@@ -336,7 +336,7 @@ public override void Serialize(MarkoutWriter writer, Package value)
         __fields.Add(new MarkoutField("Name", value.Name));
     // ...
     if (__fields.Count > 0)
-        writer.WriteCompactFields(__fields);
+        writer.WriteFieldList(__fields);
     
     // Arrays
     if (value.Frameworks != null)
@@ -375,11 +375,11 @@ if (!string.IsNullOrEmpty(value.Name))
     __fields.Add(new MarkoutField("Name", value.Name));
 ```
 
-**Recommendation:** For types where all scalars are non-nullable value types, emit direct `WriteCompactFields(params ReadOnlySpan<MarkoutField>)` calls:
+**Recommendation:** For types where all scalars are non-nullable value types, emit direct `WriteFieldList(params ReadOnlySpan<MarkoutField>)` calls:
 
 ```csharp
 // Optimized path for all-non-nullable scalars
-writer.WriteCompactFields(
+writer.WriteFieldList(
     new MarkoutField("Count", value.Count.ToString(CultureInfo.InvariantCulture)),
     new MarkoutField("Price", value.Price.ToString(CultureInfo.InvariantCulture)));
 ```
@@ -543,7 +543,7 @@ This would preserve the closed type system while allowing specific extension poi
 
 ```csharp
 // If all scalars are non-nullable non-string, use params overload
-writer.WriteCompactFields(
+writer.WriteFieldList(
     new MarkoutField("Id", value.Id),
     new MarkoutField("Count", value.Count));
 ```
@@ -648,7 +648,7 @@ This bakes options into generated code, avoiding runtime options objects.
 **Pattern:** LoggerMessage uses `LoggerMessage.Define<>()` for simple cases, custom structs for complex cases.
 
 **Application to Markout:**
-- **Simple types** (all non-nullable scalars, no sections): Emit direct `WriteCompactFields(params ...)` call
+- **Simple types** (all non-nullable scalars, no sections): Emit direct `WriteFieldList(params ...)` call
 - **Complex types** (nullable, sections, nested): Use current List builder pattern
 
 #### 6. Multi-File Emission (from STJ)
@@ -834,7 +834,7 @@ enum PropertyRenderingShape
     TableCell             = 0x02,  // Can render in table column
     TableRows             = 0x04,  // Can render as table (collection of scalars)
     Section               = 0x08,  // Can render as H2+ section
-    CompactField          = 0x10,  // Can render in pipe-separated line
+    FieldListField        = 0x10,  // Can render in pipe-separated line
     TreeRenderable        = 0x20,  // Can render as tree structure
     DynamicFields         = 0x40,  // Is List<MarkoutField>
 }
@@ -854,7 +854,7 @@ This pattern keeps code manageable—each generator only needs to know about its
 Stage 1: NullCheck         → if (value == null) return;
 Stage 2: Title             → writer.WriteHeading(1, ...)
 Stage 3: Description       → writer.WriteParagraph(...)
-Stage 4: CompactFields     → writer.WriteCompactFields(...)
+Stage 4: FieldList         → writer.WriteFieldList(...)
 Stage 5: ScalarFields      → writer.WriteField(...) per property
 Stage 6: Sections          → writer.WriteHeading(2, ...) per section
 Stage 7: Collections       → tables, arrays, trees
@@ -1225,8 +1225,8 @@ This pattern cannot be expressed with current Markout attributes.
 | `WriteListItem(text)` | ~15 calls | Bullet items |
 | `WriteArray(label, items)` | ~5 calls | Lists of strings |
 | `WriteTree(nodes)` | 1 call | Assembly reference tree |
-| `WriteCompactFields(fields)` | 1 call | Pipe-separated display |
-| `WriteCodeBlockStart/End` | 2 calls | Code samples |
+| `WriteFieldList(fields)` | 1 call | Pipe-separated display |
+| `WriteCodeStart/End` | 2 calls | Code samples |
 
 The most common operations are conditional (`if (value != null)`) writes of fields and table rows—precisely what the source generator cannot express.
 
@@ -1415,7 +1415,7 @@ Today, `MarkoutWriter` handles some of this ad hoc:
 - `_inTable` state prevents invalid nesting (throws on missing `WriteTableStart`)
 - `_sectionExcluded` suppresses output in excluded sections
 
-But there is **no `_inCodeBlock` tracking**, and no mechanism for a custom formatter to know what context it's writing into.
+But there is **no `_inCode` tracking**, and no mechanism for a custom formatter to know what context it's writing into.
 
 ### Current State in MarkoutWriter
 
@@ -1426,7 +1426,7 @@ private bool _sectionExcluded;  // ✓ Section filtering
 private bool _needsBlankLine;   // ✓ Spacing
 
 // State NOT tracked:
-// _inCodeBlock               // ✗ Code fence context
+// _inCode               // ✗ Code fence context
 // _inListItem                // ✗ List context (indentation)
 // _nestingDepth              // ✗ General nesting
 ```
@@ -1443,7 +1443,7 @@ public enum MarkoutRenderContext
 {
     Block,       // Top-level or section body — anything is valid
     Table,       // Inside a table — no block elements, pipes escaped
-    CodeBlock,   // Inside a code fence — content is literal, no Markdown
+    Code,        // Inside a code fence — content is literal, no Markdown
     InlineCode,  // Inside backticks — content is literal
     ListItem,    // Inside a list item — block elements need indentation
 }
@@ -1452,12 +1452,12 @@ public sealed class MarkoutWriter
 {
     public MarkoutRenderContext CurrentContext { get; private set; }
 
-    public void WriteCodeBlockStart(string? language = null)
+    public void WriteCodeStart(string? language = null)
     {
-        if (CurrentContext == MarkoutRenderContext.CodeBlock)
+        if (CurrentContext == MarkoutRenderContext.Code)
             throw new InvalidOperationException("Cannot nest code fences.");
         // ...
-        CurrentContext = MarkoutRenderContext.CodeBlock;
+        CurrentContext = MarkoutRenderContext.Code;
     }
 }
 ```
@@ -1510,10 +1510,10 @@ The source generator knows at compile time whether a property appears in a table
 For the code-fence-in-code-fence problem specifically, the writer could use longer fence sequences (Markdown supports ``````, etc.):
 
 ```csharp
-public void WriteCodeBlockStart(string? language = null)
+public void WriteCodeStart(string? language = null)
 {
     // If already in a code block, use a longer fence
-    var fence = CurrentContext == MarkoutRenderContext.CodeBlock
+    var fence = CurrentContext == MarkoutRenderContext.Code
         ? "````" : "```";
     // ...
 }
@@ -1525,7 +1525,7 @@ However, this only solves one specific case and doesn't generalize.
 
 **Combine Approaches 1 and 2:**
 
-1. **Track context in `MarkoutWriter`** — add `CurrentContext` property and `_inCodeBlock` state. This is a small, backwards-compatible change that immediately prevents invalid nesting for all callers (not just custom formatters).
+1. **Track context in `MarkoutWriter`** — add `CurrentContext` property and `_inCode` state. This is a small, backwards-compatible change that immediately prevents invalid nesting for all callers (not just custom formatters).
 
 2. **Design `IMarkoutFormattable` to write through the writer** — not return strings. This is the key insight from STJ's `Utf8JsonWriter`/`JsonConverter` design: the writer is the enforcement boundary.
 
@@ -1595,7 +1595,7 @@ The internal naming (`scalarProps`, `IsScalarKind`) is acceptable — it correct
 | `FieldLayout` | (keep) | Already correct — it describes how a field list is laid out |
 | `MarkoutField` | (keep) | Good name — suggests KVP |
 | `EmitScalarsWithLayout` | `EmitFieldListWithLayout` | Internal, but clearer intent |
-| `WriteCompactFields` | (keep) | Describes the `OneLine` layout rendering |
+| `WriteFieldList` | (keep) | Describes the `OneLine` layout rendering |
 | `WriteField` | (keep) | Describes the `LineBreaksDoubleSpace` layout (one field at a time) |
 | `WriteFieldNoBreak` | (keep) | Describes the `LineBreaks` layout |
 

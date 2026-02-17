@@ -233,10 +233,10 @@ public class AnsiWriterTests
     // ── Compact fields ──
 
     [Fact]
-    public void WriteCompactFields_RendersBoldKeysWithSeparator()
+    public void WriteFieldList_RendersBoldKeysWithSeparator()
     {
         var (writer, terminal) = Create();
-        writer.WriteCompactFields(
+        writer.WriteFieldList(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"));
 
@@ -247,33 +247,19 @@ public class AnsiWriterTests
         Assert.Contains("TFM", output);
     }
 
-    // ── Code blocks ──
+    // ── Code ──
 
     [Fact]
-    public void WriteCodeBlock_RendersDimText()
+    public void WriteCode_RendersDimText()
     {
         var (writer, terminal) = Create();
-        writer.WriteCodeBlockStart("csharp");
+        writer.WriteCodeStart("csharp");
         writer.WriteParagraph("var x = 1;");
-        writer.WriteCodeBlockEnd();
+        writer.WriteCodeEnd();
 
         var output = terminal.Output;
         Assert.Contains("var x = 1;", output);
         Assert.Contains($"\x1b[{(int)TerminalColor.DarkGray}m", output); // Dim
-    }
-
-    // ── Simple pairs ──
-
-    [Fact]
-    public void WritePair_RendersDimName()
-    {
-        var (writer, terminal) = Create();
-        writer.WritePair("Package", "1.0.0", 20);
-
-        var output = terminal.Output;
-        Assert.Contains("Package", output);
-        Assert.Contains("1.0.0", output);
-        Assert.Contains($"\x1b[{(int)TerminalColor.DarkGray}m", output);
     }
 
     // ── Section filtering ──

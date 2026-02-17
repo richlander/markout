@@ -155,20 +155,6 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WritePair_WritesTwoColumnData()
-    {
-        var writer = new MarkoutWriter();
-        writer.WritePair("Microsoft.CSharp", "4.7.0", 32);
-        writer.WritePair("System.Memory", "4.5.5", 32);
-
-        var expected = """
-            Microsoft.CSharp                4.7.0
-            System.Memory                   4.5.5
-            """;
-        Assert.Equal(expected, writer.ToString());
-    }
-
-    [Fact]
     public void MultipleElements_AddsBlankLinesBetweenSections()
     {
         var writer = new MarkdownWriter();
@@ -261,19 +247,19 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteCompactFields_SingleField_WritesSinglePair()
+    public void WriteFieldList_SingleField_WritesSinglePair()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCompactFields(new MarkoutField("Type", "Library"));
+        writer.WriteFieldList(new MarkoutField("Type", "Library"));
 
         Assert.Equal("Type: Library", writer.ToString());
     }
 
     [Fact]
-    public void WriteCompactFields_MultipleFields_WritesPipeSeparated()
+    public void WriteFieldList_MultipleFields_WritesPipeSeparated()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCompactFields(
+        writer.WriteFieldList(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"),
             new MarkoutField("Updated", "2026-01-15"));
@@ -282,19 +268,19 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteCompactFields_EmptyFields_WritesNothing()
+    public void WriteFieldList_EmptyFields_WritesNothing()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCompactFields();
+        writer.WriteFieldList();
 
         Assert.Equal("", writer.ToString());
     }
 
     [Fact]
-    public void WriteCompactFields_NullValue_WritesEmptyString()
+    public void WriteFieldList_NullValue_WritesEmptyString()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCompactFields(
+        writer.WriteFieldList(
             new MarkoutField("Status", null),
             new MarkoutField("Count", "5"));
 
@@ -302,11 +288,11 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteCompactFields_AfterHeading_AddsBlankLine()
+    public void WriteFieldList_AfterHeading_AddsBlankLine()
     {
         var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package 1.0.0");
-        writer.WriteCompactFields(
+        writer.WriteFieldList(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"));
 
@@ -521,32 +507,32 @@ public class MarkoutWriterTests
     public void CurrentContext_InCodeBlock_ReturnsCodeBlock()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCodeBlockStart("csharp");
+        writer.WriteCodeStart("csharp");
         Assert.Equal(MarkoutRenderContext.CodeBlock, writer.CurrentContext);
-        writer.WriteCodeBlockEnd();
+        writer.WriteCodeEnd();
         Assert.Equal(MarkoutRenderContext.Block, writer.CurrentContext);
     }
 
     [Fact]
-    public void WriteCodeBlockStart_Nested_Throws()
+    public void WriteCodeStart_Nested_Throws()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCodeBlockStart();
-        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeBlockStart());
+        writer.WriteCodeStart();
+        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeStart());
     }
 
     [Fact]
-    public void WriteCodeBlockEnd_WithoutStart_Throws()
+    public void WriteCodeEnd_WithoutStart_Throws()
     {
         var writer = new MarkoutWriter();
-        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeBlockEnd());
+        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeEnd());
     }
 
     [Fact]
     public void WriteTableStart_InCodeBlock_Throws()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCodeBlockStart();
+        writer.WriteCodeStart();
         Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart("A"));
     }
 
@@ -742,22 +728,22 @@ public class MarkoutWriterTests
 
     #endregion
 
-    #region Blockquote Tests
+    #region Quotation Tests
 
     [Fact]
-    public void WriteBlockquote_PlainText_IndentsText()
+    public void WriteQuotation_PlainText_IndentsText()
     {
         var writer = new MarkoutWriter();
-        writer.WriteBlockquote("To be or not to be.");
+        writer.WriteQuotation("To be or not to be.");
 
         Assert.Contains("  To be or not to be.", writer.ToString());
     }
 
     [Fact]
-    public void WriteBlockquote_PlainText_MultiLine()
+    public void WriteQuotation_PlainText_MultiLine()
     {
         var writer = new MarkoutWriter();
-        writer.WriteBlockquote("Line one.\nLine two.");
+        writer.WriteQuotation("Line one.\nLine two.");
 
         var output = writer.ToString();
         Assert.Contains("  Line one.", output);
@@ -765,19 +751,19 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteBlockquote_Markdown_UsesAngleBracket()
+    public void WriteQuotation_Markdown_UsesAngleBracket()
     {
         var writer = new MarkdownWriter();
-        writer.WriteBlockquote("A wise observation.");
+        writer.WriteQuotation("A wise observation.");
 
         Assert.Contains("> A wise observation.", writer.ToString());
     }
 
     [Fact]
-    public void WriteBlockquote_Markdown_MultiLine()
+    public void WriteQuotation_Markdown_MultiLine()
     {
         var writer = new MarkdownWriter();
-        writer.WriteBlockquote("First line.\nSecond line.");
+        writer.WriteQuotation("First line.\nSecond line.");
 
         var output = writer.ToString();
         Assert.Contains("> First line.", output);
@@ -786,22 +772,22 @@ public class MarkoutWriterTests
 
     #endregion
 
-    #region HorizontalRule Tests
+    #region Rule Tests
 
     [Fact]
-    public void WriteHorizontalRule_PlainText_WritesUnicodeLine()
+    public void WriteRule_PlainText_WritesUnicodeLine()
     {
         var writer = new MarkoutWriter();
-        writer.WriteHorizontalRule();
+        writer.WriteRule();
 
         Assert.Contains("────────", writer.ToString());
     }
 
     [Fact]
-    public void WriteHorizontalRule_Markdown_WritesTripleDash()
+    public void WriteRule_Markdown_WritesTripleDash()
     {
         var writer = new MarkdownWriter();
-        writer.WriteHorizontalRule();
+        writer.WriteRule();
 
         Assert.Contains("---", writer.ToString());
     }

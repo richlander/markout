@@ -567,7 +567,7 @@ public partial class CanConReportViewMarkoutTypeInfo
     {
         if (value.Quote != null)
         {
-            writer.WriteBlockquote(value.Quote);
+            writer.WriteQuotation(value.Quote);
         }
     }
 }

@@ -20,17 +20,16 @@ public class ShapeSupportTests
         Assert.True(all.HasFlag(MarkoutShape.Headings));
         Assert.True(all.HasFlag(MarkoutShape.Paragraphs));
         Assert.True(all.HasFlag(MarkoutShape.Fields));
-        Assert.True(all.HasFlag(MarkoutShape.CompactFields));
+        Assert.True(all.HasFlag(MarkoutShape.FieldList));
         Assert.True(all.HasFlag(MarkoutShape.Tables));
         Assert.True(all.HasFlag(MarkoutShape.Lists));
         Assert.True(all.HasFlag(MarkoutShape.Trees));
-        Assert.True(all.HasFlag(MarkoutShape.CodeBlocks));
-        Assert.True(all.HasFlag(MarkoutShape.Pairs));
+        Assert.True(all.HasFlag(MarkoutShape.Code));
         Assert.True(all.HasFlag(MarkoutShape.Metrics));
         Assert.True(all.HasFlag(MarkoutShape.Descriptions));
         Assert.True(all.HasFlag(MarkoutShape.Callouts));
         Assert.True(all.HasFlag(MarkoutShape.Breakdowns));
-        Assert.True(all.HasFlag(MarkoutShape.Blockquotes));
+        Assert.True(all.HasFlag(MarkoutShape.Quotation));
         Assert.True(all.HasFlag(MarkoutShape.Matrices));
     }
 
@@ -86,7 +85,6 @@ public class ShapeSupportTests
             writer.WriteParagraph("text");
             writer.WriteField("key", "value");
             writer.WriteListItem("item");
-            writer.WritePair("a", "b");
             // Should produce no output
             Assert.Equal("", writer.ToString());
         }

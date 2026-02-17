@@ -482,7 +482,7 @@ internal static class TypeParser
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTimeOffset))
             return (PropertyKind.DateTimeOffset, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
-        // CodeSection type - renders as code block
+        // CodeSection type - renders as code
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.CodeSection))
             return (PropertyKind.CodeSection, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 

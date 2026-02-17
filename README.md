@@ -80,7 +80,7 @@ Markout is a serializer for a **shape library**. Each property on a view model m
 | **Quotation** | `CodeSection` | Verbatim content | ` ```code``` ` | Syntax display |
 | **Attention** | `Callout` | Important messages | `> [!WARNING]` | Colored label |
 
-Plus structural shapes: **Blockquote** (prose quotation), **Matrix** (2D pivot grid), **Pairs** (aligned name-value), **HorizontalRule** (section separator).
+Plus structural shapes: **Quotation** (prose quotation), **Matrix** (2D pivot grid), **Rule** (section separator).
 
 ### Record Types
 
@@ -148,7 +148,7 @@ public class MyWriter : MarkdownWriter
     protected override void WriteDescription(Description item)
     {
         // Custom rendering for descriptions
-        Writer.WriteLine($"📌 {item.Term}: {item.Text}");
+        Writer.WriteLine($"{item.Term}: {item.Text}");
     }
 }
 ```

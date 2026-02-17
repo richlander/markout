@@ -207,15 +207,15 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Code blocks ──
+    // ── Code ──
 
     /// <inheritdoc/>
-    public override void WriteCodeBlockStart(string? language = null)
+    public override void WriteCodeStart(string? language = null)
     {
-        if (InCodeBlock)
-            throw new InvalidOperationException("Cannot nest code blocks. End the current code block before starting a new one.");
+        if (InCode)
+            throw new InvalidOperationException("Cannot nest code regions. End the current code region before starting a new one.");
 
-        InCodeBlock = true;
+        InCode = true;
 
         if (SectionExcluded)
             return;
@@ -226,12 +226,12 @@ public class AnsiWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteCodeBlockEnd()
+    public override void WriteCodeEnd()
     {
-        if (!InCodeBlock)
-            throw new InvalidOperationException("Cannot end a code block without starting one first.");
+        if (!InCode)
+            throw new InvalidOperationException("Cannot end a code region without starting one first.");
 
-        InCodeBlock = false;
+        InCode = false;
 
         if (SectionExcluded)
             return;
@@ -362,10 +362,10 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Compact fields ──
+    // ── Field list ──
 
     /// <inheritdoc/>
-    public override void WriteCompactFields(params MarkoutField[] fields)
+    public override void WriteFieldList(params MarkoutField[] fields)
     {
         if (SectionExcluded || fields.Length == 0)
             return;
@@ -392,7 +392,7 @@ public class AnsiWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteCompactFields(IReadOnlyList<MarkoutField> fields)
+    public override void WriteFieldList(IReadOnlyList<MarkoutField> fields)
     {
         if (SectionExcluded || fields.Count == 0)
             return;
@@ -415,22 +415,6 @@ public class AnsiWriter : MarkoutWriter
 
         Writer.WriteLine();
         NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    // ── Simple pairs ──
-
-    /// <inheritdoc/>
-    public override void WritePair(string name, string value, int nameWidth = 32)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        _terminal.SetColor(TerminalColor.DarkGray);
-        Writer.Write(name.PadRight(nameWidth));
-        _terminal.ResetColor();
-        Writer.WriteLine(value);
         HasContent = true;
     }
 
@@ -497,12 +481,12 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Blockquotes ──
+    // ── Quotation ──
 
     /// <inheritdoc/>
-    public override void WriteBlockquote(string text)
+    public override void WriteQuotation(string text)
     {
-        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Blockquotes))
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Quotation))
             return;
 
         if (HasContent)
@@ -529,10 +513,10 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Horizontal Rule ──
+    // ── Rule ──
 
     /// <inheritdoc/>
-    public override void WriteHorizontalRule()
+    public override void WriteRule()
     {
         if (SectionExcluded)
             return;

@@ -31,9 +31,9 @@ public static class ShapeGallery
         writer.WriteField("Version", "0.6.0");
         writer.WriteField("License", "MIT");
 
-        // Compact fields / Pairs
-        writer.WriteHeading(2, "Compact Fields");
-        writer.WriteCompactFields(
+        // Field list
+        writer.WriteHeading(2, "Field List");
+        writer.WriteFieldList(
             new MarkoutField("Language", "C#"),
             new MarkoutField("Runtime", ".NET 10"),
             new MarkoutField("Source Gen", "yes"));
@@ -94,21 +94,16 @@ public static class ShapeGallery
 
         // Quotation — code section
         writer.WriteHeading(2, "Quick Start");
-        writer.WriteCodeBlockStart("csharp");
+        writer.WriteCodeStart("csharp");
         writer.WriteParagraph("var md = MarkoutSerializer.Serialize(obj, MyContext.Default);");
-        writer.WriteCodeBlockEnd();
+        writer.WriteCodeEnd();
 
         // Quotation — blockquote
         writer.WriteHeading(2, "Philosophy");
-        writer.WriteBlockquote("Markup adds instructions to content.\nMarkout removes structure from data.");
+        writer.WriteQuotation("Markup adds instructions to content.\nMarkout removes structure from data.");
 
         // Separator
-        writer.WriteHorizontalRule();
-
-        // Pairs
-        writer.WriteHeading(2, "Links");
-        writer.WritePair("Repository", "https://github.com/richlander/markout");
-        writer.WritePair("NuGet", "https://nuget.org/packages/Markout");
+        writer.WriteRule();
 
         // Matrix
         writer.WriteHeading(2, "Renderer × Shape Support");

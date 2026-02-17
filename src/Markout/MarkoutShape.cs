@@ -20,8 +20,8 @@ public enum MarkoutShape
     /// <summary>Key-value fields (scalar and formatted).</summary>
     Fields = 4,
 
-    /// <summary>Compact multi-field layout.</summary>
-    CompactFields = 8,
+    /// <summary>Multi-field single-line layout.</summary>
+    FieldList = 8,
 
     /// <summary>Tables (streaming and batch).</summary>
     Tables = 16,
@@ -32,11 +32,8 @@ public enum MarkoutShape
     /// <summary>Tree structures (TreeNode hierarchies).</summary>
     Trees = 64,
 
-    /// <summary>Code blocks (fenced regions).</summary>
-    CodeBlocks = 128,
-
-    /// <summary>Aligned name-value pairs.</summary>
-    Pairs = 256,
+    /// <summary>Fenced code regions.</summary>
+    Code = 128,
 
     /// <summary>Comparative labeled measurements.</summary>
     Metrics = 512,
@@ -51,11 +48,11 @@ public enum MarkoutShape
     Breakdowns = 4096,
 
     /// <summary>Prose quotation blocks.</summary>
-    Blockquotes = 8192,
+    Quotation = 8192,
 
     /// <summary>2D grid with row and column headers.</summary>
     Matrices = 16384,
 
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | Pairs | Metrics | Descriptions | Callouts | Breakdowns | Blockquotes | Matrices
+    All = Headings | Paragraphs | Fields | FieldList | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation | Matrices
 }

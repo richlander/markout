@@ -114,9 +114,9 @@ Every document format supports these. They map directly to Markdown elements and
 | **Fields** | Identity | `WriteField` | — |
 | **Lists** | Enumeration | `WriteListItem`, `WriteArray` | — |
 | **Tables** | Tabulation | `WriteTable`, `WriteTableStart/Row/End` | — |
-| **CodeBlocks** | Quotation (code) | `WriteCodeBlockStart/End` | `CodeSection` |
-| **Blockquotes** | Quotation (prose) | `WriteBlockquote` | — |
-| **HorizontalRule** | Structure | `WriteHorizontalRule` | — |
+| **Code** | Quotation (code) | `WriteCodeStart/End` | `CodeSection` |
+| **Quotation** | Quotation (prose) | `WriteQuotation` | — |
+| **Rule** | Structure | `WriteRule` | — |
 
 ### Tier 2: Semantic Extensions
 
@@ -124,8 +124,7 @@ These add meaning beyond raw document structure. They represent specific data re
 
 | Shape | Relationship | Writer method | Record type |
 |---|---|---|---|
-| **CompactFields** | Identity (multi) | `WriteCompactFields` | `MarkoutField` |
-| **Pairs** | Identity (aligned) | `WritePair` | — |
+| **FieldList** | Identity (multi) | `WriteFieldList` | `MarkoutField` |
 | **Descriptions** | Description | `WriteDescriptions` | `Description` |
 | **Callouts** | Attention | `WriteCallout` | `Callout` |
 | **Trees** | Hierarchy | `WriteTree` | `TreeNode` |
@@ -192,7 +191,7 @@ Applying the admission criteria to candidates:
 
 | Candidate | Relationship | Criteria assessment | Verdict |
 |---|---|---|---|
-| ~~Blockquote~~ | Quotation (prose) | ✅ All five. Distinct from CodeSection (prose vs. code). | **Shipped** |
+| ~~Quotation~~ | Quotation (prose) | ✅ All five. Distinct from CodeSection (prose vs. code). | **Shipped** |
 | ~~Matrix~~ | Tabulation (2D) | ✅ All five. Row+column headers distinct from flat table. | **Shipped** |
 | StatusItem | Measurement | ❌ #2: Same relationship as Metric (value relative to max). | Metric with options |
 | DefinitionItem | Description | ❌ #2: Same relationship as Description. | Use Description |

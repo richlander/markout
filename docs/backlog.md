@@ -14,7 +14,7 @@ record CodeSection(string Language, string Content);
 ```
 
 When used as a property on a `[MarkoutSerializable]` type, the generator emits
-`WriteCodeBlockStart(language)` / `WriteParagraph(content)` / `WriteCodeBlockEnd()`.
+`WriteCodeStart(language)` / `WriteParagraph(content)` / `WriteCodeEnd()`.
 
 ### Use case: Constructor overloads in dotnet-inspect
 
@@ -40,9 +40,9 @@ and samples rendering (4+ instances in `ApiOutputFormatter`).
 
 - New `PropertyKind.CodeSection` in source generator
 - Add `CodeSection` to `KnownTypeSymbols`
-- Emit `WriteCodeBlockStart`/`WriteParagraph`/`WriteCodeBlockEnd` sequence
-- No new shape flag needed — uses existing `CodeBlocks` shape
-- Also add `List<CodeSection>` recognition for types with multiple code blocks
+- Emit `WriteCodeStart`/`WriteParagraph`/`WriteCodeEnd` sequence
+- No new shape flag needed — uses existing `Code` shape
+- Also add `List<CodeSection>` recognition for types with multiple code sections
 
 ## Conditional column visibility
 
@@ -112,23 +112,23 @@ Metric shape rather than a separate type.
 A link is a reference relationship on a field, not a collection shape.
 Prefer `[MarkoutLink]` attribute on string properties.
 
-## Blockquote ✅ Accepted
+## Quotation ✅ Accepted
 
 A writer-level method (no source-gen collection type needed). Distinct from
 CodeSection: prose quotation vs. verbatim code quotation.
 
 ```csharp
-writer.WriteBlockquote("This is a quoted passage.");
+writer.WriteQuotation("This is a quoted passage.");
 ```
 
 Renders as `> text` in markdown, indented/colored in ANSI, indented in plain text.
 
-## HorizontalRule
+## Rule ✅ Accepted
 
 A writer-level separator method:
 
 ```csharp
-writer.WriteHorizontalRule();
+writer.WriteRule();
 ```
 
 Renders as `---` in markdown, `────────` in ANSI, blank line in plain text.

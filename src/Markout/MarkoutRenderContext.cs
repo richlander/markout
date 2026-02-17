@@ -18,7 +18,7 @@ public enum MarkoutRenderContext
     Table,
 
     /// <summary>
-    /// Inside a fenced code block. Content is rendered literally, not as Markdown.
+    /// Inside a fenced code region. Content is rendered literally, not as Markdown.
     /// Nested code fences are not allowed.
     /// </summary>
     CodeBlock

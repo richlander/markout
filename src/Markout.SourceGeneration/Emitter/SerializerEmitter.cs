@@ -582,9 +582,9 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteCodeBlockStart({propAccess}.Language);");
+            sb.AppendLine($"{indent}    writer.WriteCodeStart({propAccess}.Language);");
             sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
-            sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
+            sb.AppendLine($"{indent}    writer.WriteCodeEnd();");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
         }
@@ -633,7 +633,7 @@ internal static class SerializerEmitter
 
             case PropertyKind.FieldCollection:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteCompactFields({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteFieldList({propAccess});");
                 break;
 
             case PropertyKind.Tree:
@@ -654,9 +654,9 @@ internal static class SerializerEmitter
             case PropertyKind.CodeSection:
                 sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
                 sb.AppendLine($"{indent}{{");
-                sb.AppendLine($"{indent}    writer.WriteCodeBlockStart({propAccess}.Language);");
+                sb.AppendLine($"{indent}    writer.WriteCodeStart({propAccess}.Language);");
                 sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
-                sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
+                sb.AppendLine($"{indent}    writer.WriteCodeEnd();");
                 sb.AppendLine($"{indent}}}");
                 break;
 
@@ -884,13 +884,13 @@ internal static class SerializerEmitter
             PropertyKind.ComplexArray => prop.ElementHasNestedContent 
                 ? "Subsections" 
                 : "Table",
-            PropertyKind.FieldCollection => "Compact fields",
+            PropertyKind.FieldCollection => "Field list",
             PropertyKind.NestedObject => "Fields",
             PropertyKind.Formattable => "Custom (IMarkoutFormattable)",
             PropertyKind.Tree => "Tree",
             PropertyKind.Metric => "Metric",
             PropertyKind.Description => "Description",
-            PropertyKind.CodeSection => "Code block",
+            PropertyKind.CodeSection => "Code",
             PropertyKind.Callout => "Callout",
             PropertyKind.Breakdown => "Breakdown",
             _ => "Field"

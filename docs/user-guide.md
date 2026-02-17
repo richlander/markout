@@ -896,10 +896,10 @@ writer.WriteTableRow("Widget B", "Electronics", "$49.99");
 writer.WriteTableEnd();
 ```
 
-### Compact Fields
+### Field List
 
 ```csharp
-writer.WriteCompactFields(
+writer.WriteFieldList(
     new MarkoutField("Name", "Widget"),
     new MarkoutField("Price", "$29.99"),
     new MarkoutField("Stock", "Yes")
@@ -907,12 +907,12 @@ writer.WriteCompactFields(
 // Name: Widget | Price: $29.99 | Stock: Yes
 ```
 
-### Code Blocks
+### Code
 
 ```csharp
-writer.WriteCodeBlockStart("json");
+writer.WriteCodeStart("json");
 writer.WriteParagraph("{ \"key\": \"value\" }");
-writer.WriteCodeBlockEnd();
+writer.WriteCodeEnd();
 ```
 
 > From the [WriterUsage](../samples/Serialization/WriterUsage.cs) sample.
