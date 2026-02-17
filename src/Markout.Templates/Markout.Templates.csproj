@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>Markout.Templates</RootNamespace>
     <Description>Template engine for Markout — compose human-authored documents with data-driven content</Description>
-    <Version>0.7.0</Version>
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
