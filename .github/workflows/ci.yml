@@ -68,17 +68,20 @@ jobs:
       - name: Install markdownlint-cli
         run: npm install -g markdownlint-cli
 
+      - name: Authenticate GitHub Packages
+        run: dotnet nuget update source github-richlander --username richlander --password "${{ secrets.GITHUB_TOKEN }}" --store-password-in-clear-text
+
       - name: Restore
         run: dotnet restore
 
       - name: Build
-        run: dotnet build -c Release -p:OfficialBuild=true -p:ExcludeAnsi=true --no-restore
+        run: dotnet build -c Release -p:OfficialBuild=true --no-restore
 
       - name: Test
-        run: dotnet run --project tests/Markout.Tests -c Release -p:ExcludeAnsi=true
+        run: dotnet run --project tests/Markout.Tests -c Release
 
       - name: Pack
-        run: dotnet pack -c Release -p:OfficialBuild=true -p:ExcludeAnsi=true --no-build
+        run: dotnet pack -c Release -p:OfficialBuild=true --no-build
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
