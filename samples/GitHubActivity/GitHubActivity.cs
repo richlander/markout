@@ -164,55 +164,34 @@ public partial class ActivityContext : MarkoutSerializerContext { }
 
 public class GitHubUser
 {
-    [JsonPropertyName("login")]
     public string Login { get; set; } = "";
-
-    [JsonPropertyName("name")]
     public string? Name { get; set; }
-
-    [JsonPropertyName("location")]
     public string? Location { get; set; }
-
-    [JsonPropertyName("public_repos")]
     public int PublicRepos { get; set; }
-
-    [JsonPropertyName("followers")]
     public int Followers { get; set; }
 }
 
 public class GitHubEvent
 {
-    [JsonPropertyName("type")]
     public string Type { get; set; } = "";
-
-    [JsonPropertyName("repo")]
     public GitHubRepo? Repo { get; set; }
-
-    [JsonPropertyName("created_at")]
     public string CreatedAt { get; set; } = "";
-
-    [JsonPropertyName("payload")]
     public EventPayload? Payload { get; set; }
 }
 
 public class GitHubRepo
 {
-    [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 }
 
 public class EventPayload
 {
-    [JsonPropertyName("action")]
     public string? Action { get; set; }
-
-    [JsonPropertyName("ref_type")]
     public string? RefType { get; set; }
-
-    [JsonPropertyName("size")]
     public int? Size { get; set; }
 }
 
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(GitHubUser))]
 [JsonSerializable(typeof(List<GitHubEvent>))]
 internal partial class GitHubJsonContext : JsonSerializerContext { }
