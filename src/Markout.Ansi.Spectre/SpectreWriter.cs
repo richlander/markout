@@ -206,15 +206,15 @@ public class SpectreWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Code blocks ──
+    // ── Code ──
 
     /// <inheritdoc/>
-    public override void WriteCodeBlockStart(string? language = null)
+    public override void WriteCodeStart(string? language = null)
     {
-        if (InCodeBlock)
-            throw new InvalidOperationException("Cannot nest code blocks. End the current code block before starting a new one.");
+        if (InCode)
+            throw new InvalidOperationException("Cannot nest code regions. End the current code region before starting a new one.");
 
-        InCodeBlock = true;
+        InCode = true;
 
         if (SectionExcluded)
             return;
@@ -224,12 +224,12 @@ public class SpectreWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteCodeBlockEnd()
+    public override void WriteCodeEnd()
     {
-        if (!InCodeBlock)
-            throw new InvalidOperationException("Cannot end a code block without starting one first.");
+        if (!InCode)
+            throw new InvalidOperationException("Cannot end a code region without starting one first.");
 
-        InCodeBlock = false;
+        InCode = false;
 
         if (SectionExcluded)
             return;
@@ -349,10 +349,10 @@ public class SpectreWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Compact fields ──
+    // ── Field list ──
 
     /// <inheritdoc/>
-    public override void WriteCompactFields(params MarkoutField[] fields)
+    public override void WriteFieldList(params MarkoutField[] fields)
     {
         if (SectionExcluded || fields.Length == 0)
             return;
@@ -374,7 +374,7 @@ public class SpectreWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteCompactFields(IReadOnlyList<MarkoutField> fields)
+    public override void WriteFieldList(IReadOnlyList<MarkoutField> fields)
     {
         if (SectionExcluded || fields.Count == 0)
             return;
@@ -392,20 +392,6 @@ public class SpectreWriter : MarkoutWriter
 
         _console.WriteLine();
         NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    // ── Simple pairs ──
-
-    /// <inheritdoc/>
-    public override void WriteSimplePair(string name, string value, int nameWidth = 32)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteMarkup($"[grey]{Esc(name.PadRight(nameWidth))}[/]");
-        _console.WriteLine(value);
         HasContent = true;
     }
 
@@ -562,19 +548,19 @@ public class SpectreWriter : MarkoutWriter
         // Dim box-drawing characters
         WriteMarkup($"[grey]{Esc(prefix)}{Esc(isLast ? "└─ " : "├─ ")}[/]");
 
-        // Icon
-        if (node.Icon != null && Options.IncludeIcons)
+        // Badge
+        if (node.Badge != null && Options.IncludeBadges)
         {
-            _console.Write(new Text(node.Icon + " "));
+            _console.Write(new Text(node.Badge + " "));
         }
 
-        // Label colored by depth
+        // Text colored by depth
         if (depth == 0)
-            WriteMarkupLine($"[bold cyan]{Esc(node.Label)}[/]");
+            WriteMarkupLine($"[bold cyan]{Esc(node.Text)}[/]");
         else if (depth == 1)
-            _console.WriteLine(node.Label);
+            _console.WriteLine(node.Text);
         else
-            WriteMarkupLine($"[grey]{Esc(node.Label)}[/]");
+            WriteMarkupLine($"[grey]{Esc(node.Text)}[/]");
 
         HasContent = true;
 

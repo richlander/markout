@@ -138,15 +138,15 @@ internal static class SerializerEmitter
         sb.AppendLine("{");
 
         // Constructor accepting options
-        if (context.BoldFieldNames != null || context.IncludeIcons != null || context.IncludeDescription != null)
+        if (context.BoldFieldNames != null || context.IncludeBadges != null || context.IncludeDescription != null)
         {
             // Generate default constructor that applies compile-time options
             sb.AppendLine($"    public {context.ClassName}() : base(new global::Markout.MarkoutWriterOptions");
             sb.AppendLine("    {");
             if (context.BoldFieldNames != null)
                 sb.AppendLine($"        BoldFieldNames = {(context.BoldFieldNames.Value ? "true" : "false")},");
-            if (context.IncludeIcons != null)
-                sb.AppendLine($"        IncludeIcons = {(context.IncludeIcons.Value ? "true" : "false")},");
+            if (context.IncludeBadges != null)
+                sb.AppendLine($"        IncludeBadges = {(context.IncludeBadges.Value ? "true" : "false")},");
             if (context.IncludeDescription != null)
                 sb.AppendLine($"        IncludeDescription = {(context.IncludeDescription.Value ? "true" : "false")},");
             sb.AppendLine("    }) { }");
@@ -569,9 +569,9 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteHeading({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteCodeBlockStart({propAccess}.Language);");
+            sb.AppendLine($"{indent}    writer.WriteCodeStart({propAccess}.Language);");
             sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
-            sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
+            sb.AppendLine($"{indent}    writer.WriteCodeEnd();");
             sb.AppendLine($"{indent}}}");
         }
         else if (prop.Kind == PropertyKind.NestedObject && prop.ElementProperties != null)
@@ -616,7 +616,7 @@ internal static class SerializerEmitter
 
             case PropertyKind.FieldCollection:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteCompactFields({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteFieldList({propAccess});");
                 break;
 
             case PropertyKind.Tree:
@@ -637,9 +637,9 @@ internal static class SerializerEmitter
             case PropertyKind.CodeSection:
                 sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
                 sb.AppendLine($"{indent}{{");
-                sb.AppendLine($"{indent}    writer.WriteCodeBlockStart({propAccess}.Language);");
+                sb.AppendLine($"{indent}    writer.WriteCodeStart({propAccess}.Language);");
                 sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
-                sb.AppendLine($"{indent}    writer.WriteCodeBlockEnd();");
+                sb.AppendLine($"{indent}    writer.WriteCodeEnd();");
                 sb.AppendLine($"{indent}}}");
                 break;
 
@@ -867,13 +867,13 @@ internal static class SerializerEmitter
             PropertyKind.ComplexArray => prop.ElementHasNestedContent 
                 ? "Subsections" 
                 : "Table",
-            PropertyKind.FieldCollection => "Compact fields",
+            PropertyKind.FieldCollection => "Field list",
             PropertyKind.NestedObject => "Fields",
             PropertyKind.Formattable => "Custom (IMarkoutFormattable)",
             PropertyKind.Tree => "Tree",
             PropertyKind.BarChart => "Bar chart",
             PropertyKind.LabeledList => "Labeled list",
-            PropertyKind.CodeSection => "Code block",
+            PropertyKind.CodeSection => "Code",
             PropertyKind.Callout => "Callout",
             PropertyKind.Distribution => "Distribution chart",
             _ => "Field"

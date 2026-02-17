@@ -161,9 +161,9 @@ public static class Demos
         writer.WriteParagraph("This demo shows `List<List<T>>` rendered as a tree. Each shoe shows its reviews, which would be unsupported in table format.");
         
         writer.WriteHeading(2, "Products with Reviews");
-        writer.WriteCodeBlockStart();
+        writer.WriteCodeStart();
         writer.WriteTree(tree);
-        writer.WriteCodeBlockEnd();
+        writer.WriteCodeEnd();
         writer.Flush();
     }
 }

@@ -13,13 +13,13 @@ public enum MarkoutRenderContext
 
     /// <summary>
     /// Inside a table. Only inline content and escaped values are valid.
-    /// Block-level elements (headings, code blocks, lists) are not allowed.
+    /// Block-level elements (headings, code regions, lists) are not allowed.
     /// </summary>
     Table,
 
     /// <summary>
-    /// Inside a fenced code block. Content is rendered literally, not as Markdown.
-    /// Nested code fences are not allowed.
+    /// Inside a code region. Content is rendered literally, not as Markdown.
+    /// Nested code regions are not allowed.
     /// </summary>
-    CodeBlock
+    Code
 }

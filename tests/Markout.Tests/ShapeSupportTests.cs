@@ -20,12 +20,11 @@ public class ShapeSupportTests
         Assert.True(all.HasFlag(MarkoutShape.Headings));
         Assert.True(all.HasFlag(MarkoutShape.Paragraphs));
         Assert.True(all.HasFlag(MarkoutShape.Fields));
-        Assert.True(all.HasFlag(MarkoutShape.CompactFields));
+        Assert.True(all.HasFlag(MarkoutShape.FieldList));
         Assert.True(all.HasFlag(MarkoutShape.Tables));
         Assert.True(all.HasFlag(MarkoutShape.Lists));
         Assert.True(all.HasFlag(MarkoutShape.Trees));
-        Assert.True(all.HasFlag(MarkoutShape.CodeBlocks));
-        Assert.True(all.HasFlag(MarkoutShape.SimplePairs));
+        Assert.True(all.HasFlag(MarkoutShape.Code));
         Assert.True(all.HasFlag(MarkoutShape.BarCharts));
         Assert.True(all.HasFlag(MarkoutShape.LabeledLists));
         Assert.True(all.HasFlag(MarkoutShape.Callouts));
@@ -84,7 +83,6 @@ public class ShapeSupportTests
             writer.WriteParagraph("text");
             writer.WriteField("key", "value");
             writer.WriteListItem("item");
-            writer.WriteSimplePair("a", "b");
             // Should produce no output
             Assert.Equal("", writer.ToString());
         }

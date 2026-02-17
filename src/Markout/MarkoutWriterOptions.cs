@@ -6,7 +6,7 @@ namespace Markout;
 public class MarkoutWriterOptions
 {
     private bool _isReadOnly;
-    private bool _includeIcons = true;
+    private bool _includeBadges = true;
     private bool _includeDescription = true;
     private bool _boldFieldNames;
     private bool _prettyTables;
@@ -27,15 +27,15 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
-    /// Whether to include icons in tree nodes. Default is true.
+    /// Whether to include badges in tree nodes. Default is true.
     /// </summary>
-    public bool IncludeIcons
+    public bool IncludeBadges
     {
-        get => _includeIcons;
+        get => _includeBadges;
         set
         {
             ThrowIfReadOnly();
-            _includeIcons = value;
+            _includeBadges = value;
         }
     }
 

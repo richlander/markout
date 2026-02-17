@@ -133,7 +133,7 @@ internal static class FieldEmitter
             sb.AppendLine($"{indent}{{");
             if (sectionHeading != null)
                 sb.AppendLine($"{indent}    writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
-            sb.AppendLine($"{indent}    writer.WriteCompactFields({fieldsVar});");
+            sb.AppendLine($"{indent}    writer.WriteFieldList({fieldsVar});");
             sb.AppendLine($"{indent}}}");
         }
         else
@@ -150,7 +150,7 @@ internal static class FieldEmitter
 
             if (sectionHeading != null)
                 sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
-            sb.AppendLine($"{indent}writer.WriteCompactFields({string.Join(", ", fields)});");
+            sb.AppendLine($"{indent}writer.WriteFieldList({string.Join(", ", fields)});");
         }
     }
 

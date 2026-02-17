@@ -22,7 +22,7 @@ public class MarkoutWriter
     private bool _needsBlankLine;
     private bool _hasContent;
     private bool _inTable;
-    private bool _inCodeBlock;
+    private bool _inCode;
     private string? _currentSectionName;
     private bool _sectionExcluded;
     private int _tableRowCount;
@@ -102,9 +102,9 @@ public class MarkoutWriter
     public bool IncludeDescription => _options.IncludeDescription;
 
     /// <summary>
-    /// Gets whether to include icons in tree nodes.
+    /// Gets whether to include badges in tree nodes.
     /// </summary>
-    public bool IncludeIcons => _options.IncludeIcons;
+    public bool IncludeBadges => _options.IncludeBadges;
 
     /// <summary>
     /// Gets the shapes this writer supports. Unsupported shapes produce a
@@ -116,7 +116,7 @@ public class MarkoutWriter
     /// Gets the current rendering context, indicating what Markdown constructs are valid.
     /// </summary>
     public MarkoutRenderContext CurrentContext =>
-        _inCodeBlock ? MarkoutRenderContext.CodeBlock :
+        _inCode ? MarkoutRenderContext.Code :
         _inTable ? MarkoutRenderContext.Table :
         MarkoutRenderContext.Block;
 
@@ -146,9 +146,9 @@ public class MarkoutWriter
     protected bool InTable { get => _inTable; set => _inTable = value; }
 
     /// <summary>
-    /// Gets or sets whether output is currently inside a code block.
+    /// Gets or sets whether output is currently inside a code region.
     /// </summary>
-    protected bool InCodeBlock { get => _inCodeBlock; set => _inCodeBlock = value; }
+    protected bool InCode { get => _inCode; set => _inCode = value; }
 
     /// <summary>
     /// Gets whether the current section is excluded by filtering.
@@ -311,17 +311,17 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Starts a code block with optional language specifier.
+    /// Starts a code region with optional language specifier.
     /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown if already inside a code block.</exception>
-    public virtual void WriteCodeBlockStart(string? language = null)
+    /// <exception cref="InvalidOperationException">Thrown if already inside a code region.</exception>
+    public virtual void WriteCodeStart(string? language = null)
     {
-        if (_inCodeBlock)
-            throw new InvalidOperationException("Cannot nest code blocks. End the current code block before starting a new one.");
+        if (_inCode)
+            throw new InvalidOperationException("Cannot nest code regions. End the current code region before starting a new one.");
 
-        _inCodeBlock = true;
+        _inCode = true;
 
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.CodeBlocks))
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Code))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -329,15 +329,15 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Ends a code block.
+    /// Ends a code region.
     /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown if not inside a code block.</exception>
-    public virtual void WriteCodeBlockEnd()
+    /// <exception cref="InvalidOperationException">Thrown if not inside a code region.</exception>
+    public virtual void WriteCodeEnd()
     {
-        if (!_inCodeBlock)
-            throw new InvalidOperationException("Cannot end a code block without starting one first.");
+        if (!_inCode)
+            throw new InvalidOperationException("Cannot end a code region without starting one first.");
 
-        _inCodeBlock = false;
+        _inCode = false;
 
         if (_sectionExcluded)
             return;
@@ -464,16 +464,16 @@ public class MarkoutWriter
     /// <param name="fields">Fields to write.</param>
     /// <example>
     /// <code>
-    /// writer.WriteCompactFields(
+    /// writer.WriteFieldList(
     ///     new MarkoutField("Type", "Library"),
     ///     new MarkoutField("TFM", "net8.0"),
     ///     new MarkoutField("Updated", "2026-01-15"));
     /// // Output: Type: Library | TFM: net8.0 | Updated: 2026-01-15
     /// </code>
     /// </example>
-    public virtual void WriteCompactFields(params MarkoutField[] fields)
+    public virtual void WriteFieldList(params MarkoutField[] fields)
     {
-        if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.CompactFields))
+        if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.FieldList))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -497,9 +497,9 @@ public class MarkoutWriter
     /// Useful for compact summary lines with essential metadata.
     /// </summary>
     /// <param name="fields">Fields to write.</param>
-    public virtual void WriteCompactFields(IReadOnlyList<MarkoutField> fields)
+    public virtual void WriteFieldList(IReadOnlyList<MarkoutField> fields)
     {
-        if (_sectionExcluded || fields.Count == 0 || ShapeUnsupported(MarkoutShape.CompactFields))
+        if (_sectionExcluded || fields.Count == 0 || ShapeUnsupported(MarkoutShape.FieldList))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -592,8 +592,8 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteTableStart(params string[] headers)
     {
-        if (_inCodeBlock)
-            throw new InvalidOperationException("Cannot start a table inside a code block.");
+        if (_inCode)
+            throw new InvalidOperationException("Cannot start a table inside a code region.");
 
         _inTable = true;
         _tableRowCount = 0;
@@ -769,20 +769,6 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a simple pair (two values separated by whitespace).
-    /// </summary>
-    public virtual void WriteSimplePair(string name, string value, int nameWidth = 32)
-    {
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.SimplePairs))
-            return;
-
-        EnsureBlankLineIfNeeded();
-        _writer.Write(name.PadRight(nameWidth));
-        _writer.WriteLine(value);
-        _hasContent = true;
-    }
-
-    /// <summary>
     /// Writes a tree node with optional prefix for hierarchy.
     /// </summary>
     /// <param name="text">The node text.</param>
@@ -821,12 +807,12 @@ public class MarkoutWriter
         EnsureBlankLineIfNeeded();
         _writer.Write(prefix);
         _writer.Write(isLast ? "└─ " : "├─ ");
-        if (node.Icon != null && _options.IncludeIcons)
+        if (node.Badge != null && _options.IncludeBadges)
         {
-            _writer.Write(node.Icon);
+            _writer.Write(node.Badge);
             _writer.Write(' ');
         }
-        _writer.WriteLine(node.Label);
+        _writer.WriteLine(node.Text);
         _hasContent = true;
         
         if (node.Children != null && node.Children.Count > 0)
