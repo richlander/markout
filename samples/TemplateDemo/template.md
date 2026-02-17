@@ -18,6 +18,7 @@ The following vulnerabilities were disclosed this month.
 | Low | 0.1–3.9 | Risk-accepted |
 
 {{#if commits}}
+
 ## Related Commits
 
 The following commits address the vulnerabilities above.
