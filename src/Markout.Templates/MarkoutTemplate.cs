@@ -5,8 +5,8 @@ namespace Markout.Templates;
 /// data-driven content rendered through the Markout writer pipeline.
 /// </summary>
 /// <remarks>
-/// This is a peer entry path to the source generator. Both converge on
-/// <see cref="MarkoutWriter"/>:
+/// Like the source generator, templates render through the
+/// <see cref="MarkoutWriter"/> pipeline:
 /// <code>
 /// Source Generator:  [MarkoutSerializable] Type → Generated TypeInfo → MarkoutWriter
 /// Template Engine:   .md Template + Bindings  → MarkoutTemplate     → MarkoutWriter

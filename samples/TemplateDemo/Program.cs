@@ -2,7 +2,7 @@ using Markout;
 using Markout.Templates;
 
 // A template is a human-authored document with {{placeholders}} for data.
-// It's a peer entry path to the source generator — both render through MarkoutWriter.
+// Like the source generator, templates render through the MarkoutWriter pipeline.
 // See template.md alongside this file.
 
 var templatePath = Path.Combine(AppContext.BaseDirectory, "template.md");
