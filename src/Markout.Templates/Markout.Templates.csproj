@@ -7,8 +7,23 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>Markout.Templates</RootNamespace>
     <Description>Template engine for Markout — compose human-authored documents with data-driven content</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.1.0</Version>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OfficialBuild)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <DebugType>embedded</DebugType>
+    <Deterministic>true</Deterministic>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\..\README.md"
+          Pack="true"
+          PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Markout\Markout.csproj" />

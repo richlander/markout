@@ -2,8 +2,6 @@
 
 This demo shows products as a bullet list with custom formatting.
 
-Name: Altra Running Shoes  
-
 ## Available Models
 
 - Torin 7 ($149.99)
