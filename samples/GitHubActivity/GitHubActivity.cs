@@ -10,9 +10,10 @@ var username = args.FirstOrDefault(a => !a.EndsWith(".cs", StringComparison.Ordi
 
 if (username is null)
 {
-    Console.Error.WriteLine("Usage: dotnet run -- <username>");
-    Console.Error.WriteLine("Or install the GitHub CLI (gh) so the default user can be detected.");
-    return;
+    Console.Write("GitHub username: ");
+    username = Console.ReadLine()?.Trim();
+    if (string.IsNullOrEmpty(username))
+        return;
 }
 
 using var http = new HttpClient();
