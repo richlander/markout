@@ -23,8 +23,8 @@ Shoe (in table)
 ├─ Category: string → Column
 ├─ Price: decimal → Column
 ├─ InStock: bool → Column
-├─ Features: List<Markout.Demo.Feature>? → Skipped (unsupported)
-└─ Reviews: List<Markout.Demo.Review>? → Skipped (unsupported)
+├─ Features: List<Markout.Demo.Feature>? → Ignored
+└─ Reviews: List<Markout.Demo.Review>? → Ignored
 ```
 
 ## InventoryEntry

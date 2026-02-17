@@ -1,6 +1,6 @@
 # Altra Running Shoes
 
-This demo shows List<List<T>> rendered as a tree. Each shoe shows its reviews, which would be unsupported in table format.
+This demo shows `List<List<T>>` rendered as a tree. Each shoe shows its reviews, which would be unsupported in table format.
 
 ## Products with Reviews
 

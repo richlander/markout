@@ -47,7 +47,7 @@ jobs:
           for pkg in packages/*.nupkg; do
             name=$(basename "$pkg")
             case "$name" in
-              Markout.[0-9]*)
+              Markout.[0-9]*|Markout.Templates.*|Markout.Demo.*|MarkdownTable.Formatting.*)
                 echo "Publishing: $name"
                 dotnet nuget push "$pkg" \
                   --api-key ${{ steps.login.outputs.NUGET_API_KEY }} \
