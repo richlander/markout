@@ -6,39 +6,33 @@ using Markout.Ansi.Spectre;
 using Spectre.Console;
 
 var username = args.FirstOrDefault(a => !a.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-    ?? GetGitHubUsername();
+    ?? RunCommand("gh", "api user --jq .login")
+    ?? RunCommand("git", "config --get github.user");
 
 if (username is null)
 {
     Console.Write("GitHub username: ");
     username = Console.ReadLine()?.Trim();
-    if (string.IsNullOrEmpty(username))
-        return;
+    if (string.IsNullOrEmpty(username)) return;
 }
 
 using var http = new HttpClient();
-http.DefaultRequestHeaders.Add("User-Agent", "Markout-GitHubActivity-Sample");
-
-// Fetch user profile and recent events in parallel
-var profileTask = http.GetStringAsync($"https://api.github.com/users/{username}");
-var eventsTask = http.GetStringAsync($"https://api.github.com/users/{username}/events/public");
+http.DefaultRequestHeaders.Add("User-Agent", "Markout-GitHubActivity");
 
 string profileJson, eventsJson;
 try
 {
-    profileJson = await profileTask;
-    eventsJson = await eventsTask;
+    (profileJson, eventsJson) = await FetchAsync(http, username);
 }
 catch (HttpRequestException ex)
 {
-    Console.Error.WriteLine($"Error fetching data for '{username}': {ex.Message}");
+    Console.Error.WriteLine($"Error: {ex.Message}");
     return;
 }
 
 var profile = JsonSerializer.Deserialize(profileJson, GitHubJsonContext.Default.GitHubUser)!;
 var events = JsonSerializer.Deserialize(eventsJson, GitHubJsonContext.Default.ListGitHubEvent) ?? [];
 
-// Build view model
 var view = new ActivityView
 {
     Title = profile.Login,
@@ -46,152 +40,82 @@ var view = new ActivityView
     Location = profile.Location,
     PublicRepos = profile.PublicRepos,
     Followers = profile.Followers,
-    Events = events.Take(15).Select(e => new EventRow
-    {
-        Type = FormatEventType(e.Type),
-        Repository = e.Repo?.Name ?? "",
-        Date = DateTimeOffset.TryParse(e.CreatedAt, out var d) ? d.ToString("yyyy-MM-dd") : "",
-        Detail = GetEventDetail(e)
-    }).ToList()
+    Events = [.. events.Take(15).Select(e => new EventRow(
+        FormatType(e.Type), e.Repo?.Name ?? "",
+        DateTimeOffset.TryParse(e.CreatedAt, out var d) ? d.ToString("yyyy-MM-dd") : "",
+        GetDetail(e)))]
 };
 
-// Render with SpectreWriter for rich ANSI terminal output
-var writer = new SpectreWriter(AnsiConsole.Console);
-MarkoutSerializer.Serialize(view, writer, ActivityContext.Default);
+MarkoutSerializer.Serialize(view, new SpectreWriter(AnsiConsole.Console), ActivityContext.Default);
 
-static string FormatEventType(string type) => type switch
+// --- Helpers ---
+
+static async Task<(string Profile, string Events)> FetchAsync(HttpClient http, string user)
 {
-    "PushEvent" => "Push",
-    "PullRequestEvent" => "PR",
-    "IssuesEvent" => "Issue",
-    "CreateEvent" => "Create",
-    "DeleteEvent" => "Delete",
-    "WatchEvent" => "Star",
-    "ForkEvent" => "Fork",
-    "IssueCommentEvent" => "Comment",
-    "PullRequestReviewEvent" => "Review",
-    "PullRequestReviewCommentEvent" => "Review comment",
-    "ReleaseEvent" => "Release",
-    "CommitCommentEvent" => "Commit comment",
-    "MemberEvent" => "Member",
-    "PublicEvent" => "Public",
-    "GollumEvent" => "Wiki",
-    _ => type.Replace("Event", "")
-};
-
-static string GetEventDetail(GitHubEvent e) => e.Type switch
-{
-    "PushEvent" => $"{e.Payload?.Size ?? 0} commit(s)",
-    "PullRequestEvent" => e.Payload?.Action ?? "",
-    "IssuesEvent" => e.Payload?.Action ?? "",
-    "CreateEvent" => e.Payload?.RefType ?? "",
-    "DeleteEvent" => e.Payload?.RefType ?? "",
-    "IssueCommentEvent" => e.Payload?.Action ?? "",
-    "ForkEvent" => "forked",
-    "WatchEvent" => "starred",
-    "ReleaseEvent" => e.Payload?.Action ?? "",
-    _ => ""
-};
-
-static string? GetGitHubUsername()
-{
-    // Try `gh` CLI first
-    var name = RunCommand("gh", "api user --jq .login");
-    if (name is not null) return name;
-
-    // Fall back to git config
-    return RunCommand("git", "config --get github.user");
+    var p = http.GetStringAsync($"https://api.github.com/users/{user}");
+    var e = http.GetStringAsync($"https://api.github.com/users/{user}/events/public");
+    return (await p, await e);
 }
 
-static string? RunCommand(string command, string arguments)
+static string FormatType(string t) => t switch
+{
+    "PushEvent" => "Push", "PullRequestEvent" => "PR", "IssuesEvent" => "Issue",
+    "CreateEvent" => "Create", "DeleteEvent" => "Delete", "WatchEvent" => "Star",
+    "ForkEvent" => "Fork", "IssueCommentEvent" => "Comment", "ReleaseEvent" => "Release",
+    "PullRequestReviewEvent" => "Review", "GollumEvent" => "Wiki",
+    _ => t.Replace("Event", "")
+};
+
+static string GetDetail(GitHubEvent e) => e.Type switch
+{
+    "PushEvent" => $"{e.Payload?.Size ?? 0} commit(s)",
+    "PullRequestEvent" or "IssuesEvent" or "IssueCommentEvent" or "ReleaseEvent" => e.Payload?.Action ?? "",
+    "CreateEvent" or "DeleteEvent" => e.Payload?.RefType ?? "",
+    "ForkEvent" => "forked", "WatchEvent" => "starred", _ => ""
+};
+
+static string? RunCommand(string cmd, string args)
 {
     try
     {
-        var psi = new ProcessStartInfo(command, arguments)
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        };
-        using var proc = Process.Start(psi);
-        if (proc is null) return null;
-        var output = proc.StandardOutput.ReadToEnd().Trim();
-        proc.WaitForExit();
-        return proc.ExitCode == 0 && output.Length > 0 ? output : null;
+        using var p = Process.Start(new ProcessStartInfo(cmd, args)
+            { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false });
+        if (p is null) return null;
+        var o = p.StandardOutput.ReadToEnd().Trim();
+        p.WaitForExit();
+        return p.ExitCode == 0 && o.Length > 0 ? o : null;
     }
-    catch
-    {
-        return null;
-    }
+    catch { return null; }
 }
 
 // --- View Models ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ActivityView
+public record ActivityView
 {
-    [MarkoutIgnore]
-    public string Title { get; set; } = "";
-
-    public string Name { get; set; } = "";
-
-    [MarkoutSkipNull]
-    public string? Location { get; set; }
-
-    [MarkoutPropertyName("Public repos")]
-    public int PublicRepos { get; set; }
-
-    public int Followers { get; set; }
-
-    [MarkoutSection(Name = "Recent Activity")]
-    public List<EventRow>? Events { get; set; }
+    [MarkoutIgnore] public string Title { get; init; } = "";
+    public string Name { get; init; } = "";
+    [MarkoutSkipNull] public string? Location { get; init; }
+    [MarkoutPropertyName("Public repos")] public int PublicRepos { get; init; }
+    public int Followers { get; init; }
+    [MarkoutSection(Name = "Recent Activity")] public List<EventRow>? Events { get; init; }
 }
 
 [MarkoutSerializable]
-public class EventRow
-{
-    public string Type { get; set; } = "";
-    public string Repository { get; set; } = "";
-    public string Date { get; set; } = "";
-    public string Detail { get; set; } = "";
-}
+public record EventRow(string Type, string Repository, string Date, string Detail);
 
 [MarkoutContext(typeof(ActivityView))]
 [MarkoutContext(typeof(EventRow))]
-public partial class ActivityContext : MarkoutSerializerContext { }
+partial class ActivityContext : MarkoutSerializerContext;
 
 // --- JSON Models ---
 
-public class GitHubUser
-{
-    public string Login { get; set; } = "";
-    public string? Name { get; set; }
-    public string? Location { get; set; }
-    public int PublicRepos { get; set; }
-    public int Followers { get; set; }
-}
-
-public class GitHubEvent
-{
-    public string Type { get; set; } = "";
-    public GitHubRepo? Repo { get; set; }
-    public string CreatedAt { get; set; } = "";
-    public EventPayload? Payload { get; set; }
-}
-
-public class GitHubRepo
-{
-    public string Name { get; set; } = "";
-}
-
-public class EventPayload
-{
-    public string? Action { get; set; }
-    public string? RefType { get; set; }
-    public int? Size { get; set; }
-}
+record GitHubUser(string Login, string? Name, string? Location, int PublicRepos, int Followers);
+record GitHubEvent(string Type, GitHubRepo? Repo, string CreatedAt, EventPayload? Payload);
+record GitHubRepo(string Name);
+record EventPayload(string? Action, string? RefType, int? Size);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(GitHubUser))]
 [JsonSerializable(typeof(List<GitHubEvent>))]
-internal partial class GitHubJsonContext : JsonSerializerContext { }
+internal partial class GitHubJsonContext : JsonSerializerContext;
