@@ -267,8 +267,6 @@ public class UnicodeWriter : MarkoutWriter
         HasContent = true;
     }
 
-
-
     /// <inheritdoc/>
     public override void WriteListItem(string text)
     {
