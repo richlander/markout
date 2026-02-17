@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="template.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Markout.Templates\Markout.Templates.csproj" />
     <ProjectReference Include="..\..\src\Markout\Markout.csproj" />
     <ProjectReference Include="..\..\src\Markout.SourceGeneration\Markout.SourceGeneration.csproj"

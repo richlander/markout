@@ -3,26 +3,10 @@ using Markout.Templates;
 
 // A template is a human-authored document with {{placeholders}} for data.
 // It's a peer entry path to the source generator — both render through MarkoutWriter.
+// See template.md alongside this file.
 
-var template = MarkoutTemplate.Parse("""
-    # .NET Security Report for {{date}}
-
-    The following vulnerabilities were disclosed this month.
-
-    {{vuln-table}}
-
-    ## Affected Products
-
-    {{product-table}}
-
-    {{#if commits}}
-    ## Related Commits
-
-    The following commits address the vulnerabilities above.
-
-    {{commit-table}}
-    {{/if}}
-    """);
+var templatePath = Path.Combine(AppContext.BaseDirectory, "template.md");
+var template = MarkoutTemplate.Load(templatePath);
 
 // Bind inline values
 template.Bind("date", "February 2026");
@@ -47,20 +31,11 @@ Console.WriteLine(plainWriter.ToString());
 
 // Now render WITHOUT commits (conditional section excluded)
 Console.WriteLine("=== Markdown (no commits) ===");
-var noCommits = MarkoutTemplate.Parse("""
-    # .NET Security Report for {{date}}
-
-    {{vuln-table}}
-
-    {{#if commits}}
-    ## Related Commits
-
-    {{commit-table}}
-    {{/if}}
-    """);
+var noCommits = MarkoutTemplate.Load(templatePath);
 noCommits.Bind("date", "February 2026");
 noCommits.Bind("vuln-table", new VulnerabilityTable());
-// Don't bind "commits" — section excluded
+noCommits.Bind("product-table", new ProductTable());
+// Don't bind "commits" — conditional section excluded
 Console.WriteLine(noCommits.Render());
 
 // --- Formattable types that render through the writer shape system ---
