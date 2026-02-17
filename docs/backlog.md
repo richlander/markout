@@ -1,12 +1,12 @@
 # Backlog
 
-## ~~CodeSection — code blocks as section content~~ ✅ Done
+## ~~CodeSection — code regions as section content~~ ✅ Done
 
 ## ~~Callout / Admonition~~ ✅ Done
 
 ## Conditional column visibility
 
-A `CodeSection` record type recognized by the source generator, allowing code blocks
+A `CodeSection` record type recognized by the source generator, allowing code regions
 to appear as properties in serializable types — including inside nested subsection items.
 
 ```csharp
@@ -14,11 +14,11 @@ record CodeSection(string Language, string Content);
 ```
 
 When used as a property on a `[MarkoutSerializable]` type, the generator emits
-`WriteCodeBlockStart(language)` / `WriteParagraph(content)` / `WriteCodeBlockEnd()`.
+`WriteCodeStart(language)` / `WriteParagraph(content)` / `WriteCodeEnd()`.
 
 ### Use case: Constructor overloads in dotnet-inspect
 
-`RenderConstructorEmphasis` manually writes H3 + code block + parameter table per
+`RenderConstructorEmphasis` manually writes H3 + code region + parameter table per
 overload. With CodeSection + nested serializable types, this becomes declarative:
 
 ```csharp
@@ -33,16 +33,16 @@ public class ConstructorOverload
 }
 ```
 
-Also eliminates the repeated Heading + CodeBlock pattern in IL, source, lowered C#,
+Also eliminates the repeated Heading + Code pattern in IL, source, lowered C#,
 and samples rendering (4+ instances in `ApiOutputFormatter`).
 
 ### Implementation notes
 
 - New `PropertyKind.CodeSection` in source generator
 - Add `CodeSection` to `KnownTypeSymbols`
-- Emit `WriteCodeBlockStart`/`WriteParagraph`/`WriteCodeBlockEnd` sequence
-- No new shape flag needed — uses existing `CodeBlocks` shape
-- Also add `List<CodeSection>` recognition for types with multiple code blocks
+- Emit `WriteCodeStart`/`WriteParagraph`/`WriteCodeEnd` sequence
+- No new shape flag needed — uses existing `Code` shape
+- Also add `List<CodeSection>` recognition for types with multiple code regions
 
 ## Conditional column visibility
 

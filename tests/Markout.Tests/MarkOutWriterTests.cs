@@ -155,20 +155,6 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteSimplePair_WritesTwoColumnData()
-    {
-        var writer = new MarkoutWriter();
-        writer.WriteSimplePair("Microsoft.CSharp", "4.7.0", 32);
-        writer.WriteSimplePair("System.Memory", "4.5.5", 32);
-
-        var expected = """
-            Microsoft.CSharp                4.7.0
-            System.Memory                   4.5.5
-            """;
-        Assert.Equal(expected, writer.ToString());
-    }
-
-    [Fact]
     public void MultipleElements_AddsBlankLinesBetweenSections()
     {
         var writer = new MarkdownWriter();
@@ -261,19 +247,19 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteCompactFields_SingleField_WritesSinglePair()
+    public void WriteFieldList_SingleField_WritesSinglePair()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCompactFields(new MarkoutField("Type", "Library"));
+        writer.WriteFieldList(new MarkoutField("Type", "Library"));
 
         Assert.Equal("Type: Library", writer.ToString());
     }
 
     [Fact]
-    public void WriteCompactFields_MultipleFields_WritesPipeSeparated()
+    public void WriteFieldList_MultipleFields_WritesPipeSeparated()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCompactFields(
+        writer.WriteFieldList(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"),
             new MarkoutField("Updated", "2026-01-15"));
@@ -282,19 +268,19 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteCompactFields_EmptyFields_WritesNothing()
+    public void WriteFieldList_EmptyFields_WritesNothing()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCompactFields();
+        writer.WriteFieldList();
 
         Assert.Equal("", writer.ToString());
     }
 
     [Fact]
-    public void WriteCompactFields_NullValue_WritesEmptyString()
+    public void WriteFieldList_NullValue_WritesEmptyString()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCompactFields(
+        writer.WriteFieldList(
             new MarkoutField("Status", null),
             new MarkoutField("Count", "5"));
 
@@ -302,11 +288,11 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteCompactFields_AfterHeading_AddsBlankLine()
+    public void WriteFieldList_AfterHeading_AddsBlankLine()
     {
         var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package 1.0.0");
-        writer.WriteCompactFields(
+        writer.WriteFieldList(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"));
 
@@ -393,9 +379,9 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteTree_WithIncludeIconsFalse_OmitsIcons()
+    public void WriteTree_WithIncludeBadgesFalse_OmitsIcons()
     {
-        var options = new MarkoutWriterOptions { IncludeIcons = false };
+        var options = new MarkoutWriterOptions { IncludeBadges = false };
         var writer = new MarkoutWriter(options);
         var nodes = new List<TreeNode>
         {
@@ -447,7 +433,7 @@ public class MarkoutWriterTests
     {
         var options = new MarkoutWriterOptions();
 
-        Assert.True(options.IncludeIcons);
+        Assert.True(options.IncludeBadges);
         Assert.True(options.IncludeDescription);
         Assert.False(options.BoldFieldNames);
         Assert.Null(options.IncludeSections);
@@ -468,7 +454,7 @@ public class MarkoutWriterTests
         options.MakeReadOnly();
 
         Assert.Throws<InvalidOperationException>(() => options.BoldFieldNames = false);
-        Assert.Throws<InvalidOperationException>(() => options.IncludeIcons = false);
+        Assert.Throws<InvalidOperationException>(() => options.IncludeBadges = false);
         Assert.Throws<InvalidOperationException>(() => options.IncludeDescription = false);
         Assert.Throws<InvalidOperationException>(() => options.IncludeSections = ["First"]);
         Assert.Throws<InvalidOperationException>(() => options.ExcludeSections = ["Second"]);
@@ -518,35 +504,35 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void CurrentContext_InCodeBlock_ReturnsCodeBlock()
+    public void CurrentContext_InCode_ReturnsCode()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCodeBlockStart("csharp");
-        Assert.Equal(MarkoutRenderContext.CodeBlock, writer.CurrentContext);
-        writer.WriteCodeBlockEnd();
+        writer.WriteCodeStart("csharp");
+        Assert.Equal(MarkoutRenderContext.Code, writer.CurrentContext);
+        writer.WriteCodeEnd();
         Assert.Equal(MarkoutRenderContext.Block, writer.CurrentContext);
     }
 
     [Fact]
-    public void WriteCodeBlockStart_Nested_Throws()
+    public void WriteCodeStart_Nested_Throws()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCodeBlockStart();
-        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeBlockStart());
+        writer.WriteCodeStart();
+        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeStart());
     }
 
     [Fact]
-    public void WriteCodeBlockEnd_WithoutStart_Throws()
+    public void WriteCodeEnd_WithoutStart_Throws()
     {
         var writer = new MarkoutWriter();
-        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeBlockEnd());
+        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeEnd());
     }
 
     [Fact]
-    public void WriteTableStart_InCodeBlock_Throws()
+    public void WriteTableStart_InCode_Throws()
     {
         var writer = new MarkoutWriter();
-        writer.WriteCodeBlockStart();
+        writer.WriteCodeStart();
         Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart("A"));
     }
 

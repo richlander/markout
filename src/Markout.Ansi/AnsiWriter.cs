@@ -207,15 +207,15 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Code blocks ──
+    // ── Code ──
 
     /// <inheritdoc/>
-    public override void WriteCodeBlockStart(string? language = null)
+    public override void WriteCodeStart(string? language = null)
     {
-        if (InCodeBlock)
-            throw new InvalidOperationException("Cannot nest code blocks. End the current code block before starting a new one.");
+        if (InCode)
+            throw new InvalidOperationException("Cannot nest code regions. End the current code region before starting a new one.");
 
-        InCodeBlock = true;
+        InCode = true;
 
         if (SectionExcluded)
             return;
@@ -226,12 +226,12 @@ public class AnsiWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteCodeBlockEnd()
+    public override void WriteCodeEnd()
     {
-        if (!InCodeBlock)
-            throw new InvalidOperationException("Cannot end a code block without starting one first.");
+        if (!InCode)
+            throw new InvalidOperationException("Cannot end a code region without starting one first.");
 
-        InCodeBlock = false;
+        InCode = false;
 
         if (SectionExcluded)
             return;
@@ -362,10 +362,10 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Compact fields ──
+    // ── Field list ──
 
     /// <inheritdoc/>
-    public override void WriteCompactFields(params MarkoutField[] fields)
+    public override void WriteFieldList(params MarkoutField[] fields)
     {
         if (SectionExcluded || fields.Length == 0)
             return;
@@ -392,7 +392,7 @@ public class AnsiWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteCompactFields(IReadOnlyList<MarkoutField> fields)
+    public override void WriteFieldList(IReadOnlyList<MarkoutField> fields)
     {
         if (SectionExcluded || fields.Count == 0)
             return;
@@ -415,22 +415,6 @@ public class AnsiWriter : MarkoutWriter
 
         Writer.WriteLine();
         NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    // ── Simple pairs ──
-
-    /// <inheritdoc/>
-    public override void WriteSimplePair(string name, string value, int nameWidth = 32)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        _terminal.SetColor(TerminalColor.DarkGray);
-        Writer.Write(name.PadRight(nameWidth));
-        _terminal.ResetColor();
-        Writer.WriteLine(value);
         HasContent = true;
     }
 
@@ -637,27 +621,27 @@ public class AnsiWriter : MarkoutWriter
         Writer.Write(isLast ? "└─ " : "├─ ");
         _terminal.ResetColor();
 
-        // Icon (as-is) + label colored by depth
-        if (node.Icon != null && Options.IncludeIcons)
+        // Badge (as-is) + text colored by depth
+        if (node.Badge != null && Options.IncludeBadges)
         {
-            Writer.Write(node.Icon);
+            Writer.Write(node.Badge);
             Writer.Write(' ');
         }
 
         if (depth == 0)
         {
             _terminal.SetColor(TerminalColor.Cyan);
-            Writer.WriteLine(AnsiCodes.MakeBold(node.Label));
+            Writer.WriteLine(AnsiCodes.MakeBold(node.Text));
             _terminal.ResetColor();
         }
         else if (depth == 1)
         {
-            Writer.WriteLine(node.Label);
+            Writer.WriteLine(node.Text);
         }
         else
         {
             _terminal.SetColor(TerminalColor.DarkGray);
-            Writer.WriteLine(node.Label);
+            Writer.WriteLine(node.Text);
             _terminal.ResetColor();
         }
 

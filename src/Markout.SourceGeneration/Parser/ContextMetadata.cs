@@ -12,19 +12,19 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
     public string ClassName { get; }
     public IReadOnlyList<TypeMetadata> Types { get; }
     public bool? BoldFieldNames { get; }
-    public bool? IncludeIcons { get; }
+    public bool? IncludeBadges { get; }
     public bool? IncludeDescription { get; }
     public bool SuppressTableWarnings { get; }
 
     public ContextMetadata(string @namespace, string className, IReadOnlyList<TypeMetadata> types,
-        bool? boldFieldNames = null, bool? includeIcons = null, bool? includeDescription = null,
+        bool? boldFieldNames = null, bool? includeBadges = null, bool? includeDescription = null,
         bool suppressTableWarnings = false)
     {
         Namespace = @namespace;
         ClassName = className;
         Types = types;
         BoldFieldNames = boldFieldNames;
-        IncludeIcons = includeIcons;
+        IncludeBadges = includeBadges;
         IncludeDescription = includeDescription;
         SuppressTableWarnings = suppressTableWarnings;
     }
@@ -36,7 +36,7 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
         return Namespace == other.Namespace &&
                ClassName == other.ClassName &&
                BoldFieldNames == other.BoldFieldNames &&
-               IncludeIcons == other.IncludeIcons &&
+               IncludeBadges == other.IncludeBadges &&
                IncludeDescription == other.IncludeDescription &&
                SuppressTableWarnings == other.SuppressTableWarnings &&
                SequenceEqual(Types, other.Types);
@@ -49,7 +49,7 @@ internal sealed class ContextMetadata : IEquatable<ContextMetadata>
         {
             var hash = (Namespace?.GetHashCode() ?? 0) * 397 ^ (ClassName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (BoldFieldNames?.GetHashCode() ?? 0);
-            hash = hash * 397 ^ (IncludeIcons?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (IncludeBadges?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (IncludeDescription?.GetHashCode() ?? 0);
             hash = hash * 397 ^ SuppressTableWarnings.GetHashCode();
             foreach (var type in Types)

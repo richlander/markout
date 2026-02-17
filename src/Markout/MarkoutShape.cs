@@ -20,8 +20,8 @@ public enum MarkoutShape
     /// <summary>Key-value fields (scalar and formatted).</summary>
     Fields = 4,
 
-    /// <summary>Compact multi-field layout.</summary>
-    CompactFields = 8,
+    /// <summary>Multi-field summary line.</summary>
+    FieldList = 8,
 
     /// <summary>Tables (streaming and batch).</summary>
     Tables = 16,
@@ -32,11 +32,8 @@ public enum MarkoutShape
     /// <summary>Tree structures (TreeNode hierarchies).</summary>
     Trees = 64,
 
-    /// <summary>Code blocks (fenced regions).</summary>
-    CodeBlocks = 128,
-
-    /// <summary>Simple name-value pairs.</summary>
-    SimplePairs = 256,
+    /// <summary>Code regions.</summary>
+    Code = 128,
 
     /// <summary>Horizontal bar charts.</summary>
     BarCharts = 512,
@@ -51,5 +48,5 @@ public enum MarkoutShape
     Distributions = 4096,
 
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | CompactFields | Tables | Lists | Trees | CodeBlocks | SimplePairs | BarCharts | LabeledLists | Callouts | Distributions
+    All = Headings | Paragraphs | Fields | FieldList | Tables | Lists | Trees | Code | BarCharts | LabeledLists | Callouts | Distributions
 }

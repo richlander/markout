@@ -5,7 +5,7 @@ namespace Markout;
 /// <summary>
 /// A MarkoutWriter that renders output as Markdown.
 /// Produces # headings, **bold** field names, | pipe tables |, - bullet lists,
-/// ``` code blocks, and trailing double-space hard line breaks.
+/// ``` code regions, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownWriter : MarkoutWriter
 {
@@ -143,14 +143,14 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteCodeBlockStart(string? language = null)
+    public override void WriteCodeStart(string? language = null)
     {
-        if (InCodeBlock)
-            throw new InvalidOperationException("Cannot nest code blocks. End the current code block before starting a new one.");
+        if (InCode)
+            throw new InvalidOperationException("Cannot nest code regions. End the current code region before starting a new one.");
 
         if (SectionExcluded)
         {
-            InCodeBlock = true;
+            InCode = true;
             return;
         }
 
@@ -159,17 +159,17 @@ public class MarkdownWriter : MarkoutWriter
         if (!string.IsNullOrEmpty(language))
             Writer.Write(language);
         Writer.WriteLine();
-        InCodeBlock = true;
+        InCode = true;
         HasContent = true;
     }
 
     /// <inheritdoc/>
-    public override void WriteCodeBlockEnd()
+    public override void WriteCodeEnd()
     {
-        if (!InCodeBlock)
-            throw new InvalidOperationException("Cannot end a code block without starting one first.");
+        if (!InCode)
+            throw new InvalidOperationException("Cannot end a code region without starting one first.");
 
-        InCodeBlock = false;
+        InCode = false;
 
         if (SectionExcluded)
             return;
