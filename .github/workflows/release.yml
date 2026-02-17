@@ -14,6 +14,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'publish'
+    environment: nuget-publish
     permissions:
       id-token: write   # Required for NuGet trusted publishing (OIDC)
       actions: read      # Required to download artifacts from another run
