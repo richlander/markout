@@ -12,6 +12,9 @@ var template = MarkoutTemplate.Load(templatePath);
 // Enable statistical table formatting for inline pipe tables
 template.TableOptions = new TableFormatterOptions();
 
+// Use PrettyTables so bound tables (via IMarkoutFormattable) also get aligned columns
+var writerOptions = new MarkoutWriterOptions { PrettyTables = true };
+
 // Bind inline values
 template.Bind("date", "February 2026");
 
@@ -25,7 +28,7 @@ template.Bind("commit-table", new CommitTable());
 
 // Render through MarkdownWriter (default)
 Console.WriteLine("=== Markdown ===");
-Console.WriteLine(template.Render());
+Console.WriteLine(template.Render(writerOptions));
 
 // Render through plain-text MarkoutWriter
 Console.WriteLine("=== Plain Text ===");
@@ -36,11 +39,12 @@ Console.WriteLine(plainWriter.ToString());
 // Now render WITHOUT commits (conditional section excluded)
 Console.WriteLine("=== Markdown (no commits) ===");
 var noCommits = MarkoutTemplate.Load(templatePath);
+noCommits.TableOptions = new TableFormatterOptions();
 noCommits.Bind("date", "February 2026");
 noCommits.Bind("vuln-table", new VulnerabilityTable());
 noCommits.Bind("product-table", new ProductTable());
 // Don't bind "commits" — conditional section excluded
-Console.WriteLine(noCommits.Render());
+Console.WriteLine(noCommits.Render(writerOptions));
 
 // --- Formattable types that render through the writer shape system ---
 
