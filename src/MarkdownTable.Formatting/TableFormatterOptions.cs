@@ -38,4 +38,10 @@ public class TableFormatterOptions
     /// Default: false (use fixed parameters).
     /// </summary>
     public bool AutoTune { get; set; }
+
+    /// <summary>
+    /// Calculation strategy for column widths.
+    /// Default: Statistical (percentile-based analysis).
+    /// </summary>
+    public CalculationMode Mode { get; set; } = CalculationMode.Statistical;
 }

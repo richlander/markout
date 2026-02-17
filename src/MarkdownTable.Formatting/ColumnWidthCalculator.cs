@@ -30,11 +30,36 @@ public static class ColumnWidthCalculator
     {
         options ??= new TableFormatterOptions();
 
+        if (options.Mode == CalculationMode.FullWidth)
+            return CalculateFullWidth(headers, rows, options.MaxColumnWidth);
+
         if (options.AutoTune)
             return CalculateAutoTuned(headers, rows, options);
 
         return CalculateWithParameters(headers, rows, options.Percentile, options.Tolerance,
             options.ShadowThreshold, options.MaxColumnWidth);
+    }
+
+    /// <summary>
+    /// Full-width calculation: each column gets the maximum content width across all rows.
+    /// </summary>
+    private static int[] CalculateFullWidth(string[] headers, IReadOnlyList<string[]> rows, int maxColumnWidth)
+    {
+        int columnCount = headers.Length;
+        var targetWidths = new int[columnCount];
+
+        for (int col = 0; col < columnCount; col++)
+        {
+            int maxWidth = headers[col].Length;
+            for (int row = 0; row < rows.Count; row++)
+            {
+                if (col < rows[row].Length)
+                    maxWidth = Math.Max(maxWidth, rows[row][col].Length);
+            }
+            targetWidths[col] = Math.Min(maxWidth, maxColumnWidth);
+        }
+
+        return targetWidths;
     }
 
     private static int[] CalculateWithParameters(string[] headers, IReadOnlyList<string[]> rows,
