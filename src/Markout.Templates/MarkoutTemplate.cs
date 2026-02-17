@@ -1,3 +1,5 @@
+using MarkdownTable.Formatting;
+
 namespace Markout.Templates;
 
 /// <summary>
@@ -16,6 +18,12 @@ public class MarkoutTemplate
 {
     private readonly List<TemplateNode> _nodes;
     private readonly Dictionary<string, TemplateBinding> _bindings = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Options for formatting pipe tables found in the template.
+    /// When null, tables pass through to the writer with no width optimization.
+    /// </summary>
+    public TableFormatterOptions? TableOptions { get; set; }
 
     private MarkoutTemplate(List<TemplateNode> nodes)
     {
@@ -186,7 +194,19 @@ public class MarkoutTemplate
                 break;
 
             case TableNode table:
-                writer.WriteTable(table.Headers, table.Rows);
+                if (TableOptions is not null)
+                {
+                    // Use statistical width calculator to plan column widths,
+                    // then pass padded cells through WriteTable so any writer benefits
+                    var widths = ColumnWidthCalculator.Calculate(table.Headers, table.Rows, TableOptions);
+                    var paddedHeaders = PadCells(table.Headers, widths);
+                    var paddedRows = table.Rows.Select(row => PadCells(row, widths)).ToList();
+                    writer.WriteTable(paddedHeaders, paddedRows);
+                }
+                else
+                {
+                    writer.WriteTable(table.Headers, table.Rows);
+                }
                 break;
         }
     }
@@ -204,5 +224,16 @@ public class MarkoutTemplate
     private bool IsBindingTruthy(string key)
     {
         return _bindings.TryGetValue(key, out var binding) && binding.IsTruthy;
+    }
+
+    private static string[] PadCells(string[] cells, int[] widths)
+    {
+        var padded = new string[widths.Length];
+        for (int i = 0; i < widths.Length; i++)
+        {
+            var value = i < cells.Length ? cells[i] : "";
+            padded[i] = value.PadRight(widths[i]);
+        }
+        return padded;
     }
 }

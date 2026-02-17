@@ -1,5 +1,6 @@
 using Markout;
 using Markout.Templates;
+using MarkdownTable.Formatting;
 
 // A template is a human-authored document with {{placeholders}} for data.
 // Like the source generator, templates render through the MarkoutWriter pipeline.
@@ -7,6 +8,9 @@ using Markout.Templates;
 
 var templatePath = Path.Combine(AppContext.BaseDirectory, "template.md");
 var template = MarkoutTemplate.Load(templatePath);
+
+// Enable statistical table formatting for inline pipe tables
+template.TableOptions = new TableFormatterOptions();
 
 // Bind inline values
 template.Bind("date", "February 2026");
