@@ -52,7 +52,7 @@ Signed: yes
 Count: 42
 ```
 
-### Compact Fields
+### Field List
 
 For triage or summary lines where multiple fields fit naturally on one line:
 
@@ -65,8 +65,8 @@ Type: Library | TFM: net8.0 | Updated: 2026-01-15
 - Use for quick-scan metadata (verbosity levels, status lines)
 - Not suitable for long values or URLs
 
-**When to use compact vs standard fields:**
-- Use **compact** for summary/triage information at the top of output
+**When to use field list vs standard fields:**
+- Use **field list** for summary/triage information at the top of output
 - Use **standard** (one per line) for detailed metadata with longer values
 
 ### Boolean Values
@@ -132,23 +132,6 @@ For collections of objects with consistent fields:
 - Header row required
 - Separator row with `|---|` required
 - Cell values follow scalar typing rules
-
-### Simple Pairs
-
-For two-column data where headers are obvious (e.g., name + version):
-
-```
-## Dependencies (net6.0)
-
-Microsoft.CSharp                  4.7.0
-System.Memory                     4.5.5
-NETStandard.Library               2.0.3
-```
-
-- Two values separated by whitespace (2+ spaces)
-- No header row, no pipes
-- Use when semantics are clear from context (section heading)
-- First column is the key/name, second is the value
 
 ### Nested Objects
 

@@ -364,10 +364,10 @@ internal enum PropertyKind
     NestedObject,
     FieldCollection,
     Tree,
-    BarChart,
-    LabeledList,
+    Metric,
+    Description,
     CodeSection,
     Callout,
-    Distribution,
+    Breakdown,
     Other
 }

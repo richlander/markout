@@ -1,12 +1,12 @@
 # Backlog
 
-## ~~CodeSection — code regions as section content~~ ✅ Done
+## ~~CodeSection — code blocks as section content~~ ✅ Done
 
 ## ~~Callout / Admonition~~ ✅ Done
 
 ## Conditional column visibility
 
-A `CodeSection` record type recognized by the source generator, allowing code regions
+A `CodeSection` record type recognized by the source generator, allowing code blocks
 to appear as properties in serializable types — including inside nested subsection items.
 
 ```csharp
@@ -18,7 +18,7 @@ When used as a property on a `[MarkoutSerializable]` type, the generator emits
 
 ### Use case: Constructor overloads in dotnet-inspect
 
-`RenderConstructorEmphasis` manually writes H3 + code region + parameter table per
+`RenderConstructorEmphasis` manually writes H3 + code block + parameter table per
 overload. With CodeSection + nested serializable types, this becomes declarative:
 
 ```csharp
@@ -33,7 +33,7 @@ public class ConstructorOverload
 }
 ```
 
-Also eliminates the repeated Heading + Code pattern in IL, source, lowered C#,
+Also eliminates the repeated Heading + CodeBlock pattern in IL, source, lowered C#,
 and samples rendering (4+ instances in `ApiOutputFormatter`).
 
 ### Implementation notes
@@ -42,7 +42,7 @@ and samples rendering (4+ instances in `ApiOutputFormatter`).
 - Add `CodeSection` to `KnownTypeSymbols`
 - Emit `WriteCodeStart`/`WriteParagraph`/`WriteCodeEnd` sequence
 - No new shape flag needed — uses existing `Code` shape
-- Also add `List<CodeSection>` recognition for types with multiple code regions
+- Also add `List<CodeSection>` recognition for types with multiple code sections
 
 ## Conditional column visibility
 
@@ -94,109 +94,69 @@ Add a `LineBreaksBr` value to `FieldLayout` that renders each field on its own l
 - `LineBreaksDoubleSpace` — trailing `  ` (markdown hard line break)
 - `LineBreaksBr` — trailing `<br>` (explicit HTML tag)
 
-## DefinitionItem — definition lists
+## ~~DefinitionItem — definition lists~~ → Use Description
 
-A `List<DefinitionItem>` type that renders as a definition list. Similar to `LabeledItem`
-but semantically different — no bullet prefix, renders as `<dl>` in HTML.
+Same data relationship as `Description` (term + explanatory text). Per the
+[shape admission criteria](design/shape-system.md), this fails criterion #2
+(semantically distinct). Use `Description` with renderer-specific formatting
+for `<dl>` output.
 
-```csharp
-record DefinitionItem(string Term, string Definition);
-```
+## ~~StatusItem — progress gauges~~ → Use Metric with options
 
-Rendered as:
+Same data relationship as `Metric` (labeled quantity). A progress gauge is
+a measurement relative to a maximum. This can be a rendering option on the
+Metric shape rather than a separate type.
 
-```text
-**Term**
-  Definition text here.
-```
+## ~~LinkItem — link lists~~ → Use format attribute
 
-In markdown: bold term on its own line, indented definition. In ANSI: bold/colored term.
-In HTML: `<dt>`/`<dd>` tags. Follows the BarItem/LabeledItem source-gen pattern.
+A link is a reference relationship on a field, not a collection shape.
+Prefer `[MarkoutLink]` attribute on string properties.
 
-## StatusItem — progress gauges
+## Quotation ✅ Accepted
 
-A `List<StatusItem>` type that renders as horizontal progress bars.
-
-```csharp
-record StatusItem(string Label, double Progress, double Max = 100);
-```
-
-Rendered as:
-
-```text
-Build     [████████░░░░░░░░] 50%
-Tests     [████████████░░░░] 75%
-Coverage  [██████████████░░] 92%
-```
-
-ANSI renderer can color-code by percentage (green/yellow/red). Follows the BarItem pattern
-but with fill-gauge rendering instead of proportional bars.
-
-## LinkItem — link lists
-
-A `List<LinkItem>` type that renders as a list of hyperlinks.
+A writer-level method (no source-gen collection type needed). Distinct from
+CodeSection: prose quotation vs. verbatim code quotation.
 
 ```csharp
-record LinkItem(string Text, string Url);
-```
-
-Rendered as:
-
-- Markdown: `- [Text](url)`
-- ANSI: underlined clickable link (OSC 8)
-- Plain: `- Text (url)`
-
-## Blockquote
-
-A writer-level method (no source-gen collection type needed):
-
-```csharp
-writer.WriteBlockquote("This is a quoted passage.");
+writer.WriteQuotation("This is a quoted passage.");
 ```
 
 Renders as `> text` in markdown, indented/colored in ANSI, indented in plain text.
 
-## HorizontalRule
+## Rule ✅ Accepted
 
 A writer-level separator method:
 
 ```csharp
-writer.WriteHorizontalRule();
+writer.WriteRule();
 ```
 
 Renders as `---` in markdown, `────────` in ANSI, blank line in plain text.
 Useful between sections when headings are suppressed.
 
-## OrderedList
+## OrderedList → Parameter on WriteArray
 
-A numbered variant of the existing bullet list:
+A numbered variant is a visual parameter (`numbered: true`), not a distinct
+data relationship. Fails criterion #2 (semantically distinct).
+
+## Matrix ✅ Accepted
+
+2D grid with row/column headers and cell values (pivot table).
+Distinct from flat Table: has both row and column headers. Passes all five criteria.
 
 ```csharp
-writer.WriteOrderedList(items);
+writer.WriteMatrix(rowHeaders, colHeaders, values);
 ```
-
-Renders as `1. item` / `2. item` instead of `- item`. Could also be a
-`WriteArray` overload with a `numbered: true` parameter.
 
 ## Diagram shapes
 
 Future diagram-oriented renderers (extending DiagramWriter):
 
-### FlameGraph
+### FlameGraph — Deferred
 
-Nested call stack visualization. Record type TBD — likely a tree of
-`(string Name, double Duration)` nodes rendered as stacked horizontal bars.
+Nested call stack visualization. Fails criterion #3 (multi-renderer) — hard
+to express meaningfully in plain text. Needs more design work.
 
-### Gantt / Timeline
+### Gantt / Timeline — Deferred
 
-Sequential labeled time spans for build pipelines, deployment stages, etc.
-
-```csharp
-record TimelineItem(string Label, DateTimeOffset Start, DateTimeOffset End, string? Status = null);
-```
-
-### Matrix
-
-2D grid with row/column headers and cell values (pivot table).
-Could extend the existing table shape with a `WriteMatrix` method that takes
-row headers, column headers, and a 2D value array.
+Sequential labeled time spans. Same multi-renderer concern. Needs more design work.

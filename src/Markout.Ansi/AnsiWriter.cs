@@ -433,12 +433,12 @@ public class AnsiWriter : MarkoutWriter
     // ── Labeled lists ──
 
     /// <inheritdoc/>
-    protected override void WriteLabeledListItem(LabeledItem item)
+    protected override void WriteDescription(Description item)
     {
         Writer.Write("- ");
-        Writer.Write(AnsiCodes.MakeBold(item.Label));
+        Writer.Write(AnsiCodes.MakeBold(item.Term));
         Writer.Write(": ");
-        Writer.WriteLine(item.Description);
+        Writer.WriteLine(item.Text);
 
         if (item.Detail != null)
         {
@@ -481,18 +481,71 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Distributions ──
+    // ── Quotation ──
+
+    /// <inheritdoc/>
+    public override void WriteQuotation(string text)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Quotation))
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        _terminal.SetColor(TerminalColor.DarkGray);
+        Writer.Write("│ ");
+        _terminal.ResetColor();
+
+        var lines = text.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (i > 0)
+            {
+                _terminal.SetColor(TerminalColor.DarkGray);
+                Writer.Write("│ ");
+                _terminal.ResetColor();
+            }
+            Writer.WriteLine(lines[i]);
+        }
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    // ── Rule ──
+
+    /// <inheritdoc/>
+    public override void WriteRule()
+    {
+        if (SectionExcluded)
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        _terminal.SetColor(TerminalColor.DarkGray);
+        Writer.WriteLine("────────────────────────────────");
+        _terminal.ResetColor();
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    // ── Breakdowns ──
 
     // Colors cycle for distribution segments (most severe → least)
     private static readonly TerminalColor[] DistributionColors =
         [TerminalColor.Red, TerminalColor.Yellow, TerminalColor.Cyan, TerminalColor.Green, TerminalColor.Magenta, TerminalColor.Blue];
 
     /// <inheritdoc/>
-    protected override void WriteDistributionRow(DistributionBar item, List<string> categories, int labelWidth, double barScale)
+    protected override void WriteBreakdownRow(Breakdown item, List<string> categories, int labelWidth, double barScale, int maxBarChars = 0)
     {
         Writer.Write(AnsiCodes.MakeBold(item.Label.PadRight(labelWidth)));
         Writer.Write("  ");
 
+        var barWidth = 0;
         foreach (var seg in item.Segments)
         {
             var catIndex = categories.IndexOf(seg.Category);
@@ -501,7 +554,11 @@ public class AnsiWriter : MarkoutWriter
             _terminal.SetColor(color);
             Writer.Write(new string('█', width));
             _terminal.ResetColor();
+            barWidth += width;
         }
+
+        if (maxBarChars > barWidth)
+            Writer.Write(new string(' ', maxBarChars - barWidth));
 
         Writer.Write("  ");
         _terminal.SetColor(TerminalColor.DarkGray);
@@ -511,7 +568,7 @@ public class AnsiWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    protected override void WriteDistributionLegend(List<string> categories)
+    protected override void WriteBreakdownLegend(List<string> categories)
     {
         for (int i = 0; i < categories.Count; i++)
         {
@@ -528,7 +585,7 @@ public class AnsiWriter : MarkoutWriter
     // ── Bar charts ──
 
     /// <inheritdoc/>
-    protected override void WriteBarLine(BarItem item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
+    protected override void WriteMetricBar(Metric item, int labelWidth, int maxBarWidth, double maxValue, int valueWidth)
     {
         // Label in bold
         Writer.Write(AnsiCodes.MakeBold(item.Label.PadRight(labelWidth)));
@@ -557,7 +614,7 @@ public class AnsiWriter : MarkoutWriter
     // ── Trees (continued) ──
 
     /// <inheritdoc/>
-    protected override void WriteVerticalBarRow(
+    protected override void WriteVerticalMetricsRow(
         (string Label, string ValueStr, int Height, int ColWidth, int BarWidth)[] cols, int row)
     {
         for (int c = 0; c < cols.Length; c++)
@@ -582,7 +639,7 @@ public class AnsiWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    protected override void WriteVerticalBarValue(string valueStr, int colWidth)
+    protected override void WriteVerticalMetricsValue(string valueStr, int colWidth)
     {
         var pad = colWidth - valueStr.Length;
         var leftPad = pad / 2;
@@ -621,7 +678,7 @@ public class AnsiWriter : MarkoutWriter
         Writer.Write(isLast ? "└─ " : "├─ ");
         _terminal.ResetColor();
 
-        // Badge (as-is) + text colored by depth
+        // Badge (as-is) + label colored by depth
         if (node.Badge != null && Options.IncludeBadges)
         {
             Writer.Write(node.Badge);

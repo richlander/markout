@@ -7,16 +7,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Markout\Markout.csproj" />
-    <ProjectReference Include="..\..\src\Markout.SourceGeneration\Markout.SourceGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\..\src\Markout.SourceGeneration\Markout.SourceGeneration.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="true" />
     <ProjectReference Include="..\..\src\Markout.Ansi\Markout.Ansi.csproj" />
     <ProjectReference Include="..\..\src\Markout.Ansi.Spectre\Markout.Ansi.Spectre.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="actors.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Update="cities.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Update="shows.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="System.CommandLine" Version="2.0.3" />
   </ItemGroup>
 </Project>

@@ -5,7 +5,7 @@ namespace Markout;
 /// <summary>
 /// A MarkoutWriter that renders output as Markdown.
 /// Produces # headings, **bold** field names, | pipe tables |, - bullet lists,
-/// ``` code regions, and trailing double-space hard line breaks.
+/// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownWriter : MarkoutWriter
 {
@@ -320,12 +320,12 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    protected override void WriteLabeledListItem(LabeledItem item)
+    protected override void WriteDescription(Description item)
     {
         Writer.Write("- **");
-        Writer.Write(item.Label);
+        Writer.Write(item.Term);
         Writer.Write(":** ");
-        Writer.WriteLine(item.Description);
+        Writer.WriteLine(item.Text);
 
         if (item.Detail != null)
         {
@@ -363,6 +363,112 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
+    public override void WriteQuotation(string text)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Quotation))
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        foreach (var line in text.Split('\n'))
+        {
+            Writer.Write("> ");
+            Writer.WriteLine(line);
+        }
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    /// <inheritdoc/>
+    public override void WriteRule()
+    {
+        if (SectionExcluded)
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        Writer.WriteLine("---");
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    /// <inheritdoc/>
+    public override void WriteMatrix(string[] rowHeaders, string[] colHeaders, string?[,] values)
+    {
+        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Matrices))
+            return;
+
+        if (rowHeaders.Length == 0 || colHeaders.Length == 0)
+            return;
+
+        if (HasContent)
+            NeedsBlankLine = true;
+        EnsureBlankLineIfNeeded();
+
+        // Calculate column widths (first column is row header)
+        var colWidths = new int[colHeaders.Length + 1];
+        colWidths[0] = rowHeaders.Max(h => h.Length);
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            colWidths[c + 1] = colHeaders[c].Length;
+            for (int r = 0; r < rowHeaders.Length; r++)
+            {
+                var val = values[r, c] ?? "";
+                if (val.Length > colWidths[c + 1])
+                    colWidths[c + 1] = val.Length;
+            }
+        }
+
+        // Header row: | (empty) | Col1 | Col2 | ...
+        Writer.Write("| ");
+        Writer.Write("".PadRight(colWidths[0]));
+        Writer.Write(" ");
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            Writer.Write("| ");
+            Writer.Write(colHeaders[c].PadRight(colWidths[c + 1]));
+            Writer.Write(" ");
+        }
+        Writer.WriteLine("|");
+
+        // Separator row
+        Writer.Write("| ");
+        Writer.Write(new string('-', colWidths[0]));
+        Writer.Write(" ");
+        for (int c = 0; c < colHeaders.Length; c++)
+        {
+            Writer.Write("| ");
+            Writer.Write(new string('-', colWidths[c + 1]));
+            Writer.Write(" ");
+        }
+        Writer.WriteLine("|");
+
+        // Data rows
+        for (int r = 0; r < rowHeaders.Length; r++)
+        {
+            Writer.Write("| ");
+            Writer.Write(rowHeaders[r].PadRight(colWidths[0]));
+            Writer.Write(" ");
+            for (int c = 0; c < colHeaders.Length; c++)
+            {
+                Writer.Write("| ");
+                Writer.Write((values[r, c] ?? "").PadRight(colWidths[c + 1]));
+                Writer.Write(" ");
+            }
+            Writer.WriteLine("|");
+        }
+
+        NeedsBlankLine = true;
+        HasContent = true;
+    }
+
+    /// <inheritdoc/>
     public override void WriteArray(string key, IEnumerable<string>? items)
     {
         if (SectionExcluded)
@@ -388,9 +494,9 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteDistribution(IReadOnlyList<DistributionBar> items, int? maxBarWidth = null)
+    public override void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null, bool uniformBarWidth = true)
     {
-        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Distributions))
+        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Breakdowns))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -413,22 +519,32 @@ public class MarkdownWriter : MarkoutWriter
             if (total > maxTotal) maxTotal = total;
         }
         if (maxTotal == 0) maxTotal = 1;
-        var barScale = maxBarWidth.HasValue ? (double)maxBarWidth.Value / maxTotal : 1.0;
+        var effectiveBarWidth = maxBarWidth ?? Math.Min(maxTotal, 30);
 
         foreach (var item in items)
-            WriteDistributionRow(item, categories, maxLabelWidth, barScale);
+        {
+            var rowTotal = 0;
+            foreach (var seg in item.Segments) rowTotal += seg.Count;
+            if (rowTotal == 0) rowTotal = 1;
+
+            var barScale = uniformBarWidth
+                ? (double)effectiveBarWidth / rowTotal
+                : (double)effectiveBarWidth / maxTotal;
+
+            WriteBreakdownRow(item, categories, maxLabelWidth, barScale, effectiveBarWidth);
+        }
 
         Writer.WriteLine();
-        WriteDistributionLegend(categories);
+        WriteBreakdownLegend(categories);
         Writer.WriteLine("```");
         NeedsBlankLine = true;
         HasContent = true;
     }
 
     /// <inheritdoc/>
-    public override void WriteBarChart(IReadOnlyList<BarItem> items, int maxBarWidth = 30)
+    public override void WriteMetrics(IReadOnlyList<Metric> items, int maxBarWidth = 30)
     {
-        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -447,7 +563,7 @@ public class MarkdownWriter : MarkoutWriter
         if (maxValue <= 0) maxValue = 1;
 
         foreach (var item in items)
-            WriteBarLine(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
+            WriteMetricBar(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
 
         Writer.WriteLine("```");
         NeedsBlankLine = true;
@@ -455,14 +571,14 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteVerticalBarChart(IReadOnlyList<BarItem> items, int maxBarHeight = 10, int? barWidth = null)
+    public override void WriteVerticalMetrics(IReadOnlyList<Metric> items, int maxBarHeight = 10, int? barWidth = null)
     {
-        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.BarCharts))
+        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
         EnsureBlankLineIfNeeded();
         Writer.WriteLine("```text");
-        WriteVerticalBarBody(items, maxBarHeight, barWidth);
+        WriteVerticalMetricsBody(items, maxBarHeight, barWidth);
         Writer.WriteLine("```");
         NeedsBlankLine = true;
         HasContent = true;

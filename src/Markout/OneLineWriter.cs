@@ -3,7 +3,7 @@ namespace Markout;
 /// <summary>
 /// A writer that produces compact columnar output (docker-style).
 /// Tables use space-padded columns with uppercase headers.
-/// Suppresses headings, fields, paragraphs, and code.
+/// Suppresses headings, fields, paragraphs, and code regions.
 /// </summary>
 public class OneLineWriter : MarkoutWriter
 {
