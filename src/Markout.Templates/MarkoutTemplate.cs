@@ -101,6 +101,37 @@ public class MarkoutTemplate
     }
 
     /// <summary>
+    /// Binds all fields from a <see cref="FieldDocument"/> as string values.
+    /// Each field key becomes a binding; array fields are joined with ", ".
+    /// Enables templates driven by markdown field files with no C# model.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// byte[] bytes = File.ReadAllBytes("package.md");
+    /// using var doc = FieldDocument.Parse(bytes);
+    /// var result = MarkoutTemplate.Parse(template).BindFields(doc).Render();
+    /// </code>
+    /// </example>
+    public MarkoutTemplate BindFields(FieldDocument doc)
+    {
+        foreach (var key in doc.Keys)
+        {
+            _bindings[key] = new StringBinding(doc.GetString(key));
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Parses a UTF-8 byte buffer as markdown fields and binds all fields as string values.
+    /// Convenience overload that creates and disposes a <see cref="FieldDocument"/> internally.
+    /// </summary>
+    public MarkoutTemplate BindFields(byte[] utf8)
+    {
+        using var doc = FieldDocument.Parse(utf8);
+        return BindFields(doc);
+    }
+
+    /// <summary>
     /// Renders the template using a <see cref="MarkdownWriter"/> and returns the result as a string.
     /// </summary>
     public string Render()
@@ -200,18 +231,23 @@ public class MarkoutTemplate
                 break;
 
             case TableNode table:
+                var resolvedHeaders = table.Headers.Select(h => ResolveInline(h)).ToArray();
+                var resolvedRows = table.Rows
+                    .Select(row => row.Select(cell => ResolveInline(cell)).ToArray())
+                    .ToList();
+
                 if (TableOptions is not null)
                 {
                     // Use statistical width calculator to plan column widths,
                     // then pass padded cells through WriteTable so any writer benefits
-                    var widths = ColumnWidthCalculator.Calculate(table.Headers, table.Rows, TableOptions);
-                    var paddedHeaders = PadCells(table.Headers, widths);
-                    var paddedRows = table.Rows.Select(row => PadCells(row, widths)).ToList();
+                    var widths = ColumnWidthCalculator.Calculate(resolvedHeaders, resolvedRows, TableOptions);
+                    var paddedHeaders = PadCells(resolvedHeaders, widths);
+                    var paddedRows = resolvedRows.Select(row => PadCells(row, widths)).ToList();
                     writer.WriteTable(paddedHeaders, paddedRows);
                 }
                 else
                 {
-                    writer.WriteTable(table.Headers, table.Rows);
+                    writer.WriteTable(resolvedHeaders, resolvedRows);
                 }
                 break;
         }

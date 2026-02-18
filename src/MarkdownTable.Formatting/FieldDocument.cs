@@ -162,6 +162,9 @@ public sealed class FieldDocument : IDisposable
     /// <summary>Returns true if the document contains the specified key.</summary>
     public bool ContainsKey(string key) => _fields.ContainsKey(key);
 
+    /// <summary>Gets the keys of all fields in the document.</summary>
+    public IEnumerable<string> Keys => _fields.Keys;
+
     public void Dispose() { /* buffer is caller-owned */ }
 
     // --- Parsing helpers ---
