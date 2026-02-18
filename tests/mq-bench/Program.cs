@@ -316,6 +316,28 @@ var fieldBenchmarks = new (string Label, string Category, Action Action)[]
             _ = doc.RootElement.GetProperty("assemblyCount").GetInt32();
         }),
 
+    // --- Targeted single-field lookup (no dictionary, early exit) ---
+    ("FDoc targeted 1st", "Targeted",
+        () =>
+        {
+            _ = FieldDocument.GetString(pkgMdBytes, "packageName");
+        }),
+    ("FDoc targeted 4th", "Targeted",
+        () =>
+        {
+            _ = FieldDocument.GetString(pkgMdBytes, "assemblyCount");
+        }),
+    ("FDoc targeted bool", "Targeted",
+        () =>
+        {
+            _ = FieldDocument.GetBool(pkgMdBytes, "hasReadme");
+        }),
+    ("FDoc targeted miss", "Targeted",
+        () =>
+        {
+            _ = FieldDocument.GetString(pkgMdBytes, "nonexistent");
+        }),
+
     // --- Full hydrate (all fields like PackageIndexCache does) ---
     ("FieldDocument hydrate", "Full Hydrate",
         () =>

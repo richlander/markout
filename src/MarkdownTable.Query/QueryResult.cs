@@ -1,3 +1,5 @@
+using MarkdownTable.Formatting;
+
 namespace MarkdownTable.Query;
 
 /// <summary>
@@ -25,7 +27,7 @@ public sealed class TableResult : QueryResult
 }
 
 /// <summary>
-/// A scalar result containing a single value (e.g., from count).
+/// A scalar result containing a single value (e.g., from count or field access).
 /// </summary>
 public sealed class ScalarResult : QueryResult
 {
@@ -34,5 +36,18 @@ public sealed class ScalarResult : QueryResult
     public ScalarResult(string value)
     {
         Value = value;
+    }
+}
+
+/// <summary>
+/// A result containing key-value fields (e.g., from top-level field access or section fields).
+/// </summary>
+public sealed class FieldsResult : QueryResult
+{
+    public Dictionary<string, FieldValue> Fields { get; }
+
+    public FieldsResult(Dictionary<string, FieldValue> fields)
+    {
+        Fields = fields;
     }
 }

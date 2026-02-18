@@ -1,4 +1,5 @@
 using MarkdownTable.Formatting;
+using MarkdownTable.Query.Operations;
 
 namespace MarkdownTable.Query;
 
@@ -48,8 +49,16 @@ public static class QueryEngine
 
         if (table is null)
         {
+            // No table — check if the name resolves to a field
+            if (query.SectionName is not null)
+            {
+                var fieldResult = ResolveField(doc, query.SectionName, query.Operations);
+                if (fieldResult is not null)
+                    return fieldResult;
+            }
+
             var msg = query.SectionName is not null
-                ? $"No table found in section '{query.SectionName}'."
+                ? $"No table or field found for '{query.SectionName}'."
                 : "No table found in document.";
             throw new QueryExecutionException(msg);
         }
@@ -69,7 +78,7 @@ public static class QueryEngine
     }
 
     /// <summary>
-    /// Formats a query result as a string (markdown table or scalar value).
+    /// Formats a query result as a string (markdown table, scalar, or fields).
     /// </summary>
     public static string FormatResult(QueryResult result)
     {
@@ -77,8 +86,60 @@ public static class QueryEngine
         {
             ScalarResult scalar => scalar.Value,
             TableResult table => TableFormatter.Format(table.Headers, table.Rows),
+            FieldsResult fields => FormatFields(fields.Fields),
             _ => throw new InvalidOperationException("Unknown result type."),
         };
+    }
+
+    private static string FormatFields(Dictionary<string, FieldValue> fields)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var (key, value) in fields)
+        {
+            if (value.IsArray)
+            {
+                sb.AppendLine($"**{key}:**");
+                foreach (var item in value.Items)
+                    sb.AppendLine($"- {item}");
+            }
+            else
+            {
+                sb.AppendLine($"**{key}:** {value.Text}");
+            }
+        }
+        return sb.ToString().TrimEnd();
+    }
+
+    private static QueryResult? ResolveField(
+        MarkdownDocument doc, string name, List<ITableOperation> operations)
+    {
+        // Check top-level fields first
+        var fields = doc.Fields;
+        if (fields.TryGetValue(name, out var fieldValue))
+        {
+            if (operations.Count == 0)
+                return QueryResult.Scalar(fieldValue.Text);
+
+            // Can't apply table operations to a scalar field
+            throw new QueryExecutionException(
+                $"Cannot apply table operations to field '{name}' (scalar value).");
+        }
+
+        // Check section fields (section exists but has no table)
+        foreach (var section in doc.Sections)
+        {
+            if (string.Equals(section.Heading, name, StringComparison.OrdinalIgnoreCase)
+                && section.Fields.Count > 0)
+            {
+                if (operations.Count == 0)
+                    return new FieldsResult(section.Fields);
+
+                throw new QueryExecutionException(
+                    $"Cannot apply table operations to section '{name}' (contains fields, not a table).");
+            }
+        }
+
+        return null;
     }
 
     private static DocumentTable? ResolveTable(MarkdownDocument doc, string? sectionName)
