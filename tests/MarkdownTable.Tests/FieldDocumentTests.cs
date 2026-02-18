@@ -403,4 +403,126 @@ public class FieldDocumentTests
         using var doc = ParseText("name: Alice\nname: Bob");
         Assert.Equal("Alice", doc.GetString("name"));
     }
+
+    // --- Static targeted lookup ---
+
+    private static byte[] Utf8(string text) => Encoding.UTF8.GetBytes(text);
+
+    [Fact]
+    public void Static_GetString_FindsPlainField()
+    {
+        var bytes = Utf8("packageName: Newtonsoft.Json\nversion: 13.0.3");
+        Assert.Equal("Newtonsoft.Json", FieldDocument.GetString(bytes, "packageName"));
+        Assert.Equal("13.0.3", FieldDocument.GetString(bytes, "version"));
+    }
+
+    [Fact]
+    public void Static_GetString_FindsBoldField()
+    {
+        var bytes = Utf8("**name:** Alice\n**age:** 30");
+        Assert.Equal("Alice", FieldDocument.GetString(bytes, "name"));
+    }
+
+    [Fact]
+    public void Static_GetString_ReturnsNullForMissing()
+    {
+        var bytes = Utf8("name: Alice");
+        Assert.Null(FieldDocument.GetString(bytes, "missing"));
+    }
+
+    [Fact]
+    public void Static_GetString_CaseInsensitive()
+    {
+        var bytes = Utf8("PackageName: Test");
+        Assert.Equal("Test", FieldDocument.GetString(bytes, "packagename"));
+        Assert.Equal("Test", FieldDocument.GetString(bytes, "PACKAGENAME"));
+    }
+
+    [Fact]
+    public void Static_GetBool_ReturnsTrue()
+    {
+        var bytes = Utf8("hasReadme: true");
+        Assert.True(FieldDocument.GetBool(bytes, "hasReadme"));
+    }
+
+    [Fact]
+    public void Static_GetBool_ReturnsFalseForMissing()
+    {
+        var bytes = Utf8("name: Alice");
+        Assert.False(FieldDocument.GetBool(bytes, "missing"));
+    }
+
+    [Fact]
+    public void Static_GetBool_ReturnsFalseForNonBool()
+    {
+        var bytes = Utf8("name: Alice");
+        Assert.False(FieldDocument.GetBool(bytes, "name"));
+    }
+
+    [Fact]
+    public void Static_GetInt32_ReturnsValue()
+    {
+        var bytes = Utf8("count: 42");
+        Assert.Equal(42, FieldDocument.GetInt32(bytes, "count"));
+    }
+
+    [Fact]
+    public void Static_GetInt32_ReturnsZeroForMissing()
+    {
+        var bytes = Utf8("name: Alice");
+        Assert.Equal(0, FieldDocument.GetInt32(bytes, "missing"));
+    }
+
+    [Fact]
+    public void Static_GetArray_ReturnsItems()
+    {
+        var bytes = Utf8("frameworks:\n- net6.0\n- net8.0\n- net9.0");
+        var items = FieldDocument.GetArray(bytes, "frameworks");
+        Assert.NotNull(items);
+        Assert.Equal(["net6.0", "net8.0", "net9.0"], items);
+    }
+
+    [Fact]
+    public void Static_GetArray_ReturnsNullForMissing()
+    {
+        var bytes = Utf8("name: Alice");
+        Assert.Null(FieldDocument.GetArray(bytes, "missing"));
+    }
+
+    [Fact]
+    public void Static_ContainsKey_TrueAndFalse()
+    {
+        var bytes = Utf8("name: Alice\nage: 30");
+        Assert.True(FieldDocument.ContainsKey(bytes, "name"));
+        Assert.False(FieldDocument.ContainsKey(bytes, "missing"));
+    }
+
+    [Fact]
+    public void Static_GetString_StopsAtFirstMatch()
+    {
+        // First field should be found without scanning the rest
+        var bytes = Utf8("first: found\nsecond: value\nthird: value");
+        Assert.Equal("found", FieldDocument.GetString(bytes, "first"));
+    }
+
+    [Fact]
+    public void Static_GetString_ArrayFieldReturnsJoined()
+    {
+        var bytes = Utf8("items:\n- a\n- b\n- c");
+        Assert.Equal("a, b, c", FieldDocument.GetString(bytes, "items"));
+    }
+
+    [Fact]
+    public void Static_GetString_HandlesEmptyValue()
+    {
+        var bytes = Utf8("key: ");
+        Assert.Equal("", FieldDocument.GetString(bytes, "key"));
+    }
+
+    [Fact]
+    public void Static_GetString_HandlesBom()
+    {
+        var bytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(Utf8("name: Alice")).ToArray();
+        Assert.Equal("Alice", FieldDocument.GetString(bytes, "name"));
+    }
 }

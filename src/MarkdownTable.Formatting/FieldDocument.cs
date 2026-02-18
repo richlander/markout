@@ -167,6 +167,248 @@ public sealed class FieldDocument : IDisposable
 
     public void Dispose() { /* buffer is caller-owned */ }
 
+    // --- Static targeted lookup (early exit, zero dictionary) ---
+
+    /// <summary>
+    /// Scans a UTF-8 byte buffer for a single field by key and returns its string value.
+    /// Stops scanning as soon as the key is found. No dictionary is built.
+    /// For best performance, place frequently-accessed fields first in the file.
+    /// </summary>
+    public static string? GetString(ReadOnlySpan<byte> utf8, ReadOnlySpan<char> key)
+    {
+        Span<byte> keyBytes = stackalloc byte[key.Length * 3];
+        int keyLen = Encoding.UTF8.GetBytes(key, keyBytes);
+        var keyUtf8 = keyBytes[..keyLen];
+
+        return ScanForField(utf8, keyUtf8, out var valueStart, out var valueEnd, out var items)
+            ? (items is not null ? string.Join(", ", items) : (valueStart < valueEnd ? Encoding.UTF8.GetString(utf8[valueStart..valueEnd]) : ""))
+            : null;
+    }
+
+    /// <summary>
+    /// Scans for a single boolean field. Returns true if the field exists and equals "true".
+    /// </summary>
+    public static bool GetBool(ReadOnlySpan<byte> utf8, ReadOnlySpan<char> key)
+    {
+        Span<byte> keyBytes = stackalloc byte[key.Length * 3];
+        int keyLen = Encoding.UTF8.GetBytes(key, keyBytes);
+        var keyUtf8 = keyBytes[..keyLen];
+
+        if (!ScanForField(utf8, keyUtf8, out var valueStart, out var valueEnd, out _))
+            return false;
+        int len = valueEnd - valueStart;
+        if (len != 4) return false;
+        return (utf8[valueStart] | 0x20) == (byte)'t'
+            && (utf8[valueStart + 1] | 0x20) == (byte)'r'
+            && (utf8[valueStart + 2] | 0x20) == (byte)'u'
+            && (utf8[valueStart + 3] | 0x20) == (byte)'e';
+    }
+
+    /// <summary>
+    /// Scans for a single integer field. Returns the parsed value, or 0 if not found.
+    /// </summary>
+    public static int GetInt32(ReadOnlySpan<byte> utf8, ReadOnlySpan<char> key)
+    {
+        Span<byte> keyBytes = stackalloc byte[key.Length * 3];
+        int keyLen = Encoding.UTF8.GetBytes(key, keyBytes);
+        var keyUtf8 = keyBytes[..keyLen];
+
+        if (!ScanForField(utf8, keyUtf8, out var valueStart, out var valueEnd, out _))
+            return 0;
+        return Utf8Parser.TryParseInt32(utf8[valueStart..valueEnd], out var value) ? value : 0;
+    }
+
+    /// <summary>
+    /// Scans for a single array field. Returns the items, or null if not found.
+    /// </summary>
+    public static string[]? GetArray(ReadOnlySpan<byte> utf8, ReadOnlySpan<char> key)
+    {
+        Span<byte> keyBytes = stackalloc byte[key.Length * 3];
+        int keyLen = Encoding.UTF8.GetBytes(key, keyBytes);
+        var keyUtf8 = keyBytes[..keyLen];
+
+        if (!ScanForField(utf8, keyUtf8, out _, out _, out var items))
+            return null;
+        return items?.ToArray();
+    }
+
+    /// <summary>
+    /// Returns true if the buffer contains a field with the specified key.
+    /// </summary>
+    public static bool ContainsKey(ReadOnlySpan<byte> utf8, ReadOnlySpan<char> key)
+    {
+        Span<byte> keyBytes = stackalloc byte[key.Length * 3];
+        int keyLen = Encoding.UTF8.GetBytes(key, keyBytes);
+        return ScanForField(utf8, keyBytes[..keyLen], out _, out _, out _);
+    }
+
+    /// <summary>
+    /// Core scanner: walks lines looking for a field whose key matches keyUtf8 (case-insensitive).
+    /// Returns true if found, with value range or array items.
+    /// </summary>
+    private static bool ScanForField(
+        ReadOnlySpan<byte> utf8,
+        ReadOnlySpan<byte> keyUtf8,
+        out int valueStart, out int valueEnd,
+        out List<string>? items)
+    {
+        valueStart = valueEnd = 0;
+        items = null;
+
+        int pos = 0;
+        if (utf8.Length >= 3 && utf8[0] == 0xEF && utf8[1] == 0xBB && utf8[2] == 0xBF)
+            pos = 3;
+
+        while (pos < utf8.Length)
+        {
+            int lineEnd = FindLineEnd(utf8, pos);
+            int trimmedEnd = lineEnd;
+            if (trimmedEnd > pos && utf8[trimmedEnd - 1] == (byte)'\r')
+                trimmedEnd--;
+
+            var line = TrimWhitespace(utf8[pos..trimmedEnd], pos, out int contentStart);
+            int nextLineStart = lineEnd < utf8.Length ? lineEnd + 1 : utf8.Length;
+
+            if (line.Length > 0)
+            {
+                ReadOnlySpan<byte> foundKey;
+                int vs, ve;
+
+                if (line[0] == (byte)'*' && line.Length >= 5 && line[1] == (byte)'*')
+                {
+                    if (TryParseBoldFieldSpan(line, contentStart, out foundKey, out vs, out ve)
+                        && KeyEquals(foundKey, keyUtf8))
+                    {
+                        return ResolveValue(utf8, vs, ve, ref nextLineStart, out valueStart, out valueEnd, out items);
+                    }
+                }
+                else if (line[0] != (byte)'-' && line[0] != (byte)'#'
+                    && line[0] != (byte)'|' && line[0] != (byte)'>'
+                    && line[0] != (byte)'`')
+                {
+                    if (TryParsePlainFieldSpan(line, contentStart, out foundKey, out vs, out ve)
+                        && KeyEquals(foundKey, keyUtf8))
+                    {
+                        return ResolveValue(utf8, vs, ve, ref nextLineStart, out valueStart, out valueEnd, out items);
+                    }
+                }
+            }
+
+            pos = nextLineStart;
+        }
+
+        return false;
+    }
+
+    private static bool ResolveValue(
+        ReadOnlySpan<byte> buffer, int vs, int ve, ref int nextLineStart,
+        out int valueStart, out int valueEnd, out List<string>? items)
+    {
+        items = null;
+        if (vs >= ve)
+        {
+            var bulletItems = CollectBulletItems(buffer, nextLineStart, out nextLineStart);
+            if (bulletItems.Count > 0)
+            {
+                items = bulletItems;
+                valueStart = valueEnd = 0;
+                return true;
+            }
+            valueStart = valueEnd = vs;
+            return true;
+        }
+        valueStart = vs;
+        valueEnd = ve;
+        return true;
+    }
+
+    /// <summary>Case-insensitive comparison of two ASCII/UTF-8 key spans.</summary>
+    private static bool KeyEquals(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    {
+        if (a.Length != b.Length) return false;
+        for (int i = 0; i < a.Length; i++)
+        {
+            if ((a[i] | 0x20) != (b[i] | 0x20))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>Like TryParseBoldField but returns key as a byte span (no string alloc).</summary>
+    private static bool TryParseBoldFieldSpan(
+        ReadOnlySpan<byte> line, int lineOffset,
+        out ReadOnlySpan<byte> key, out int valueStart, out int valueEnd)
+    {
+        key = default;
+        valueStart = valueEnd = 0;
+
+        var afterStars = line[2..];
+        int colonStarIdx = IndexOfPattern(afterStars, (byte)':', (byte)'*', (byte)'*');
+        if (colonStarIdx < 0 || colonStarIdx == 0)
+            return false;
+
+        key = line.Slice(2, colonStarIdx);
+        int afterPattern = 2 + colonStarIdx + 3;
+        int absAfterPattern = lineOffset + afterPattern;
+        if (afterPattern < line.Length && line[afterPattern] == (byte)' ')
+        {
+            afterPattern++;
+            absAfterPattern++;
+        }
+        valueStart = absAfterPattern;
+
+        int endIdx = line.Length;
+        while (endIdx > afterPattern && (line[endIdx - 1] == (byte)' ' || line[endIdx - 1] == (byte)'\t'))
+            endIdx--;
+        valueEnd = lineOffset + endIdx;
+        return true;
+    }
+
+    /// <summary>Like TryParsePlainField but returns key as a byte span (no string alloc).</summary>
+    private static bool TryParsePlainFieldSpan(
+        ReadOnlySpan<byte> line, int lineOffset,
+        out ReadOnlySpan<byte> key, out int valueStart, out int valueEnd)
+    {
+        key = default;
+        valueStart = valueEnd = 0;
+
+        for (int i = 1; i < line.Length; i++)
+        {
+            if (line[i] == (byte)':')
+            {
+                var keySpan = line[..i];
+                if (keySpan.IndexOf((byte)' ') >= 0)
+                    return false;
+
+                if (i == line.Length - 1)
+                {
+                    key = keySpan;
+                    valueStart = valueEnd = lineOffset + line.Length;
+                    return true;
+                }
+
+                if (line[i + 1] != (byte)' ')
+                {
+                    if (i + 2 < line.Length && line[i + 1] == (byte)'/' && line[i + 2] == (byte)'/')
+                        return false;
+                    continue;
+                }
+
+                key = keySpan;
+                int afterColon = i + 2;
+                valueStart = lineOffset + afterColon;
+
+                int endIdx = line.Length;
+                while (endIdx > afterColon && (line[endIdx - 1] == (byte)' ' || line[endIdx - 1] == (byte)'\t'))
+                    endIdx--;
+                valueEnd = lineOffset + endIdx;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // --- Parsing helpers ---
 
     private static void AddField(
