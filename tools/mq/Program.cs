@@ -23,35 +23,36 @@ query = args[0];
 if (args.Length > 1)
     inputFile = args[1];
 
-// Read input
-string input;
-if (!string.IsNullOrEmpty(inputFile))
-{
-    if (!File.Exists(inputFile))
-    {
-        Console.Error.WriteLine($"mq: file not found: {inputFile}");
-        Environment.Exit(1);
-        return;
-    }
-    input = File.ReadAllText(inputFile);
-}
-else if (Console.IsInputRedirected)
-{
-    input = Console.In.ReadToEnd();
-}
-else
-{
-    Console.Error.WriteLine("mq: No input file specified and no data on stdin.");
-    Console.Error.WriteLine("Usage: mq '<query>' [file]  or  command | mq '<query>'");
-    Console.Error.WriteLine("Use 'mq --help' for more information.");
-    Environment.Exit(1);
-    return;
-}
-
 // Execute query
 try
 {
-    var result = QueryEngine.Execute(input, query);
+    QueryResult result;
+
+    if (!string.IsNullOrEmpty(inputFile))
+    {
+        if (!File.Exists(inputFile))
+        {
+            Console.Error.WriteLine($"mq: file not found: {inputFile}");
+            Environment.Exit(1);
+            return;
+        }
+        await using var fileStream = File.OpenRead(inputFile);
+        result = await QueryEngine.ExecuteAsync(fileStream, query);
+    }
+    else if (Console.IsInputRedirected)
+    {
+        await using var stdinStream = Console.OpenStandardInput();
+        result = await QueryEngine.ExecuteAsync(stdinStream, query);
+    }
+    else
+    {
+        Console.Error.WriteLine("mq: No input file specified and no data on stdin.");
+        Console.Error.WriteLine("Usage: mq '<query>' [file]  or  command | mq '<query>'");
+        Console.Error.WriteLine("Use 'mq --help' for more information.");
+        Environment.Exit(1);
+        return;
+    }
+
     Console.Write(QueryEngine.FormatResult(result));
 }
 catch (QueryParseException ex)

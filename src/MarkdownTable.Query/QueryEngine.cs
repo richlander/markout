@@ -28,6 +28,17 @@ public static class QueryEngine
     }
 
     /// <summary>
+    /// Executes a query against a stream of markdown using buffered I/O.
+    /// </summary>
+    public static async Task<QueryResult> ExecuteAsync(
+        Stream stream, string query, CancellationToken cancellationToken = default)
+    {
+        var doc = await DocumentReader.ReadAsync(stream, cancellationToken);
+        var parsed = QueryParser.Parse(query);
+        return Execute(doc, parsed);
+    }
+
+    /// <summary>
     /// Executes a parsed query against a parsed document.
     /// </summary>
     public static QueryResult Execute(MarkdownDocument doc, ParsedQuery query)

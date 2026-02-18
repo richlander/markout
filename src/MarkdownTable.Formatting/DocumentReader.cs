@@ -9,6 +9,8 @@ public static class DocumentReader
 {
     /// <summary>
     /// Parses markdown text into a document model with fields and tables.
+    /// Uses direct string splitting — fastest path when the content is
+    /// already in memory as a string.
     /// </summary>
     public static MarkdownDocument Read(string text)
     {
@@ -21,87 +23,15 @@ public static class DocumentReader
 
         for (int i = 0; i < lines.Length; i++)
         {
-            var line = lines[i];
-            var trimmed = line.TrimEnd('\r');
-
-            // Check for heading
-            if (TryParseHeading(trimmed, out var level, out var headingText))
-            {
-                FlushPending(currentSection, tableLines, fieldLines, lines, ref i);
-
-                if (level == 1 && doc.Title is null)
-                    doc.Title = headingText;
-
-                currentSection = new DocumentSection { Heading = headingText, Level = level };
-                doc.Sections.Add(currentSection);
-                continue;
-            }
-
-            // Check for table lines
-            if (TableParser.IsPipeTableLine(trimmed))
-            {
-                // Flush fields before starting table
-                if (fieldLines.Count > 0)
-                    FlushFields(currentSection, fieldLines);
-
-                EnsureSection(doc, ref currentSection);
-                tableLines.Add(trimmed);
-                continue;
-            }
-
-            // Non-table line: flush any pending table
-            if (tableLines.Count > 0)
-            {
-                FlushTable(currentSection, tableLines);
-            }
-
-            // Check for field-like lines (collect for batch parsing)
-            var trimmedSpan = trimmed.AsSpan().Trim();
-            if (!trimmedSpan.IsEmpty && !IsSkippableLine(trimmedSpan))
-            {
-                EnsureSection(doc, ref currentSection);
-                fieldLines.Add(trimmed);
-            }
-            else if (trimmedSpan.IsEmpty && fieldLines.Count > 0)
-            {
-                // Blank line — keep it in fieldLines so FieldParser can see
-                // array boundaries (field name followed by blank then bullets)
-                fieldLines.Add(trimmed);
-            }
-        }
-
-        // Flush final pending content
-        int dummy = lines.Length;
-        FlushPending(currentSection, tableLines, fieldLines, lines, ref dummy);
-
-        return doc;
-    }
-
-    /// <summary>
-    /// Parses a UTF-8 byte buffer into a document model using byte-level line
-    /// scanning. Avoids per-line string allocations during classification;
-    /// converts to <see cref="string"/> only for lines that carry data.
-    /// </summary>
-    public static MarkdownDocument Read(ReadOnlySpan<byte> utf8)
-    {
-        var doc = new MarkdownDocument();
-        var reader = new ByteLineReader(utf8);
-
-        DocumentSection? currentSection = null;
-        var tableLines = new List<string>();
-        var fieldLines = new List<string>();
-
-        while (reader.ReadLine(out var lineBytes))
-        {
-            var kind = ByteLineClassifier.Classify(lineBytes);
+            var trimmed = lines[i].TrimEnd('\r');
+            var kind = ClassifyStringLine(trimmed);
 
             switch (kind)
             {
                 case ByteLineKind.Heading:
                 {
-                    FlushPendingByte(currentSection, tableLines, fieldLines);
-                    var line = ByteLineReader.ToString(lineBytes);
-                    if (TryParseHeading(line, out var level, out var headingText))
+                    FlushPending(currentSection, tableLines, fieldLines);
+                    if (TryParseHeading(trimmed, out var level, out var headingText))
                     {
                         if (level == 1 && doc.Title is null)
                             doc.Title = headingText;
@@ -116,7 +46,112 @@ public static class DocumentReader
                     if (fieldLines.Count > 0)
                         FlushFields(currentSection, fieldLines);
                     EnsureSection(doc, ref currentSection);
-                    tableLines.Add(ByteLineReader.ToString(lineBytes));
+                    tableLines.Add(trimmed);
+                    break;
+                }
+
+                case ByteLineKind.Empty:
+                {
+                    if (tableLines.Count > 0)
+                        FlushTable(currentSection, tableLines);
+                    if (fieldLines.Count > 0)
+                        fieldLines.Add(trimmed);
+                    break;
+                }
+
+                case ByteLineKind.Skippable:
+                {
+                    if (tableLines.Count > 0)
+                        FlushTable(currentSection, tableLines);
+                    break;
+                }
+
+                default:
+                {
+                    if (tableLines.Count > 0)
+                        FlushTable(currentSection, tableLines);
+                    EnsureSection(doc, ref currentSection);
+                    fieldLines.Add(trimmed);
+                    break;
+                }
+            }
+        }
+
+        FlushPending(currentSection, tableLines, fieldLines);
+        return doc;
+    }
+
+    /// <summary>
+    /// Parses a UTF-8 byte buffer into a document model.
+    /// Convenience overload that wraps the buffer in a memory stream.
+    /// </summary>
+    public static MarkdownDocument Read(ReadOnlySpan<byte> utf8)
+    {
+        using var stream = new MemoryStream(utf8.ToArray());
+        return ReadAsync(stream).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Parses a stream of markdown into a document model using
+    /// <see cref="LineReader"/> for buffered, byte-level line scanning.
+    /// This is the primary entry point — all other overloads delegate here.
+    /// </summary>
+    public static async Task<MarkdownDocument> ReadAsync(
+        Stream stream, CancellationToken cancellationToken = default)
+    {
+        var doc = new MarkdownDocument();
+        var reader = LineReader.Create(stream);
+
+        DocumentSection? currentSection = null;
+        var tableLines = new List<string>();
+        var fieldLines = new List<string>();
+
+        // Initial buffer fill
+        await reader.AdvanceAsync(cancellationToken);
+
+        while (!reader.IsComplete)
+        {
+            if (!reader.ReadLineNoConsume(out var lineBytes))
+            {
+                if (!await reader.AdvanceAsync(cancellationToken))
+                    break;
+                continue;
+            }
+
+            var kind = ByteLineClassifier.Classify(lineBytes);
+
+            // Decode to string before consuming — the span is only valid
+            // while the buffer hasn't been flipped.
+            string? lineStr = kind switch
+            {
+                ByteLineKind.Empty or ByteLineKind.Skippable => null,
+                _ => LineReader.ToString(lineBytes),
+            };
+
+            // Consume the peeked line (advances position, no buffer flip)
+            reader.ConsumeNextNewline();
+
+            switch (kind)
+            {
+                case ByteLineKind.Heading:
+                {
+                    FlushPending(currentSection, tableLines, fieldLines);
+                    if (TryParseHeading(lineStr!, out var level, out var headingText))
+                    {
+                        if (level == 1 && doc.Title is null)
+                            doc.Title = headingText;
+                        currentSection = new DocumentSection { Heading = headingText, Level = level };
+                        doc.Sections.Add(currentSection);
+                    }
+                    break;
+                }
+
+                case ByteLineKind.PipeTable:
+                {
+                    if (fieldLines.Count > 0)
+                        FlushFields(currentSection, fieldLines);
+                    EnsureSection(doc, ref currentSection);
+                    tableLines.Add(lineStr!);
                     break;
                 }
 
@@ -144,22 +179,14 @@ public static class DocumentReader
                     if (tableLines.Count > 0)
                         FlushTable(currentSection, tableLines);
                     EnsureSection(doc, ref currentSection);
-                    fieldLines.Add(ByteLineReader.ToString(lineBytes));
+                    fieldLines.Add(lineStr!);
                     break;
                 }
             }
         }
 
-        FlushPendingByte(currentSection, tableLines, fieldLines);
+        FlushPending(currentSection, tableLines, fieldLines);
         return doc;
-    }
-
-    private static void FlushPendingByte(DocumentSection? section, List<string> tableLines, List<string> fieldLines)
-    {
-        if (tableLines.Count > 0)
-            FlushTable(section, tableLines);
-        if (fieldLines.Count > 0)
-            FlushFields(section, fieldLines);
     }
 
     private static void EnsureSection(MarkdownDocument doc, ref DocumentSection? section)
@@ -170,7 +197,7 @@ public static class DocumentReader
         doc.Sections.Add(section);
     }
 
-    private static void FlushPending(DocumentSection? section, List<string> tableLines, List<string> fieldLines, string[] lines, ref int i)
+    private static void FlushPending(DocumentSection? section, List<string> tableLines, List<string> fieldLines)
     {
         if (tableLines.Count > 0)
             FlushTable(section, tableLines);
@@ -213,12 +240,6 @@ public static class DocumentReader
         fieldLines.Clear();
     }
 
-    private static bool IsSkippableLine(ReadOnlySpan<char> trimmed)
-    {
-        // Code fences, block quotes / callouts
-        return trimmed[0] == '`' || trimmed.StartsWith(">");
-    }
-
     internal static bool TryParseHeading(string line, out int level, out string text)
     {
         level = 0;
@@ -238,5 +259,47 @@ public static class DocumentReader
         level = hashCount;
         text = span[(hashCount + 1)..].Trim().ToString();
         return text.Length > 0;
+    }
+
+    /// <summary>
+    /// Classifies a string line into the same categories as <see cref="ByteLineClassifier"/>.
+    /// Used by the <see cref="Read(string)"/> path to avoid byte conversion.
+    /// </summary>
+    private static ByteLineKind ClassifyStringLine(string line)
+    {
+        var trimmed = line.AsSpan().Trim();
+
+        if (trimmed.IsEmpty)
+            return ByteLineKind.Empty;
+
+        char first = trimmed[0];
+
+        if (first == '#')
+        {
+            int hashes = 0;
+            while (hashes < trimmed.Length && trimmed[hashes] == '#') hashes++;
+            if (hashes <= 6 && hashes < trimmed.Length && trimmed[hashes] == ' ')
+                return ByteLineKind.Heading;
+        }
+
+        if (first == '`' || first == '>')
+            return ByteLineKind.Skippable;
+
+        if (first == '*' && trimmed.Length >= 5 && trimmed[1] == '*')
+            return ByteLineKind.BoldField;
+
+        if (first == '-' && trimmed.Length >= 2 && trimmed[1] == ' ')
+            return ByteLineKind.Bullet;
+
+        if (trimmed.Contains('|'))
+        {
+            if (first == '|' || trimmed[^1] == '|')
+                return ByteLineKind.PipeTable;
+
+            if (trimmed.Contains(" | ", StringComparison.Ordinal))
+                return ByteLineKind.OneLineFields;
+        }
+
+        return ByteLineKind.Content;
     }
 }

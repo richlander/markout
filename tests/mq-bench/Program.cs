@@ -12,6 +12,7 @@ while (!File.Exists(Path.Combine(repoRoot, "Markout.sln")))
 string mdText = File.ReadAllText(Path.Combine(repoRoot, "tests", "mq-bench", "releases.md"));
 string jsonText = File.ReadAllText(Path.Combine(repoRoot, "tests", "mq-bench", "releases.json"));
 byte[] mdBytes = Encoding.UTF8.GetBytes(mdText);
+string mdFilePath = Path.Combine(repoRoot, "tests", "mq-bench", "releases.md");
 
 // Warmup + correctness
 Console.WriteLine("=== Correctness ===");
@@ -87,8 +88,10 @@ var benchmarks = new (string Label, string Category, Action Action)[]
     // --- Count ---
     ("mq string", "Count",
         () => QueryEngine.Execute(mdText, "count")),
-    ("mq byte[]", "Count",
-        () => QueryEngine.Execute((ReadOnlySpan<byte>)mdBytes, "count")),
+    ("mq MemoryStream", "Count",
+        () => { using var ms = new MemoryStream(mdBytes); QueryEngine.ExecuteAsync(ms, "count").GetAwaiter().GetResult(); }),
+    ("mq FileStream", "Count",
+        () => { using var fs = File.OpenRead(mdFilePath); QueryEngine.ExecuteAsync(fs, "count").GetAwaiter().GetResult(); }),
     ("mq pre-parsed", "Count",
         () => QueryEngine.Execute(parsedDoc, QueryParser.Parse("count"))),
     ("json parse+query", "Count",
@@ -99,8 +102,10 @@ var benchmarks = new (string Label, string Category, Action Action)[]
     // --- Filter (LTS) ---
     ("mq string", "Filter",
         () => QueryEngine.Execute(mdText, "where .Type == \"LTS\" | count")),
-    ("mq byte[]", "Filter",
-        () => QueryEngine.Execute((ReadOnlySpan<byte>)mdBytes, "where .Type == \"LTS\" | count")),
+    ("mq MemoryStream", "Filter",
+        () => { using var ms = new MemoryStream(mdBytes); QueryEngine.ExecuteAsync(ms, "where .Type == \"LTS\" | count").GetAwaiter().GetResult(); }),
+    ("mq FileStream", "Filter",
+        () => { using var fs = File.OpenRead(mdFilePath); QueryEngine.ExecuteAsync(fs, "where .Type == \"LTS\" | count").GetAwaiter().GetResult(); }),
     ("mq pre-parsed", "Filter",
         () => QueryEngine.Execute(parsedDoc, QueryParser.Parse("where .Type == \"LTS\" | count"))),
     ("json parse+query", "Filter",
@@ -121,8 +126,10 @@ var benchmarks = new (string Label, string Category, Action Action)[]
     // --- Scalar extract ---
     ("mq string", "Scalar",
         () => QueryEngine.Execute(mdText, ".[0].Version")),
-    ("mq byte[]", "Scalar",
-        () => QueryEngine.Execute((ReadOnlySpan<byte>)mdBytes, ".[0].Version")),
+    ("mq MemoryStream", "Scalar",
+        () => { using var ms = new MemoryStream(mdBytes); QueryEngine.ExecuteAsync(ms, ".[0].Version").GetAwaiter().GetResult(); }),
+    ("mq FileStream", "Scalar",
+        () => { using var fs = File.OpenRead(mdFilePath); QueryEngine.ExecuteAsync(fs, ".[0].Version").GetAwaiter().GetResult(); }),
     ("mq pre-parsed", "Scalar",
         () => QueryEngine.Execute(parsedDoc, QueryParser.Parse(".[0].Version"))),
     ("json parse+query", "Scalar",
@@ -133,8 +140,10 @@ var benchmarks = new (string Label, string Category, Action Action)[]
     // --- Select columns ---
     ("mq string", "Project",
         () => QueryEngine.Execute(mdText, "select .Version, .Type")),
-    ("mq byte[]", "Project",
-        () => QueryEngine.Execute((ReadOnlySpan<byte>)mdBytes, "select .Version, .Type")),
+    ("mq MemoryStream", "Project",
+        () => { using var ms = new MemoryStream(mdBytes); QueryEngine.ExecuteAsync(ms, "select .Version, .Type").GetAwaiter().GetResult(); }),
+    ("mq FileStream", "Project",
+        () => { using var fs = File.OpenRead(mdFilePath); QueryEngine.ExecuteAsync(fs, "select .Version, .Type").GetAwaiter().GetResult(); }),
     ("mq pre-parsed", "Project",
         () => QueryEngine.Execute(parsedDoc, QueryParser.Parse("select .Version, .Type"))),
     ("json parse+query", "Project",

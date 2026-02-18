@@ -73,7 +73,7 @@ mq '."All Releases" | where .Type == "LTS"'
 ```text
 MarkdownTable.Formatting          MarkdownTable.Query              mq (CLI)
 ├── DocumentReader                ├── Tokenizer                    └── Program.cs
-├── ByteLineReader                ├── QueryParser
+├── LineReader                    ├── QueryParser
 ├── ByteLineClassifier            ├── QueryEngine
 ├── MarkdownDocument              └── Operations/
 ├── FieldParser                       ├── WhereOperation
@@ -82,12 +82,23 @@ MarkdownTable.Formatting          MarkdownTable.Query              mq (CLI)
                                       └── TableOperations
 ```
 
-`DocumentReader` (in Formatting) parses markdown into a document model with
-sections, fields, and tables. It has two entry points: `Read(string)` for
-text input and `Read(ReadOnlySpan<byte>)` for byte-level parsing using
-`ByteLineReader` and `ByteLineClassifier`. `QueryEngine` (in Query) wires
-the parser to the tokenizer and operation pipeline. The `mq` CLI is a thin
-wrapper.
+`DocumentReader` has three entry points:
+
+- `ReadAsync(Stream)` — primary path using `LineReader` for buffered,
+  streaming byte-level I/O. Used by the `mq` CLI for both files and stdin.
+- `Read(string)` — direct string splitting, fastest when content is already
+  in memory as a string. Used by `QueryEngine.Execute(string, string)`.
+- `Read(ReadOnlySpan<byte>)` — convenience overload wrapping a MemoryStream.
+
+`LineReader` is ported from MarkdownTable.IO (smooth-markdown-table) with
+the prefetch/double-buffering path removed. It retains buffer management,
+`SavePosition`/`Rewind` for transactional multi-line lookahead,
+`BufferFlipVersion`/`Validate` for span lifetime safety, and
+`SearchValues<byte>` for SIMD-accelerated newline search.
+
+`ByteLineClassifier` classifies lines at the byte level into 8 kinds
+(Heading, PipeTable, BoldField, Bullet, OneLineFields, Skippable, Empty,
+Content) before any UTF-8 → UTF-16 string conversion.
 
 ## Performance
 
@@ -96,21 +107,21 @@ All measurements on Apple Silicon, Release build, 100K iterations using
 
 ### Library-level: parse + query (µs/op)
 
-| Operation | mq string | mq byte[] | json (JsonDocument) |
-| --------- | --------: | --------: | ------------------: |
-| Count | 3.98 | 2.55 | 5.12 |
-| Filter | 2.24 | 1.88 | 2.57 |
-| Scalar | 1.51 | 1.60 | 1.66 |
-| Project | 1.88 | 1.78 | 2.37 |
+| Operation | mq string | mq MemoryStream | mq FileStream | json |
+| --------- | --------: | --------------: | ------------: | ---: |
+| Count | 5.04 | 1.90 | 24.65 | 4.95 |
+| Filter | 2.83 | 2.40 | 19.01 | 2.61 |
+| Scalar | 2.20 | 2.05 | 18.84 | 1.73 |
+| Project | 2.53 | 2.28 | 19.52 | 2.44 |
 
-The **byte[] path** is the fastest, **2–2.5x faster** than `JsonDocument` on
-parse-heavy operations like Count. It uses `ByteLineReader` (SIMD-accelerated
-newline search via `SearchValues<byte>`) and `ByteLineClassifier` (byte-level
-line classification) to avoid `string.Split` and defer UTF-8 decode to only
-the lines that carry data.
+The **MemoryStream path** (LineReader) is the fastest for in-memory data,
+**2.6x faster** than `JsonDocument` on Count. It uses `SearchValues<byte>`
+for SIMD newline search and `ByteLineClassifier` for byte-level line
+classification, deferring UTF-8 decode to only the lines that carry data.
 
-The **string path** is 10–20% faster than JSON. The byte path adds another
-20–40% on top of that for operations dominated by parsing.
+The **string path** uses direct `string.Split` and is competitive with JSON.
+The **FileStream path** includes real I/O (file open + kernel read per call)
+and shows the ~20µs overhead of actual disk access.
 
 ### Library-level: pre-parsed document (µs/op)
 
@@ -171,16 +182,26 @@ The mq tool is a CLI utility invoked per-query, so startup time matters.
 Native AOT eliminates the ~80 ms JIT startup penalty, bringing `mq` to
 parity with `jq`'s native C binary (~17 ms).
 
-### Why byte-level parsing?
+### Why LineReader?
 
-`DocumentReader.Read(ReadOnlySpan<byte>)` uses `ByteLineReader` (SIMD newline
-search via `SearchValues<byte>`) and `ByteLineClassifier` to classify lines
-at the byte level before any UTF-8 → UTF-16 string conversion. Lines that
-don't carry data (empty, skippable) are never decoded. This avoids
-`string.Split('\n')` allocation and yields a 20–40% speedup over the string
-path on parse-heavy operations. The design is inspired by
-`MarkdownTable.IO.LineReader` and `MarkdownLineClassifier` from the
-smooth-markdown-table project.
+`DocumentReader.ReadAsync(Stream)` uses `LineReader`, ported from
+MarkdownTable.IO (smooth-markdown-table), for buffered byte-level I/O.
+The design provides:
+
+- **`SearchValues<byte>`** — SIMD-accelerated newline search on raw UTF-8
+- **Buffer management** — compact unprocessed bytes, read more from stream
+- **`SavePosition`/`Rewind`** — transactional multi-line lookahead for table
+  header identification (header + separator must be validated atomically)
+- **`BufferFlipVersion`/`Validate`** — span lifetime safety across buffer
+  operations; ensures spans obtained before a buffer flip are not used after
+- **Streaming-ready** — processes data as it arrives; never requires the
+  full document in memory
+
+The prefetch/double-buffering path was removed (unnecessary for current
+workloads). `ByteLineClassifier` classifies lines at the byte level into
+8 Markout-specific kinds, deferring `Encoding.UTF8.GetString` to only the
+lines that carry data. The MemoryStream path is 2.6x faster than
+`JsonDocument` on parse-heavy operations.
 
 ## Running the benchmark
 
