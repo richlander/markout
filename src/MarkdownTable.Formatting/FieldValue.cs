@@ -1,4 +1,4 @@
-namespace MarkdownTable.Query;
+namespace MarkdownTable.Formatting;
 
 /// <summary>
 /// A parsed field value — either a scalar string or an array of strings.

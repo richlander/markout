@@ -1,4 +1,4 @@
-namespace MarkdownTable.Query;
+namespace MarkdownTable.Formatting;
 
 /// <summary>
 /// Parses Markout-style key-value fields from markdown text.
