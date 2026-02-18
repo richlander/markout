@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using MarkdownTable.Formatting;
 using MarkdownTable.Query;
@@ -10,6 +11,7 @@ while (!File.Exists(Path.Combine(repoRoot, "Markout.sln")))
 
 string mdText = File.ReadAllText(Path.Combine(repoRoot, "tests", "mq-bench", "releases.md"));
 string jsonText = File.ReadAllText(Path.Combine(repoRoot, "tests", "mq-bench", "releases.json"));
+byte[] mdBytes = Encoding.UTF8.GetBytes(mdText);
 
 // Warmup + correctness
 Console.WriteLine("=== Correctness ===");
@@ -83,8 +85,10 @@ var parsedJsonDoc = JsonDocument.Parse(jsonText);
 var benchmarks = new (string Label, string Category, Action Action)[]
 {
     // --- Count ---
-    ("mq parse+query", "Count",
+    ("mq string", "Count",
         () => QueryEngine.Execute(mdText, "count")),
+    ("mq byte[]", "Count",
+        () => QueryEngine.Execute((ReadOnlySpan<byte>)mdBytes, "count")),
     ("mq pre-parsed", "Count",
         () => QueryEngine.Execute(parsedDoc, QueryParser.Parse("count"))),
     ("json parse+query", "Count",
@@ -93,8 +97,10 @@ var benchmarks = new (string Label, string Category, Action Action)[]
         () => parsedJsonDoc.RootElement.GetArrayLength()),
 
     // --- Filter (LTS) ---
-    ("mq parse+query", "Filter",
+    ("mq string", "Filter",
         () => QueryEngine.Execute(mdText, "where .Type == \"LTS\" | count")),
+    ("mq byte[]", "Filter",
+        () => QueryEngine.Execute((ReadOnlySpan<byte>)mdBytes, "where .Type == \"LTS\" | count")),
     ("mq pre-parsed", "Filter",
         () => QueryEngine.Execute(parsedDoc, QueryParser.Parse("where .Type == \"LTS\" | count"))),
     ("json parse+query", "Filter",
@@ -113,8 +119,10 @@ var benchmarks = new (string Label, string Category, Action Action)[]
         }),
 
     // --- Scalar extract ---
-    ("mq parse+query", "Scalar",
+    ("mq string", "Scalar",
         () => QueryEngine.Execute(mdText, ".[0].Version")),
+    ("mq byte[]", "Scalar",
+        () => QueryEngine.Execute((ReadOnlySpan<byte>)mdBytes, ".[0].Version")),
     ("mq pre-parsed", "Scalar",
         () => QueryEngine.Execute(parsedDoc, QueryParser.Parse(".[0].Version"))),
     ("json parse+query", "Scalar",
@@ -123,8 +131,10 @@ var benchmarks = new (string Label, string Category, Action Action)[]
         () => parsedJsonDoc.RootElement[0].GetProperty("Version").GetString()),
 
     // --- Select columns ---
-    ("mq parse+query", "Project",
+    ("mq string", "Project",
         () => QueryEngine.Execute(mdText, "select .Version, .Type")),
+    ("mq byte[]", "Project",
+        () => QueryEngine.Execute((ReadOnlySpan<byte>)mdBytes, "select .Version, .Type")),
     ("mq pre-parsed", "Project",
         () => QueryEngine.Execute(parsedDoc, QueryParser.Parse("select .Version, .Type"))),
     ("json parse+query", "Project",

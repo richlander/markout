@@ -18,6 +18,16 @@ public static class QueryEngine
     }
 
     /// <summary>
+    /// Executes a query against a UTF-8 byte buffer using byte-level parsing.
+    /// </summary>
+    public static QueryResult Execute(ReadOnlySpan<byte> utf8, string query)
+    {
+        var doc = DocumentReader.Read(utf8);
+        var parsed = QueryParser.Parse(query);
+        return Execute(doc, parsed);
+    }
+
+    /// <summary>
     /// Executes a parsed query against a parsed document.
     /// </summary>
     public static QueryResult Execute(MarkdownDocument doc, ParsedQuery query)
