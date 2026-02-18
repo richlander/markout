@@ -265,4 +265,119 @@ public class QueryEngineTests
         var scalar = Assert.IsType<ScalarResult>(result);
         Assert.Equal("0", scalar.Value);
     }
+
+    // --- field queries ---
+
+    private const string FieldDocument = """
+        # Package
+
+        **Name:** Newtonsoft.Json
+        **Version:** 13.0.3
+        **Signed:** yes
+
+        ## Dependencies
+
+        | File    | Arch   |
+        | ------- | ------ |
+        | Foo.dll | AnyCPU |
+        | Bar.dll | x64    |
+        """;
+
+    [Fact]
+    public void Execute_FieldAccess_ReturnsScalar()
+    {
+        var result = QueryEngine.Execute(FieldDocument, ".Name");
+        var scalar = Assert.IsType<ScalarResult>(result);
+        Assert.Equal("Newtonsoft.Json", scalar.Value);
+    }
+
+    [Fact]
+    public void Execute_FieldAccess_CaseInsensitive()
+    {
+        var result = QueryEngine.Execute(FieldDocument, ".name");
+        var scalar = Assert.IsType<ScalarResult>(result);
+        Assert.Equal("Newtonsoft.Json", scalar.Value);
+    }
+
+    [Fact]
+    public void Execute_FieldAccess_Version()
+    {
+        var result = QueryEngine.Execute(FieldDocument, ".Version");
+        var scalar = Assert.IsType<ScalarResult>(result);
+        Assert.Equal("13.0.3", scalar.Value);
+    }
+
+    [Fact]
+    public void Execute_SectionTable_StillWorks()
+    {
+        var result = QueryEngine.Execute(FieldDocument, ".Dependencies | count");
+        var scalar = Assert.IsType<ScalarResult>(result);
+        Assert.Equal("2", scalar.Value);
+    }
+
+    [Fact]
+    public void Execute_SectionTableSelect_StillWorks()
+    {
+        var result = QueryEngine.Execute(FieldDocument, ".Dependencies | .[].File");
+        var table = Assert.IsType<TableResult>(result);
+        Assert.Equal(2, table.Rows.Count);
+        Assert.Equal("Foo.dll", table.Rows[0][0]);
+    }
+
+    [Fact]
+    public void Execute_FieldAccess_FormatsAsScalar()
+    {
+        var result = QueryEngine.Execute(FieldDocument, ".Name");
+        Assert.Equal("Newtonsoft.Json", QueryEngine.FormatResult(result));
+    }
+
+    [Fact]
+    public void Execute_MissingFieldAndSection_Throws()
+    {
+        Assert.ThrowsAny<Exception>(() =>
+            QueryEngine.Execute(FieldDocument, ".NonExistent"));
+    }
+
+    private const string FieldsOnlyDocument = """
+        **Kind:** class
+        **Modifiers:** public static
+        **Library:** System.Text.Json.dll
+        """;
+
+    [Fact]
+    public void Execute_FieldsOnly_ScalarAccess()
+    {
+        var result = QueryEngine.Execute(FieldsOnlyDocument, ".Kind");
+        var scalar = Assert.IsType<ScalarResult>(result);
+        Assert.Equal("class", scalar.Value);
+    }
+
+    [Fact]
+    public void Execute_FieldsOnly_NoTable_Throws()
+    {
+        Assert.ThrowsAny<Exception>(() =>
+            QueryEngine.Execute(FieldsOnlyDocument, "count"));
+    }
+
+    private const string PlainFieldDocument = """
+        packageName: Newtonsoft.Json
+        version: 13.0.3
+        hasReadme: true
+        """;
+
+    [Fact]
+    public void Execute_PlainField_ScalarAccess()
+    {
+        var result = QueryEngine.Execute(PlainFieldDocument, ".packageName");
+        var scalar = Assert.IsType<ScalarResult>(result);
+        Assert.Equal("Newtonsoft.Json", scalar.Value);
+    }
+
+    [Fact]
+    public void Execute_PlainField_BoolValue()
+    {
+        var result = QueryEngine.Execute(PlainFieldDocument, ".hasReadme");
+        var scalar = Assert.IsType<ScalarResult>(result);
+        Assert.Equal("true", scalar.Value);
+    }
 }
