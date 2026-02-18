@@ -7,17 +7,19 @@ namespace MarkdownTable.Query;
 ///   - Plain:   Key: Value
 ///   - OneLine: Key: Value | Key: Value
 ///   - List:    - Key: Value (or - **Key:** Value)
+///   - Array:   **Key:**\n- item1\n- item2
 /// </summary>
 public static class FieldParser
 {
     /// <summary>
     /// Parses all fields from markdown text into a dictionary.
     /// Keys are case-preserved; lookup is case-insensitive.
+    /// Handles both scalar values and array values (bullet lists following a field name).
     /// </summary>
-    public static Dictionary<string, string> ParseToDictionary(string text)
+    public static Dictionary<string, FieldValue> ParseToDictionary(string text)
     {
-        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in Parse(text))
+        var dict = new Dictionary<string, FieldValue>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in ParseFields(text))
         {
             dict.TryAdd(key, value);
         }
@@ -25,50 +27,122 @@ public static class FieldParser
     }
 
     /// <summary>
-    /// Parses all fields from markdown text, yielding key-value pairs.
+    /// Parses all fields from markdown text, yielding key-value pairs with scalar string values.
+    /// Array fields are returned with items joined by ", ".
     /// </summary>
     public static List<KeyValuePair<string, string>> Parse(string text)
     {
-        var fields = new List<KeyValuePair<string, string>>();
-
-        foreach (var rawLine in text.AsSpan().EnumerateLines())
+        var result = new List<KeyValuePair<string, string>>();
+        foreach (var (key, value) in ParseFields(text))
         {
-            var line = rawLine.Trim();
-            if (line.IsEmpty)
-                continue;
+            result.Add(new(key, value.Text));
+        }
+        return result;
+    }
 
-            // Skip headings, table lines, code fences, callouts
-            if (line[0] == '#' || line[0] == '`' || line.StartsWith(">"))
-                continue;
-            if (line.Contains('|') && IsPipeTableLine(line))
-                continue;
+    /// <summary>
+    /// Parses all fields from markdown text, yielding key-FieldValue pairs.
+    /// </summary>
+    public static List<KeyValuePair<string, FieldValue>> ParseFields(string text)
+    {
+        var fields = new List<KeyValuePair<string, FieldValue>>();
+        var lines = text.Split('\n');
+        int i = 0;
 
-            // OneLine: Key: Value | Key: Value | ...
-            if (ContainsFieldPipeSeparator(line))
+        while (i < lines.Length)
+        {
+            var line = lines[i].TrimEnd('\r');
+            var trimmed = line.AsSpan().Trim();
+
+            if (trimmed.IsEmpty)
             {
-                ParseOneLineFields(line, fields);
+                i++;
                 continue;
             }
 
-            // List item: - Key: Value or - **Key:** Value
-            if (line.StartsWith("- "))
+            // Skip headings, table lines, code fences, callouts
+            if (trimmed[0] == '#' || trimmed[0] == '`' || trimmed.StartsWith(">"))
             {
-                var item = line[2..].Trim();
-                if (TryParseField(item, out var k, out var v))
-                {
-                    fields.Add(new(k, v));
-                }
+                i++;
+                continue;
+            }
+            if (trimmed.Contains('|') && IsPipeTableLine(trimmed))
+            {
+                i++;
+                continue;
+            }
+
+            // OneLine: Key: Value | Key: Value | ...
+            if (ContainsFieldPipeSeparator(trimmed))
+            {
+                ParseOneLineFields(trimmed, fields);
+                i++;
+                continue;
+            }
+
+            // Skip standalone list items (not associated with a preceding field)
+            if (trimmed.StartsWith("- "))
+            {
+                i++;
                 continue;
             }
 
             // Bold or plain field on its own line
-            if (TryParseField(line, out var key, out var value))
+            if (TryParseField(trimmed, out var key, out var value))
             {
-                fields.Add(new(key, value));
+                // Check if value is empty and next lines are a bullet list (array field)
+                if (value.Length == 0)
+                {
+                    var items = CollectBulletList(lines, i + 1, out var nextI);
+                    if (items.Count > 0)
+                    {
+                        fields.Add(new(key, FieldValue.FromItems(items.ToArray())));
+                        i = nextI;
+                        continue;
+                    }
+                }
+
+                fields.Add(new(key, FieldValue.FromText(value)));
+                i++;
+                continue;
             }
+
+            i++;
         }
 
         return fields;
+    }
+
+    /// <summary>
+    /// Collects consecutive bullet list items starting at the given line index.
+    /// </summary>
+    private static List<string> CollectBulletList(string[] lines, int startIndex, out int nextIndex)
+    {
+        var items = new List<string>();
+        int i = startIndex;
+
+        // Skip one optional blank line between field name and list
+        if (i < lines.Length && lines[i].TrimEnd('\r').Trim().Length == 0)
+            i++;
+
+        while (i < lines.Length)
+        {
+            var line = lines[i].TrimEnd('\r');
+            var trimmed = line.AsSpan().Trim();
+
+            if (trimmed.StartsWith("- "))
+            {
+                items.Add(trimmed[2..].Trim().ToString());
+                i++;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        nextIndex = i;
+        return items;
     }
 
     /// <summary>
@@ -97,13 +171,11 @@ public static class FieldParser
 
         // Plain field: Key: Value
         var colonIdx = line.IndexOf(':');
-        if (colonIdx <= 0 || colonIdx >= line.Length - 1)
+        if (colonIdx <= 0)
             return false;
 
-        // Key must not contain spaces before the colon (simple heuristic)
-        // Actually, Markout keys can have spaces (e.g., "Latest Major")
-        // But the colon must be followed by a space
-        if (line[colonIdx + 1] != ' ')
+        // The colon must be followed by a space or be at end of line (array field)
+        if (colonIdx < line.Length - 1 && line[colonIdx + 1] != ' ')
             return false;
 
         // Key should not look like a URL (http:, https:, ftp:)
@@ -114,11 +186,13 @@ public static class FieldParser
             return false;
 
         key = possibleKey.Trim().ToString();
-        value = line[(colonIdx + 1)..].Trim().TrimEnd(' ').ToString();
+        value = colonIdx < line.Length - 1
+            ? line[(colonIdx + 1)..].Trim().TrimEnd(' ').ToString()
+            : "";
         return key.Length > 0;
     }
 
-    private static void ParseOneLineFields(ReadOnlySpan<char> line, List<KeyValuePair<string, string>> fields)
+    private static void ParseOneLineFields(ReadOnlySpan<char> line, List<KeyValuePair<string, FieldValue>> fields)
     {
         // Split on " | " (pipe with surrounding spaces)
         while (true)
@@ -128,7 +202,7 @@ public static class FieldParser
 
             if (TryParseField(segment.Trim(), out var key, out var value))
             {
-                fields.Add(new(key, value));
+                fields.Add(new(key, FieldValue.FromText(value)));
             }
 
             if (sepIdx < 0)
