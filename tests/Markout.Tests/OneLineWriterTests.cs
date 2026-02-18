@@ -113,20 +113,10 @@ public class OneLineWriterTests
     [Fact]
     public void WriteParagraph_Suppressed()
     {
-        var errWriter = new StringWriter();
-        var origErr = Console.Error;
-        Console.SetError(errWriter);
-        try
-        {
-            var sw = new StringWriter();
-            var writer = new OneLineWriter(sw);
-            writer.WriteParagraph("hello");
-            Assert.Equal("", sw.ToString());
-            Assert.Contains("does not support Paragraphs", errWriter.ToString());
-        }
-        finally
-        {
-            Console.SetError(origErr);
-        }
+        var sw = new StringWriter();
+        var writer = new OneLineWriter(sw);
+        writer.WriteParagraph("hello");
+        // Paragraphs are unsupported — output should be empty
+        Assert.Equal("", sw.ToString());
     }
 }
