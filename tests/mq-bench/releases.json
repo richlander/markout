@@ -1,0 +1,15 @@
+[
+  {"Version": "10.0", "Type": "LTS", "Supported": "✓"},
+  {"Version": "9.0", "Type": "STS", "Supported": "✓"},
+  {"Version": "8.0", "Type": "LTS", "Supported": "✓"},
+  {"Version": "7.0", "Type": "STS", "Supported": "✗"},
+  {"Version": "6.0", "Type": "LTS", "Supported": "✗"},
+  {"Version": "5.0", "Type": "STS", "Supported": "✗"},
+  {"Version": "3.1", "Type": "LTS", "Supported": "✗"},
+  {"Version": "3.0", "Type": "STS", "Supported": "✗"},
+  {"Version": "2.2", "Type": "STS", "Supported": "✗"},
+  {"Version": "2.1", "Type": "LTS", "Supported": "✗"},
+  {"Version": "2.0", "Type": "STS", "Supported": "✗"},
+  {"Version": "1.1", "Type": "LTS", "Supported": "✗"},
+  {"Version": "1.0", "Type": "LTS", "Supported": "✗"}
+]

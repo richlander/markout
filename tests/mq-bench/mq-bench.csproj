@@ -6,12 +6,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>mq</RootNamespace>
-    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MarkdownTable.Query\MarkdownTable.Query.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="releases.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="releases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
