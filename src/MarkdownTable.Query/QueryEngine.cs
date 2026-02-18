@@ -12,7 +12,7 @@ public static class QueryEngine
     /// </summary>
     public static QueryResult Execute(string markdown, string query)
     {
-        var doc = DocumentParser.Parse(markdown);
+        var doc = DocumentReader.Read(markdown);
         var parsed = QueryParser.Parse(query);
         return Execute(doc, parsed);
     }

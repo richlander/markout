@@ -1,8 +1,8 @@
-namespace MarkdownTable.Query;
+namespace MarkdownTable.Formatting;
 
 /// <summary>
-/// Represents a parsed markdown document as a queryable structure:
-/// an optional title, top-level fields, and named sections containing tables.
+/// Represents a parsed markdown document: an optional title,
+/// top-level fields, and named sections containing fields and/or tables.
 /// </summary>
 public class MarkdownDocument
 {
@@ -13,16 +13,22 @@ public class MarkdownDocument
 
     /// <summary>
     /// Named sections extracted from the document. Each section is keyed by
-    /// its heading text and contains a table (headers + rows).
+    /// its heading text and may contain fields, a table, or both.
     /// </summary>
     public List<DocumentSection> Sections { get; } = [];
 
     /// <summary>
     /// The first (or only) table in the document, if any.
-    /// Convenience accessor for documents with a single table and no headings.
     /// </summary>
     public DocumentTable? DefaultTable =>
         Sections.FirstOrDefault(s => s.Table is not null)?.Table;
+
+    /// <summary>
+    /// All fields from the preamble (before any heading) or the title section.
+    /// </summary>
+    public Dictionary<string, FieldValue> Fields =>
+        Sections.FirstOrDefault(s => s.Level <= 1)?.Fields
+        ?? new Dictionary<string, FieldValue>(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -31,7 +37,7 @@ public class MarkdownDocument
 public class DocumentSection
 {
     /// <summary>
-    /// The heading text for this section (e.g., "Methods", "All Releases").
+    /// The heading text (e.g., "Methods", "All Releases").
     /// Null for content before the first heading.
     /// </summary>
     public string? Heading { get; set; }
@@ -40,6 +46,11 @@ public class DocumentSection
     /// The heading level (1-6), or 0 for the preamble section.
     /// </summary>
     public int Level { get; set; }
+
+    /// <summary>
+    /// Key-value fields in this section.
+    /// </summary>
+    public Dictionary<string, FieldValue> Fields { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// The table in this section, if any.
