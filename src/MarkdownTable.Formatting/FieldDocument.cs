@@ -81,28 +81,21 @@ public sealed class FieldDocument : IDisposable
                 {
                     if (TryParseBoldField(trimmedLine, contentStart, out var key, out int valueStart, out int valueEnd))
                     {
-                        // Check if value is empty → array field
-                        if (valueStart >= valueEnd)
-                        {
-                            // Look ahead for bullet list
-                            var items = CollectBulletItems(span, nextLineStart, out nextLineStart);
-                            if (items.Count > 0)
-                            {
-                                fields.TryAdd(key, FieldEntry.Array(items));
-                            }
-                            else
-                            {
-                                fields.TryAdd(key, FieldEntry.Scalar(valueStart, 0));
-                            }
-                        }
-                        else
-                        {
-                            fields.TryAdd(key, FieldEntry.Scalar(valueStart, valueEnd - valueStart));
-                        }
+                        AddField(fields, key, valueStart, valueEnd, span, ref nextLineStart);
                     }
                 }
                 // Bullet item at top level — skip (handled by array lookahead)
                 // Heading, table, code fence, blockquote — skip
+                else if (trimmedLine[0] != (byte)'-' && trimmedLine[0] != (byte)'#'
+                    && trimmedLine[0] != (byte)'|' && trimmedLine[0] != (byte)'>'
+                    && trimmedLine[0] != (byte)'`')
+                {
+                    // Plain field: key: value (colon + space required)
+                    if (TryParsePlainField(trimmedLine, contentStart, out var key, out int valueStart, out int valueEnd))
+                    {
+                        AddField(fields, key, valueStart, valueEnd, span, ref nextLineStart);
+                    }
+                }
             }
 
             lineStart = nextLineStart;
@@ -173,6 +166,30 @@ public sealed class FieldDocument : IDisposable
 
     // --- Parsing helpers ---
 
+    private static void AddField(
+        Dictionary<string, FieldEntry> fields, string key,
+        int valueStart, int valueEnd,
+        ReadOnlySpan<byte> buffer, ref int nextLineStart)
+    {
+        if (valueStart >= valueEnd)
+        {
+            // Empty value → look ahead for bullet list
+            var items = CollectBulletItems(buffer, nextLineStart, out nextLineStart);
+            if (items.Count > 0)
+            {
+                fields.TryAdd(key, FieldEntry.Array(items));
+            }
+            else
+            {
+                fields.TryAdd(key, FieldEntry.Scalar(valueStart, 0));
+            }
+        }
+        else
+        {
+            fields.TryAdd(key, FieldEntry.Scalar(valueStart, valueEnd - valueStart));
+        }
+    }
+
     private static bool TryParseBoldField(
         ReadOnlySpan<byte> line, int lineOffset,
         out string key, out int valueStart, out int valueEnd)
@@ -211,6 +228,57 @@ public sealed class FieldDocument : IDisposable
 
         valueEnd = lineOffset + endIdx;
         return true;
+    }
+
+    private static bool TryParsePlainField(
+        ReadOnlySpan<byte> line, int lineOffset,
+        out string key, out int valueStart, out int valueEnd)
+    {
+        key = "";
+        valueStart = valueEnd = 0;
+
+        // Find first colon
+        for (int i = 1; i < line.Length; i++)
+        {
+            if (line[i] == (byte)':')
+            {
+                // Key must not contain spaces (distinguishes from prose)
+                var keySpan = line[..i];
+                if (keySpan.IndexOf((byte)' ') >= 0)
+                    return false;
+
+                // Colon at end of line → empty value (array header)
+                if (i == line.Length - 1)
+                {
+                    key = Encoding.UTF8.GetString(keySpan);
+                    valueStart = valueEnd = lineOffset + line.Length;
+                    return true;
+                }
+
+                // Must be followed by space (": ")
+                if (line[i + 1] != (byte)' ')
+                {
+                    // Check for "://" — URL scheme, not a field
+                    if (i + 2 < line.Length && line[i + 1] == (byte)'/' && line[i + 2] == (byte)'/')
+                        return false;
+                    continue;
+                }
+
+                key = Encoding.UTF8.GetString(keySpan);
+                int afterColon = i + 2; // past ": "
+                valueStart = lineOffset + afterColon;
+
+                // Trim trailing whitespace
+                int endIdx = line.Length;
+                while (endIdx > afterColon && (line[endIdx - 1] == (byte)' ' || line[endIdx - 1] == (byte)'\t'))
+                    endIdx--;
+
+                valueEnd = lineOffset + endIdx;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int IndexOfPattern(ReadOnlySpan<byte> span, byte a, byte b, byte c)

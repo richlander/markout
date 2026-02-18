@@ -1,22 +1,21 @@
-**packageName:** Newtonsoft.Json
-**version:** 13.0.3
-**description:** Json.NET is a popular high-performance JSON framework for .NET
-**authors:** James Newton-King
-**license:** MIT
-**repository:** https://github.com/JamesNK/Newtonsoft.Json
-**readmeFile:** README.md
-**hasReadme:** true
-**isToolPackage:** false
-**assemblyCount:** 4
-**isFrameworkDependent:** false
-**hasRidSpecificAssets:** false
-**hasNativeDependencies:** false
-**isRidSpecificPointerPackage:** false
+packageName: Newtonsoft.Json
+version: 13.0.3
+description: Json.NET is a popular high-performance JSON framework for .NET
+authors: James Newton-King
+license: MIT
+assemblyCount: 4
+hasReadme: true
+isFrameworkDependent: false
+hasRidSpecificAssets: false
+hasNativeDependencies: false
+isRidSpecificPointerPackage: false
+repository: https://github.com/JamesNK/Newtonsoft.Json
+readmeFile: README.md
 
-**packageTypes:**
+packageTypes:
 - Dependency
 
-**targetFrameworks:**
+targetFrameworks:
 - net20
 - net35
 - net40
@@ -26,7 +25,7 @@
 - netstandard1.3
 - netstandard2.0
 
-**dependencyGroups:**
+dependencyGroups:
 - net20|
 - net35|
 - net40|
