@@ -244,6 +244,208 @@ Console.WriteLine($"=== Data sizes ===");
 Console.WriteLine($"  JSON: {jsonText.Length} bytes");
 Console.WriteLine($"  MD:   {mdText.Length} bytes ({100.0 * mdText.Length / jsonText.Length:F0}% of JSON)");
 
+// === FieldDocument vs FieldParser vs JsonDocument (cache file scenario) ===
+Console.WriteLine();
+Console.WriteLine("=== FieldDocument vs FieldParser vs JsonDocument (cache lookup) ===");
+Console.WriteLine();
+
+string pkgMdPath = Path.Combine(repoRoot, "tests", "mq-bench", "package.md");
+string pkgJsonPath = Path.Combine(repoRoot, "tests", "mq-bench", "package.json");
+string pkgMdText = File.ReadAllText(pkgMdPath);
+byte[] pkgMdBytes = File.ReadAllBytes(pkgMdPath);
+string pkgJsonText = File.ReadAllText(pkgJsonPath);
+byte[] pkgJsonBytes = File.ReadAllBytes(pkgJsonPath);
+
+Console.WriteLine($"  Package MD: {pkgMdBytes.Length} bytes, JSON: {pkgJsonBytes.Length} bytes");
+Console.WriteLine();
+
+// Correctness check
+Console.WriteLine("  --- Correctness ---");
+{
+    using var fdoc = FieldDocument.Parse(pkgMdBytes);
+    var fpDict = FieldParser.ParseToDictionary(pkgMdText);
+    var jdoc = JsonDocument.Parse(pkgJsonText);
+
+    Console.WriteLine($"    FieldDocument packageName: {fdoc.GetString("packageName")}");
+    Console.WriteLine($"    FieldParser   packageName: {fpDict["packageName"].Text}");
+    Console.WriteLine($"    JsonDocument  packageName: {jdoc.RootElement.GetProperty("packageName").GetString()}");
+    Console.WriteLine($"    FieldDocument assemblyCount: {fdoc.GetInt32("assemblyCount")}");
+    Console.WriteLine($"    FieldDocument hasReadme: {fdoc.GetBool("hasReadme")}");
+    Console.WriteLine($"    FieldDocument targetFrameworks: [{string.Join(", ", fdoc.GetArray("targetFrameworks") ?? [])}]");
+    Console.WriteLine($"    FieldParser   targetFrameworks: [{string.Join(", ", fpDict["targetFrameworks"].Items)}]");
+}
+Console.WriteLine();
+
+var fieldBenchmarks = new (string Label, string Category, Action Action)[]
+{
+    // --- Full parse + scalar lookup ---
+    ("FieldDocument byte[]", "Parse+Lookup",
+        () =>
+        {
+            using var doc = FieldDocument.Parse(pkgMdBytes);
+            _ = doc.GetString("packageName");
+            _ = doc.GetString("version");
+            _ = doc.GetBool("hasReadme");
+            _ = doc.GetInt32("assemblyCount");
+        }),
+    ("FieldParser string", "Parse+Lookup",
+        () =>
+        {
+            var dict = FieldParser.ParseToDictionary(pkgMdText);
+            _ = dict["packageName"].Text;
+            _ = dict["version"].Text;
+            _ = dict["hasReadme"].Text;
+            _ = dict["assemblyCount"].Text;
+        }),
+    ("JsonDocument string", "Parse+Lookup",
+        () =>
+        {
+            using var doc = JsonDocument.Parse(pkgJsonText);
+            _ = doc.RootElement.GetProperty("packageName").GetString();
+            _ = doc.RootElement.GetProperty("version").GetString();
+            _ = doc.RootElement.GetProperty("hasReadme").GetBoolean();
+            _ = doc.RootElement.GetProperty("assemblyCount").GetInt32();
+        }),
+    ("JsonDocument byte[]", "Parse+Lookup",
+        () =>
+        {
+            using var doc = JsonDocument.Parse(pkgJsonBytes);
+            _ = doc.RootElement.GetProperty("packageName").GetString();
+            _ = doc.RootElement.GetProperty("version").GetString();
+            _ = doc.RootElement.GetProperty("hasReadme").GetBoolean();
+            _ = doc.RootElement.GetProperty("assemblyCount").GetInt32();
+        }),
+
+    // --- Full hydrate (all fields like PackageIndexCache does) ---
+    ("FieldDocument hydrate", "Full Hydrate",
+        () =>
+        {
+            using var doc = FieldDocument.Parse(pkgMdBytes);
+            _ = doc.GetString("packageName");
+            _ = doc.GetString("version");
+            _ = doc.GetString("description");
+            _ = doc.GetString("authors");
+            _ = doc.GetString("license");
+            _ = doc.GetString("repository");
+            _ = doc.GetString("readmeFile");
+            _ = doc.GetBool("hasReadme");
+            _ = doc.GetBool("isToolPackage");
+            _ = doc.GetInt32("assemblyCount");
+            _ = doc.GetBool("isFrameworkDependent");
+            _ = doc.GetBool("hasRidSpecificAssets");
+            _ = doc.GetBool("hasNativeDependencies");
+            _ = doc.GetBool("isRidSpecificPointerPackage");
+            _ = doc.GetString("toolFormat");
+            _ = doc.GetString("runtimeTargetRid");
+            _ = doc.GetArray("packageTypes");
+            _ = doc.GetArray("targetFrameworks");
+            _ = doc.GetArray("dependencyGroups");
+        }),
+    ("FieldParser hydrate", "Full Hydrate",
+        () =>
+        {
+            var dict = FieldParser.ParseToDictionary(pkgMdText);
+            _ = dict.GetValueOrDefault("packageName").Text;
+            _ = dict.GetValueOrDefault("version").Text;
+            _ = dict.GetValueOrDefault("description").Text;
+            _ = dict.GetValueOrDefault("authors").Text;
+            _ = dict.GetValueOrDefault("license").Text;
+            _ = dict.GetValueOrDefault("repository").Text;
+            _ = dict.GetValueOrDefault("readmeFile").Text;
+            _ = dict.GetValueOrDefault("hasReadme").Text;
+            _ = dict.GetValueOrDefault("isToolPackage").Text;
+            _ = dict.GetValueOrDefault("assemblyCount").Text;
+            _ = dict.GetValueOrDefault("isFrameworkDependent").Text;
+            _ = dict.GetValueOrDefault("hasRidSpecificAssets").Text;
+            _ = dict.GetValueOrDefault("hasNativeDependencies").Text;
+            _ = dict.GetValueOrDefault("isRidSpecificPointerPackage").Text;
+            _ = dict.GetValueOrDefault("toolFormat").Text;
+            _ = dict.GetValueOrDefault("runtimeTargetRid").Text;
+            _ = dict.GetValueOrDefault("packageTypes").Items;
+            _ = dict.GetValueOrDefault("targetFrameworks").Items;
+            _ = dict.GetValueOrDefault("dependencyGroups").Items;
+        }),
+    ("JsonDocument hydrate", "Full Hydrate",
+        () =>
+        {
+            using var doc = JsonDocument.Parse(pkgJsonBytes);
+            var root = doc.RootElement;
+            _ = root.GetProperty("packageName").GetString();
+            _ = root.GetProperty("version").GetString();
+            _ = root.GetProperty("description").GetString();
+            _ = root.GetProperty("authors").GetString();
+            _ = root.GetProperty("license").GetString();
+            _ = root.GetProperty("repository").GetString();
+            _ = root.GetProperty("readmeFile").GetString();
+            _ = root.GetProperty("hasReadme").GetBoolean();
+            _ = root.GetProperty("isToolPackage").GetBoolean();
+            _ = root.GetProperty("assemblyCount").GetInt32();
+            _ = root.GetProperty("isFrameworkDependent").GetBoolean();
+            _ = root.GetProperty("hasRidSpecificAssets").GetBoolean();
+            _ = root.GetProperty("hasNativeDependencies").GetBoolean();
+            _ = root.GetProperty("isRidSpecificPointerPackage").GetBoolean();
+            _ = root.GetProperty("packageTypes").EnumerateArray().Select(x => x.GetString()).ToArray();
+            _ = root.GetProperty("targetFrameworks").EnumerateArray().Select(x => x.GetString()).ToArray();
+            _ = root.GetProperty("dependencyGroups").EnumerateArray().Select(x => x.GetString()).ToArray();
+        }),
+
+    // --- File.ReadAllBytes + parse (end-to-end I/O) ---
+    ("ReadAllBytes+FDoc", "File I/O",
+        () =>
+        {
+            var bytes = File.ReadAllBytes(pkgMdPath);
+            using var doc = FieldDocument.Parse(bytes);
+            _ = doc.GetString("packageName");
+            _ = doc.GetString("version");
+        }),
+    ("ReadAllText+FParser", "File I/O",
+        () =>
+        {
+            var text = File.ReadAllText(pkgMdPath);
+            var dict = FieldParser.ParseToDictionary(text);
+            _ = dict["packageName"].Text;
+            _ = dict["version"].Text;
+        }),
+    ("ReadAllBytes+Json", "File I/O",
+        () =>
+        {
+            var bytes = File.ReadAllBytes(pkgJsonPath);
+            using var doc = JsonDocument.Parse(bytes);
+            _ = doc.RootElement.GetProperty("packageName").GetString();
+            _ = doc.RootElement.GetProperty("version").GetString();
+        }),
+    ("ReadAllText+Json", "File I/O",
+        () =>
+        {
+            var text = File.ReadAllText(pkgJsonPath);
+            using var doc = JsonDocument.Parse(text);
+            _ = doc.RootElement.GetProperty("packageName").GetString();
+            _ = doc.RootElement.GetProperty("version").GetString();
+        }),
+};
+
+currentCategory = null;
+foreach (var (label, category, action) in fieldBenchmarks)
+{
+    if (category != currentCategory)
+    {
+        if (currentCategory is not null) Console.WriteLine();
+        Console.WriteLine($"  --- {category} ---");
+        currentCategory = category;
+    }
+
+    for (int i = 0; i < WarmupIterations; i++)
+        action();
+
+    var sw2 = Stopwatch.StartNew();
+    for (int i = 0; i < MeasureIterations; i++)
+        action();
+    sw2.Stop();
+
+    double usPerOp = sw2.Elapsed.TotalMicroseconds / MeasureIterations;
+    Console.WriteLine($"    {label,-24} {usPerOp,8:F2} µs/op");
+}
+
 static void RunProcess(string fileName, string arguments)
 {
     using var p = Process.Start(new ProcessStartInfo
