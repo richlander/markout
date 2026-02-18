@@ -1,0 +1,6 @@
+{
+  "globs": [
+    "!**/mq-bench/**",
+    "!artifacts/**"
+  ]
+}

@@ -5,9 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>MarkdownTable.Formatting</RootNamespace>
-    <Description>Statistical column-width optimization for markdown pipe tables</Description>
-    <Version>0.2.0</Version>
+    <RootNamespace>MarkdownTable.Query</RootNamespace>
+    <Description>Query engine for markdown pipe tables — select, filter, sort, slice</Description>
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OfficialBuild)' == 'true'">
@@ -17,5 +17,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarkdownTable.Formatting\MarkdownTable.Formatting.csproj" />
+  </ItemGroup>
 
 </Project>
