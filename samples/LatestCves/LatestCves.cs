@@ -133,7 +133,7 @@ public class LatestCvesView
 [MarkoutContext(typeof(LatestCvesView))]
 public partial class LatestCvesContext : MarkoutSerializerContext { }
 
-// --- JSON Models ---
+// --- JSON Models (snake_case via options; explicit for HAL _embedded/_links) ---
 
 public class ReleaseIndex
 {
@@ -143,16 +143,12 @@ public class ReleaseIndex
 
 public class ReleaseEmbedded
 {
-    [JsonPropertyName("releases")]
     public List<ReleaseEntry>? Releases { get; set; }
 }
 
 public class ReleaseEntry
 {
-    [JsonPropertyName("version")]
     public string Version { get; set; } = "";
-
-    [JsonPropertyName("supported")]
     public bool Supported { get; set; }
 
     [JsonPropertyName("_links")]
@@ -161,19 +157,16 @@ public class ReleaseEntry
 
 public class EntryLinks
 {
-    [JsonPropertyName("self")]
     public LinkRef? Self { get; set; }
 }
 
 public class LinkRef
 {
-    [JsonPropertyName("href")]
     public string Href { get; set; } = "";
 }
 
 public class VersionIndex
 {
-    [JsonPropertyName("latest_patch_date")]
     public string? LatestPatchDate { get; set; }
 
     [JsonPropertyName("_embedded")]
@@ -182,16 +175,12 @@ public class VersionIndex
 
 public class PatchEmbedded
 {
-    [JsonPropertyName("patches")]
     public List<PatchRelease>? Patches { get; set; }
 }
 
 public class PatchRelease
 {
-    [JsonPropertyName("date")]
     public string? Date { get; set; }
-
-    [JsonPropertyName("security")]
     public bool Security { get; set; }
 
     [JsonPropertyName("_links")]
@@ -206,31 +195,23 @@ public class PatchLinks
 
 public class CveData
 {
-    [JsonPropertyName("disclosures")]
     public List<CveDisclosure>? Disclosures { get; set; }
-
-    [JsonPropertyName("release_cves")]
     public Dictionary<string, List<string>>? ReleaseCves { get; set; }
 }
 
 public class CveDisclosure
 {
-    [JsonPropertyName("id")]
     public string Id { get; set; } = "";
-
-    [JsonPropertyName("references")]
     public List<string>? References { get; set; }
-
-    [JsonPropertyName("cvss")]
     public CveCvss? Cvss { get; set; }
 }
 
 public class CveCvss
 {
-    [JsonPropertyName("severity")]
     public string? Severity { get; set; }
 }
 
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(ReleaseIndex))]
 [JsonSerializable(typeof(VersionIndex))]
 [JsonSerializable(typeof(CveData))]

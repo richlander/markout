@@ -338,41 +338,23 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     }
 }
 
-// --- JSON Models ---
+// --- JSON Models (camelCase naming via options) ---
 
 public class Actor
 {
-    [JsonPropertyName("name")]
     public string Name { get; set; } = "";
-
-    [JsonPropertyName("birthplace")]
     public string Birthplace { get; set; } = "";
-
-    [JsonPropertyName("birthYear")]
     public int BirthYear { get; set; }
-
-    [JsonPropertyName("citizenship")]
     public List<string> Citizenship { get; set; } = new();
-
-    [JsonPropertyName("shows")]
     public List<string> Shows { get; set; } = new();
 }
 
 public class Show
 {
-    [JsonPropertyName("title")]
     public string Title { get; set; } = "";
-
-    [JsonPropertyName("type")]
     public string Type { get; set; } = "";
-
-    [JsonPropertyName("years")]
     public string Years { get; set; } = "";
-
-    [JsonPropertyName("location")]
     public string Location { get; set; } = "";
-
-    [JsonPropertyName("canadianActors")]
     public List<string> CanadianActors { get; set; } = new();
 }
 
@@ -380,11 +362,10 @@ public class City
 {
     [JsonPropertyName("city")]
     public string CityName { get; set; } = "";
-
-    [JsonPropertyName("country")]
     public string Country { get; set; } = "";
 }
 
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(List<Actor>))]
 [JsonSerializable(typeof(List<Show>))]
 [JsonSerializable(typeof(List<City>))]
