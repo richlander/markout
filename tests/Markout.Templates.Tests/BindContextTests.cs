@@ -35,7 +35,7 @@ public class BindContextTests
     public void Bind_WithContext_UsesBindingName()
     {
         var report = new SecurityReport { Title = "CVE Report", Date = "2024-10" };
-        var template = MarkoutTemplate.Parse("# {{security_report}}");
+        var template = MarkoutTemplate.Parse("{{security_report}}");
 
         var result = template.Bind(report, SecurityContext.Default).Render();
 
