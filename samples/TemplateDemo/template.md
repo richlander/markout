@@ -2,11 +2,18 @@
 
 The following vulnerabilities were disclosed this month.
 
-{{vuln-table}}
+| CVE | Severity | Component |
+| --- | -------- | --------- |
+| {{cve1}} | {{severity1}} | {{component1}} |
+| {{cve2}} | {{severity2}} | {{component2}} |
+| {{cve3}} | {{severity3}} | {{component3}} |
 
 ## Affected Products
 
-{{product-table}}
+| Product | Version | Status |
+| ------- | ------- | ------ |
+| {{product1}} | {{version1}} | {{status1}} |
+| {{product2}} | {{version2}} | {{status2}} |
 
 ## Severity Definitions
 
@@ -23,5 +30,8 @@ The following vulnerabilities were disclosed this month.
 
 The following commits address the vulnerabilities above.
 
-{{commit-table}}
+| SHA | Message | Author |
+| --- | ------- | ------ |
+| {{sha1}} | {{message1}} | {{author1}} |
+| {{sha2}} | {{message2}} | {{author2}} |
 {{/if}}
