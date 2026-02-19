@@ -37,7 +37,7 @@ var view = new ReleasesView
 // Serialize to markdown
 MarkoutSerializer.Serialize(view, Console.Out, ReleasesContext.Default);
 
-// --- Models ---
+// --- View Models ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class ReleasesView
@@ -77,40 +77,28 @@ public class ReleaseRow
 [MarkoutContext(typeof(ReleaseRow))]
 public partial class ReleasesContext : MarkoutSerializerContext { }
 
-// --- JSON Models ---
+// --- JSON Models (snake_case naming via options) ---
 
 public class ReleaseIndex
 {
-    [JsonPropertyName("title")]
     public string? Title { get; set; }
-
-    [JsonPropertyName("latest_major")]
     public string? LatestMajor { get; set; }
-
-    [JsonPropertyName("latest_lts_major")]
     public string? LatestLtsMajor { get; set; }
-
-    [JsonPropertyName("_embedded")]
     public EmbeddedReleases? Embedded { get; set; }
 }
 
 public class EmbeddedReleases
 {
-    [JsonPropertyName("releases")]
     public List<Release>? Releases { get; set; }
 }
 
 public class Release
 {
-    [JsonPropertyName("version")]
     public string Version { get; set; } = "";
-
-    [JsonPropertyName("release_type")]
     public string? ReleaseType { get; set; }
-
-    [JsonPropertyName("supported")]
     public bool Supported { get; set; }
 }
 
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(ReleaseIndex))]
 internal partial class ReleasesJsonContext : JsonSerializerContext { }
