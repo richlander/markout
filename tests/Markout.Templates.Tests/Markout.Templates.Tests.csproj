@@ -21,6 +21,9 @@
     <ProjectReference Include="..\..\src\Markout.Templates\Markout.Templates.csproj" />
     <ProjectReference Include="..\..\src\Markout\Markout.csproj" />
     <ProjectReference Include="..\..\src\MarkdownTable.Formatting\MarkdownTable.Formatting.csproj" />
+    <ProjectReference Include="..\..\src\Markout.SourceGeneration\Markout.SourceGeneration.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="true" />
   </ItemGroup>
 
 </Project>

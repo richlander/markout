@@ -1,89 +1,111 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Markout;
 using Markout.Templates;
-using MarkdownTable.Formatting;
 
 // A template is a human-authored document with {{placeholders}} for data.
-// Like the source generator, templates render through the MarkoutWriter pipeline.
-// See template.md alongside this file.
+// This demo loads real CVE data from cve.json and renders it through a template.
 
+var jsonPath = Path.Combine(AppContext.BaseDirectory, "cve.json");
 var templatePath = Path.Combine(AppContext.BaseDirectory, "template.md");
+
+// Deserialize the CVE data (JSON uses snake_case naming)
+var json = File.ReadAllText(jsonPath);
+var cveData = JsonSerializer.Deserialize(json, CveJsonContext.Default.CveData)!;
+
+// Load and configure the template
 var template = MarkoutTemplate.Load(templatePath);
 
-// Enable statistical table formatting for inline pipe tables
-template.TableOptions = new TableFormatterOptions();
+// Bind scalar values
+var lastUpdated = DateTime.Parse(cveData.LastUpdated);
+template.Bind("date", lastUpdated.ToString("MMMM yyyy"));
+template.Bind("title", cveData.Title);
 
-// Use PrettyTables so bound tables (via IMarkoutFormattable) also get aligned columns
-var writerOptions = new MarkoutWriterOptions { PrettyTables = true };
+// Bind tables using the Markout context (uses snake_case binding names)
+template.Bind(cveData, CveMarkoutContext.Default);
 
-// Bind inline values
-template.Bind("date", "February 2026");
-
-// Bind IMarkoutFormattable objects for block-level shape rendering
-template.Bind("vuln-table", new VulnerabilityTable());
-template.Bind("product-table", new ProductTable());
-
-// Bind a truthy value to include the conditional section
-template.Bind("commits", "yes");
-template.Bind("commit-table", new CommitTable());
-
-// Render through MarkdownWriter (default)
+// Render to markdown
 Console.WriteLine("=== Markdown ===");
-Console.WriteLine(template.Render(writerOptions));
+Console.WriteLine(template.Render());
 
-// Render through plain-text MarkoutWriter
+// Render to plain text
 Console.WriteLine("=== Plain Text ===");
 var plainWriter = new MarkoutWriter();
 template.Render(plainWriter);
 Console.WriteLine(plainWriter.ToString());
 
-// Now render WITHOUT commits (conditional section excluded)
-Console.WriteLine("=== Markdown (no commits) ===");
-var noCommits = MarkoutTemplate.Load(templatePath);
-noCommits.TableOptions = new TableFormatterOptions();
-noCommits.Bind("date", "February 2026");
-noCommits.Bind("vuln-table", new VulnerabilityTable());
-noCommits.Bind("product-table", new ProductTable());
-// Don't bind "commits" — conditional section excluded
-Console.WriteLine(noCommits.Render(writerOptions));
+// --- Data types with both JSON and Markout attributes ---
 
-// --- Formattable types that render through the writer shape system ---
-
-class VulnerabilityTable : IMarkoutFormattable
+[MarkoutSerializable(AutoFields = false)]
+public record CveData
 {
-    public void WriteTo(MarkoutWriter writer)
-    {
-        writer.WriteTableStart("CVE", "Severity", "Component");
-        writer.WriteTableRow("CVE-2026-1234", "Critical", "System.Net.Http");
-        writer.WriteTableRow("CVE-2026-1235", "High", "Microsoft.Data.SqlClient");
-        writer.WriteTableRow("CVE-2026-1236", "Medium", "System.Text.Json");
-        writer.WriteTableEnd();
-    }
+    [MarkoutIgnore]
+    public string LastUpdated { get; init; } = "";
 
-    public string? ToMarkoutString() => "3 vulnerabilities";
+    [MarkoutIgnore]
+    public string Title { get; init; } = "";
+
+    [MarkoutSection(Name = "Vulnerabilities")]
+    public List<CveDisclosure> Disclosures { get; init; } = [];
+
+    [MarkoutSection(Name = "Affected Packages")]
+    public List<CvePackage> Packages { get; init; } = [];
 }
 
-class ProductTable : IMarkoutFormattable
+[MarkoutSerializable]
+public record CveDisclosure
 {
-    public void WriteTo(MarkoutWriter writer)
-    {
-        writer.WriteTableStart("Product", "Version", "Status");
-        writer.WriteTableRow(".NET 9.0", "9.0.4", "Patched");
-        writer.WriteTableRow(".NET 8.0", "8.0.12", "Patched");
-        writer.WriteTableEnd();
-    }
+    [MarkoutPropertyName("CVE")]
+    public string Id { get; init; } = "";
 
-    public string? ToMarkoutString() => "2 products";
+    public string Problem { get; init; } = "";
+
+    [MarkoutIgnore]
+    public CvssInfo Cvss { get; init; } = new();
+
+    [JsonIgnore]
+    [MarkoutPropertyName("Severity")]
+    [MarkoutValueMap("HIGH=🟠", "CRITICAL=🔴", "MEDIUM=🟡", "LOW=🟢")]
+    public string Severity => Cvss.Severity;
+
+    [JsonIgnore]
+    [MarkoutPropertyName("Score")]
+    public double Score => Cvss.Score;
 }
 
-class CommitTable : IMarkoutFormattable
+public record CvssInfo
 {
-    public void WriteTo(MarkoutWriter writer)
-    {
-        writer.WriteTableStart("SHA", "Message", "Author");
-        writer.WriteTableRow("abc1234", "Fix HTTP header injection", "security-bot");
-        writer.WriteTableRow("def5678", "Patch SQL parameter handling", "security-bot");
-        writer.WriteTableEnd();
-    }
+    public double Score { get; init; }
+    public string Severity { get; init; } = "";
+}
 
-    public string? ToMarkoutString() => "2 commits";
+[MarkoutSerializable]
+public record CvePackage
+{
+    [MarkoutPropertyName("CVE")]
+    public string CveId { get; init; } = "";
+
+    [MarkoutPropertyName("Package")]
+    public string Name { get; init; } = "";
+
+    [MarkoutPropertyName(".NET")]
+    public string Release { get; init; } = "";
+
+    [MarkoutPropertyName("Fixed Version")]
+    public string Fixed { get; init; } = "";
+}
+
+// JSON source generator context (uses snake_case naming policy)
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
+[JsonSerializable(typeof(CveData))]
+public partial class CveJsonContext : JsonSerializerContext
+{
+}
+
+// Markout source generator context
+[MarkoutContext(typeof(CveData))]
+[MarkoutContext(typeof(CveDisclosure))]
+[MarkoutContext(typeof(CvePackage))]
+public partial class CveMarkoutContext : MarkoutSerializerContext
+{
 }

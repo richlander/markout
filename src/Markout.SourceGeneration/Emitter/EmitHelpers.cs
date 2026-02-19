@@ -311,6 +311,33 @@ internal static class EmitHelpers
     }
 
     /// <summary>
+    /// Converts a PascalCase type name to snake_case for template binding.
+    /// Example: CveReport → cve_report, VulnerabilityTable → vulnerability_table
+    /// </summary>
+    public static string ToSnakeCase(string typeName)
+    {
+        if (string.IsNullOrEmpty(typeName))
+            return typeName;
+
+        var result = new StringBuilder();
+        for (int i = 0; i < typeName.Length; i++)
+        {
+            var c = typeName[i];
+            if (char.IsUpper(c))
+            {
+                if (i > 0)
+                    result.Append('_');
+                result.Append(char.ToLowerInvariant(c));
+            }
+            else
+            {
+                result.Append(c);
+            }
+        }
+        return result.ToString();
+    }
+
+    /// <summary>
     /// Returns a condition expression that is true when the property value is NOT null/empty.
     /// Used by [MarkoutSkipNull] to conditionally skip rendering.
     /// Unlike GetNonDefaultCondition, this does not skip non-null defaults like false or 0.

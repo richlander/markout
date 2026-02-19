@@ -34,9 +34,13 @@ internal static class SerializerEmitter
         // Collect section properties for per-section hooks
         var sectionProps = type.Properties.Where(p => p.IsSection && !p.IsIgnored).ToList();
 
+        var bindingName = EmitHelpers.ToSnakeCase(type.TypeName);
+
         sb.AppendLine($"{accessModifier} partial class {className} : global::Markout.MarkoutTypeInfo<{type.FullTypeName}>");
         sb.AppendLine("{");
         sb.AppendLine($"    public static {className} Instance {{ get; }} = new();");
+        sb.AppendLine();
+        sb.AppendLine($"    public override string BindingName => \"{bindingName}\";");
         sb.AppendLine();
         sb.AppendLine($"    public override void Serialize(global::Markout.MarkoutWriter writer, {type.FullTypeName} value)");
         sb.AppendLine("    {");
@@ -201,6 +205,17 @@ internal static class SerializerEmitter
         }
 
         sb.AppendLine("        return null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetRegisteredTypes implementation
+        sb.AppendLine("    public override global::System.Collections.Generic.IEnumerable<global::Markout.IMarkoutTypeInfo> GetRegisteredTypes()");
+        sb.AppendLine("    {");
+        foreach (var type in context.Types)
+        {
+            var typeInfoClass = GetTypeInfoClassName(type);
+            sb.AppendLine($"        yield return {typeInfoClass}.Instance;");
+        }
         sb.AppendLine("    }");
         sb.AppendLine();
 
