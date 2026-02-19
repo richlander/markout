@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Markout;
 using Markout.Ansi.Spectre;
 using Spectre.Console;
+using TreeNode = Markout.TreeNode;
 
 var cutoff = DateTimeOffset.UtcNow.AddMonths(-6);
 
@@ -45,53 +46,54 @@ var cveDataList = (await Task.WhenAll(cveUrls.Select(async url =>
     return JsonSerializer.Deserialize(json, CveJsonContext.Default.CveData);
 }))).Where(c => c is not null).ToList();
 
-// Build CVE ID → view model lookup
-var cveItems = cveDataList
-    .SelectMany(c => c!.Disclosures ?? [])
-    .DistinctBy(d => d.Id)
-    .ToDictionary(
-        d => d.Id,
-        d => new CveItemView
+// Build CVE ID → (reference URL, severity) lookup
+var cveInfo = new Dictionary<string, (string Url, string? Severity)>();
+foreach (var d in cveDataList.SelectMany(c => c!.Disclosures ?? []))
+    cveInfo.TryAdd(d.Id, (d.References?.FirstOrDefault() ?? "", d.Cvss?.Severity));
+
+// Build tree nodes
+var tree = new List<TreeNode>();
+foreach (var (version, vi) in versionData.OrderByDescending(v => decimal.TryParse(v.Version, out var n) ? n : 0))
+{
+    if (vi is null) continue;
+    var date = DateTimeOffset.TryParse(vi.LatestPatchDate, out var d)
+        ? d.ToString("yyyy-MM-dd") : "unknown";
+
+    // Collect unique CVEs for this version across all fetched CVE data
+    var cves = cveDataList
+        .SelectMany(c => c!.ReleaseCves?.TryGetValue(version, out var ids) == true ? ids : [])
+        .Distinct()
+        .OrderBy(id => id)
+        .Select(id =>
         {
-            Id = d.Id,
-            Url = d.References?.FirstOrDefault(),
-            Severity = d.Cvss?.Severity
-        });
+            var (url, severity) = cveInfo.TryGetValue(id, out var info) ? info : ("", null);
+            var label = !string.IsNullOrEmpty(url) ? $"[{id}]({url})" : id;
+            var badge = severity?.ToUpperInvariant() switch
+            {
+                "CRITICAL" => "🔴",
+                "HIGH" => "🟠",
+                "MEDIUM" => "🟡",
+                "LOW" => "🟢",
+                _ => null
+            };
+            return new TreeNode(label, badge);
+        })
+        .ToList();
 
-// Build release views with CVE items
-var releases = versionData
-    .OrderByDescending(v => decimal.TryParse(v.Version, out var n) ? n : 0)
-    .Where(v => v.Item2 is not null)
-    .Select(v =>
-    {
-        var (version, vi) = v;
-        var lastUpdated = DateTimeOffset.TryParse(vi!.LatestPatchDate, out var d)
-            ? d.ToString("yyyy-MM-dd") : "unknown";
+    if (cves.Count == 0)
+        cves.Add(new TreeNode("None"));
 
-        var cves = cveDataList
-            .SelectMany(c => c!.ReleaseCves?.TryGetValue(version, out var ids) == true ? ids : [])
-            .Distinct()
-            .OrderBy(id => id)
-            .Select(id => cveItems.TryGetValue(id, out var item) ? item : new CveItemView { Id = id })
-            .ToList();
+    tree.Add(new TreeNode($"{version} (last updated: {date})", cves));
+}
 
-        return new ReleaseView
-        {
-            Version = version,
-            LastUpdated = lastUpdated,
-            Cves = cves
-        };
-    })
-    .ToList();
-
-// Count severity distribution from view models
-var severityCounts = cveItems.Values
+// Count severity distribution
+var severityCounts = cveInfo.Values
     .GroupBy(v => v.Severity?.ToUpperInvariant() ?? "UNKNOWN")
     .OrderByDescending(g => g.Key switch { "CRITICAL" => 0, "HIGH" => 1, "MEDIUM" => 2, "LOW" => 3, _ => 4 })
     .ToDictionary(g => g.Key, g => g.Count());
 var criticalCount = severityCounts.GetValueOrDefault("CRITICAL");
 
-// Build the view model
+// Serialize to markdown
 var view = new LatestCvesView
 {
     Title = ".NET Security Advisories",
@@ -102,13 +104,12 @@ var view = new LatestCvesView
     SeverityBreakdown = severityCounts.Count > 0
         ? [new Breakdown("By Severity", severityCounts.Select(kv => new Segment(kv.Key, kv.Value)).ToArray())]
         : null,
-    Releases = releases
+    Releases = tree
 };
-
 var writer = new SpectreWriter(AnsiConsole.Console);
 MarkoutSerializer.Serialize(view, writer, LatestCvesContext.Default);
 
-// --- View Models ---
+// --- View Model ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class LatestCvesView
@@ -125,50 +126,18 @@ public class LatestCvesView
     [MarkoutIgnoreInTable]
     public IReadOnlyList<Breakdown>? SeverityBreakdown { get; set; }
 
-    [MarkoutSection(Name = "Releases")]
     [MarkoutIgnoreInTable]
-    public List<ReleaseView>? Releases { get; set; }
-}
-
-[MarkoutSerializable(TitleProperty = nameof(VersionLabel), AutoFields = false)]
-public class ReleaseView
-{
-    [MarkoutIgnore]
-    public string Version { get; set; } = "";
-
-    [MarkoutIgnore]
-    public string LastUpdated { get; set; } = "";
-
-    [MarkoutIgnore]
-    public string VersionLabel => $".NET {Version} (last updated: {LastUpdated})";
-
-    [MarkoutSection(Name = "CVEs")]
-    public List<CveItemView>? Cves { get; set; }
-}
-
-[MarkoutSerializable]
-public class CveItemView
-{
-    [MarkoutPropertyName("CVE")]
-    [MarkoutLink(TextProperty = nameof(Id))]
-    public string? Url { get; set; }
-
-    [MarkoutIgnore]
-    public string Id { get; set; } = "";
-
-    [MarkoutValueMap("CRITICAL=🔴", "HIGH=🟠", "MEDIUM=🟡", "LOW=🟢")]
-    public string? Severity { get; set; }
+    public List<TreeNode>? Releases { get; set; }
 }
 
 [MarkoutContext(typeof(LatestCvesView))]
-[MarkoutContext(typeof(ReleaseView))]
-[MarkoutContext(typeof(CveItemView))]
 public partial class LatestCvesContext : MarkoutSerializerContext { }
 
-// --- JSON Models (snake_case naming via options) ---
+// --- JSON Models (snake_case via options; explicit for HAL _embedded/_links) ---
 
 public class ReleaseIndex
 {
+    [JsonPropertyName("_embedded")]
     public ReleaseEmbedded? Embedded { get; set; }
 }
 
@@ -181,6 +150,8 @@ public class ReleaseEntry
 {
     public string Version { get; set; } = "";
     public bool Supported { get; set; }
+
+    [JsonPropertyName("_links")]
     public EntryLinks? Links { get; set; }
 }
 
@@ -197,6 +168,8 @@ public class LinkRef
 public class VersionIndex
 {
     public string? LatestPatchDate { get; set; }
+
+    [JsonPropertyName("_embedded")]
     public PatchEmbedded? Embedded { get; set; }
 }
 
@@ -209,6 +182,8 @@ public class PatchRelease
 {
     public string? Date { get; set; }
     public bool Security { get; set; }
+
+    [JsonPropertyName("_links")]
     public PatchLinks? Links { get; set; }
 }
 

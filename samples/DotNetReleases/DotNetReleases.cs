@@ -77,13 +77,15 @@ public class ReleaseRow
 [MarkoutContext(typeof(ReleaseRow))]
 public partial class ReleasesContext : MarkoutSerializerContext { }
 
-// --- JSON Models (snake_case naming via options) ---
+// --- JSON Models (snake_case naming via options, explicit for HAL _embedded) ---
 
 public class ReleaseIndex
 {
     public string? Title { get; set; }
     public string? LatestMajor { get; set; }
     public string? LatestLtsMajor { get; set; }
+
+    [JsonPropertyName("_embedded")]
     public EmbeddedReleases? Embedded { get; set; }
 }
 
