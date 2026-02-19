@@ -84,7 +84,7 @@ internal static class TypeParser
             ? string.Empty
             : classSymbol.ContainingNamespace.ToDisplayString();
 
-        return new ContextMetadata(ns, classSymbol.Name, types, boldFieldNames, includeBadges, includeDescription, suppressTableWarnings);
+        return new ContextMetadata(ns, classSymbol.Name, classSymbol.DeclaredAccessibility == Accessibility.Public, types, boldFieldNames, includeBadges, includeDescription, suppressTableWarnings);
     }
 
     private static TypeMetadata? ParseTypeSymbol(

@@ -46,7 +46,7 @@ public sealed class MarkoutSourceGenerator : IIncrementalGenerator
 
                 if (generatedTypes.Add(type.FullTypeName))
                 {
-                    var typeSource = SerializerEmitter.EmitTypeInfo(type);
+                    var typeSource = SerializerEmitter.EmitTypeInfo(type, contextMeta.IsPublic);
                     var typeHintName = string.IsNullOrEmpty(type.Namespace)
                         ? $"{type.TypeName}MarkoutTypeInfo.g.cs"
                         : $"{type.Namespace}.{type.TypeName}MarkoutTypeInfo.g.cs";
