@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Markout;
 
 /// <summary>
@@ -62,6 +64,13 @@ public abstract class MarkoutSerializerContext
     /// <typeparam name="T">The type to describe.</typeparam>
     /// <returns>The schema info, or null if the type is not registered.</returns>
     public abstract MarkoutSchemaInfo? GetSchemaInfo<T>();
+
+    /// <summary>
+    /// Gets all type infos registered in this context.
+    /// Used by <see cref="Templates.MarkoutTemplate.BindContext"/> for automatic registration.
+    /// </summary>
+    /// <returns>An enumerable of all registered type infos.</returns>
+    public abstract IEnumerable<IMarkoutTypeInfo> GetRegisteredTypes();
 
     /// <summary>
     /// Serializes a value using this context.

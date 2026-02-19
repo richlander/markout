@@ -1,3 +1,4 @@
+using Markout;
 using MarkdownTable.Formatting;
 
 namespace Markout.Templates;
@@ -88,6 +89,29 @@ public class MarkoutTemplate
     public MarkoutTemplate Bind<T>(string key, T value, MarkoutTypeInfo<T> typeInfo)
     {
         _bindings[key] = new TypeInfoBinding<T>(value, typeInfo);
+        return this;
+    }
+
+    /// <summary>
+    /// Binds a value using its type info from the context.
+    /// The binding key is derived from the type name (snake_case).
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// var report = JsonSerializer.Deserialize&lt;CveReport&gt;(json);
+    /// template.Bind(report, CveContext.Default);  // binds as "cve_report"
+    /// </code>
+    /// </example>
+    public MarkoutTemplate Bind<T>(T value, MarkoutSerializerContext context)
+    {
+        var typeInfo = context.GetTypeInfo<T>();
+        if (typeInfo == null)
+        {
+            throw new InvalidOperationException(
+                $"Type '{typeof(T).FullName}' is not registered in the serializer context. " +
+                $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
+        }
+        _bindings[typeInfo.BindingName] = new TypeInfoBinding<T>(value, typeInfo);
         return this;
     }
 

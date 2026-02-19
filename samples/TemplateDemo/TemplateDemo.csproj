@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="template.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="cve.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Markout.Templates\Markout.Templates.csproj" />
