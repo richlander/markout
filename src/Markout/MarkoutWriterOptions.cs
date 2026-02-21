@@ -13,6 +13,7 @@ public class MarkoutWriterOptions
     private int? _maxItems;
     private HashSet<string>? _includeSections;
     private HashSet<string>? _excludeSections;
+    private MarkoutProjection? _projection;
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -118,6 +119,21 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _excludeSections = value;
+        }
+    }
+
+    /// <summary>
+    /// Projection for trimming output to specific columns and fields.
+    /// When set, the projection filters table columns and scalar fields at render time.
+    /// Works across all renderers.
+    /// </summary>
+    public MarkoutProjection? Projection
+    {
+        get => _projection;
+        set
+        {
+            ThrowIfReadOnly();
+            _projection = value;
         }
     }
 
