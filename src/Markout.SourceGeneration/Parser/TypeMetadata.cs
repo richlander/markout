@@ -149,6 +149,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public bool IsLink { get; }
     public string? LinkTextProperty { get; }
     public IReadOnlyList<(string Key, string Value)>? ValueMap { get; }
+    public bool IsUnwrapped { get; }
 
     public PropertyMetadata(
         string name,
@@ -190,7 +191,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? showWhenProperty = null,
         bool isLink = false,
         string? linkTextProperty = null,
-        IReadOnlyList<(string Key, string Value)>? valueMap = null)
+        IReadOnlyList<(string Key, string Value)>? valueMap = null,
+        bool isUnwrapped = false)
     {
         Name = name;
         DisplayName = displayName;
@@ -232,6 +234,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         IsLink = isLink;
         LinkTextProperty = linkTextProperty;
         ValueMap = valueMap;
+        IsUnwrapped = isUnwrapped;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -277,6 +280,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                IsLink == other.IsLink &&
                LinkTextProperty == other.LinkTextProperty &&
                ValueMapEqual(ValueMap, other.ValueMap) &&
+               IsUnwrapped == other.IsUnwrapped &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -307,6 +311,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ IsLink.GetHashCode();
             hash = hash * 397 ^ (LinkTextProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (ValueMap?.Count ?? 0);
+            hash = hash * 397 ^ IsUnwrapped.GetHashCode();
             return hash;
         }
     }

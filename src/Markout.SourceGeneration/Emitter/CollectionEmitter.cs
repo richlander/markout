@@ -82,50 +82,59 @@ internal static class CollectionEmitter
         var indent = new string(' ', indentLevel * 4);
         var subsectionLevel = parentSectionLevel + 1;
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
+        bool skipPerItemHeading = prop.IsUnwrapped && string.IsNullOrEmpty(prop.ElementTitleProperty);
 
         sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
         sb.AppendLine($"{indent}{{");
 
-        // Write subsection heading using TitleProperty or first string property
-        if (!string.IsNullOrEmpty(prop.ElementTitleProperty))
+        if (skipPerItemHeading)
         {
-            if (!string.IsNullOrEmpty(prop.ElementTitleContextProperty))
-            {
-                sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
-                sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty}, {itemVar}.{prop.ElementTitleContextProperty});");
-            }
-            else
-            {
-                sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
-                sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty});");
-            }
+            // Unwrapped with no title: emit each item's properties inline at the current level
+            SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel, nestingDepth + 1, prop.ElementAutoFields, prop.ElementFieldLayout);
         }
         else
         {
-            // Try to find a suitable property for the heading
-            var titleProp = prop.ElementProperties.FirstOrDefault(p => 
-                !p.IsIgnored && p.Kind == PropertyKind.String && 
-                (p.Name == "Name" || p.Name == "Title" || p.Name == "Id"));
-            
-            if (titleProp != null)
+            // Write subsection heading using TitleProperty or first string property
+            if (!string.IsNullOrEmpty(prop.ElementTitleProperty))
             {
-                sb.AppendLine($"{indent}    if ({itemVar}.{titleProp.Name} != null)");
-                sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{titleProp.Name});");
+                if (!string.IsNullOrEmpty(prop.ElementTitleContextProperty))
+                {
+                    sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
+                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty}, {itemVar}.{prop.ElementTitleContextProperty});");
+                }
+                else
+                {
+                    sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
+                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty});");
+                }
             }
             else
             {
-                // Fallback: use first string property
-                var firstString = prop.ElementProperties.FirstOrDefault(p => !p.IsIgnored && p.Kind == PropertyKind.String);
-                if (firstString != null)
+                // Try to find a suitable property for the heading
+                var titleProp = prop.ElementProperties.FirstOrDefault(p => 
+                    !p.IsIgnored && p.Kind == PropertyKind.String && 
+                    (p.Name == "Name" || p.Name == "Title" || p.Name == "Id"));
+                
+                if (titleProp != null)
                 {
-                    sb.AppendLine($"{indent}    if ({itemVar}.{firstString.Name} != null)");
-                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{firstString.Name});");
+                    sb.AppendLine($"{indent}    if ({itemVar}.{titleProp.Name} != null)");
+                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{titleProp.Name});");
+                }
+                else
+                {
+                    // Fallback: use first string property
+                    var firstString = prop.ElementProperties.FirstOrDefault(p => !p.IsIgnored && p.Kind == PropertyKind.String);
+                    if (firstString != null)
+                    {
+                        sb.AppendLine($"{indent}    if ({itemVar}.{firstString.Name} != null)");
+                        sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{firstString.Name});");
+                    }
                 }
             }
-        }
 
-        // Emit property serializations for each item, at a deeper level
-        SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1, prop.ElementAutoFields, prop.ElementFieldLayout);
+            // Emit property serializations for each item, at a deeper level
+            SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1, prop.ElementAutoFields, prop.ElementFieldLayout);
+        }
 
         sb.AppendLine($"{indent}}}");
     }

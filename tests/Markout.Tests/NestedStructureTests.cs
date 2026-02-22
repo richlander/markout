@@ -1240,6 +1240,43 @@ public partial class NestedCalloutTestContext : MarkoutSerializerContext
 {
 }
 
+// MarkoutUnwrap: collection items rendered inline without parent heading
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class UnwrapReport
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Generated { get; set; } = "";
+
+    [MarkoutUnwrap]
+    public List<UnwrapFamily>? Families { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class UnwrapFamily
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutUnwrap]
+    public List<UnwrapDistro>? Distros { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class UnwrapDistro
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+    [MarkoutIgnoreInTable]
+    public Callout Alert { get; set; }
+
+    [MarkoutSection(Name = "Issues")]
+    public List<IssueRow>? Issues { get; set; }
+}
+
+[MarkoutContext(typeof(UnwrapReport))]
+public partial class UnwrapTestContext : MarkoutSerializerContext
+{
+}
+
 #endregion
 
 public class CodeSectionTests
@@ -1741,5 +1778,88 @@ public class NestedCalloutSectionTests
         Assert.DoesNotContain("## Families", md);
         Assert.Contains("# Clean", md);
         Assert.Contains("Generated: 2026-02-22", md);
+    }
+}
+
+public class UnwrapTests
+{
+    [Fact]
+    public void Serialize_Unwrap_RendersItemsWithoutParentHeading()
+    {
+        var report = new UnwrapReport
+        {
+            Title = "Verification",
+            Generated = "2026-02-22",
+            Families =
+            [
+                new()
+                {
+                    Name = "Linux",
+                    Distros =
+                    [
+                        new()
+                        {
+                            Name = "Ubuntu",
+                            Alert = new(CalloutSeverity.Warning, "EOL but still supported"),
+                            Issues = [new("22.04", "2027-04-01")]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var md = MarkoutSerializer.Serialize(report, UnwrapTestContext.Default);
+
+        // No intermediate "Families" or "Distros" headings
+        Assert.DoesNotContain("Families", md);
+        Assert.DoesNotContain("Distros", md);
+
+        // Heading hierarchy: H1 title, H2 family, H3 distro
+        Assert.Contains("# Verification", md);
+        Assert.Contains("## Linux", md);
+        Assert.Contains("### Ubuntu", md);
+
+        // Callout and table render inside distro
+        Assert.Contains("> [!WARNING]", md);
+        Assert.Contains("| Version | EOL Date |", md);
+        Assert.Contains("| 22.04 | 2027-04-01 |", md);
+    }
+
+    [Fact]
+    public void Serialize_Unwrap_MultipleItemsAtSameLevel()
+    {
+        var report = new UnwrapReport
+        {
+            Title = "Report",
+            Generated = "2026-02-22",
+            Families =
+            [
+                new() { Name = "Linux", Distros = [] },
+                new() { Name = "macOS", Distros = [] }
+            ]
+        };
+
+        var md = MarkoutSerializer.Serialize(report, UnwrapTestContext.Default);
+
+        // Both families at H2, no wrapper heading
+        Assert.Contains("## Linux", md);
+        Assert.Contains("## macOS", md);
+        Assert.DoesNotContain("Families", md);
+    }
+
+    [Fact]
+    public void Serialize_Unwrap_EmptyList_SkipsContent()
+    {
+        var report = new UnwrapReport
+        {
+            Title = "Clean",
+            Generated = "2026-02-22",
+            Families = []
+        };
+
+        var md = MarkoutSerializer.Serialize(report, UnwrapTestContext.Default);
+
+        Assert.Contains("# Clean", md);
+        Assert.DoesNotContain("##", md);
     }
 }
