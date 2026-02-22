@@ -31,7 +31,7 @@ public class MarkoutWriter
     private string[]? _streamingHeaders;
     private List<string[]>? _streamingRows;
     private int[]? _columnMap;
-    private (int Level, string Text, string? Context)? _pendingSection;
+    private PendingSectionHeading? _pendingSection;
     private bool _projectionSectionActive;
 
     /// <summary>
@@ -370,7 +370,7 @@ public class MarkoutWriter
         // Defer heading until content is actually written, so empty sections are suppressed
         if (_options.Projection != null)
         {
-            _pendingSection = (level, text, context);
+            _pendingSection = new PendingSectionHeading(level, text, context);
             return;
         }
 
@@ -1451,10 +1451,10 @@ public class MarkoutWriter
 
     private void FlushPendingSection()
     {
-        if (_pendingSection is var (level, text, context))
+        if (_pendingSection is { } pending)
         {
             _pendingSection = null;
-            WriteSectionHeading(level, text, context);
+            WriteSectionHeading(pending.Level, pending.Text, pending.Context);
         }
     }
 
@@ -1476,3 +1476,5 @@ public class MarkoutWriter
         }
     }
 }
+
+internal readonly record struct PendingSectionHeading(int Level, string Text, string? Context);

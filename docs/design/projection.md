@@ -1,6 +1,6 @@
 # Projection
 
-**Projection trims markout output to specific columns and fields at runtime, without changing view models or source generation.**
+**Projection trims markout output to specific sections, columns, and fields at runtime, without changing view models or source generation.**
 
 ## The Problem
 
@@ -17,20 +17,23 @@ Markout's projection takes a different approach. Instead of a template language 
 
 ## How It Works
 
-`MarkoutProjection` is a set of include/exclude filters at two granularities:
+`MarkoutProjection` is a set of include/exclude filters at three granularities:
 
 | Granularity | Include | Exclude | Target |
 | --- | --- | --- | --- |
+| **Section** | `IncludeSections` | — | H2 section names |
 | **Column** | `IncludeColumns` | `ExcludeColumns` | Table headers → cells |
 | **Field** | `IncludeFields` | `ExcludeFields` | Scalar field keys |
 
-These compose with existing section filtering (`IncludeSections` / `ExcludeSections`) to give three levels of trimming:
+Section, column, and field filtering compose to give three levels of trimming:
 
 ```text
-Section  →  narrows to specific H2 blocks
-Column   →  narrows table columns within those blocks
-Field    →  narrows scalar fields within those blocks
+Section  →  narrows to specific H2 blocks (content renders unfiltered)
+Column   →  narrows table columns within non-section-matched blocks
+Field    →  narrows scalar fields within non-section-matched blocks
 ```
+
+When a section name matches `IncludeSections`, the section is included and its content renders fully — column and field filtering is suspended within it. This allows a CLI flag like `-S Package` to show the entire Package section while `-S Version` filters to just that field.
 
 ### Basic Example
 
@@ -88,7 +91,23 @@ Projection = new MarkoutProjection
 }
 ```
 
-Field names match the key passed to `WriteField(key, value)` — again the display name, case-insensitive.
+Field names match the key passed to `WriteField(key, value)` — again the display name, case-insensitive. `WriteFieldTable` (Property/Value tables) also respects field projection, filtering rows by key name.
+
+### Section Selection
+
+`IncludeSections` on the projection overrides options-level section excludes, enabling a unified `--select` flag to match sections alongside fields and columns:
+
+```csharp
+// -S Package → show the entire Package section, unfiltered
+Projection = new MarkoutProjection
+{
+    IncludeSections = ["Package"],
+    IncludeColumns = ["Package"],
+    IncludeFields = ["Package"]
+}
+```
+
+When a section name matches `IncludeSections`, field and column filtering is suspended for that section — the entire section renders as-is. For non-matching sections, field and column filtering still applies. Empty sections (where all content is filtered away) are automatically suppressed — the section heading is deferred until content is actually written.
 
 ### Composition
 
@@ -105,7 +124,7 @@ var options = new MarkoutWriterOptions
 };
 ```
 
-Evaluation order: **section filtering → shape support → column/field projection**. Each layer narrows further. They never conflict.
+Evaluation order: **section filtering → projection section matching → shape support → column/field projection**. Projection section matches override options-level excludes. Within projection-matched sections, column/field filtering is bypassed.
 
 ## Comparison with Go Templates
 
