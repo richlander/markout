@@ -32,6 +32,7 @@ public class MarkoutWriter
     private List<string[]>? _streamingRows;
     private int[]? _columnMap;
     private (int Level, string Text, string? Context)? _pendingSection;
+    private bool _projectionSectionActive;
 
     /// <summary>
     /// Creates a writer that builds output in memory with default options.
@@ -219,6 +220,11 @@ public class MarkoutWriter
         // Content before first H2 (no section name) is always included
         if (_currentSectionName == null)
             return true;
+
+        // Projection section includes override options-level excludes
+        if (_options.Projection?.IsSectionIncluded(_currentSectionName) == true)
+            return true;
+
         if (_options.IncludeSections != null && !_options.IncludeSections.Contains(_currentSectionName))
             return false;
         if (_options.ExcludeSections?.Contains(_currentSectionName) == true)
@@ -229,7 +235,7 @@ public class MarkoutWriter
     private MarkoutField[] ProjectFields(IReadOnlyList<MarkoutField> fields)
     {
         var projection = _options.Projection;
-        if (projection == null)
+        if (projection == null || _projectionSectionActive)
         {
             if (fields is MarkoutField[] array)
                 return array;
@@ -448,7 +454,7 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
-        if (_options.Projection != null && !_options.Projection.IsFieldIncluded(key))
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -465,7 +471,7 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
-        if (_options.Projection != null && !_options.Projection.IsFieldIncluded(key))
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -482,7 +488,7 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
-        if (_options.Projection != null && !_options.Projection.IsFieldIncluded(key))
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -501,7 +507,7 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
-        if (_options.Projection != null && !_options.Projection.IsFieldIncluded(key))
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -519,7 +525,7 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
-        if (_options.Projection != null && !_options.Projection.IsFieldIncluded(key))
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -537,7 +543,7 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
-        if (_options.Projection != null && !_options.Projection.IsFieldIncluded(key))
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -731,8 +737,8 @@ public class MarkoutWriter
         if (headers.Length == 0)
             throw new ArgumentException("At least one header is required.", nameof(headers));
 
-        // Apply column projection
-        _columnMap = _options.Projection?.ComputeColumnMap(headers);
+        // Apply column projection (skip when section is projection-selected)
+        _columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headers);
         _streamingHeaders = _columnMap != null
             ? MarkoutProjection.ProjectHeaders(headers, _columnMap)
             : headers;
@@ -1465,6 +1471,8 @@ public class MarkoutWriter
         {
             _currentSectionName = text;
             _sectionExcluded = !IsSectionIncluded();
+            _projectionSectionActive = !_sectionExcluded
+                && _options.Projection?.IsSectionIncluded(text) == true;
         }
     }
 }

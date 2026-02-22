@@ -17,7 +17,19 @@ public class MarkoutProjection
     private HashSet<string>? _excludeColumns;
     private IReadOnlyList<string>? _includeFields;
     private HashSet<string>? _excludeFields;
+    private IReadOnlyList<string>? _includeSections;
     private StringComparison _comparison = StringComparison.OrdinalIgnoreCase;
+
+    /// <summary>
+    /// If set, sections whose name matches are included even if excluded by
+    /// <see cref="MarkoutWriterOptions.IncludeSections"/>/<see cref="MarkoutWriterOptions.ExcludeSections"/>.
+    /// Content within projection-included sections is rendered without field/column filtering.
+    /// </summary>
+    public IReadOnlyList<string>? IncludeSections
+    {
+        get => _includeSections;
+        set => _includeSections = value;
+    }
 
     /// <summary>
     /// If set, only table columns whose header text matches are rendered, in the specified order.
@@ -137,6 +149,22 @@ public class MarkoutProjection
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Returns true if the given section name is included by this projection.
+    /// </summary>
+    internal bool IsSectionIncluded(string sectionName)
+    {
+        if (_includeSections == null)
+            return false;
+
+        foreach (var s in _includeSections)
+        {
+            if (string.Equals(s, sectionName, _comparison))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
