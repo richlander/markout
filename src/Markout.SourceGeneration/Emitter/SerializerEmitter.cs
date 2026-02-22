@@ -493,39 +493,49 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({EmitHelpers.GetCollectionCountCheck(prop, propAccess)})");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
 
-            if (prop.SectionGroupByProperty != null)
+            if (prop.IsUnwrapped)
             {
-                // Grouped rendering: partition by property, subheading per group
-                CollectionEmitter.EmitGroupedSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel);
-            }
-            else if (prop.MaxItems != null)
-            {
-                var innerIndent = indent + "    ";
-                var (truncVar, _) = EmitHelpers.EmitMaxItemsTruncation(sb, prop, propAccess, innerIndent, nestingDepth);
-                if (prop.ElementHasNestedContent)
-                {
-                    CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, truncVar, indentLevel + 1, effectiveSectionLevel, nestingDepth);
-                }
-                else
-                {
-                    CollectionEmitter.EmitTableSerialization(sb, prop, truncVar, indentLevel + 1, nestingDepth);
-                }
-                EmitHelpers.EmitMaxItemsEllipsis(sb, prop, propAccess, innerIndent, nestingDepth);
+                // Unwrapped: iterate items at the section level without a section heading
+                CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel - 1, nestingDepth);
             }
             else
             {
-                if (prop.ElementHasNestedContent)
+                sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+
+                if (prop.SectionGroupByProperty != null)
                 {
-                    CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel, nestingDepth);
+                    // Grouped rendering: partition by property, subheading per group
+                    CollectionEmitter.EmitGroupedSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel);
+                }
+                else if (prop.MaxItems != null)
+                {
+                    var innerIndent = indent + "    ";
+                    var (truncVar, _) = EmitHelpers.EmitMaxItemsTruncation(sb, prop, propAccess, innerIndent, nestingDepth);
+                    if (prop.ElementHasNestedContent)
+                    {
+                        CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, truncVar, indentLevel + 1, effectiveSectionLevel, nestingDepth);
+                    }
+                    else
+                    {
+                        CollectionEmitter.EmitTableSerialization(sb, prop, truncVar, indentLevel + 1, nestingDepth);
+                    }
+                    EmitHelpers.EmitMaxItemsEllipsis(sb, prop, propAccess, innerIndent, nestingDepth);
                 }
                 else
                 {
-                    CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                    if (prop.ElementHasNestedContent)
+                    {
+                        CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel, nestingDepth);
+                    }
+                    else
+                    {
+                        CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                    }
                 }
+                sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             }
-            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+
             sb.AppendLine($"{indent}}}");
         }
         else if (prop.Kind == PropertyKind.StringArray)
@@ -691,14 +701,22 @@ internal static class SerializerEmitter
                 {
                     sb.AppendLine($"{indent}if ({EmitHelpers.GetCollectionCountCheck(prop, propAccess)})");
                     sb.AppendLine($"{indent}{{");
-                    sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EmitHelpers.EscapeString(prop.DisplayName)}\");");
-                    if (prop.ElementHasNestedContent)
+                    if (prop.IsUnwrapped)
                     {
-                        CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, baseHeadingLevel, nestingDepth);
+                        // Unwrapped: iterate items at current heading level without a parent heading
+                        CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, baseHeadingLevel - 1, nestingDepth);
                     }
                     else
                     {
-                        CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                        sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EmitHelpers.EscapeString(prop.DisplayName)}\");");
+                        if (prop.ElementHasNestedContent)
+                        {
+                            CollectionEmitter.EmitSubsectionPerItemSerialization(sb, prop, propAccess, indentLevel + 1, baseHeadingLevel, nestingDepth);
+                        }
+                        else
+                        {
+                            CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                        }
                     }
                     sb.AppendLine($"{indent}}}");
                 }

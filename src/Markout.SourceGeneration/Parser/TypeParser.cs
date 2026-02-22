@@ -29,6 +29,7 @@ internal static class TypeParser
     private const string MarkoutShowWhenAttribute = "Markout.MarkoutShowWhenAttribute";
     private const string MarkoutLinkAttribute = "Markout.MarkoutLinkAttribute";
     private const string MarkoutValueMapAttribute = "Markout.MarkoutValueMapAttribute";
+    private const string MarkoutUnwrapAttribute = "Markout.MarkoutUnwrapAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -199,6 +200,7 @@ internal static class TypeParser
         var isIgnored = HasAttribute(prop, MarkoutIgnoreAttribute);
         var isIgnoredInTable = HasAttribute(prop, MarkoutIgnoreInTableAttribute);
         var isSection = HasAttribute(prop, MarkoutSectionAttribute);
+        var isUnwrapped = HasAttribute(prop, MarkoutUnwrapAttribute);
         var sectionLevel = 2;
         string? sectionName = null;
         string? sectionIgnoreProperty = null;
@@ -394,7 +396,7 @@ internal static class TypeParser
         // Determine if property is unsupported in table context
         // Joined string arrays are treated as scalars, so they're fine in tables
         bool isJoinedArray = kind == PropertyKind.StringArray && joinSeparator != null;
-        bool isUnsupportedInTable = !isIgnored && !isSection && !IsScalarKind(kind) && !isJoinedArray && kind != PropertyKind.Formattable;
+        bool isUnsupportedInTable = !isIgnored && !isSection && !isUnwrapped && !IsScalarKind(kind) && !isJoinedArray && kind != PropertyKind.Formattable;
 
         // Emit warning for unsupported properties without [MarkoutIgnoreInTable]
         if (isUnsupportedInTable && !isIgnoredInTable)
@@ -448,7 +450,8 @@ internal static class TypeParser
             showWhenProperty,
             isLink,
             linkTextProperty,
-            valueMap);
+            valueMap,
+            isUnwrapped);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
@@ -648,7 +651,8 @@ internal static class TypeParser
     {
         if (props == null) return false;
         return props.Any(p => !p.IsIgnored &&
-            (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
+            (p.IsSection || p.Kind == PropertyKind.Callout ||
+             p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
              p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||

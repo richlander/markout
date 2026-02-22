@@ -384,6 +384,9 @@ public class MarkoutWriter
     /// </summary>
     protected virtual void WriteSectionHeading(int level, string text, string? context)
     {
+        if (string.IsNullOrEmpty(text))
+            return;
+
         WriteHeading(level, text, context);
     }
 
