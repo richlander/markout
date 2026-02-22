@@ -521,4 +521,92 @@ public class ProjectionTests
         Assert.Contains("... and 2 more", output);
         Assert.DoesNotContain("Version", output);
     }
+
+    // --- Schema discovery ---
+
+    [Fact]
+    public void GetFieldNames_ReturnsDocumentLevelFields()
+    {
+        var schema = SectionTestContext.PackageWithSectionsSchema;
+        var fields = schema.GetFieldNames();
+        Assert.Equal(["Name", "Version"], fields);
+    }
+
+    [Fact]
+    public void GetColumnNames_ReturnsUniqueColumnsAcrossTables()
+    {
+        var schema = SectionTestContext.PackageWithSectionsSchema;
+        var columns = schema.GetColumnNames();
+        // Dependencies has Id, Version; Assemblies has Name, Arch
+        Assert.Equal(["Id", "Version", "Name", "Arch"], columns);
+    }
+
+    [Fact]
+    public void GetSectionNames_ReturnsSectionHeadingNames()
+    {
+        var schema = SectionTestContext.PackageWithSectionsSchema;
+        var sections = schema.GetSectionNames();
+        Assert.Equal(["Dependencies", "Assemblies"], sections);
+    }
+
+    [Fact]
+    public void ExtractSectionName_ParsesSectionRendering()
+    {
+        Assert.Equal("Dependencies", MarkoutSchemaInfo.ExtractSectionName("H2 Section \"Dependencies\" (table)"));
+        Assert.Equal("API Surface", MarkoutSchemaInfo.ExtractSectionName("H2 Section \"API Surface\" (subsections)"));
+        Assert.Null(MarkoutSchemaInfo.ExtractSectionName("Field"));
+        Assert.Null(MarkoutSchemaInfo.ExtractSectionName("Table"));
+    }
+
+    [Fact]
+    public void GetFieldNames_EmptyForTableOnlySchema()
+    {
+        // A type with no scalar fields should return empty
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "NoFields",
+            AsDocument = [
+                new() { Name = "Items", DisplayName = "Items", Rendering = "H2 Section \"Items\" (table)", Children = [
+                    new() { Name = "Name", DisplayName = "Name", Rendering = "Column" },
+                ] },
+            ],
+        };
+        Assert.Empty(schema.GetFieldNames());
+    }
+
+    [Fact]
+    public void GetColumnNames_EmptyForFieldOnlySchema()
+    {
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "FieldsOnly",
+            AsDocument = [
+                new() { Name = "Name", DisplayName = "Name", Rendering = "Field" },
+                new() { Name = "Version", DisplayName = "Version", Rendering = "Field" },
+            ],
+        };
+        Assert.Empty(schema.GetColumnNames());
+    }
+
+    [Fact]
+    public void GetColumnNames_DeduplicatesAcrossTables()
+    {
+        // Two tables both have a "Name" column — should appear once
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "DupCols",
+            AsDocument = [
+                new() { Name = "Deps", DisplayName = "Deps", Rendering = "H2 Section \"Deps\" (table)", Children = [
+                    new() { Name = "Name", DisplayName = "Name", Rendering = "Column" },
+                    new() { Name = "Version", DisplayName = "Version", Rendering = "Column" },
+                ] },
+                new() { Name = "Refs", DisplayName = "Refs", Rendering = "H2 Section \"Refs\" (table)", Children = [
+                    new() { Name = "Name", DisplayName = "Name", Rendering = "Column" },
+                    new() { Name = "Target", DisplayName = "Target", Rendering = "Column" },
+                ] },
+            ],
+        };
+        var columns = schema.GetColumnNames();
+        Assert.Equal(["Name", "Version", "Target"], columns);
+    }
 }
