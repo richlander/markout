@@ -31,6 +31,7 @@ public class MarkoutWriter
     private string[]? _streamingHeaders;
     private List<string[]>? _streamingRows;
     private int[]? _columnMap;
+    private (int Level, string Text, string? Context)? _pendingSection;
 
     /// <summary>
     /// Creates a writer that builds output in memory with default options.
@@ -355,6 +356,28 @@ public class MarkoutWriter
     /// <param name="context">Optional context to append in parentheses.</param>
     public virtual void WriteSectionStart(int level, string text, string? context = null)
     {
+        UpdateSectionState(level, text);
+
+        if (_sectionExcluded)
+            return;
+
+        // Defer heading until content is actually written, so empty sections are suppressed
+        if (_options.Projection != null)
+        {
+            _pendingSection = (level, text, context);
+            return;
+        }
+
+        WriteSectionHeading(level, text, context);
+    }
+
+    /// <summary>
+    /// Writes the section heading. Override to customize section heading rendering.
+    /// Called either immediately from <see cref="WriteSectionStart"/> or deferred
+    /// until first content when projection is active.
+    /// </summary>
+    protected virtual void WriteSectionHeading(int level, string text, string? context)
+    {
         WriteHeading(level, text, context);
     }
 
@@ -364,6 +387,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteSectionEnd()
     {
+        _pendingSection = null;
     }
 
     /// <summary>
@@ -1410,10 +1434,21 @@ public class MarkoutWriter
     /// </summary>
     protected virtual void EnsureBlankLineIfNeeded()
     {
+        FlushPendingSection();
+
         if (_needsBlankLine)
         {
             _writer.WriteLine();
             _needsBlankLine = false;
+        }
+    }
+
+    private void FlushPendingSection()
+    {
+        if (_pendingSection is var (level, text, context))
+        {
+            _pendingSection = null;
+            WriteSectionHeading(level, text, context);
         }
     }
 
