@@ -88,7 +88,10 @@ public sealed class MarkoutSchemaInfo
         foreach (var prop in props)
         {
             if (prop.Rendering.StartsWith("Field", StringComparison.Ordinal))
-                names.Add(prop.DisplayName);
+            {
+                if (!names.Contains(prop.DisplayName))
+                    names.Add(prop.DisplayName);
+            }
             else if (prop.Rendering == "Fields")
                 CollectFieldNames(prop.Children, names);
         }
