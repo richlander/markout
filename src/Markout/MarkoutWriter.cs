@@ -624,10 +624,14 @@ public class MarkoutWriter
         if (fields.Count == 0)
             return;
 
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
+            return;
+
         WriteTableStart("Property", "Value");
-        for (int i = 0; i < fields.Count; i++)
+        for (int i = 0; i < projected.Length; i++)
         {
-            WriteTableRow(fields[i].Key, fields[i].Value ?? string.Empty);
+            WriteTableRow(projected[i].Key, projected[i].Value ?? string.Empty);
         }
         WriteTableEnd();
     }
