@@ -50,6 +50,99 @@ public sealed class MarkoutSchemaInfo
         markout.Flush();
     }
     
+    /// <summary>
+    /// Returns the display names of all scalar fields in the document schema.
+    /// Matches properties with Rendering starting with "Field".
+    /// </summary>
+    public string[] GetFieldNames()
+    {
+        var names = new List<string>();
+        CollectFieldNames(AsDocument, names);
+        return names.ToArray();
+    }
+
+    /// <summary>
+    /// Returns the display names of all table columns across all tables in the document schema.
+    /// Collects column names from Children of table-type properties.
+    /// </summary>
+    public string[] GetColumnNames()
+    {
+        var names = new List<string>();
+        CollectColumnNames(AsDocument, names);
+        return names.ToArray();
+    }
+
+    /// <summary>
+    /// Returns the names of all sections in the document schema.
+    /// Extracts section names from Rendering strings like <c>H2 Section "Dependencies" (table)</c>.
+    /// </summary>
+    public string[] GetSectionNames()
+    {
+        var names = new List<string>();
+        CollectSectionNames(AsDocument, names);
+        return names.ToArray();
+    }
+
+    private static void CollectFieldNames(IReadOnlyList<MarkoutPropertySchema> props, List<string> names)
+    {
+        foreach (var prop in props)
+        {
+            if (prop.Rendering.StartsWith("Field", StringComparison.Ordinal))
+            {
+                if (!names.Contains(prop.DisplayName))
+                    names.Add(prop.DisplayName);
+            }
+            else if (prop.Rendering == "Fields")
+                CollectFieldNames(prop.Children, names);
+        }
+    }
+
+    private static void CollectColumnNames(IReadOnlyList<MarkoutPropertySchema> props, List<string> names)
+    {
+        foreach (var prop in props)
+        {
+            if (prop.Rendering.Contains("(table)") || prop.Rendering == "Table")
+            {
+                foreach (var child in prop.Children)
+                {
+                    if (child.Rendering.StartsWith("Column", StringComparison.Ordinal) &&
+                        !names.Contains(child.DisplayName))
+                        names.Add(child.DisplayName);
+                }
+            }
+            else if (prop.Children.Count > 0)
+            {
+                CollectColumnNames(prop.Children, names);
+            }
+        }
+    }
+
+    private static void CollectSectionNames(IReadOnlyList<MarkoutPropertySchema> props, List<string> names)
+    {
+        foreach (var prop in props)
+        {
+            var sectionName = ExtractSectionName(prop.Rendering);
+            if (sectionName != null)
+                names.Add(sectionName);
+        }
+    }
+
+    /// <summary>
+    /// Extracts the section name from a Rendering string like <c>H2 Section "Dependencies" (table)</c>.
+    /// Returns null if the string is not a section rendering.
+    /// </summary>
+    public static string? ExtractSectionName(string rendering)
+    {
+        // Parse: H2 Section "Dependencies" (table)
+        const string marker = "Section \"";
+        int start = rendering.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) return null;
+        start += marker.Length;
+        int end = rendering.IndexOf('"', start);
+        if (end < 0) return null;
+        return rendering[start..end];
+    }
+
     private bool HasDifferences()
     {
         if (AsDocument.Count != AsTableItem.Count) return true;

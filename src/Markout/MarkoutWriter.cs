@@ -30,6 +30,9 @@ public class MarkoutWriter
     private MarkoutShape _warnedShapes;
     private string[]? _streamingHeaders;
     private List<string[]>? _streamingRows;
+    private int[]? _columnMap;
+    private PendingSectionHeading? _pendingSection;
+    private bool _projectionSectionActive;
 
     /// <summary>
     /// Creates a writer that builds output in memory with default options.
@@ -217,11 +220,66 @@ public class MarkoutWriter
         // Content before first H2 (no section name) is always included
         if (_currentSectionName == null)
             return true;
+
+        // Projection section includes override options-level excludes
+        if (_options.Projection?.IsSectionIncluded(_currentSectionName) == true)
+            return true;
+
         if (_options.IncludeSections != null && !_options.IncludeSections.Contains(_currentSectionName))
             return false;
         if (_options.ExcludeSections?.Contains(_currentSectionName) == true)
             return false;
         return true;
+    }
+
+    private MarkoutField[] ProjectFields(IReadOnlyList<MarkoutField> fields)
+    {
+        var projection = _options.Projection;
+        if (projection == null || _projectionSectionActive)
+        {
+            if (fields is MarkoutField[] array)
+                return array;
+            var result = new MarkoutField[fields.Count];
+            for (int i = 0; i < fields.Count; i++)
+                result[i] = fields[i];
+            return result;
+        }
+
+        if (projection.IncludeFields != null)
+        {
+            // Include: output fields in the order specified by IncludeFields
+            var result = new List<MarkoutField>(projection.IncludeFields.Count);
+            foreach (var name in projection.IncludeFields)
+            {
+                for (int i = 0; i < fields.Count; i++)
+                {
+                    if (string.Equals(name, fields[i].Key, projection.Comparison))
+                    {
+                        result.Add(fields[i]);
+                        break;
+                    }
+                }
+            }
+            return result.ToArray();
+        }
+
+        if (projection.ExcludeFields != null)
+        {
+            var result = new List<MarkoutField>(fields.Count);
+            for (int i = 0; i < fields.Count; i++)
+            {
+                if (projection.IsFieldIncluded(fields[i].Key))
+                    result.Add(fields[i]);
+            }
+            return result.ToArray();
+        }
+
+        if (fields is MarkoutField[] arr)
+            return arr;
+        var copy = new MarkoutField[fields.Count];
+        for (int i = 0; i < fields.Count; i++)
+            copy[i] = fields[i];
+        return copy;
     }
 
     /// <summary>
@@ -304,6 +362,28 @@ public class MarkoutWriter
     /// <param name="context">Optional context to append in parentheses.</param>
     public virtual void WriteSectionStart(int level, string text, string? context = null)
     {
+        UpdateSectionState(level, text);
+
+        if (_sectionExcluded)
+            return;
+
+        // Defer heading until content is actually written, so empty sections are suppressed
+        if (_options.Projection != null)
+        {
+            _pendingSection = new PendingSectionHeading(level, text, context);
+            return;
+        }
+
+        WriteSectionHeading(level, text, context);
+    }
+
+    /// <summary>
+    /// Writes the section heading. Override to customize section heading rendering.
+    /// Called either immediately from <see cref="WriteSectionStart"/> or deferred
+    /// until first content when projection is active.
+    /// </summary>
+    protected virtual void WriteSectionHeading(int level, string text, string? context)
+    {
         WriteHeading(level, text, context);
     }
 
@@ -313,6 +393,7 @@ public class MarkoutWriter
     /// </summary>
     public virtual void WriteSectionEnd()
     {
+        _pendingSection = null;
     }
 
     /// <summary>
@@ -373,6 +454,9 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.WriteLine(value ?? string.Empty);
@@ -387,6 +471,9 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.WriteLine(value ? "yes" : "no");
@@ -399,6 +486,9 @@ public class MarkoutWriter
     public virtual void WriteField<T>(string key, T value) where T : ISpanFormattable
     {
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
+            return;
+
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -417,6 +507,9 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.WriteLine(value ?? string.Empty);
@@ -432,6 +525,9 @@ public class MarkoutWriter
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
+            return;
+
         EnsureBlankLineIfNeeded();
         WriteFieldName(key);
         _writer.WriteLine(value ? "yes" : "no");
@@ -445,6 +541,9 @@ public class MarkoutWriter
     public virtual void WriteFieldNoBreak<T>(string key, T value) where T : ISpanFormattable
     {
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
+            return;
+
+        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
             return;
 
         EnsureBlankLineIfNeeded();
@@ -496,15 +595,19 @@ public class MarkoutWriter
         if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.FieldList))
             return;
 
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
+            return;
+
         EnsureBlankLineIfNeeded();
 
-        for (int i = 0; i < fields.Length; i++)
+        for (int i = 0; i < projected.Length; i++)
         {
             if (i > 0)
                 _writer.Write(" | ");
 
-            WriteFieldName(fields[i].Key);
-            _writer.Write(fields[i].Value ?? string.Empty);
+            WriteFieldName(projected[i].Key);
+            _writer.Write(projected[i].Value ?? string.Empty);
         }
 
         _writer.WriteLine();
@@ -522,15 +625,19 @@ public class MarkoutWriter
         if (_sectionExcluded || fields.Count == 0 || ShapeUnsupported(MarkoutShape.FieldList))
             return;
 
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
+            return;
+
         EnsureBlankLineIfNeeded();
 
-        for (int i = 0; i < fields.Count; i++)
+        for (int i = 0; i < projected.Length; i++)
         {
             if (i > 0)
                 _writer.Write(" | ");
 
-            WriteFieldName(fields[i].Key);
-            _writer.Write(fields[i].Value ?? string.Empty);
+            WriteFieldName(projected[i].Key);
+            _writer.Write(projected[i].Value ?? string.Empty);
         }
 
         _writer.WriteLine();
@@ -547,10 +654,14 @@ public class MarkoutWriter
         if (fields.Count == 0)
             return;
 
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
+            return;
+
         WriteTableStart("Property", "Value");
-        for (int i = 0; i < fields.Count; i++)
+        for (int i = 0; i < projected.Length; i++)
         {
-            WriteTableRow(fields[i].Key, fields[i].Value ?? string.Empty);
+            WriteTableRow(projected[i].Key, projected[i].Value ?? string.Empty);
         }
         WriteTableEnd();
     }
@@ -618,6 +729,7 @@ public class MarkoutWriter
         _inTable = true;
         _tableRowCount = 0;
         _tableRowsSkipped = 0;
+        _columnMap = null;
 
         if (SectionExcluded || ShapeUnsupported(MarkoutShape.Tables))
             return;
@@ -625,7 +737,11 @@ public class MarkoutWriter
         if (headers.Length == 0)
             throw new ArgumentException("At least one header is required.", nameof(headers));
 
-        _streamingHeaders = headers;
+        // Apply column projection (skip when section is projection-selected)
+        _columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headers);
+        _streamingHeaders = _columnMap != null
+            ? MarkoutProjection.ProjectHeaders(headers, _columnMap)
+            : headers;
         _streamingRows = [];
     }
 
@@ -643,7 +759,9 @@ public class MarkoutWriter
         if (!ShouldWriteTableRow())
             return;
 
-        _streamingRows?.Add(values);
+        _streamingRows?.Add(_columnMap != null
+            ? MarkoutProjection.ProjectRow(values, _columnMap)
+            : values);
     }
 
     /// <summary>
@@ -738,6 +856,17 @@ public class MarkoutWriter
 
         var headerArray = headers as string[] ?? headers.ToArray();
         var rowList = rows as IList<string[]> ?? rows.ToList();
+
+        // Apply column projection
+        var columnMap = _options.Projection?.ComputeColumnMap(headerArray);
+        if (columnMap != null)
+        {
+            headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
+            var projected = new List<string[]>(rowList.Count);
+            foreach (var row in rowList)
+                projected.Add(MarkoutProjection.ProjectRow(row, columnMap));
+            rowList = projected;
+        }
 
         // Calculate column widths
         var widths = new int[headerArray.Length];
@@ -1311,10 +1440,21 @@ public class MarkoutWriter
     /// </summary>
     protected virtual void EnsureBlankLineIfNeeded()
     {
+        FlushPendingSection();
+
         if (_needsBlankLine)
         {
             _writer.WriteLine();
             _needsBlankLine = false;
+        }
+    }
+
+    private void FlushPendingSection()
+    {
+        if (_pendingSection is { } pending)
+        {
+            _pendingSection = null;
+            WriteSectionHeading(pending.Level, pending.Text, pending.Context);
         }
     }
 
@@ -1331,6 +1471,10 @@ public class MarkoutWriter
         {
             _currentSectionName = text;
             _sectionExcluded = !IsSectionIncluded();
+            _projectionSectionActive = !_sectionExcluded
+                && _options.Projection?.IsSectionIncluded(text) == true;
         }
     }
 }
+
+internal readonly record struct PendingSectionHeading(int Level, string Text, string? Context);
