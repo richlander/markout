@@ -1198,6 +1198,48 @@ public partial class GroupByTestContext : MarkoutSerializerContext
 {
 }
 
+// Nested callout + section table: collection elements with Callout property and [MarkoutSection] table
+// This tests that HasNestedContent recognizes Callout/Section and triggers subsection-per-item rendering
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class VerificationReport
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+    public string Generated { get; set; } = "";
+
+    [MarkoutSection(Name = "Families")]
+    public List<FamilyReport>? Families { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class FamilyReport
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+
+    [MarkoutSection(Name = "Distros")]
+    public List<DistroReport>? Distros { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class DistroReport
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";
+    [MarkoutIgnoreInTable]
+    public Callout Alert { get; set; }
+
+    [MarkoutSection(Name = "Issues")]
+    public List<IssueRow>? Issues { get; set; }
+}
+
+[MarkoutSerializable]
+public record IssueRow(string Version, [property: MarkoutPropertyName("EOL Date")] string EolDate);
+
+[MarkoutContext(typeof(VerificationReport))]
+[MarkoutContext(typeof(IssueRow))]
+public partial class NestedCalloutTestContext : MarkoutSerializerContext
+{
+}
+
 #endregion
 
 public class CodeSectionTests
@@ -1632,5 +1674,72 @@ public class GroupByTests
 
         Assert.DoesNotContain("Breaking Changes", mdf);
         Assert.DoesNotContain("Additive Changes", mdf);
+    }
+}
+
+public class NestedCalloutSectionTests
+{
+    [Fact]
+    public void Serialize_CalloutPlusSection_RendersSubsectionsWithCalloutAndTable()
+    {
+        var report = new VerificationReport
+        {
+            Title = "Verification",
+            Generated = "2026-02-22",
+            Families =
+            [
+                new()
+                {
+                    Name = "Linux",
+                    Distros =
+                    [
+                        new()
+                        {
+                            Name = "Ubuntu",
+                            Alert = new(CalloutSeverity.Warning, "EOL but still supported"),
+                            Issues = [new("22.04", "2027-04-01")]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var md = MarkoutSerializer.Serialize(report, NestedCalloutTestContext.Default);
+
+        // Heading hierarchy: families → distros as subsections
+        Assert.Contains("## Families", md);
+        Assert.Contains("### Linux", md);
+        Assert.Contains("#### Distros", md);
+        Assert.Contains("##### Ubuntu", md);
+
+        // Callout renders inside the distro subsection
+        Assert.Contains("> [!WARNING]", md);
+        Assert.Contains("> EOL but still supported", md);
+
+        // Table renders inside the distro subsection
+        Assert.Contains("| Version | EOL Date |", md);
+        Assert.Contains("| 22.04 | 2027-04-01 |", md);
+
+        // Callout should appear before the table
+        int calloutPos = md.IndexOf("> [!WARNING]");
+        int tablePos = md.IndexOf("| Version |");
+        Assert.True(calloutPos < tablePos, "Callout should appear before the table");
+    }
+
+    [Fact]
+    public void Serialize_EmptyIssues_SkipsSection()
+    {
+        var report = new VerificationReport
+        {
+            Title = "Clean",
+            Generated = "2026-02-22",
+            Families = []
+        };
+
+        var md = MarkoutSerializer.Serialize(report, NestedCalloutTestContext.Default);
+
+        Assert.DoesNotContain("## Families", md);
+        Assert.Contains("# Clean", md);
+        Assert.Contains("Generated: 2026-02-22", md);
     }
 }

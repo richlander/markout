@@ -648,7 +648,8 @@ internal static class TypeParser
     {
         if (props == null) return false;
         return props.Any(p => !p.IsIgnored &&
-            (p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
+            (p.IsSection || p.Kind == PropertyKind.Callout ||
+             p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
              p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
