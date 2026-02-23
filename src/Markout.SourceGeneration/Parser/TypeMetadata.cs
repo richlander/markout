@@ -125,6 +125,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? SectionColumnName { get; }
     public string? SectionShowWhenProperty { get; }
     public string? SectionGroupByProperty { get; }
+    public IReadOnlyList<(string MethodName, string ColumnName)>? SectionIgnoreColumnWhen { get; }
     public string? ElementTypeName { get; }
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
     public bool ElementHasNestedContent { get; }
@@ -168,6 +169,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? sectionColumnName = null,
         string? sectionShowWhenProperty = null,
         string? sectionGroupByProperty = null,
+        IReadOnlyList<(string MethodName, string ColumnName)>? sectionIgnoreColumnWhen = null,
         string? elementTypeName = null,
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
         bool elementHasNestedContent = false,
@@ -210,6 +212,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionColumnName = sectionColumnName;
         SectionShowWhenProperty = sectionShowWhenProperty;
         SectionGroupByProperty = sectionGroupByProperty;
+        SectionIgnoreColumnWhen = sectionIgnoreColumnWhen;
         ElementTypeName = elementTypeName;
         ElementProperties = elementProperties;
         ElementHasNestedContent = elementHasNestedContent;
@@ -257,6 +260,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionColumnName == other.SectionColumnName &&
                SectionShowWhenProperty == other.SectionShowWhenProperty &&
                SectionGroupByProperty == other.SectionGroupByProperty &&
+               IgnoreColumnWhenEqual(SectionIgnoreColumnWhen, other.SectionIgnoreColumnWhen) &&
                ElementTypeName == other.ElementTypeName &&
                ElementHasNestedContent == other.ElementHasNestedContent &&
                ElementTitleProperty == other.ElementTitleProperty &&
@@ -306,6 +310,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionColumnName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionGroupByProperty?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (SectionIgnoreColumnWhen?.Count ?? 0);
             hash = hash * 397 ^ (ValueFormatterTypeName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (ShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ IsLink.GetHashCode();
@@ -333,6 +338,16 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         if (a.Count != b.Count) return false;
         for (int i = 0; i < a.Count; i++)
             if (a[i].Key != b[i].Key || a[i].Value != b[i].Value) return false;
+        return true;
+    }
+
+    private static bool IgnoreColumnWhenEqual(IReadOnlyList<(string MethodName, string ColumnName)>? a, IReadOnlyList<(string MethodName, string ColumnName)>? b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a is null || b is null) return a is null && b is null;
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (a[i].MethodName != b[i].MethodName || a[i].ColumnName != b[i].ColumnName) return false;
         return true;
     }
 }

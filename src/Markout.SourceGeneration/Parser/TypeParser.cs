@@ -30,6 +30,7 @@ internal static class TypeParser
     private const string MarkoutLinkAttribute = "Markout.MarkoutLinkAttribute";
     private const string MarkoutValueMapAttribute = "Markout.MarkoutValueMapAttribute";
     private const string MarkoutUnwrapAttribute = "Markout.MarkoutUnwrapAttribute";
+    private const string MarkoutIgnoreColumnWhenAttribute = "Markout.MarkoutIgnoreColumnWhenAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -209,6 +210,7 @@ internal static class TypeParser
         string? sectionColumnName = null;
         string? sectionShowWhenProperty = null;
         string? sectionGroupByProperty = null;
+        List<(string MethodName, string ColumnName)>? sectionIgnoreColumnWhen = null;
 
         if (isSection)
         {
@@ -235,6 +237,19 @@ internal static class TypeParser
                     else if (named.Key == "GroupBy" && named.Value.Value is string gb)
                         sectionGroupByProperty = gb;
                 }
+            }
+        }
+
+        // Parse [MarkoutIgnoreColumnWhen] attributes (AllowMultiple)
+        foreach (var icwAttr in prop.GetAttributes()
+            .Where(a => a.AttributeClass?.ToDisplayString() == MarkoutIgnoreColumnWhenAttribute))
+        {
+            if (icwAttr.ConstructorArguments.Length >= 2 &&
+                icwAttr.ConstructorArguments[0].Value is string methodName &&
+                icwAttr.ConstructorArguments[1].Value is string columnName)
+            {
+                sectionIgnoreColumnWhen ??= new List<(string, string)>();
+                sectionIgnoreColumnWhen.Add((methodName, columnName));
             }
         }
 
@@ -427,6 +442,7 @@ internal static class TypeParser
             sectionColumnName,
             sectionShowWhenProperty,
             sectionGroupByProperty,
+            sectionIgnoreColumnWhen,
             elementTypeName,
             elementProperties,
             hasNestedContent,
