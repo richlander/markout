@@ -15,10 +15,18 @@ internal static class CollectionEmitter
         PropertyMetadata prop,
         string propAccess,
         int indentLevel,
-        int nestingDepth = 0)
+        int nestingDepth = 0,
+        IReadOnlyList<(string ConditionVar, string ColumnName)>? dynamicIgnoreColumns = null)
     {
         if (prop.ElementProperties == null || prop.ElementProperties.Count == 0)
             return;
+
+        // When dynamic ignore columns are present, use List-based dynamic rendering
+        if (dynamicIgnoreColumns != null && dynamicIgnoreColumns.Count > 0)
+        {
+            EmitDynamicTableSerialization(sb, prop, propAccess, indentLevel, nestingDepth, dynamicIgnoreColumns);
+            return;
+        }
 
         var indent = new string(' ', indentLevel * 4);
         var ignoreNames = prop.SectionIgnoreProperty != null
@@ -64,6 +72,76 @@ internal static class CollectionEmitter
         }
 
         sb.AppendLine($"{indent}    writer.WriteTableRow({string.Join(", ", values)});");
+        sb.AppendLine($"{indent}}}");
+        sb.AppendLine($"{indent}writer.WriteTableEnd();");
+    }
+
+    /// <summary>
+    /// Emits table rendering with dynamically ignored columns based on runtime conditions.
+    /// Uses List-based header/row building with conditional adds.
+    /// </summary>
+    private static void EmitDynamicTableSerialization(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        int indentLevel,
+        int nestingDepth,
+        IReadOnlyList<(string ConditionVar, string ColumnName)> dynamicIgnoreColumns)
+    {
+        var indent = new string(' ', indentLevel * 4);
+        var ignoreNames = prop.SectionIgnoreProperty != null
+            ? new HashSet<string>(prop.SectionIgnoreProperty.Split(',').Select(s => s.Trim()))
+            : new HashSet<string>();
+        var visibleProps = prop.ElementProperties!
+            .Where(p => !p.IsIgnored && !ignoreNames.Contains(p.Name))
+            .ToList();
+        var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
+        var dynamicLookup = dynamicIgnoreColumns.ToDictionary(d => d.ColumnName, d => d.ConditionVar);
+
+        // Build headers dynamically
+        sb.AppendLine($"{indent}var __headers = new global::System.Collections.Generic.List<string>();");
+        foreach (var p in visibleProps)
+        {
+            var headerStr = p.Name == prop.SectionFormatProperty && prop.SectionColumnName != null
+                ? $"\"{EmitHelpers.EscapeString(prop.SectionColumnName)}\""
+                : $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
+
+            if (dynamicLookup.TryGetValue(p.Name, out var condVar))
+                sb.AppendLine($"{indent}if (!{condVar}) __headers.Add({headerStr});");
+            else
+                sb.AppendLine($"{indent}__headers.Add({headerStr});");
+        }
+        sb.AppendLine($"{indent}writer.WriteTableStart(__headers.ToArray());");
+
+        // Instantiate formatter if configured
+        if (prop.SectionFormatterTypeName != null)
+            sb.AppendLine($"{indent}var __fmt = new {prop.SectionFormatterTypeName}();");
+
+        // Build rows dynamically
+        sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}    var __row = new global::System.Collections.Generic.List<string>();");
+
+        foreach (var elemProp in visibleProps)
+        {
+            string value;
+            if (elemProp.Name == prop.SectionFormatProperty && prop.SectionFormatterTypeName != null)
+            {
+                var access = $"{itemVar}.{elemProp.Name}";
+                value = $"{access} != null ? __fmt.Format({access}) : \"\"";
+            }
+            else
+            {
+                value = EmitHelpers.GetTableCellValue(elemProp, itemVar);
+            }
+
+            if (dynamicLookup.TryGetValue(elemProp.Name, out var condVar))
+                sb.AppendLine($"{indent}    if (!{condVar}) __row.Add({value});");
+            else
+                sb.AppendLine($"{indent}    __row.Add({value});");
+        }
+
+        sb.AppendLine($"{indent}    writer.WriteTableRow(__row.ToArray());");
         sb.AppendLine($"{indent}}}");
         sb.AppendLine($"{indent}writer.WriteTableEnd();");
     }
@@ -148,7 +226,8 @@ internal static class CollectionEmitter
         PropertyMetadata prop,
         string propAccess,
         int indentLevel,
-        int parentSectionLevel = 2)
+        int parentSectionLevel = 2,
+        IReadOnlyList<(string ConditionVar, string ColumnName)>? dynamicIgnoreColumns = null)
     {
         if (prop.ElementProperties == null || prop.ElementProperties.Count == 0)
             return;
@@ -181,18 +260,51 @@ internal static class CollectionEmitter
         }
         else if (visibleProps.Count > 0)
         {
-            // Multiple properties → table per group
-            var headers = string.Join(", ", visibleProps.Select(p =>
-                $"\"{EmitHelpers.EscapeString(p.DisplayName)}\""));
-            sb.AppendLine($"{indent}    writer.WriteTableStart({headers});");
-            sb.AppendLine($"{indent}    foreach (var __item in __grp)");
-            sb.AppendLine($"{indent}    {{");
+            if (dynamicIgnoreColumns != null && dynamicIgnoreColumns.Count > 0)
+            {
+                // Dynamic column visibility within grouped tables
+                var dynamicLookup = dynamicIgnoreColumns.ToDictionary(d => d.ColumnName, d => d.ConditionVar);
 
-            var values = visibleProps.Select(p => EmitHelpers.GetTableCellValue(p, "__item")).ToList();
-            sb.AppendLine($"{indent}        writer.WriteTableRow({string.Join(", ", values)});");
+                sb.AppendLine($"{indent}    var __grpHeaders = new global::System.Collections.Generic.List<string>();");
+                foreach (var p in visibleProps)
+                {
+                    var headerStr = $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
+                    if (dynamicLookup.TryGetValue(p.Name, out var condVar))
+                        sb.AppendLine($"{indent}    if (!{condVar}) __grpHeaders.Add({headerStr});");
+                    else
+                        sb.AppendLine($"{indent}    __grpHeaders.Add({headerStr});");
+                }
+                sb.AppendLine($"{indent}    writer.WriteTableStart(__grpHeaders.ToArray());");
+                sb.AppendLine($"{indent}    foreach (var __item in __grp)");
+                sb.AppendLine($"{indent}    {{");
+                sb.AppendLine($"{indent}        var __grpRow = new global::System.Collections.Generic.List<string>();");
+                foreach (var p in visibleProps)
+                {
+                    var value = EmitHelpers.GetTableCellValue(p, "__item");
+                    if (dynamicLookup.TryGetValue(p.Name, out var condVar))
+                        sb.AppendLine($"{indent}        if (!{condVar}) __grpRow.Add({value});");
+                    else
+                        sb.AppendLine($"{indent}        __grpRow.Add({value});");
+                }
+                sb.AppendLine($"{indent}        writer.WriteTableRow(__grpRow.ToArray());");
+                sb.AppendLine($"{indent}    }}");
+                sb.AppendLine($"{indent}    writer.WriteTableEnd();");
+            }
+            else
+            {
+                // Multiple properties → table per group
+                var headers = string.Join(", ", visibleProps.Select(p =>
+                    $"\"{EmitHelpers.EscapeString(p.DisplayName)}\""));
+                sb.AppendLine($"{indent}    writer.WriteTableStart({headers});");
+                sb.AppendLine($"{indent}    foreach (var __item in __grp)");
+                sb.AppendLine($"{indent}    {{");
 
-            sb.AppendLine($"{indent}    }}");
-            sb.AppendLine($"{indent}    writer.WriteTableEnd();");
+                var values = visibleProps.Select(p => EmitHelpers.GetTableCellValue(p, "__item")).ToList();
+                sb.AppendLine($"{indent}        writer.WriteTableRow({string.Join(", ", values)});");
+
+                sb.AppendLine($"{indent}    }}");
+                sb.AppendLine($"{indent}    writer.WriteTableEnd();");
+            }
         }
 
         sb.AppendLine($"{indent}}}");

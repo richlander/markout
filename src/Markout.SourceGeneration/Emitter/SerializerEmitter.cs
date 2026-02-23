@@ -453,13 +453,13 @@ internal static class SerializerEmitter
             sb.AppendLine($"{showWhenIndent}if (!{skipVar})");
             sb.AppendLine($"{showWhenIndent}{{");
 
-            EmitSectionBody(sb, prop, propAccess, showWhenIndent + "    ", showWhenIndentLevel + 1, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName);
+            EmitSectionBody(sb, prop, propAccess, showWhenIndent + "    ", showWhenIndentLevel + 1, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName, rootTypeName);
 
             sb.AppendLine($"{showWhenIndent}}}");
         }
         else
         {
-            EmitSectionBody(sb, prop, propAccess, showWhenIndent, showWhenIndentLevel, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName);
+            EmitSectionBody(sb, prop, propAccess, showWhenIndent, showWhenIndentLevel, effectiveSectionLevel, nestingDepth, fieldLayout, sectionName, rootTypeName);
         }
 
         if (prop.SectionShowWhenProperty != null && rootValueExpr != null)
@@ -477,7 +477,8 @@ internal static class SerializerEmitter
         int effectiveSectionLevel,
         int nestingDepth,
         FieldLayoutKind fieldLayout,
-        string sectionName)
+        string sectionName,
+        string? rootTypeName = null)
     {
 
         if (prop.Kind == PropertyKind.FieldCollection)
@@ -494,6 +495,9 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}if ({EmitHelpers.GetCollectionCountCheck(prop, propAccess)})");
             sb.AppendLine($"{indent}{{");
 
+            // Emit dynamic ignore column conditions
+            var dynamicIgnores = EmitIgnoreColumnWhenConditions(sb, prop, propAccess, indent + "    ", rootTypeName);
+
             if (prop.IsUnwrapped)
             {
                 // Unwrapped: iterate items at the section level without a section heading
@@ -506,7 +510,7 @@ internal static class SerializerEmitter
                 if (prop.SectionGroupByProperty != null)
                 {
                     // Grouped rendering: partition by property, subheading per group
-                    CollectionEmitter.EmitGroupedSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel);
+                    CollectionEmitter.EmitGroupedSerialization(sb, prop, propAccess, indentLevel + 1, effectiveSectionLevel, dynamicIgnores);
                 }
                 else if (prop.MaxItems != null)
                 {
@@ -518,7 +522,7 @@ internal static class SerializerEmitter
                     }
                     else
                     {
-                        CollectionEmitter.EmitTableSerialization(sb, prop, truncVar, indentLevel + 1, nestingDepth);
+                        CollectionEmitter.EmitTableSerialization(sb, prop, truncVar, indentLevel + 1, nestingDepth, dynamicIgnores);
                     }
                     EmitHelpers.EmitMaxItemsEllipsis(sb, prop, propAccess, innerIndent, nestingDepth);
                 }
@@ -530,7 +534,7 @@ internal static class SerializerEmitter
                     }
                     else
                     {
-                        CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth);
+                        CollectionEmitter.EmitTableSerialization(sb, prop, propAccess, indentLevel + 1, nestingDepth, dynamicIgnores);
                     }
                 }
                 sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
@@ -638,6 +642,29 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
             sb.AppendLine($"{indent}writer.WriteSectionEnd();");
         }
+    }
+
+    /// <summary>
+    /// Emits condition variables for [MarkoutIgnoreColumnWhen] attributes and returns the list for CollectionEmitter.
+    /// </summary>
+    private static List<(string ConditionVar, string ColumnName)>? EmitIgnoreColumnWhenConditions(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        string indent,
+        string? rootTypeName)
+    {
+        if (prop.SectionIgnoreColumnWhen == null || prop.SectionIgnoreColumnWhen.Count == 0 || rootTypeName == null)
+            return null;
+
+        var result = new List<(string, string)>();
+        foreach (var (methodName, columnName) in prop.SectionIgnoreColumnWhen)
+        {
+            var condVar = $"__ignore{columnName}";
+            sb.AppendLine($"{indent}var {condVar} = {rootTypeName}.{methodName}({propAccess});");
+            result.Add((condVar, columnName));
+        }
+        return result;
     }
 
     private static void EmitNonSectionProperty(
