@@ -31,6 +31,7 @@ internal static class TypeParser
     private const string MarkoutValueMapAttribute = "Markout.MarkoutValueMapAttribute";
     private const string MarkoutUnwrapAttribute = "Markout.MarkoutUnwrapAttribute";
     private const string MarkoutIgnoreColumnWhenAttribute = "Markout.MarkoutIgnoreColumnWhenAttribute";
+    private const string MarkoutIgnoreFieldsAttribute = "Markout.MarkoutIgnoreFieldsAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -128,6 +129,14 @@ internal static class TypeParser
         // Default to OneLine
         fieldLayout ??= FieldLayoutKind.OneLine;
 
+        // Parse [MarkoutIgnoreFields] attributes (AllowMultiple)
+        var ignoreFieldsWriters = typeSymbol.GetAttributes()
+            .Where(a => a.AttributeClass?.ToDisplayString() == MarkoutIgnoreFieldsAttribute)
+            .Select(a => a.ConstructorArguments.Length > 0 && a.ConstructorArguments[0].Value is string s ? s : null)
+            .Where(s => s != null)
+            .Cast<string>()
+            .ToList();
+
         var properties = new List<PropertyMetadata>();
         var diagnostics = new List<DiagnosticInfo>();
 
@@ -188,6 +197,7 @@ internal static class TypeParser
             descriptionProperty,
             autoFields.Value,
             fieldLayout.Value,
+            ignoreFieldsWriters.Count > 0 ? ignoreFieldsWriters : null,
             filteredDiagnostics);
     }
 
