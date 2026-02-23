@@ -50,6 +50,20 @@ internal static class SerializerEmitter
             sb.AppendLine();
         }
 
+        // Suppress field warnings for specified writer types
+        if (type.IgnoreFieldsWriters.Count > 0)
+        {
+            foreach (var writerType in type.IgnoreFieldsWriters)
+            {
+                sb.AppendLine($"        if (writer is global::Markout.{writerType})");
+                sb.AppendLine("        {");
+                sb.AppendLine($"            writer.SuppressWarning(global::Markout.MarkoutShape.Fields);");
+                sb.AppendLine($"            writer.SuppressWarning(global::Markout.MarkoutShape.FieldList);");
+                sb.AppendLine("        }");
+            }
+            sb.AppendLine();
+        }
+
         sb.AppendLine("        OnSerializing(writer, value);");
 
         // Emit title (H1) if TitleProperty is set — opens document section

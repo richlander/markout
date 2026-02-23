@@ -28,6 +28,7 @@ public class MarkoutWriter
     private int _tableRowCount;
     private int _tableRowsSkipped;
     private MarkoutShape _warnedShapes;
+    private MarkoutShape _suppressedShapes;
     private string[]? _streamingHeaders;
     private List<string[]>? _streamingRows;
     private int[]? _columnMap;
@@ -194,6 +195,12 @@ public class MarkoutWriter
     protected bool Supports(MarkoutShape shape) => (SupportedShapes & shape) != 0;
 
     /// <summary>
+    /// Suppresses warnings for the specified shape. Use when a type explicitly opts out of
+    /// certain shapes for specific writers via <see cref="MarkoutIgnoreFieldsAttribute"/>.
+    /// </summary>
+    public void SuppressWarning(MarkoutShape shape) => _suppressedShapes |= shape;
+
+    /// <summary>
     /// Writes a diagnostic warning for an unsupported shape (once per shape) and returns true.
     /// Returns false if the shape is supported. Use as: <c>if (ShapeUnsupported(shape)) return;</c>
     /// </summary>
@@ -201,6 +208,10 @@ public class MarkoutWriter
     {
         if (Supports(shape))
             return false;
+
+        // Skip warning if explicitly suppressed
+        if ((_suppressedShapes & shape) != 0)
+            return true;
 
         if ((_warnedShapes & shape) == 0)
         {

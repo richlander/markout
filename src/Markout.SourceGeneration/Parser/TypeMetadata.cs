@@ -36,6 +36,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public string? DescriptionProperty { get; }
     public bool AutoFields { get; }
     public FieldLayoutKind FieldLayout { get; }
+    public IReadOnlyList<string> IgnoreFieldsWriters { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
     public TypeMetadata(
@@ -49,6 +50,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         string? descriptionProperty = null,
         bool autoFields = true,
         FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
+        IReadOnlyList<string>? ignoreFieldsWriters = null,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
         Namespace = @namespace;
@@ -61,6 +63,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         DescriptionProperty = descriptionProperty;
         AutoFields = autoFields;
         FieldLayout = fieldLayout;
+        IgnoreFieldsWriters = ignoreFieldsWriters ?? Array.Empty<string>();
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
 
@@ -77,6 +80,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
                DescriptionProperty == other.DescriptionProperty &&
                AutoFields == other.AutoFields &&
                FieldLayout == other.FieldLayout &&
+               StringSequenceEqual(IgnoreFieldsWriters, other.IgnoreFieldsWriters) &&
                SequenceEqual(Properties, other.Properties);
     }
 
@@ -89,6 +93,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
             hash = hash * 397 ^ IsValueType.GetHashCode();
             hash = hash * 397 ^ AutoFields.GetHashCode();
             hash = hash * 397 ^ (int)FieldLayout;
+            hash = hash * 397 ^ IgnoreFieldsWriters.Count;
             foreach (var prop in Properties)
                 hash = hash * 397 ^ prop.GetHashCode();
             return hash;
@@ -100,6 +105,14 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         if (a.Count != b.Count) return false;
         for (int i = 0; i < a.Count; i++)
             if (!a[i].Equals(b[i])) return false;
+        return true;
+    }
+
+    private static bool StringSequenceEqual(IReadOnlyList<string> a, IReadOnlyList<string> b)
+    {
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (a[i] != b[i]) return false;
         return true;
     }
 }
