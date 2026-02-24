@@ -2,6 +2,7 @@ using Markout;
 
 namespace Markout.Tests;
 
+[Collection("ConsoleError")]
 public class DiagramWriterTests
 {
     [Fact]

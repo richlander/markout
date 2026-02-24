@@ -41,6 +41,7 @@ public partial class IgnoreFieldsTestContext : MarkoutSerializerContext
 
 // --- Tests ---
 
+[Collection("ConsoleError")]
 public class IgnoreFieldsTests
 {
     [Fact]
