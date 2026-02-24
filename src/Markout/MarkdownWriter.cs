@@ -499,46 +499,39 @@ public class MarkdownWriter : MarkoutWriter
         if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Breakdowns))
             return;
 
-        EnsureBlankLineIfNeeded();
-        Writer.WriteLine("```text");
-
-        // Reuse base rendering logic for the content
-        var categories = new List<string>();
-        foreach (var item in items)
-            foreach (var seg in item.Segments)
-                if (!categories.Contains(seg.Category))
-                    categories.Add(seg.Category);
-
-        var maxLabelWidth = 0;
-        var maxTotal = 0;
-        foreach (var item in items)
+        // Single breakdown: simple Category | Count | % table
+        // Multiple breakdowns: include Label column to distinguish them
+        if (items.Count == 1)
         {
-            if (item.Label.Length > maxLabelWidth) maxLabelWidth = item.Label.Length;
+            var item = items[0];
             var total = 0;
             foreach (var seg in item.Segments) total += seg.Count;
-            if (total > maxTotal) maxTotal = total;
-        }
-        if (maxTotal == 0) maxTotal = 1;
-        var effectiveBarWidth = maxBarWidth ?? Math.Min(maxTotal, 30);
+            if (total == 0) total = 1;
 
-        foreach (var item in items)
+            var headers = new[] { "Category", "Count", "%" };
+            var rows = item.Segments
+                .Where(s => s.Count > 0)
+                .Select(s => new[] { s.Category, s.Count.ToString(), $"{s.Count * 100 / total}" })
+                .ToList();
+
+            WriteTable(headers, rows);
+        }
+        else
         {
-            var rowTotal = 0;
-            foreach (var seg in item.Segments) rowTotal += seg.Count;
-            if (rowTotal == 0) rowTotal = 1;
+            var headers = new[] { "Label", "Category", "Count", "%" };
+            var rows = new List<string[]>();
+            foreach (var item in items)
+            {
+                var total = 0;
+                foreach (var seg in item.Segments) total += seg.Count;
+                if (total == 0) total = 1;
 
-            var barScale = uniformBarWidth
-                ? (double)effectiveBarWidth / rowTotal
-                : (double)effectiveBarWidth / maxTotal;
+                foreach (var seg in item.Segments.Where(s => s.Count > 0))
+                    rows.Add([item.Label, seg.Category, seg.Count.ToString(), $"{seg.Count * 100 / total}"]);
+            }
 
-            WriteBreakdownRow(item, categories, maxLabelWidth, barScale, effectiveBarWidth);
+            WriteTable(headers, rows);
         }
-
-        Writer.WriteLine();
-        WriteBreakdownLegend(categories);
-        Writer.WriteLine("```");
-        NeedsBlankLine = true;
-        HasContent = true;
     }
 
     /// <inheritdoc/>
@@ -547,40 +540,16 @@ public class MarkdownWriter : MarkoutWriter
         if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
             return;
 
-        EnsureBlankLineIfNeeded();
-        Writer.WriteLine("```text");
-        // Delegate to base rendering (which writes individual bar lines)
-        var maxValue = 0.0;
-        var maxLabelWidth = 0;
-        var maxValueWidth = 0;
-        foreach (var item in items)
-        {
-            if (item.Value > maxValue) maxValue = item.Value;
-            if (item.Label.Length > maxLabelWidth) maxLabelWidth = item.Label.Length;
-            var vw = FormatBarValue(item.Value).Length;
-            if (vw > maxValueWidth) maxValueWidth = vw;
-        }
-        if (maxValue <= 0) maxValue = 1;
-
-        foreach (var item in items)
-            WriteMetricBar(item, maxLabelWidth, maxBarWidth, maxValue, maxValueWidth);
-
-        Writer.WriteLine("```");
-        NeedsBlankLine = true;
-        HasContent = true;
+        // Render as a pipe table: Label | Value
+        var headers = new[] { "Label", "Value" };
+        var rows = items.Select(m => new[] { m.Label, FormatBarValue(m.Value) }).ToList();
+        WriteTable(headers, rows);
     }
 
     /// <inheritdoc/>
     public override void WriteVerticalMetrics(IReadOnlyList<Metric> items, int maxBarHeight = 10, int? barWidth = null)
     {
-        if (items.Count == 0 || SectionExcluded || ShapeUnsupported(MarkoutShape.Metrics))
-            return;
-
-        EnsureBlankLineIfNeeded();
-        Writer.WriteLine("```text");
-        WriteVerticalMetricsBody(items, maxBarHeight, barWidth);
-        Writer.WriteLine("```");
-        NeedsBlankLine = true;
-        HasContent = true;
+        // Same as horizontal — vertical layout is a terminal concept
+        WriteMetrics(items, maxBarHeight);
     }
 }
