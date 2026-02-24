@@ -337,6 +337,31 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_AutoFieldsCount_OnlyRendersFirstNScalars()
+    {
+        var data = new AutoFieldsCountTest
+        {
+            Name = "MyLib",
+            Version = "1.0.0",
+            Framework = "net9.0",
+            Architecture = "x64",
+            Company = "Contoso"
+        };
+
+        var context = new AutoFieldsCountTestContext();
+        var mdf = context.Serialize(data);
+
+        // First 3 fields should be present
+        Assert.Contains("MyLib", mdf);
+        Assert.Contains("1.0.0", mdf);
+        Assert.Contains("net9.0", mdf);
+
+        // Fields beyond count should NOT be present
+        Assert.DoesNotContain("x64", mdf);
+        Assert.DoesNotContain("Contoso", mdf);
+    }
+
+    [Fact]
     public void Context_DefaultInstance_HasReadOnlyOptions()
     {
         var context = TestMarkoutContext.Default;
@@ -1557,6 +1582,22 @@ public class AutoFieldsWarningTest
     // No [MarkoutSection] or FieldCollection properties - output will be empty
 }
 #pragma warning restore MARKOUT004
+
+// Test type for AutoFieldsCount — only first N scalar properties rendered as hero fields
+[MarkoutSerializable(AutoFieldsCount = 3)]
+public class AutoFieldsCountTest
+{
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+    public string Framework { get; set; } = "";
+    public string Architecture { get; set; } = "";
+    public string Company { get; set; } = "";
+}
+
+[MarkoutContext(typeof(AutoFieldsCountTest))]
+public partial class AutoFieldsCountTestContext : MarkoutSerializerContext
+{
+}
 
 // Enum support types
 public enum Priority { Low, Medium, High, Critical }

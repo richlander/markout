@@ -34,6 +34,14 @@ public sealed class MarkoutSerializableAttribute : Attribute
     public bool AutoFields { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets the maximum number of scalar properties to render as auto-fields.
+    /// When set to a positive value, only the first N scalar properties (in declaration order)
+    /// are rendered as the hero summary. Implies AutoFields = true.
+    /// Default is 0 (all scalar properties).
+    /// </summary>
+    public int AutoFieldsCount { get; set; }
+
+    /// <summary>
     /// Gets or sets the layout for scalar fields.
     /// Default is OneLine (pipe-separated on a single line).
     /// </summary>

@@ -168,7 +168,7 @@ internal static class CollectionEmitter
         if (skipPerItemHeading)
         {
             // Unwrapped with no title: emit each item's properties inline at the current level
-            SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel, nestingDepth + 1, prop.ElementAutoFields, prop.ElementFieldLayout);
+            SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel, nestingDepth + 1, prop.ElementAutoFields, 0, prop.ElementFieldLayout);
         }
         else
         {
@@ -211,7 +211,7 @@ internal static class CollectionEmitter
             }
 
             // Emit property serializations for each item, at a deeper level
-            SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1, prop.ElementAutoFields, prop.ElementFieldLayout);
+            SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1, prop.ElementAutoFields, 0, prop.ElementFieldLayout);
         }
 
         sb.AppendLine($"{indent}}}");

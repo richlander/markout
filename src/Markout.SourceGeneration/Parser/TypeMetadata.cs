@@ -35,6 +35,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public string? TitleContextProperty { get; }
     public string? DescriptionProperty { get; }
     public bool AutoFields { get; }
+    public int AutoFieldsCount { get; }
     public FieldLayoutKind FieldLayout { get; }
     public IReadOnlyList<string> IgnoreFieldsWriters { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
@@ -49,6 +50,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         string? titleContextProperty = null,
         string? descriptionProperty = null,
         bool autoFields = true,
+        int autoFieldsCount = 0,
         FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
         IReadOnlyList<string>? ignoreFieldsWriters = null,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
@@ -62,6 +64,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         TitleContextProperty = titleContextProperty;
         DescriptionProperty = descriptionProperty;
         AutoFields = autoFields;
+        AutoFieldsCount = autoFieldsCount;
         FieldLayout = fieldLayout;
         IgnoreFieldsWriters = ignoreFieldsWriters ?? Array.Empty<string>();
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
@@ -79,6 +82,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
                TitleContextProperty == other.TitleContextProperty &&
                DescriptionProperty == other.DescriptionProperty &&
                AutoFields == other.AutoFields &&
+               AutoFieldsCount == other.AutoFieldsCount &&
                FieldLayout == other.FieldLayout &&
                StringSequenceEqual(IgnoreFieldsWriters, other.IgnoreFieldsWriters) &&
                SequenceEqual(Properties, other.Properties);
@@ -92,6 +96,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
             var hash = FullTypeName.GetHashCode();
             hash = hash * 397 ^ IsValueType.GetHashCode();
             hash = hash * 397 ^ AutoFields.GetHashCode();
+            hash = hash * 397 ^ AutoFieldsCount;
             hash = hash * 397 ^ (int)FieldLayout;
             hash = hash * 397 ^ IgnoreFieldsWriters.Count;
             foreach (var prop in Properties)
