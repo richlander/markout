@@ -160,3 +160,42 @@ to express meaningfully in plain text. Needs more design work.
 ### Gantt / Timeline — Deferred
 
 Sequential labeled time spans. Same multi-renderer concern. Needs more design work.
+
+## SpectreWriter: adopt Spectre widgets for tables
+
+SpectreWriter currently uses `IAnsiConsole` as a character-level ANSI markup emitter
+and hand-renders every shape — tables, trees, bars, breakdowns, rules, panels — with
+manual padding and `█` characters. It uses none of Spectre's built-in widgets (`Table`,
+`BarChart`, `BreakdownChart`, `Tree`, `Rule`, `Panel`).
+
+### Recommendation: use Spectre `Table` for tables
+
+`WriteTable` and `WriteTree` receive complete data, so they could delegate to Spectre
+widgets without changing the base class. Spectre `Table` handles Unicode width
+calculation, column wrapping, and border styles better than manual `PadRight`.
+
+```csharp
+// Current: manual column-width calculation + PadRight (lines 254–321)
+// Proposed:
+var table = new Table().NoBorder();
+foreach (var h in headers) table.AddColumn(new TableColumn(h));
+foreach (var row in rows) table.AddRow(row);
+_console.Write(table);
+```
+
+### Do NOT adopt Spectre widgets for bars, breakdowns, or trees
+
+`WriteMetricBar` and `WriteBreakdownRow` are called per-item by the base class — the
+base owns iteration. Spectre's `BarChart` and `BreakdownChart` are whole-object widgets
+that want all data at construction. Using them would require changing the base class
+rendering model, which affects every writer.
+
+Trees *could* use Spectre `Tree`, but markout's hand-drawn tree rendering (gradient
+depth coloring, badge support, box-drawing style) is a deliberate visual choice that
+would be lost.
+
+### Visual consistency concern
+
+If tables get Spectre box borders while everything else stays hand-drawn, the output
+may look inconsistent. Mitigate by using `NoBorder()` or `MinimalBorder()` and matching
+the existing uppercase header + `─` separator style.

@@ -685,7 +685,7 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteBreakdown_Markdown_WrapsInCodeFence()
+    public void WriteBreakdown_Markdown_RendersAsTable()
     {
         var writer = new MarkdownWriter();
         var items = new List<Breakdown>
@@ -695,10 +695,10 @@ public class MarkoutWriterTests
         writer.WriteBreakdown(items);
 
         var output = writer.ToString();
-        Assert.Contains("```text", output);
-        Assert.Contains("```", output);
-        Assert.Contains("v9.0", output);
-        Assert.Contains("2 Critical, 4 High", output);
+        Assert.Contains("| Category | Count | % |", output);
+        Assert.Contains("Critical", output);
+        Assert.Contains("High", output);
+        Assert.DoesNotContain("```text", output);
     }
 
     [Fact]

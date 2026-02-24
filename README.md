@@ -4,8 +4,6 @@
 
 Markout is a source-generated .NET serializer that projects objects into human-readable documents instead of data formats like JSON. You annotate view models with attributes that describe data relationships — identity, enumeration, tabulation, measurement, hierarchy — and the source generator emits code that writes through an abstract renderer. The same object graph produces Markdown tables, ANSI terminal output with colored bars, plain text with aligned columns, or one-line summaries, without the developer making visual decisions.
 
-The name captures the philosophy: where markup layers formatting instructions onto content, Markout works in the opposite direction, stripping an object graph down to what the data *is* — a measurement, a breakdown, a hierarchy — and letting the renderer decide what it *looks like*. The word also nods to an older tradition. Long before digital markup languages, typesetters performed two complementary acts: marking *up* a manuscript with rendering instructions, and marking *out* content that didn't belong in the final form. Computing formalized markup into an entire paradigm (GML, SGML, HTML, XML) but largely forgot its counterpart. Markout reclaims that half of the craft.
-
 ## Quick Start
 
 ```csharp
@@ -40,9 +38,9 @@ public partial class ArtistContext : MarkoutSerializerContext { }
 Genre: Pop / Adult Contemporary | Origin: Halifax, Nova Scotia | DebutYear: 1988 | BestKnownFor: Angel, Building a Mystery, Adia
 ```
 
-Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as fields. See the [RecordDemo](samples/RecordDemo) sample.
+Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as fields.
 
-## Sections and Tables
+## Adding Sections and Tables
 
 Add `[MarkoutSection]` to group properties with headings, and use `List<T>` for tables:
 
@@ -67,6 +65,7 @@ public class LandmarkRow
 }
 
 [MarkoutContext(typeof(CityReport))]
+[MarkoutContext(typeof(LandmarkRow))]
 public partial class ReportContext : MarkoutSerializerContext { }
 
 MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default);
@@ -89,19 +88,107 @@ Population: 2632000
 | Science World    | Museum     | 1989 |
 ```
 
-Same object, different renderer:
+## Real-World Example: GitHub Repository Report
+
+The [GitHubRepo](samples/GitHubRepo) sample fetches four GitHub API endpoints in parallel and projects the combined JSON into a single report — fields, bar charts, contributor metrics, and release tables — all from one view model:
 
 ```csharp
-// ANSI terminal — colored headings, bold field names
-MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default, new AnsiWriter(Console.Out));
+[MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
+[MarkoutIgnoreFields(nameof(OneLineWriter))]
+public class RepoView
+{
+    public string Title { get; set; } = "";
 
-// One-line summary — tables only, no headings or fields
-MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default, new OneLineWriter(Console.Out));
+    [MarkoutIgnore]
+    public string Description { get; set; } = "";
+
+    [MarkoutDisplayFormat("{0:N0}")]
+    public int Stars { get; set; }
+
+    [MarkoutDisplayFormat("{0:N0}")]
+    public int Forks { get; set; }
+
+    [MarkoutPropertyName("Open Issues")]
+    [MarkoutDisplayFormat("{0:N0}")]
+    public int OpenIssues { get; set; }
+
+    public string Language { get; set; } = "";
+    public string License { get; set; } = "";
+
+    [MarkoutIgnoreInTable]
+    [MarkoutSkipDefault]
+    public Callout ArchivedWarning { get; set; }
+
+    [MarkoutSection(Name = "Languages")]
+    [MarkoutIgnoreInTable]
+    public List<Breakdown>? Languages { get; set; }
+
+    [MarkoutSection(Name = "Top Contributors")]
+    [MarkoutIgnoreInTable]
+    public List<Metric>? TopContributors { get; set; }
+
+    [MarkoutSection(Name = "Releases")]
+    public List<ReleaseRow>? Releases { get; set; }
+}
 ```
+
+Run it:
+
+```bash
+dotnet run samples/GitHubRepo/GitHubRepo.cs                                     # ANSI terminal (default)
+dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format markdown # Markdown
+dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format oneline  # Compact table
+```
+
+**Markdown output** for `dotnet/runtime`:
+
+```markdown
+# dotnet/runtime
+
+.NET is a cross-platform runtime for cloud, mobile, desktop, and IoT apps.
+
+Stars: 17,698 | Forks: 5,350 | Open Issues: 8,385 | Language: C# | License: MIT License
+
+## Languages
+
+| Category | Count | % |
+| -------- | ----- | - |
+| C#       | 80    | 83 |
+| C++      | 9     | 9  |
+| C        | 7     | 7  |
+
+## Top Contributors
+
+| Label       | Value |
+| ----------- | ----- |
+| vargaz      | 11910 |
+| stephentoub | 10417 |
+| kumpera     | 4074  |
+| jkotas      | 3244  |
+
+## Releases
+
+| Tag     | Name        | Published  |
+| ------- | ----------- | ---------- |
+| v10.0.3 | .NET 10.0.3 | 2026-02-10 |
+| v10.0.2 | .NET 10.0.2 | 2026-01-14 |
+| v9.0.13 | v9.0.13     | 2026-02-10 |
+```
+
+**One-line output** — same view model, `--oneline` flag, shows the Releases table only:
+
+```text
+TAG      NAME         PUBLISHED
+v8.0.24  .NET 8.0.24  2026-02-10
+v9.0.13  v9.0.13      2026-02-10
+v10.0.3  .NET 10.0.3  2026-02-10
+```
+
+The pattern is always the same: deserialize your API data, project to a view model, serialize. Markout handles the rest.
 
 ## Shape Library
 
-Markout is a serializer for a **shape library**. Each property on a view model maps to a data relationship, not a visual element. Renderers decide how to present each shape.
+Each property on a view model maps to a data relationship, not a visual element. Renderers decide how to present each shape.
 
 | Relationship | C# type | What it means | Markdown | ANSI |
 |---|---|---|---|---|
@@ -232,6 +319,8 @@ Markout provides multiple layers of control, from zero-config to full custom:
 [MarkoutShowWhen(nameof(HasDetails))]  // conditional rendering
 [MarkoutMaxItems(10)]                  // truncate long lists
 [MarkoutValueMap("k=badge", ...)]      // map values to badge-prefixed output
+[MarkoutUnwrap]                        // inline collection items without section heading
+[MarkoutIgnoreColumnWhen(...)]         // conditionally hide table columns
 ```
 
 **Layer 2 — Writer Options** (runtime): Control which sections appear.
@@ -268,12 +357,19 @@ The package includes the source generator — no additional packages needed.
 
 ## Samples
 
-- **[RecordDemo](samples/RecordDemo)** — Simplest possible example: a record, a context, one line of serialization
+- **[HelloMarkout](samples/HelloMarkout)** — Simplest possible example: a class, a context, one line of serialization
+- **[RecordDemo](samples/RecordDemo)** — Records as view models
+- **[GitHubRepo](samples/GitHubRepo)** — GitHub API → fields, breakdowns, metrics, and tables with Spectre/Markdown/OneLineWriter output
+- **[GitHubActivity](samples/GitHubActivity)** — User profile and recent events from the GitHub API
 - **[CanadianContent](samples/CanadianContent)** — Canadian actors and shows with tables, trees, metrics, and multiple renderers
 - **[LatestCves](samples/LatestCves)** — .NET security advisories with trees and severity breakdowns
 - **[DotNetReleases](samples/DotNetReleases)** — .NET release information from GitHub
 - **[Serialization](samples/Serialization)** — Shape gallery, section filtering, and writer API examples
 - **[TemplateDemo](samples/TemplateDemo)** — Document template with inline tables, conditional sections, and multi-format rendering
+
+## For Coding Agents
+
+If you are an LLM or coding agent building a CLI tool that needs structured, readable output, see **[SKILL.md](SKILL.md)** for step-by-step integration instructions and attribute reference.
 
 ## Real-World Usage
 
