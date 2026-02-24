@@ -14,6 +14,7 @@ public class MarkoutWriterOptions
     private HashSet<string>? _includeSections;
     private HashSet<string>? _excludeSections;
     private MarkoutProjection? _projection;
+    private MarkoutShape _suppressedShapes;
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -134,6 +135,21 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _projection = value;
+        }
+    }
+
+    /// <summary>
+    /// Shapes to suppress warnings for when unsupported by the writer.
+    /// Use when the caller knows the writer doesn't support certain shapes
+    /// and wants to silence the diagnostic warnings globally.
+    /// </summary>
+    public MarkoutShape SuppressedShapes
+    {
+        get => _suppressedShapes;
+        set
+        {
+            ThrowIfReadOnly();
+            _suppressedShapes = value;
         }
     }
 
