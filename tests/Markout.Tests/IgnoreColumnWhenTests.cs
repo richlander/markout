@@ -112,6 +112,7 @@ public partial class IgnoreColumnWhenTestContext : MarkoutSerializerContext
 
 // --- Tests ---
 
+[Collection("ConsoleError")]
 public class IgnoreColumnWhenTests
 {
     [Fact]
