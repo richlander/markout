@@ -98,6 +98,7 @@ internal static class TypeParser
         string? titleContextProperty = null,
         string? descriptionProperty = null,
         bool? autoFields = null,
+        int? autoFieldsCount = null,
         FieldLayoutKind? fieldLayout = null,
         bool suppressTableWarnings = false)
     {
@@ -118,14 +119,22 @@ internal static class TypeParser
                         descriptionProperty ??= dp;
                     else if (named.Key == "AutoFields" && named.Value.Value is bool af)
                         autoFields ??= af;
+                    else if (named.Key == "AutoFieldsCount" && named.Value.Value is int afc)
+                        autoFieldsCount ??= afc;
                     else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
                         fieldLayout ??= (FieldLayoutKind)fl;
                 }
             }
         }
 
+        // AutoFieldsCount > 0 implies AutoFields = true
+        if (autoFieldsCount is > 0)
+            autoFields = true;
+
         // Default to true if not specified
         autoFields ??= true;
+        // Default to 0 (unlimited)
+        autoFieldsCount ??= 0;
         // Default to OneLine
         fieldLayout ??= FieldLayoutKind.OneLine;
 
@@ -218,6 +227,7 @@ internal static class TypeParser
             titleContextProperty,
             descriptionProperty,
             autoFields.Value,
+            autoFieldsCount.Value,
             fieldLayout.Value,
             ignoreFieldsWriters.Count > 0 ? ignoreFieldsWriters : null,
             filteredDiagnostics);

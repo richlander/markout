@@ -114,7 +114,7 @@ internal static class SerializerEmitter
             propsToRender = type.Properties.Where(p => !skip.Contains(p.Name)).ToList();
         }
 
-        EmitPropertySerializations(sb, propsToRender, "value", 2, 2, 0, type.AutoFields, type.FieldLayout, "value", type.FullTypeName);
+        EmitPropertySerializations(sb, propsToRender, "value", 2, 2, 0, type.AutoFields, type.AutoFieldsCount, type.FieldLayout, "value", type.FullTypeName);
 
         sb.AppendLine();
         sb.AppendLine("        OnSerialized(writer, value);");
@@ -260,6 +260,7 @@ internal static class SerializerEmitter
         int baseHeadingLevel = 2,
         int nestingDepth = 0,
         bool autoFields = true,
+        int autoFieldsCount = 0,
         FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
         string? rootValueExpr = null,
         string? rootTypeName = null)
@@ -328,10 +329,11 @@ internal static class SerializerEmitter
             }
         }
 
-        // Emit root scalars (unchanged)
+        // Emit root scalars
         if (autoFields && rootScalars.Count > 0)
         {
-            FieldEmitter.EmitScalarsWithLayout(sb, rootScalars, valueExpr, indentLevel, fieldLayout, nestingDepth);
+            var scalarsToEmit = autoFieldsCount > 0 ? rootScalars.Take(autoFieldsCount).ToList() : rootScalars;
+            FieldEmitter.EmitScalarsWithLayout(sb, scalarsToEmit, valueExpr, indentLevel, fieldLayout, nestingDepth);
         }
 
         // Build lookup for compound section props by name for ordered emission
@@ -769,7 +771,7 @@ internal static class SerializerEmitter
                     sb.AppendLine($"{indent}if ({propAccess} != null)");
                     sb.AppendLine($"{indent}{{");
                     sb.AppendLine($"{indent}    writer.WriteHeading({baseHeadingLevel}, \"{EmitHelpers.EscapeString(prop.DisplayName)}\");");
-                    EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth + 1, true, fieldLayout);
+                    EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, baseHeadingLevel + 1, nestingDepth + 1, true, 0, fieldLayout);
                     sb.AppendLine($"{indent}}}");
                 }
                 break;
