@@ -69,6 +69,7 @@ public class MarkoutWriter
 
         _writer = writer;
         _options = options;
+        _suppressedShapes = options.SuppressedShapes;
     }
 
     /// <summary>
