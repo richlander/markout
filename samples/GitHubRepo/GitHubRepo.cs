@@ -64,7 +64,8 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         "oneline" => new OneLineWriter(Console.Out, new MarkoutWriterOptions
         {
             IncludeDescription = false,
-            IncludeSections = options.IncludeSections ?? new HashSet<string> { "Releases" }
+            IncludeSections = options.IncludeSections ?? new HashSet<string> { "Releases" },
+            SuppressedShapes = MarkoutShape.FieldList
         }),
         _ => new SpectreWriter(AnsiConsole.Console, options),
     };
@@ -142,7 +143,6 @@ static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)
 // --- View Models ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
-[MarkoutIgnoreFields(nameof(OneLineWriter))]
 public class RepoView
 {
     public string Title { get; set; } = "";
