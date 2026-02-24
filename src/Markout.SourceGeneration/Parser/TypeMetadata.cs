@@ -37,6 +37,8 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public bool AutoFields { get; }
     public int AutoFieldsCount { get; }
     public FieldLayoutKind FieldLayout { get; }
+    public NamingPolicyKind NamingPolicy { get; }
+    public bool SkipNullByDefault { get; }
     public IReadOnlyList<string> IgnoreFieldsWriters { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
@@ -52,6 +54,8 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         bool autoFields = true,
         int autoFieldsCount = 0,
         FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
+        NamingPolicyKind namingPolicy = NamingPolicyKind.Default,
+        bool skipNullByDefault = false,
         IReadOnlyList<string>? ignoreFieldsWriters = null,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
@@ -66,6 +70,8 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         AutoFields = autoFields;
         AutoFieldsCount = autoFieldsCount;
         FieldLayout = fieldLayout;
+        NamingPolicy = namingPolicy;
+        SkipNullByDefault = skipNullByDefault;
         IgnoreFieldsWriters = ignoreFieldsWriters ?? Array.Empty<string>();
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
@@ -84,6 +90,8 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
                AutoFields == other.AutoFields &&
                AutoFieldsCount == other.AutoFieldsCount &&
                FieldLayout == other.FieldLayout &&
+               NamingPolicy == other.NamingPolicy &&
+               SkipNullByDefault == other.SkipNullByDefault &&
                StringSequenceEqual(IgnoreFieldsWriters, other.IgnoreFieldsWriters) &&
                SequenceEqual(Properties, other.Properties);
     }
@@ -98,6 +106,8 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
             hash = hash * 397 ^ AutoFields.GetHashCode();
             hash = hash * 397 ^ AutoFieldsCount;
             hash = hash * 397 ^ (int)FieldLayout;
+            hash = hash * 397 ^ (int)NamingPolicy;
+            hash = hash * 397 ^ SkipNullByDefault.GetHashCode();
             hash = hash * 397 ^ IgnoreFieldsWriters.Count;
             foreach (var prop in Properties)
                 hash = hash * 397 ^ prop.GetHashCode();
@@ -380,6 +390,15 @@ internal enum FieldLayoutKind
     LineBreaks = 1,
     LineBreaksDoubleSpace = 2,
     List = 3
+}
+
+/// <summary>
+/// Internal representation of NamingPolicy. Values mirror the runtime Markout.NamingPolicy enum.
+/// </summary>
+internal enum NamingPolicyKind
+{
+    Default = 0,
+    PascalCaseWords = 1
 }
 
 /// <summary>

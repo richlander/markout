@@ -100,6 +100,7 @@ internal static class TypeParser
         bool? autoFields = null,
         int? autoFieldsCount = null,
         FieldLayoutKind? fieldLayout = null,
+        NamingPolicyKind? namingPolicy = null,
         bool suppressTableWarnings = false)
     {
         // If titleProperty/descriptionProperty not passed, try to get them from the type's [MarkoutSerializable] attribute
@@ -123,6 +124,8 @@ internal static class TypeParser
                         autoFieldsCount ??= afc;
                     else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
                         fieldLayout ??= (FieldLayoutKind)fl;
+                    else if (named.Key == "NamingPolicy" && named.Value.Value is int np)
+                        namingPolicy ??= (NamingPolicyKind)np;
                 }
             }
         }
@@ -137,6 +140,12 @@ internal static class TypeParser
         autoFieldsCount ??= 0;
         // Default to OneLine
         fieldLayout ??= FieldLayoutKind.OneLine;
+        // Default naming policy
+        namingPolicy ??= NamingPolicyKind.Default;
+
+        // Check for type-level [MarkoutSkipNull]
+        bool skipNullByDefault = typeSymbol.GetAttributes()
+            .Any(a => a.AttributeClass?.ToDisplayString() == MarkoutSkipNullAttribute);
 
         // Parse [MarkoutIgnoreFields] attributes (AllowMultiple)
         var ignoreFieldsWriters = typeSymbol.GetAttributes()
@@ -166,7 +175,7 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes);
+            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes, namingPolicy.Value, skipNullByDefault);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
@@ -229,6 +238,8 @@ internal static class TypeParser
             autoFields.Value,
             autoFieldsCount.Value,
             fieldLayout.Value,
+            namingPolicy.Value,
+            skipNullByDefault,
             ignoreFieldsWriters.Count > 0 ? ignoreFieldsWriters : null,
             filteredDiagnostics);
     }
@@ -238,7 +249,9 @@ internal static class TypeParser
         Compilation compilation,
         KnownTypeSymbols knownTypes,
         List<DiagnosticInfo> diagnostics,
-        HashSet<ITypeSymbol>? visitedTypes = null)
+        HashSet<ITypeSymbol>? visitedTypes = null,
+        NamingPolicyKind namingPolicy = NamingPolicyKind.Default,
+        bool skipNullByDefault = false)
     {
         var isIgnored = HasAttribute(prop, MarkoutIgnoreAttribute);
         var isIgnoredInTable = HasAttribute(prop, MarkoutIgnoreInTableAttribute);
@@ -303,6 +316,10 @@ internal static class TypeParser
         {
             displayName = customName;
         }
+        else if (namingPolicy == NamingPolicyKind.PascalCaseWords)
+        {
+            displayName = SplitPascalCase(displayName);
+        }
 
         // Parse [MarkoutBoolFormat] attribute
         string? boolTrueValue = null;
@@ -351,8 +368,8 @@ internal static class TypeParser
         bool skipWhenDefault = prop.GetAttributes()
             .Any(a => a.AttributeClass?.ToDisplayString() == MarkoutSkipDefaultAttribute);
 
-        // Parse [MarkoutSkipNull] attribute
-        bool skipWhenNull = prop.GetAttributes()
+        // Parse [MarkoutSkipNull] attribute (property-level or inherited from type-level)
+        bool skipWhenNull = skipNullByDefault || prop.GetAttributes()
             .Any(a => a.AttributeClass?.ToDisplayString() == MarkoutSkipNullAttribute);
 
         // Parse [MarkoutDisplayFormat] attribute
@@ -824,5 +841,33 @@ internal static class TypeParser
     {
         return symbol.GetAttributes()
             .Any(a => a.AttributeClass?.ToDisplayString() == attributeName);
+    }
+
+    /// <summary>
+    /// Splits a PascalCase identifier into space-separated words.
+    /// Example: "InformationalVersion" → "Informational Version", "PublicKeyToken" → "Public Key Token".
+    /// </summary>
+    private static string SplitPascalCase(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return name;
+
+        var sb = new System.Text.StringBuilder(name.Length + 4);
+        sb.Append(name[0]);
+
+        for (int i = 1; i < name.Length; i++)
+        {
+            if (char.IsUpper(name[i]) && !char.IsUpper(name[i - 1]))
+            {
+                sb.Append(' ');
+            }
+            else if (char.IsUpper(name[i]) && i + 1 < name.Length && !char.IsUpper(name[i + 1]))
+            {
+                // Handle acronym boundaries: "XMLParser" → "XML Parser"
+                sb.Append(' ');
+            }
+            sb.Append(name[i]);
+        }
+
+        return sb.ToString();
     }
 }

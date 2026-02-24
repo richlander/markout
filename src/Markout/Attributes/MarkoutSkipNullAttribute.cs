@@ -7,7 +7,7 @@ namespace Markout;
 /// Unlike <see cref="MarkoutSkipDefaultAttribute"/>, this does not skip non-null default values
 /// like <c>false</c> for <see langword="bool"/> or <c>0</c> for <see langword="int"/>.
 /// </summary>
-[AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
 public sealed class MarkoutSkipNullAttribute : Attribute
 {
 }

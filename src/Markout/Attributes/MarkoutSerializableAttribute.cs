@@ -46,4 +46,11 @@ public sealed class MarkoutSerializableAttribute : Attribute
     /// Default is OneLine (pipe-separated on a single line).
     /// </summary>
     public FieldLayout FieldLayout { get; set; } = FieldLayout.OneLine;
+
+    /// <summary>
+    /// Gets or sets the naming policy for transforming property names into display names.
+    /// Only applies to properties without an explicit [MarkoutPropertyName] attribute.
+    /// Default is Default (use property name as-is).
+    /// </summary>
+    public NamingPolicy NamingPolicy { get; set; } = NamingPolicy.Default;
 }

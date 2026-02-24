@@ -362,6 +362,46 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_NamingPolicy_PascalCaseWords_SplitsNames()
+    {
+        var data = new NamingPolicyTest
+        {
+            AssemblyVersion = "1.0.0.0",
+            PublicKeyToken = "abc123",
+            TargetFramework = "net9.0"
+        };
+
+        var context = new NamingPolicyTestContext();
+        var mdf = context.Serialize(data);
+
+        // PascalCase should be split into words
+        Assert.Contains("Assembly Version", mdf);
+        Assert.Contains("Public Key Token", mdf);
+        // Explicit [MarkoutPropertyName] should take precedence
+        Assert.Contains("TFM", mdf);
+        Assert.DoesNotContain("Target Framework", mdf);
+    }
+
+    [Fact]
+    public void Serialize_TypeLevelSkipNull_SkipsNullProperties()
+    {
+        var data = new TypeLevelSkipNullTest
+        {
+            Name = "MyLib",
+            Version = null,
+            Company = "Contoso"
+        };
+
+        var context = new TypeLevelSkipNullTestContext();
+        var mdf = context.Serialize(data);
+
+        Assert.Contains("MyLib", mdf);
+        Assert.Contains("Contoso", mdf);
+        // Version is null and should be skipped due to type-level [MarkoutSkipNull]
+        Assert.DoesNotContain("Version", mdf);
+    }
+
+    [Fact]
     public void Context_DefaultInstance_HasReadOnlyOptions()
     {
         var context = TestMarkoutContext.Default;
@@ -1596,6 +1636,36 @@ public class AutoFieldsCountTest
 
 [MarkoutContext(typeof(AutoFieldsCountTest))]
 public partial class AutoFieldsCountTestContext : MarkoutSerializerContext
+{
+}
+
+// Test type for NamingPolicy — PascalCase → space-separated words
+[MarkoutSerializable(NamingPolicy = NamingPolicy.PascalCaseWords)]
+public class NamingPolicyTest
+{
+    public string AssemblyVersion { get; set; } = "";
+    public string PublicKeyToken { get; set; } = "";
+    [MarkoutPropertyName("TFM")]
+    public string TargetFramework { get; set; } = "";
+}
+
+[MarkoutContext(typeof(NamingPolicyTest))]
+public partial class NamingPolicyTestContext : MarkoutSerializerContext
+{
+}
+
+// Test type for type-level [MarkoutSkipNull]
+[MarkoutSerializable]
+[MarkoutSkipNull]
+public class TypeLevelSkipNullTest
+{
+    public string? Name { get; set; }
+    public string? Version { get; set; }
+    public string? Company { get; set; }
+}
+
+[MarkoutContext(typeof(TypeLevelSkipNullTest))]
+public partial class TypeLevelSkipNullTestContext : MarkoutSerializerContext
 {
 }
 
