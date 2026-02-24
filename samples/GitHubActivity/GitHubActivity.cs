@@ -90,12 +90,13 @@ static string? RunCommand(string cmd, string args)
 
 // --- View Models ---
 
-[MarkoutSerializable(TitleProperty = nameof(Title))]
+[MarkoutSerializable(TitleProperty = nameof(Title), NamingPolicy = NamingPolicy.PascalCaseWords)]
+[MarkoutSkipNull]
 public record ActivityView
 {
     [MarkoutIgnore] public string Title { get; init; } = "";
     public string Name { get; init; } = "";
-    [MarkoutSkipNull] public string? Location { get; init; }
+    public string? Location { get; init; }
     [MarkoutPropertyName("Public repos")] public int PublicRepos { get; init; }
     public int Followers { get; init; }
     [MarkoutSection(Name = "Recent Activity")] public List<EventRow>? Events { get; init; }

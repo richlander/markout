@@ -1,4 +1,5 @@
 // Demonstrates [MarkoutSkipNull] — optional fields are omitted when null.
+// Type-level [MarkoutSkipNull] applies to all nullable properties.
 
 using Markout;
 
@@ -15,15 +16,13 @@ var pkg = new PackageView
 MarkoutSerializer.Serialize(pkg, Console.Out, PackageContext.Default);
 
 [MarkoutSerializable(TitleProperty = nameof(Name))]
+[MarkoutSkipNull]
 public class PackageView
 {
     public string Name { get; set; } = "";
-    [MarkoutSkipNull]
     public string? License { get; set; }
-    [MarkoutSkipNull]
     public string? Repository { get; set; }
     public int Downloads { get; set; }
-    [MarkoutSkipNull]
     public int? Stars { get; set; }
 }
 
