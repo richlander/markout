@@ -177,6 +177,28 @@ internal static class TypeParser
             }
         }
 
+        // Warn if a field and a section share the same display name (ambiguous for --select)
+        var fieldNames = properties
+            .Where(p => !p.IsIgnored && !p.IsSection && p.Kind != PropertyKind.FieldCollection)
+            .Select(p => p.DisplayName)
+            .ToList();
+        var sectionNames = properties
+            .Where(p => !p.IsIgnored && p.IsSection)
+            .Select(p => p.SectionName ?? p.DisplayName)
+            .ToList();
+        foreach (var fieldName in fieldNames)
+        {
+            var collision = sectionNames.FirstOrDefault(s =>
+                string.Equals(s, fieldName, System.StringComparison.OrdinalIgnoreCase));
+            if (collision != null)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    DiagnosticDescriptors.DuplicateFieldAndSectionName,
+                    typeSymbol.Locations.FirstOrDefault(),
+                    typeSymbol.Name, fieldName, collision));
+            }
+        }
+
         var ns = typeSymbol.ContainingNamespace.IsGlobalNamespace
             ? string.Empty
             : typeSymbol.ContainingNamespace.ToDisplayString();

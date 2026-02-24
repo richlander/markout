@@ -152,7 +152,7 @@ public class TestRunResult
     [MarkoutSection(Name = "Test Assemblies")]
     public List<TestAssembly>? Assemblies { get; set; }
     
-    [MarkoutSection(Name = "Failed Tests")]
+    [MarkoutSection(Name = "Failures")]
     public List<FailedTest>? FailedTestsList { get; set; }
 }
 
@@ -526,7 +526,7 @@ public class BuildResultsTests
         Assert.Contains("| MyApp.Api.Tests.dll |", mdf);
 
         // No failed tests section
-        Assert.DoesNotContain("## Failed Tests", mdf);
+        Assert.DoesNotContain("## Failures", mdf);
     }
 
     [Fact]
@@ -590,7 +590,7 @@ public class BuildResultsTests
         Assert.Contains("Failed Tests: 4", mdf);
 
         // Failed tests table
-        Assert.Contains("## Failed Tests", mdf);
+        Assert.Contains("## Failures", mdf);
         Assert.Contains("| Test Name |", mdf);
         Assert.Contains("| Class |", mdf);
         Assert.Contains("| Error |", mdf);
