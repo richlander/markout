@@ -186,6 +186,13 @@ public class OneLineWriter : MarkoutWriter
     protected override void EnsureBlankLineIfNeeded() { }
 
     /// <inheritdoc/>
+    public override void WriteSectionEnd()
+    {
+        FlushFieldBuffer();
+        base.WriteSectionEnd();
+    }
+
+    /// <inheritdoc/>
     public override string ToString()
     {
         FlushFieldBuffer();
