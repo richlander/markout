@@ -32,6 +32,45 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void WriteField_WritesKeyValue()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteField("Name", "Alice");
+
+        Assert.Equal("Name: Alice", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteField_MultipleCallsWriteMultipleLines()
+    {
+        var writer = new MarkoutWriter();
+        writer.WriteField("Name", "Alice");
+        writer.WriteField("Age", "30");
+
+        Assert.Equal("Name: Alice\nAge: 30", writer.ToString());
+    }
+
+    [Fact]
+    public void WriteField_InForeachLoop()
+    {
+        var writer = new MarkoutWriter();
+        var data = new Dictionary<string, string>
+        {
+            ["Name"] = "Alice",
+            ["Role"] = "Developer",
+            ["Team"] = "Platform"
+        };
+
+        foreach (var kvp in data)
+            writer.WriteField(kvp.Key, kvp.Value);
+
+        var output = writer.ToString();
+        Assert.Contains("Name: Alice", output);
+        Assert.Contains("Role: Developer", output);
+        Assert.Contains("Team: Platform", output);
+    }
+
+    [Fact]
     public void WriteFieldBareList_String_WritesKeyValue()
     {
         var writer = new MarkoutWriter();

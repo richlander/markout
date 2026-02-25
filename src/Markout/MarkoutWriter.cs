@@ -471,6 +471,26 @@ public class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes a single key-value field on its own line.
+    /// This is a convenience method equivalent to <c>WriteFieldBareList([new(key, value)])</c>.
+    /// </summary>
+    /// <param name="key">The field name.</param>
+    /// <param name="value">The field value.</param>
+    /// <example>
+    /// <code>
+    /// writer.WriteField("Name", "Alice");
+    /// writer.WriteField("Age", "30");
+    /// // Output:
+    /// // Name: Alice
+    /// // Age: 30
+    /// </code>
+    /// </example>
+    public void WriteField(string key, string value)
+    {
+        WriteFieldBareList([new(key, value)]);
+    }
+
+    /// <summary>
     /// Writes multiple key-value fields on a single line, separated by pipes.
     /// Useful for compact summary lines with essential metadata.
     /// </summary>
