@@ -273,11 +273,10 @@ public class SerializerTests
         {
             Name = "MyClass",
             Kind = "class",
-            Members = new List<TreeNode>
-            {
-                new("Inherits", new[] { "BaseClass" }),
-                new("Properties (2)", new[] { "string Name", "int Count" })
-            }
+            Members = [
+                new TreeNode("Inherits", null, new TreeNode("BaseClass")),
+                new TreeNode("Properties (2)", null, new TreeNode("string Name"), new TreeNode("int Count"))
+            ]
         };
 
         var context = new TreeTestContext();
@@ -301,14 +300,11 @@ public class SerializerTests
         var explorer = new FileExplorer
         {
             Title = "Package Contents",
-            Files = new List<TreeNode>
-            {
-                new("lib", new List<TreeNode>
-                {
-                    new("net8.0", new[] { "MyLib.dll" }),
-                    new("net9.0", new[] { "MyLib.dll" })
-                })
-            }
+            Files = [
+                new TreeNode("lib", null,
+                    new TreeNode("net8.0", null, new TreeNode("MyLib.dll")),
+                    new TreeNode("net9.0", null, new TreeNode("MyLib.dll")))
+            ]
         };
 
         var context = new TreeTestContext();

@@ -157,10 +157,13 @@ public sealed class MarkoutSchemaInfo
     
     private static List<TreeNode> ToTreeNodes(IReadOnlyList<MarkoutPropertySchema> props)
     {
-        return props.Select(p => new TreeNode(
-            $"{p.Name}: {p.TypeName} → {p.Rendering}",
-            p.Children.Count > 0 ? ToTreeNodes(p.Children) : null
-        )).ToList();
+        return props.Select(p => p.Children.Count > 0
+            ? new TreeNode(
+                $"{p.Name}: {p.TypeName} → {p.Rendering}",
+                null,
+                [..ToTreeNodes(p.Children)])
+            : new TreeNode($"{p.Name}: {p.TypeName} → {p.Rendering}")
+        ).ToList();
     }
 }
 

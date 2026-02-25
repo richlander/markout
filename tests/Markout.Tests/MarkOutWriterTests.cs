@@ -304,7 +304,7 @@ public class MarkoutWriterTests
     public void WriteTree_SimpleNodes_RendersTreeStructure()
     {
         var writer = new MarkoutWriter();
-        writer.WriteTree(new TreeNode("Root", [new TreeNode("Child1"), new TreeNode("Child2")]));
+        writer.WriteTree(new TreeNode("Root", null, new TreeNode("Child1"), new TreeNode("Child2")));
 
         var output = writer.ToString();
         Assert.Contains("└─ Root", output);
@@ -331,7 +331,7 @@ public class MarkoutWriterTests
     public void WriteTree_WithNestedIcons_RendersAllIcons()
     {
         var writer = new MarkoutWriter();
-        writer.WriteTree(new TreeNode("lib", "📁", [new TreeNode("net8.0", "📂", ["MyLib.dll"])]));
+        writer.WriteTree(new TreeNode("lib", "📁", new TreeNode("net8.0", "📂", new TreeNode("MyLib.dll"))));
 
         var output = writer.ToString();
         Assert.Contains("📁 lib", output);

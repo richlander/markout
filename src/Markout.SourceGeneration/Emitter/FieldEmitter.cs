@@ -27,11 +27,11 @@ internal static class FieldEmitter
                 break;
 
             case FieldLayoutKind.List:
-                EmitFieldList(sb, scalarProps, valueExpr, indentLevel, sectionHeading, sectionLevel);
+                EmitFieldList(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
                 break;
 
             case FieldLayoutKind.BareList:
-                EmitFieldBareList(sb, scalarProps, valueExpr, indentLevel, sectionHeading, sectionLevel);
+                EmitFieldBareList(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
                 break;
 
             default:
@@ -156,6 +156,7 @@ internal static class FieldEmitter
         List<PropertyMetadata> scalarProps,
         string valueExpr,
         int indentLevel,
+        int nestingDepth = 0,
         string? sectionHeading = null,
         int sectionLevel = 2)
     {
@@ -163,7 +164,7 @@ internal static class FieldEmitter
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
             || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
-        var fieldsVar = "__fields";
+        var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
         if (useBuilder)
         {
@@ -266,6 +267,7 @@ internal static class FieldEmitter
         List<PropertyMetadata> scalarProps,
         string valueExpr,
         int indentLevel,
+        int nestingDepth = 0,
         string? sectionHeading = null,
         int sectionLevel = 2)
     {
@@ -273,7 +275,7 @@ internal static class FieldEmitter
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
             || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
-        var fieldsVar = "__fields";
+        var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
         if (useBuilder)
         {

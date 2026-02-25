@@ -77,24 +77,14 @@ public static class WriterUsage
 
         writer.WriteHeading(1, "Organization");
 
-        var org = new[]
-        {
-            new TreeNode("CEO", new[]
-            {
-                new TreeNode("VP Engineering", new[]
-                {
+        writer.WriteTree(
+            new TreeNode("CEO", null,
+                new TreeNode("VP Engineering", null,
                     new TreeNode("Dev Team Lead"),
-                    new TreeNode("QA Team Lead")
-                }),
-                new TreeNode("VP Sales", new[]
-                {
+                    new TreeNode("QA Team Lead")),
+                new TreeNode("VP Sales", null,
                     new TreeNode("Account Manager"),
-                    new TreeNode("Sales Rep")
-                })
-            })
-        };
-
-        writer.WriteTree(org);
+                    new TreeNode("Sales Rep"))));
 
         Console.WriteLine(writer.ToString());
         // # Organization

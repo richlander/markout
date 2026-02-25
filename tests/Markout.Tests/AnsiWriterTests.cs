@@ -153,7 +153,7 @@ public class AnsiWriterTests
     public void WriteTree_RendersWithDimBoxDrawing()
     {
         var (writer, terminal) = Create();
-        writer.WriteTree(new TreeNode("Root", [new TreeNode("Child1"), new TreeNode("Child2")]));
+        writer.WriteTree(new TreeNode("Root", null, new TreeNode("Child1"), new TreeNode("Child2")));
 
         var output = terminal.Output;
         Assert.Contains("Root", output);
@@ -167,7 +167,7 @@ public class AnsiWriterTests
     public void WriteTree_WithIcons_RendersIcons()
     {
         var (writer, terminal) = Create();
-        writer.WriteTree(new TreeNode("lib", "📁", ["net8.0"]));
+        writer.WriteTree(new TreeNode("lib", "📁", new TreeNode("net8.0")));
 
         var output = terminal.Output;
         Assert.Contains("📁", output);
