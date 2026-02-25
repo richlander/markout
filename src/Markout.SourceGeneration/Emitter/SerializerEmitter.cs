@@ -639,7 +639,7 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}if ({propAccess} != null)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth + 1);
+            EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth + 1, autoFields: prop.ElementAutoFields, fieldLayout: prop.ElementFieldLayout);
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
         }

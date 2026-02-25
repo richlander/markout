@@ -585,9 +585,9 @@ internal static class TypeParser
             if (elementType.SpecialType == SpecialType.System_String)
                 return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, true);
 
-            var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes);
-            var hasNested = HasNestedContent(elementProps);
             var elementSettings = GetElementTypeSettings(elementType);
+            var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes, elementSettings.NamingPolicy, elementSettings.SkipNullByDefault);
+            var hasNested = HasNestedContent(elementProps);
             return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, elementSettings.TitleProperty, elementSettings.TitleContextProperty, elementSettings.AutoFields, elementSettings.FieldLayout, true);
         }
 
@@ -696,9 +696,9 @@ internal static class TypeParser
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
 
-                    var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes);
-                    var hasNested = HasNestedContent(elementProps);
                     var elementSettings = GetElementTypeSettings(elementType);
+                    var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes, elementSettings.NamingPolicy, elementSettings.SkipNullByDefault);
+                    var hasNested = HasNestedContent(elementProps);
                     return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, elementSettings.TitleProperty, elementSettings.TitleContextProperty, elementSettings.AutoFields, elementSettings.FieldLayout, false);
                 }
             }
@@ -714,9 +714,10 @@ internal static class TypeParser
         // Nested object
         if (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct)
         {
-            var props = GetTypeProperties(type, compilation, knownTypes, diagnostics, visitedTypes);
+            var nestedSettings = GetElementTypeSettings(type);
+            var props = GetTypeProperties(type, compilation, knownTypes, diagnostics, visitedTypes, nestedSettings.NamingPolicy, nestedSettings.SkipNullByDefault);
             if (props.Count > 0)
-                return (PropertyKind.NestedObject, null, props, false, null, null, true, FieldLayoutKind.OneLine, false);
+                return (PropertyKind.NestedObject, null, props, false, null, null, nestedSettings.AutoFields, nestedSettings.FieldLayout, false);
         }
 
         return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
@@ -734,15 +735,16 @@ internal static class TypeParser
              (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 
-    private static (string? TitleProperty, string? TitleContextProperty, bool AutoFields, FieldLayoutKind FieldLayout) GetElementTypeSettings(ITypeSymbol type)
+    private static (string? TitleProperty, string? TitleContextProperty, bool AutoFields, FieldLayoutKind FieldLayout, NamingPolicyKind NamingPolicy, bool SkipNullByDefault) GetElementTypeSettings(ITypeSymbol type)
     {
         if (type is not INamedTypeSymbol namedType)
-            return (null, null, true, FieldLayoutKind.OneLine);
+            return (null, null, true, FieldLayoutKind.OneLine, NamingPolicyKind.Default, false);
 
         string? titleProperty = null;
         string? titleContextProperty = null;
         bool autoFields = true;
         FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine;
+        NamingPolicyKind namingPolicy = NamingPolicyKind.Default;
 
         var serializableAttr = namedType.GetAttributes()
             .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutSerializableAttribute);
@@ -759,10 +761,15 @@ internal static class TypeParser
                     autoFields = af;
                 else if (named.Key == "FieldLayout" && named.Value.Value is int fl)
                     fieldLayout = (FieldLayoutKind)fl;
+                else if (named.Key == "NamingPolicy" && named.Value.Value is int np)
+                    namingPolicy = (NamingPolicyKind)np;
             }
         }
 
-        return (titleProperty, titleContextProperty, autoFields, fieldLayout);
+        bool skipNullByDefault = namedType.GetAttributes()
+            .Any(a => a.AttributeClass?.ToDisplayString() == MarkoutSkipNullAttribute);
+
+        return (titleProperty, titleContextProperty, autoFields, fieldLayout, namingPolicy, skipNullByDefault);
     }
 
     private static IReadOnlyList<PropertyMetadata> GetTypeProperties(
@@ -770,7 +777,9 @@ internal static class TypeParser
         Compilation compilation,
         KnownTypeSymbols? knownTypes = null,
         List<DiagnosticInfo>? diagnostics = null,
-        HashSet<ITypeSymbol>? visitedTypes = null)
+        HashSet<ITypeSymbol>? visitedTypes = null,
+        NamingPolicyKind namingPolicy = NamingPolicyKind.Default,
+        bool skipNullByDefault = false)
     {
         var properties = new List<PropertyMetadata>();
         diagnostics ??= new List<DiagnosticInfo>();
@@ -797,7 +806,7 @@ internal static class TypeParser
                 if (prop.GetMethod == null)
                     continue;
 
-                var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes);
+                var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes, namingPolicy, skipNullByDefault);
                 if (propMeta != null)
                     properties.Add(propMeta);
             }
