@@ -275,6 +275,10 @@ public class Person
         public string? InformationalVersion { get; set; }
         public string? AssemblyVersion { get; set; }
         public string? TargetFramework { get; set; }
+        [MarkoutBoolFormat("Yes", "No")]
+        public bool Deterministic { get; set; }
+        [MarkoutBoolFormat("Yes", "No")]
+        public bool Reproducible { get; set; }
     }
 
     // Nested object in a collection with NamingPolicy
@@ -2001,5 +2005,30 @@ public class UnwrapTests
         // Should NOT contain unsplit names
         Assert.DoesNotContain("TargetKind", md);
         Assert.DoesNotContain("AttributeValue", md);
+    }
+
+    [Fact]
+    public void NestedObject_BoolWithSkipNull_DoesNotCorruptOutput()
+    {
+        var report = new LibraryReport
+        {
+            FileName = "Test.dll",
+            Info = new LibraryInfoSection
+            {
+                Name = "Test",
+                Version = "1.0.0",
+                Deterministic = true,
+                Reproducible = false,
+            }
+        };
+
+        var md = MarkoutSerializer.Serialize(report, NestedTestContext.Default);
+
+        // Bool fields should render with custom format despite class-level [MarkoutSkipNull]
+        Assert.Contains("Deterministic: Yes", md);
+        Assert.Contains("Reproducible: No", md);
+        // Null strings should still be skipped
+        Assert.DoesNotContain("Informational Version", md);
+        Assert.DoesNotContain("Assembly Version", md);
     }
 }
