@@ -62,17 +62,4 @@ internal static class DiagnosticDescriptors
                      "Either add [MarkoutSection] to collection properties, or remove AutoFields=false."
     );
 
-    public static readonly DiagnosticDescriptor DuplicateFieldAndSectionName = new(
-        id: "MARKOUT005",
-        title: "Field and section share the same name",
-        messageFormat: "Type '{0}' has a field '{1}' and a section '{2}' with the same display name. " +
-                       "This causes ambiguity for projection queries like --select. " +
-                       "Rename one using [MarkoutPropertyName] or [MarkoutSection(Name = ...)].",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true,
-        description: "When a field and a section share the same display name (case-insensitive), " +
-                     "projection tools like --select cannot distinguish between them. " +
-                     "Use [MarkoutPropertyName] to rename the field or [MarkoutSection(Name = ...)] to rename the section."
-    );
 }
