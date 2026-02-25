@@ -89,10 +89,10 @@ public class AnsiWriterTests
     // ── Fields ──
 
     [Fact]
-    public void WriteFieldBareList_String_RendersBoldKey()
+    public void WriteFields_String_RendersBoldKey()
     {
         var (writer, terminal) = Create();
-        writer.WriteFieldBareList([new("Name", "Markout")]);
+        writer.WriteFields([new("Name", "Markout")]);
 
         var output = terminal.Output;
         Assert.Contains(AnsiCodes.SetBold, output); // Bold key
@@ -101,10 +101,10 @@ public class AnsiWriterTests
     }
 
     [Fact]
-    public void WriteFieldBareList_MultipleFields_RendersBoldKeys()
+    public void WriteFields_MultipleFields_RendersBoldKeys()
     {
         var (writer, terminal) = Create();
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Signed", "yes"),
             new MarkoutField("Count", "42"));
 
@@ -203,10 +203,10 @@ public class AnsiWriterTests
     // ── Field list ──
 
     [Fact]
-    public void WriteFieldLine_RendersBoldKeysWithSeparator()
+    public void WriteFieldsInline_RendersBoldKeysWithSeparator()
     {
         var (writer, terminal) = Create();
-        writer.WriteFieldLine(
+        writer.WriteFieldsInline(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"));
 
@@ -239,7 +239,7 @@ public class AnsiWriterTests
     {
         var (writer, terminal) = Create(new MarkoutWriterOptions { ExcludeSections = ["Hidden"] });
         writer.WriteHeading(2, "Hidden");
-        writer.WriteFieldBareList([new("Key", "Value")]);
+        writer.WriteFields([new("Key", "Value")]);
 
         Assert.DoesNotContain("Value", terminal.Output);
     }
@@ -253,7 +253,7 @@ public class AnsiWriterTests
         var terminal = new CapturingTerminal();
         MarkoutWriter writer = new AnsiWriter(terminal);
         writer.WriteHeading(1, "Test");
-        writer.WriteFieldBareList([new("Key", "Value")]);
+        writer.WriteFields([new("Key", "Value")]);
 
         var output = terminal.Output;
         Assert.Contains("Test", output);

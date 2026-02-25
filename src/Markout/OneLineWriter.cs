@@ -43,7 +43,18 @@ public class OneLineWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteFieldLine(params ReadOnlySpan<MarkoutField> fields)
+    public override void WriteFields(params ReadOnlySpan<MarkoutField> fields)
+    {
+        // Buffer fields for table rendering
+        if (SectionExcluded || fields.Length == 0)
+            return;
+
+        for (int i = 0; i < fields.Length; i++)
+            _fieldBuffer.Add(fields[i]);
+    }
+
+    /// <inheritdoc/>
+    public override void WriteFieldsInline(params ReadOnlySpan<MarkoutField> fields)
     {
         if (SectionExcluded || fields.Length == 0)
             return;
@@ -63,7 +74,7 @@ public class OneLineWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteFieldList(params ReadOnlySpan<MarkoutField> fields)
+    public override void WriteFieldsBulleted(params ReadOnlySpan<MarkoutField> fields)
     {
         // Buffer fields for table rendering
         if (SectionExcluded || fields.Length == 0)
@@ -74,7 +85,7 @@ public class OneLineWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteFieldBareList(params ReadOnlySpan<MarkoutField> fields)
+    public override void WriteFieldsNumbered(params ReadOnlySpan<MarkoutField> fields)
     {
         // Buffer fields for table rendering
         if (SectionExcluded || fields.Length == 0)

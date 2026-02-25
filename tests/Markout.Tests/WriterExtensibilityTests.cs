@@ -27,7 +27,7 @@ public class WriterExtensibilityTests
             HasContent = true;
         }
 
-        public override void WriteFieldBareList(params ReadOnlySpan<MarkoutField> fields)
+        public override void WriteFields(params ReadOnlySpan<MarkoutField> fields)
         {
             if (SectionExcluded) return;
             EnsureBlankLineIfNeeded();
@@ -95,10 +95,10 @@ public class WriterExtensibilityTests
     }
 
     [Fact]
-    public void CustomWriter_WriteFieldBareList_UsesOverriddenFormat()
+    public void CustomWriter_WriteFields_UsesOverriddenFormat()
     {
         var writer = new TestConsoleWriter();
-        writer.WriteFieldBareList([new("Name", "Markout")]);
+        writer.WriteFields([new("Name", "Markout")]);
 
         Assert.Equal("NAME = Markout", writer.ToString());
     }
@@ -148,7 +148,7 @@ public class WriterExtensibilityTests
         Assert.Equal(MarkoutRenderContext.Block, writer.CurrentContext);
 
         writer.WriteHeading(1, "Test");
-        writer.WriteFieldBareList([new("Key", "Value")]);
+        writer.WriteFields([new("Key", "Value")]);
 
         // Verify content was written via overridden methods
         var result = writer.ToString();
@@ -162,7 +162,7 @@ public class WriterExtensibilityTests
         // Verify that a custom writer can be passed to the serializer
         var writer = new TestConsoleWriter();
         writer.WriteHeading(1, "Test");
-        writer.WriteFieldBareList([new("Version", "1.0")]);
+        writer.WriteFields([new("Version", "1.0")]);
 
         var result = writer.ToString();
         Assert.Contains("[H1]", result);
@@ -178,7 +178,7 @@ public class WriterExtensibilityTests
         };
         var writer = new TestConsoleWriter(options);
         writer.WriteHeading(2, "Excluded");
-        writer.WriteFieldBareList([new("Key", "Value")]);
+        writer.WriteFields([new("Key", "Value")]);
 
         // The excluded section should produce no output
         Assert.Equal("", writer.ToString());

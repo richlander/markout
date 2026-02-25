@@ -13,7 +13,7 @@ public class NullableScalarsOneLine
     public DateTimeOffset? Modified { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
 public class NullableScalarsLineBreaks
 {
     public string? Label { get; set; }
@@ -22,7 +22,7 @@ public class NullableScalarsLineBreaks
     public double? Score { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
 public class NullableScalarsDoubleSpace
 {
     public string? Label { get; set; }
@@ -30,7 +30,7 @@ public class NullableScalarsDoubleSpace
     public bool? Active { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
 public class NullableScalarsList
 {
     public string? Label { get; set; }

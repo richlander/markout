@@ -293,7 +293,7 @@ public class MarkoutTemplateTests
     {
         public void WriteTo(MarkoutWriter writer)
         {
-            writer.WriteFieldBareList([new("Key", "Value")]);
+            writer.WriteFields([new("Key", "Value")]);
         }
 
         public string? ToMarkoutString() => "Key=Value";

@@ -81,7 +81,7 @@ Column names match what you see in the table header — the display name, not th
 
 ### Field Selection
 
-Works the same way for scalar fields (`WriteField`, `WriteFieldNoBreak`, `WriteFieldList`):
+Works the same way for scalar fields (`WriteField`, `WriteFields`, `WriteFieldsInline`):
 
 ```csharp
 // Only Name and License appear in output
@@ -91,7 +91,7 @@ Projection = new MarkoutProjection
 }
 ```
 
-Field names match the key passed to `WriteField(key, value)` — again the display name, case-insensitive. `WriteFieldTable` (Property/Value tables) also respects field projection, filtering rows by key name.
+Field names match the key passed to `WriteField(key, value)` — again the display name, case-insensitive. `WriteFieldsTable` (Property/Value tables) also respects field projection, filtering rows by key name.
 
 ### Section Selection
 

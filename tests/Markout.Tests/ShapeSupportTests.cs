@@ -56,9 +56,9 @@ public class ShapeSupportTests
         {
             var writer = new TablesOnlyWriter();
             // Call unsupported shape three times
-            writer.WriteFieldBareList([new("A", "1")]);
-            writer.WriteFieldBareList([new("B", "2")]);
-            writer.WriteFieldBareList([new("C", "3")]);
+            writer.WriteFields([new("A", "1")]);
+            writer.WriteFields([new("B", "2")]);
+            writer.WriteFields([new("C", "3")]);
 
             var warnings = errWriter.ToString();
             // Should contain exactly one warning
@@ -82,7 +82,7 @@ public class ShapeSupportTests
             var writer = new TablesOnlyWriter();
             writer.WriteHeading(1, "Title");
             writer.WriteParagraph("text");
-            writer.WriteFieldBareList([new("key", "value")]);
+            writer.WriteFields([new("key", "value")]);
             writer.WriteListItem("item");
             // Should produce no output
             Assert.Equal("", writer.ToString());

@@ -220,7 +220,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "9.0.0"),
             new MarkoutField("License", "MIT"));
@@ -241,7 +241,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Signed", "yes"));
         var output = writer.ToString();
@@ -260,7 +260,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Count", "42"));
         var output = writer.ToString();
@@ -279,7 +279,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
         var output = writer.ToString();
@@ -300,7 +300,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("License", "MIT"));
@@ -323,7 +323,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldLine(
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
@@ -344,7 +344,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldLine(
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
@@ -365,7 +365,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldLine(
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
@@ -386,8 +386,8 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldBareList([new("Name", "Foo")]);
-        writer.WriteFieldLine(
+        writer.WriteFields([new("Name", "Foo")]);
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
         var output = writer.ToString();
@@ -409,7 +409,7 @@ public class ProjectionTests
         };
         var writer = new MarkoutWriter(options);
         writer.WriteHeading(1, "Report");
-        writer.WriteFieldBareList([new("TopLevel", "value")]);
+        writer.WriteFields([new("TopLevel", "value")]);
         writer.WriteHeading(2, "Details");
         writer.WriteTableStart("Name", "Version");
         writer.WriteTableRow("Foo", "1.0.0");
@@ -470,7 +470,7 @@ public class ProjectionTests
     public void NoProjection_FieldsPassThrough()
     {
         var writer = new MarkoutWriter();
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
         var output = writer.ToString();

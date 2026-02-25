@@ -60,7 +60,7 @@ public class MetricRow
 #endregion
 
 #region ShowWhenAndLink
-[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.BareList)]
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Vertical)]
 public class PackageView
 {
     public string Name { get; set; } = "";

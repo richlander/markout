@@ -247,7 +247,7 @@ internal static class SerializerEmitter
         int nestingDepth = 0,
         bool autoFields = true,
         int autoFieldsCount = 0,
-        FieldLayoutKind fieldLayout = FieldLayoutKind.Line,
+        FieldLayoutKind fieldLayout = FieldLayoutKind.Vertical,
         string? rootValueExpr = null,
         string? rootTypeName = null)
     {
@@ -488,7 +488,7 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteFieldTable(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
+            sb.AppendLine($"{indent}    writer.WriteFieldsTable(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
         }
@@ -688,7 +688,7 @@ internal static class SerializerEmitter
 
             case PropertyKind.FieldCollection:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteFieldLine(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
+                sb.AppendLine($"{indent}    writer.WriteFieldsInline(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
                 break;
 
             case PropertyKind.Tree:

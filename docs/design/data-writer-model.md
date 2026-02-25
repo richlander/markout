@@ -43,10 +43,11 @@ public readonly record struct MarkoutField(string Key, string? Value);
 
 | Layout | Visual Form | Method |
 |--------|-------------|--------|
-| Multiline | One field per line | `WriteField()` calls |
-| Inline | Pipe-separated on one line | `WriteFieldList()` |
-| Tabular | Two-column Field/Value table | `WriteFieldTable()` |
-| Bullet | List items | Via `FieldLayout.List` |
+| Vertical | One field per line | `WriteField()` or `WriteFields()` |
+| Inline | Pipe-separated on one line | `WriteFieldsInline()` |
+| Tabular | Two-column Field/Value table | `WriteFieldsTable()` |
+| Bulleted | Bullet list items | `WriteFieldsBulleted()` |
+| Numbered | Numbered list items | `WriteFieldsNumbered()` |
 
 All these methods operate on `Fields` shape data. The choice of method determines layout, not the underlying data relationship.
 
@@ -54,7 +55,7 @@ All these methods operate on `Fields` shape data. The choice of method determine
 
 Previously, `MarkoutShape.FieldList` was a separate shape for inline field rendering. This was incorrect - it conflated presentation with data structure. `FieldList` has been removed from the enum.
 
-`WriteFieldList()` now operates under the `Fields` shape, as it should - it's just an inline layout for field data.
+`WriteFieldsInline()` now operates under the `Fields` shape, as it should - it's just an inline layout for field data.
 
 ## Writer Architecture
 
@@ -97,10 +98,10 @@ The `FieldLayout` enum controls how source-generated code emits field data:
 ```csharp
 public enum FieldLayout
 {
-    OneLine,              // WriteFieldList() - pipe-separated
-    LineBreaks,           // WriteFieldNoBreak() - each on own line
-    LineBreaksDoubleSpace, // WriteField() - with markdown breaks
-    List                  // WriteListItem() - bullet format
+    Vertical,   // WriteFields() - each on own line
+    Inline,     // WriteFieldsInline() - pipe-separated
+    Bulleted,   // WriteFieldsBulleted() - bullet list
+    Numbered    // WriteFieldsNumbered() - numbered list
 }
 ```
 
@@ -113,7 +114,7 @@ Source Data (object properties)
     ↓
 Source Generator (applies FieldLayout)
     ↓
-Writer Method (WriteField, WriteFieldList, WriteFieldTable)
+Writer Method (WriteField, WriteFields, WriteFieldsInline, etc.)
     ↓
 Shape Check (SupportedShapes)
     ↓
@@ -130,7 +131,7 @@ Output (markdown, plain text, ANSI, etc.)
 - **Lists** - Rendered as plain lines
 - **Fields** - Rendered as a two-column table (via shape adaptation)
 
-When `WriteField()` or `WriteFieldList()` is called, `OneLineWriter` buffers the fields and renders them as a table when the section ends.
+When `WriteField()` or `WriteFields()` is called, `OneLineWriter` buffers the fields and renders them as a table when the section ends.
 
 ## Projection System
 

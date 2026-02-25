@@ -111,7 +111,7 @@ Every document format supports these. They map directly to Markdown elements and
 |---|---|---|---|
 | **Headings** | Section | `WriteHeading` | — |
 | **Paragraphs** | Identity (prose) | `WriteParagraph` | — |
-| **Fields** | Identity | `WriteField`, `WriteFieldList`, `WriteFieldTable` | `MarkoutField` |
+| **Fields** | Identity | `WriteField`, `WriteFields`, `WriteFieldsInline`, `WriteFieldsBulleted`, `WriteFieldsNumbered`, `WriteFieldsTable` | `MarkoutField` |
 | **Lists** | Enumeration | `WriteListItem`, `WriteArray` | — |
 | **Tables** | Tabulation | `WriteTable`, `WriteTableStart/Row/End` | — |
 | **Code** | Quotation (code) | `WriteCodeStart/End` | `CodeSection` |

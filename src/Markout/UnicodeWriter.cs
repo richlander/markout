@@ -257,10 +257,10 @@ public class UnicodeWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Field line (inline pipe-separated) ──
+    // ── Fields inline (pipe-separated) ──
 
     /// <inheritdoc/>
-    public override void WriteFieldLine(params ReadOnlySpan<MarkoutField> fields)
+    public override void WriteFieldsInline(params ReadOnlySpan<MarkoutField> fields)
     {
         if (SectionExcluded || fields.Length == 0)
             return;

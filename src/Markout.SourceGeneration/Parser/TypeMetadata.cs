@@ -52,7 +52,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         string? descriptionProperty = null,
         bool autoFields = true,
         int autoFieldsCount = 0,
-        FieldLayoutKind fieldLayout = FieldLayoutKind.Line,
+        FieldLayoutKind fieldLayout = FieldLayoutKind.Vertical,
         NamingPolicyKind namingPolicy = NamingPolicyKind.Default,
         bool skipNullByDefault = false,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
@@ -199,7 +199,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? elementTitleProperty = null,
         string? elementTitleContextProperty = null,
         bool elementAutoFields = true,
-        FieldLayoutKind elementFieldLayout = FieldLayoutKind.Line,
+        FieldLayoutKind elementFieldLayout = FieldLayoutKind.Vertical,
         string? boolTrueValue = null,
         string? boolFalseValue = null,
         bool isNullableValueType = false,
@@ -381,9 +381,10 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
 /// </summary>
 internal enum FieldLayoutKind
 {
-    Line = 0,
-    List = 1,
-    BareList = 2
+    Vertical = 0,
+    Inline = 1,
+    Bulleted = 2,
+    Numbered = 3
 }
 
 /// <summary>

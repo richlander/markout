@@ -43,9 +43,9 @@ public sealed class MarkoutSerializableAttribute : Attribute
 
     /// <summary>
     /// Gets or sets the layout for scalar fields.
-    /// Default is Line (pipe-separated on a single line).
+    /// Default is Vertical (one field per line).
     /// </summary>
-    public FieldLayout FieldLayout { get; set; } = FieldLayout.Line;
+    public FieldLayout FieldLayout { get; set; } = FieldLayout.Vertical;
 
     /// <summary>
     /// Gets or sets the naming policy for transforming property names into display names.

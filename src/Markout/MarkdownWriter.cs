@@ -104,7 +104,7 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteFieldBareList(params ReadOnlySpan<MarkoutField> fields)
+    public override void WriteFields(params ReadOnlySpan<MarkoutField> fields)
     {
         if (SectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
             return;

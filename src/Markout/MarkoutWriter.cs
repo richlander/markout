@@ -472,7 +472,7 @@ public class MarkoutWriter
 
     /// <summary>
     /// Writes a single key-value field on its own line.
-    /// This is a convenience method equivalent to <c>WriteFieldBareList([new(key, value)])</c>.
+    /// This is a convenience method equivalent to <c>WriteFields([new(key, value)])</c>.
     /// </summary>
     /// <param name="key">The field name.</param>
     /// <param name="value">The field value.</param>
@@ -487,7 +487,57 @@ public class MarkoutWriter
     /// </example>
     public void WriteField(string key, string value)
     {
-        WriteFieldBareList([new(key, value)]);
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
+            return;
+
+        // Check projection - treat as single-element span
+        ReadOnlySpan<MarkoutField> field = [new(key, value)];
+        var projected = ProjectFields(field);
+        if (projected.Length == 0)
+            return;
+
+        EnsureBlankLineIfNeeded();
+        WriteFieldName(projected[0].Key);
+        _writer.WriteLine(projected[0].Value);
+        _hasContent = true;
+        // Note: Does NOT set _needsBlankLine, allowing consecutive WriteField calls
+        // to produce consecutive lines without blank line separation.
+    }
+
+    /// <summary>
+    /// Writes multiple key-value fields, each on its own line.
+    /// This is the default field layout.
+    /// </summary>
+    /// <param name="fields">Fields to write.</param>
+    /// <example>
+    /// <code>
+    /// writer.WriteFields(
+    ///     new("Name", "Alice"),
+    ///     new("Age", "30"));
+    /// // Output:
+    /// // Name: Alice
+    /// // Age: 30
+    /// </code>
+    /// </example>
+    public virtual void WriteFields(params ReadOnlySpan<MarkoutField> fields)
+    {
+        if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
+            return;
+
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
+            return;
+
+        EnsureBlankLineIfNeeded();
+
+        for (int i = 0; i < projected.Length; i++)
+        {
+            WriteFieldName(projected[i].Key);
+            _writer.WriteLine(projected[i].Value);
+        }
+
+        _needsBlankLine = true;
+        _hasContent = true;
     }
 
     /// <summary>
@@ -497,14 +547,14 @@ public class MarkoutWriter
     /// <param name="fields">Fields to write.</param>
     /// <example>
     /// <code>
-    /// writer.WriteFieldLine(
-    ///     new MarkoutField("Type", "Library"),
-    ///     new MarkoutField("TFM", "net8.0"),
-    ///     new MarkoutField("Updated", "2026-01-15"));
+    /// writer.WriteFieldsInline(
+    ///     new("Type", "Library"),
+    ///     new("TFM", "net8.0"),
+    ///     new("Updated", "2026-01-15"));
     /// // Output: Type: Library | TFM: net8.0 | Updated: 2026-01-15
     /// </code>
     /// </example>
-    public virtual void WriteFieldLine(params ReadOnlySpan<MarkoutField> fields)
+    public virtual void WriteFieldsInline(params ReadOnlySpan<MarkoutField> fields)
     {
         if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
             return;
@@ -530,11 +580,11 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes multiple key-value fields as a bullet list.
+    /// Writes multiple key-value fields as a bulleted list.
     /// Each field is rendered as a list item in "- Key: Value" format.
     /// </summary>
     /// <param name="fields">Fields to write.</param>
-    public virtual void WriteFieldList(params ReadOnlySpan<MarkoutField> fields)
+    public virtual void WriteFieldsBulleted(params ReadOnlySpan<MarkoutField> fields)
     {
         if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
             return;
@@ -557,11 +607,11 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes multiple key-value fields, each on its own line with trailing double-space.
-    /// The trailing spaces create soft line breaks when rendered as HTML.
+    /// Writes multiple key-value fields as a numbered list.
+    /// Each field is rendered as a list item in "1. Key: Value" format.
     /// </summary>
     /// <param name="fields">Fields to write.</param>
-    public virtual void WriteFieldBareList(params ReadOnlySpan<MarkoutField> fields)
+    public virtual void WriteFieldsNumbered(params ReadOnlySpan<MarkoutField> fields)
     {
         if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
             return;
@@ -574,6 +624,8 @@ public class MarkoutWriter
 
         for (int i = 0; i < projected.Length; i++)
         {
+            _writer.Write(i + 1);
+            _writer.Write(". ");
             WriteFieldName(projected[i].Key);
             _writer.WriteLine(projected[i].Value);
         }
@@ -586,7 +638,7 @@ public class MarkoutWriter
     /// Writes fields as a two-column Field/Value table.
     /// </summary>
     /// <param name="fields">Fields to write as table rows.</param>
-    public virtual void WriteFieldTable(params ReadOnlySpan<MarkoutField> fields)
+    public virtual void WriteFieldsTable(params ReadOnlySpan<MarkoutField> fields)
     {
         if (fields.Length == 0)
             return;

@@ -1706,7 +1706,7 @@ public class CustomAddress : IMarkoutFormattable
 
     public void WriteTo(MarkoutWriter writer)
     {
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Street", Street ?? ""),
             new MarkoutField("City", City ?? ""),
             new MarkoutField("State", State ?? ""));
@@ -1749,7 +1749,7 @@ public partial class SkipDefaultTestContext : MarkoutSerializerContext
 {
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
 public class ServerStatusLineBreaks
 {
     public string? Name { get; set; }
@@ -1764,7 +1764,7 @@ public partial class SkipDefaultLineBreaksContext : MarkoutSerializerContext
 {
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
 public class ServerStatusList
 {
     public string? Name { get; set; }
@@ -1855,7 +1855,7 @@ public partial class SkipNullTestContext : MarkoutSerializerContext
 {
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
 public class PackageInfoLineBreaks
 {
     public string? Name { get; set; }
@@ -1870,7 +1870,7 @@ public partial class SkipNullLineBreaksContext : MarkoutSerializerContext
 {
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
 public class PackageInfoList
 {
     public string? Name { get; set; }
@@ -1991,7 +1991,7 @@ public partial class TableDisplayTestContext : MarkoutSerializerContext
 
 // --- ShowWhen test types ---
 
-[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
 public class VerifiedPackage
 {
     public string Name { get; set; } = "";
@@ -2012,7 +2012,7 @@ public class VerifiedPackageOneLine
     public string? VerifiedBy { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
 public class VerifiedPackageList
 {
     public string Name { get; set; } = "";
@@ -2023,7 +2023,7 @@ public class VerifiedPackageList
 
 // --- Link test types ---
 
-[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
 public class LinkProjectInfo
 {
     public string Name { get; set; } = "";
@@ -2041,7 +2041,7 @@ public class LinkProjectOneLine
     public string? Url { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
 public class LinkProjectList
 {
     public string Name { get; set; } = "";
@@ -2169,7 +2169,7 @@ public class FormattedScalarSection
     public string? Repository { get; set; }
 }
 
-[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false, FieldLayout = FieldLayout.BareList)]
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false, FieldLayout = FieldLayout.Vertical)]
 public class ScalarSectionLineBreaks
 {
     [MarkoutIgnore] public string Name { get; set; } = "";

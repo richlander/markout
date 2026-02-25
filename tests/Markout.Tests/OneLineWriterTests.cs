@@ -92,11 +92,11 @@ public class OneLineWriterTests
     }
 
     [Fact]
-    public void WriteFieldBareList_BufferedAndRenderedAsTable()
+    public void WriteFields_BufferedAndRenderedAsTable()
     {
         var sw = new StringWriter();
         var writer = new OneLineWriter(sw);
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "11.0.0"));
 
@@ -113,11 +113,11 @@ public class OneLineWriterTests
     }
 
     [Fact]
-    public void WriteFieldLine_RendersInline()
+    public void WriteFieldsInline_RendersInline()
     {
         var sw = new StringWriter();
         var writer = new OneLineWriter(sw);
-        writer.WriteFieldLine(
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "11.0.0"));
 
@@ -132,12 +132,12 @@ public class OneLineWriterTests
     }
 
     [Fact]
-    public void WriteFieldBareList_FlushedOnHeading()
+    public void WriteFields_FlushedOnHeading()
     {
         var sw = new StringWriter();
         var writer = new OneLineWriter(sw);
         writer.WriteHeading(2, "Section 1", null);
-        writer.WriteFieldBareList([new("Key1", "Value1")]);
+        writer.WriteFields([new("Key1", "Value1")]);
         writer.WriteHeading(2, "Section 2", null);  // Should flush buffered fields
 
         var output = sw.ToString();

@@ -27,14 +27,14 @@ public static class ShapeGallery
 
         // Fields (identity continued)
         writer.WriteHeading(2, "Fields");
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new("Name", "Markout"),
             new("Version", "0.6.0"),
             new("License", "MIT"));
 
         // Field list
         writer.WriteHeading(2, "Field List");
-        writer.WriteFieldLine(
+        writer.WriteFieldsInline(
             new("Language", "C#"),
             new("Runtime", ".NET 10"),
             new("Source Gen", "yes"));

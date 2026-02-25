@@ -17,7 +17,7 @@ public static class WriterUsage
 
         writer.WriteHeading(1, "Product Report");
 
-        writer.WriteFieldBareList(
+        writer.WriteFields(
             new("Product", "Widget Pro"),
             new("Price", "99.99"),
             new("In Stock", "yes"));

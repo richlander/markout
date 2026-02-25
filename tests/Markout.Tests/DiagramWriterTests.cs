@@ -70,7 +70,7 @@ public class DiagramWriterTests
         {
             var sw = new StringWriter();
             var writer = new DiagramWriter(sw);
-            writer.WriteFieldBareList([new("Key", "Value")]);
+            writer.WriteFields([new("Key", "Value")]);
             Assert.Equal("", sw.ToString());
             Assert.Contains("does not support Fields", errWriter.ToString());
         }
