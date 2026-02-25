@@ -558,7 +558,7 @@ internal static class SerializerEmitter
             }
             else
             {
-                sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteArray(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
             }
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -577,7 +577,7 @@ internal static class SerializerEmitter
             }
             else
             {
-                sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteTree(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
             }
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -682,8 +682,8 @@ internal static class SerializerEmitter
         switch (prop.Kind)
         {
             case PropertyKind.StringArray:
-                sb.AppendLine($"{indent}if ({propAccess} != null)");
-                sb.AppendLine($"{indent}    writer.WriteArray(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteArray(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
                 break;
 
             case PropertyKind.FieldCollection:
@@ -693,7 +693,7 @@ internal static class SerializerEmitter
 
             case PropertyKind.Tree:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteTree(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
                 break;
 
             case PropertyKind.Metric:

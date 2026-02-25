@@ -453,7 +453,7 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteArray(string key, IEnumerable<string>? items)
+    public override void WriteArray(string key, params ReadOnlySpan<string> items)
     {
         if (SectionExcluded)
             return;

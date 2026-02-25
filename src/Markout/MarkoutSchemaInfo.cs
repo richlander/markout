@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace Markout;
 
 /// <summary>
@@ -38,13 +40,13 @@ public sealed class MarkoutSchemaInfo
         var markout = new MarkdownWriter(writer);
         
         writer.WriteLine($"{TypeName} (as document)");
-        markout.WriteTree(ToTreeNodes(AsDocument));
-        
+        markout.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsDocument)));
+
         if (AsTableItem.Count > 0 && HasDifferences())
         {
             writer.WriteLine();
             writer.WriteLine($"{TypeName} (in table)");
-            markout.WriteTree(ToTreeNodes(AsTableItem));
+            markout.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsTableItem)));
         }
         
         markout.Flush();

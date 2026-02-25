@@ -464,7 +464,7 @@ public class MarkoutWriter
     /// <summary>
     /// Writes a sequence of strings as bullet list items.
     /// </summary>
-    public void WriteList(IEnumerable<string> items)
+    public void WriteList(params ReadOnlySpan<string> items)
     {
         foreach (var item in items)
             WriteListItem(item);
@@ -586,7 +586,7 @@ public class MarkoutWriter
     /// <summary>
     /// Writes an array field with string items as a list.
     /// </summary>
-    public virtual void WriteArray(string key, IEnumerable<string>? items)
+    public virtual void WriteArray(string key, params ReadOnlySpan<string> items)
     {
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Lists))
             return;
@@ -605,7 +605,7 @@ public class MarkoutWriter
     /// Writes string items as a bullet list (no label).
     /// Use after a heading when the section title serves as the label.
     /// </summary>
-    public virtual void WriteArray(IEnumerable<string>? items)
+    public virtual void WriteArray(params ReadOnlySpan<string> items)
     {
         if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Lists))
             return;
@@ -620,15 +620,12 @@ public class MarkoutWriter
     /// <summary>
     /// Writes items as a bullet list. Available to subclasses.
     /// </summary>
-    protected void WriteBulletItems(IEnumerable<string>? items)
+    protected void WriteBulletItems(ReadOnlySpan<string> items)
     {
-        if (items != null)
+        foreach (var item in items)
         {
-            foreach (var item in items)
-            {
-                _writer.Write("- ");
-                _writer.WriteLine(item);
-            }
+            _writer.Write("- ");
+            _writer.WriteLine(item);
         }
 
         _needsBlankLine = true;
@@ -853,15 +850,14 @@ public class MarkoutWriter
     /// <summary>
     /// Writes a tree structure from a list of TreeNode objects.
     /// </summary>
-    public virtual void WriteTree(IEnumerable<TreeNode>? nodes)
+    public virtual void WriteTree(params ReadOnlySpan<TreeNode> nodes)
     {
-        if (nodes == null || _sectionExcluded || ShapeUnsupported(MarkoutShape.Trees)) return;
+        if (nodes.Length == 0 || _sectionExcluded || ShapeUnsupported(MarkoutShape.Trees)) return;
 
-        var nodeList = nodes as IList<TreeNode> ?? [.. nodes];
-        for (int i = 0; i < nodeList.Count; i++)
+        for (int i = 0; i < nodes.Length; i++)
         {
-            var isLast = i == nodeList.Count - 1;
-            WriteTreeNodeRecursive(nodeList[i], "", isLast);
+            var isLast = i == nodes.Length - 1;
+            WriteTreeNodeRecursive(nodes[i], "", isLast);
         }
     }
 

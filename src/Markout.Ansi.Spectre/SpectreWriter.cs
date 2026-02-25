@@ -285,7 +285,7 @@ public class SpectreWriter : MarkoutWriter
     // ── Arrays and lists ──
 
     /// <inheritdoc/>
-    public override void WriteArray(string key, IEnumerable<string>? items)
+    public override void WriteArray(string key, params ReadOnlySpan<string> items)
     {
         if (SectionExcluded)
             return;
@@ -492,15 +492,14 @@ public class SpectreWriter : MarkoutWriter
     // ── Trees ──
 
     /// <inheritdoc/>
-    public override void WriteTree(IEnumerable<TreeNode>? nodes)
+    public override void WriteTree(params ReadOnlySpan<TreeNode> nodes)
     {
-        if (nodes == null || SectionExcluded) return;
+        if (nodes.Length == 0 || SectionExcluded) return;
 
-        var nodeList = nodes as IList<TreeNode> ?? [.. nodes];
-        for (int i = 0; i < nodeList.Count; i++)
+        for (int i = 0; i < nodes.Length; i++)
         {
-            var isLast = i == nodeList.Count - 1;
-            WriteSpectreTreeNode(nodeList[i], "", isLast, 0);
+            var isLast = i == nodes.Length - 1;
+            WriteSpectreTreeNode(nodes[i], "", isLast, 0);
         }
     }
 

@@ -162,7 +162,7 @@ public static class Demos
         
         writer.WriteHeading(2, "Products with Reviews");
         writer.WriteCodeStart();
-        writer.WriteTree(tree);
+        writer.WriteTree(tree.ToArray());
         writer.WriteCodeEnd();
         writer.Flush();
     }

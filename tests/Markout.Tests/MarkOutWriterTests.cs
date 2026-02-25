@@ -304,15 +304,7 @@ public class MarkoutWriterTests
     public void WriteTree_SimpleNodes_RendersTreeStructure()
     {
         var writer = new MarkoutWriter();
-        var nodes = new List<TreeNode>
-        {
-            new("Root", new List<TreeNode>
-            {
-                new("Child1"),
-                new("Child2")
-            })
-        };
-        writer.WriteTree(nodes);
+        writer.WriteTree(new TreeNode("Root", [new TreeNode("Child1"), new TreeNode("Child2")]));
 
         var output = writer.ToString();
         Assert.Contains("└─ Root", output);
@@ -324,13 +316,10 @@ public class MarkoutWriterTests
     public void WriteTree_WithIcons_RendersIconBeforeLabel()
     {
         var writer = new MarkoutWriter();
-        var nodes = new List<TreeNode>
-        {
+        writer.WriteTree(
             new("local.dll", "📁"),
             new("platform.dll", "🚢"),
-            new("unknown.dll", "❓")
-        };
-        writer.WriteTree(nodes);
+            new("unknown.dll", "❓"));
 
         var output = writer.ToString();
         Assert.Contains("📁 local.dll", output);
@@ -342,14 +331,7 @@ public class MarkoutWriterTests
     public void WriteTree_WithNestedIcons_RendersAllIcons()
     {
         var writer = new MarkoutWriter();
-        var nodes = new List<TreeNode>
-        {
-            new("lib", "📁", new List<TreeNode>
-            {
-                new("net8.0", "📂", new[] { "MyLib.dll" })
-            })
-        };
-        writer.WriteTree(nodes);
+        writer.WriteTree(new TreeNode("lib", "📁", [new TreeNode("net8.0", "📂", ["MyLib.dll"])]));
 
         var output = writer.ToString();
         Assert.Contains("📁 lib", output);
@@ -364,12 +346,9 @@ public class MarkoutWriterTests
     {
         var options = new MarkoutWriterOptions { IncludeBadges = false };
         var writer = new MarkoutWriter(options);
-        var nodes = new List<TreeNode>
-        {
+        writer.WriteTree(
             new("local.dll", "📁"),
-            new("platform.dll", "🚢")
-        };
-        writer.WriteTree(nodes);
+            new("platform.dll", "🚢"));
 
         var output = writer.ToString();
         // Icons should not appear
