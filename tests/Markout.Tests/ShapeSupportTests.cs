@@ -30,7 +30,6 @@ public class ShapeSupportTests
         Assert.True(all.HasFlag(MarkoutShape.Callouts));
         Assert.True(all.HasFlag(MarkoutShape.Breakdowns));
         Assert.True(all.HasFlag(MarkoutShape.Quotation));
-        Assert.True(all.HasFlag(MarkoutShape.Matrices));
     }
 
     [Fact]

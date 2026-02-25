@@ -50,9 +50,6 @@ public enum MarkoutShape
     /// <summary>Prose quotation blocks.</summary>
     Quotation = 8192,
 
-    /// <summary>2D grid with row and column headers.</summary>
-    Matrices = 16384,
-
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation | Matrices
+    All = Headings | Paragraphs | Fields | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation
 }

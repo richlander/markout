@@ -20,6 +20,39 @@ public class MarkoutProjection
     private IReadOnlyList<string>? _includeSections;
     private StringComparison _comparison = StringComparison.OrdinalIgnoreCase;
 
+    // ── Factory Methods ──
+
+    /// <summary>
+    /// Creates a projection that includes only the specified table columns.
+    /// </summary>
+    public static MarkoutProjection WithColumns(params ReadOnlySpan<string> columns)
+        => new() { IncludeColumns = columns.ToArray() };
+
+    /// <summary>
+    /// Creates a projection that excludes the specified table columns.
+    /// </summary>
+    public static MarkoutProjection WithoutColumns(params ReadOnlySpan<string> columns)
+        => new() { ExcludeColumns = [..columns] };
+
+    /// <summary>
+    /// Creates a projection that includes only the specified fields.
+    /// </summary>
+    public static MarkoutProjection WithFields(params ReadOnlySpan<string> fields)
+        => new() { IncludeFields = fields.ToArray() };
+
+    /// <summary>
+    /// Creates a projection that excludes the specified fields.
+    /// </summary>
+    public static MarkoutProjection WithoutFields(params ReadOnlySpan<string> fields)
+        => new() { ExcludeFields = [..fields] };
+
+    /// <summary>
+    /// Creates a projection that includes the specified sections
+    /// (overriding section exclusion from writer options).
+    /// </summary>
+    public static MarkoutProjection WithSections(params ReadOnlySpan<string> sections)
+        => new() { IncludeSections = sections.ToArray() };
+
     /// <summary>
     /// If set, sections whose name matches are included even if excluded by
     /// <see cref="MarkoutWriterOptions.IncludeSections"/>/<see cref="MarkoutWriterOptions.ExcludeSections"/>.

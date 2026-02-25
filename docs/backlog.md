@@ -139,15 +139,6 @@ Useful between sections when headings are suppressed.
 A numbered variant is a visual parameter (`numbered: true`), not a distinct
 data relationship. Fails criterion #2 (semantically distinct).
 
-## Matrix ✅ Accepted
-
-2D grid with row/column headers and cell values (pivot table).
-Distinct from flat Table: has both row and column headers. Passes all five criteria.
-
-```csharp
-writer.WriteMatrix(rowHeaders, colHeaders, values);
-```
-
 ## Diagram shapes
 
 Future diagram-oriented renderers (extending DiagramWriter):

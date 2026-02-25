@@ -103,19 +103,6 @@ public static class ShapeGallery
         // Separator
         writer.WriteRule();
 
-        // Matrix
-        writer.WriteHeading(2, "Renderer × Shape Support");
-        writer.WriteMatrix(
-            ["Markdown", "ANSI", "Plain", "OneLine"],
-            ["Tables", "Trees", "Metrics", "Breakdowns"],
-            new string?[,]
-            {
-                { "✓", "✓", "✓", "✓" },
-                { "✓", "✓", "✓", "—" },
-                { "✓", "✓", "✓", "—" },
-                { "✓", "✓", "✓", "—" },
-            });
-
         Console.WriteLine(writer.ToString());
     }
 }

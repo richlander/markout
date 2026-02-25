@@ -127,7 +127,6 @@ These add meaning beyond raw document structure. They represent specific data re
 | **Descriptions** | Description | `WriteDescriptions` | `Description` |
 | **Callouts** | Attention | `WriteCallout` | `Callout` |
 | **Trees** | Hierarchy | `WriteTree` | `TreeNode` |
-| **Matrices** | Tabulation (2D) | `WriteMatrix` | — |
 
 ### Tier 3: Data Visualizations
 
@@ -191,7 +190,6 @@ Applying the admission criteria to candidates:
 | Candidate | Relationship | Criteria assessment | Verdict |
 |---|---|---|---|
 | ~~Quotation~~ | Quotation (prose) | ✅ All five. Distinct from CodeSection (prose vs. code). | **Shipped** |
-| ~~Matrix~~ | Tabulation (2D) | ✅ All five. Row+column headers distinct from flat table. | **Shipped** |
 | StatusItem | Measurement | ❌ #2: Same relationship as Metric (value relative to max). | Metric with options |
 | DefinitionItem | Description | ❌ #2: Same relationship as Description. | Use Description |
 | LinkItem | Reference | ⚠️ #2: Could be a format attribute on fields. | Attribute preferred |

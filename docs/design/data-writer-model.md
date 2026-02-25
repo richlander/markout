@@ -29,7 +29,6 @@ The `MarkoutShape` enum defines the vocabulary of data relationships:
 | **Breakdowns** | Proportional composition | Category distributions |
 | **Code** | Fenced source regions | Code samples, configurations |
 | **Quotation** | Attributed prose | Block quotes |
-| **Matrices** | 2D grid with headers | Compatibility tables |
 | **Callouts** | Attention blocks | Notes, warnings, tips |
 
 ### Fields: The Unified Key-Value Shape

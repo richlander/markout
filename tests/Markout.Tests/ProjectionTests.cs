@@ -591,4 +591,63 @@ public class ProjectionTests
         var columns = schema.GetColumnNames();
         Assert.Equal(["Name", "Version", "Target"], columns);
     }
+
+    // --- Factory method tests ---
+
+    [Fact]
+    public void WithColumns_CreatesProjectionWithIncludeColumns()
+    {
+        var projection = MarkoutProjection.WithColumns("Name", "TFM");
+        Assert.Equal(["Name", "TFM"], projection.IncludeColumns);
+        Assert.Null(projection.ExcludeColumns);
+    }
+
+    [Fact]
+    public void WithoutColumns_CreatesProjectionWithExcludeColumns()
+    {
+        var projection = MarkoutProjection.WithoutColumns("Version", "Signed");
+        Assert.Null(projection.IncludeColumns);
+        Assert.Contains("Version", projection.ExcludeColumns!);
+        Assert.Contains("Signed", projection.ExcludeColumns!);
+    }
+
+    [Fact]
+    public void WithFields_CreatesProjectionWithIncludeFields()
+    {
+        var projection = MarkoutProjection.WithFields("Name", "License");
+        Assert.Equal(["Name", "License"], projection.IncludeFields);
+        Assert.Null(projection.ExcludeFields);
+    }
+
+    [Fact]
+    public void WithoutFields_CreatesProjectionWithExcludeFields()
+    {
+        var projection = MarkoutProjection.WithoutFields("InternalId");
+        Assert.Null(projection.IncludeFields);
+        Assert.Contains("InternalId", projection.ExcludeFields!);
+    }
+
+    [Fact]
+    public void WithSections_CreatesProjectionWithIncludeSections()
+    {
+        var projection = MarkoutProjection.WithSections("Details", "API Surface");
+        Assert.Equal(["Details", "API Surface"], projection.IncludeSections);
+    }
+
+    [Fact]
+    public void FactoryMethod_WorksWithWriterOptions()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithColumns("Name")
+        };
+        var writer = new MarkoutWriter(options);
+        writer.WriteTableStart("Name", "Version");
+        writer.WriteTableRow("Foo", "1.0.0");
+        writer.WriteTableEnd();
+        var output = writer.ToString();
+        Assert.Contains("Name", output);
+        Assert.Contains("Foo", output);
+        Assert.DoesNotContain("Version", output);
+    }
 }
