@@ -111,7 +111,7 @@ Every document format supports these. They map directly to Markdown elements and
 |---|---|---|---|
 | **Headings** | Section | `WriteHeading` | — |
 | **Paragraphs** | Identity (prose) | `WriteParagraph` | — |
-| **Fields** | Identity | `WriteField` | — |
+| **Fields** | Identity | `WriteField`, `WriteFieldList`, `WriteFieldTable` | `MarkoutField` |
 | **Lists** | Enumeration | `WriteListItem`, `WriteArray` | — |
 | **Tables** | Tabulation | `WriteTable`, `WriteTableStart/Row/End` | — |
 | **Code** | Quotation (code) | `WriteCodeStart/End` | `CodeSection` |
@@ -124,7 +124,6 @@ These add meaning beyond raw document structure. They represent specific data re
 
 | Shape | Relationship | Writer method | Record type |
 |---|---|---|---|
-| **FieldList** | Identity (multi) | `WriteFieldList` | `MarkoutField` |
 | **Descriptions** | Description | `WriteDescriptions` | `Description` |
 | **Callouts** | Attention | `WriteCallout` | `Callout` |
 | **Trees** | Hierarchy | `WriteTree` | `TreeNode` |

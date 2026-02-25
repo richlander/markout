@@ -38,11 +38,11 @@ public class UnicodeWriterTests
     }
 
     [Fact]
-    public void WriteField_KeyValueFormat()
+    public void WriteFieldBareList_KeyValueFormat()
     {
         var sw = new StringWriter();
         var writer = new UnicodeWriter(sw);
-        writer.WriteField("Name", "Alice");
+        writer.WriteFieldBareList([new("Name", "Alice")]);
         var output = sw.ToString();
         Assert.Contains("Name: Alice", output);
     }
@@ -192,11 +192,11 @@ public class UnicodeWriterTests
     }
 
     [Fact]
-    public void WriteFieldList_WithVerticalBar()
+    public void WriteFieldLine_WithVerticalBar()
     {
         var sw = new StringWriter();
         var writer = new UnicodeWriter(sw);
-        writer.WriteFieldList([
+        writer.WriteFieldLine([
             new MarkoutField("Name", "Alice"),
             new MarkoutField("Age", "30")
         ]);

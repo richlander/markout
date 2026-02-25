@@ -1710,9 +1710,10 @@ public class CustomAddress : IMarkoutFormattable
 
     public void WriteTo(MarkoutWriter writer)
     {
-        writer.WriteField("Street", Street);
-        writer.WriteField("City", City);
-        writer.WriteField("State", State);
+        writer.WriteFieldBareList(
+            new MarkoutField("Street", Street ?? ""),
+            new MarkoutField("City", City ?? ""),
+            new MarkoutField("State", State ?? ""));
     }
 
     public string? ToMarkoutString() => $"{City}, {State}";
@@ -1752,7 +1753,7 @@ public partial class SkipDefaultTestContext : MarkoutSerializerContext
 {
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
 public class ServerStatusLineBreaks
 {
     public string? Name { get; set; }
@@ -1858,7 +1859,7 @@ public partial class SkipNullTestContext : MarkoutSerializerContext
 {
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
 public class PackageInfoLineBreaks
 {
     public string? Name { get; set; }
@@ -1994,7 +1995,7 @@ public partial class TableDisplayTestContext : MarkoutSerializerContext
 
 // --- ShowWhen test types ---
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
 public class VerifiedPackage
 {
     public string Name { get; set; } = "";
@@ -2026,7 +2027,7 @@ public class VerifiedPackageList
 
 // --- Link test types ---
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
 public class LinkProjectInfo
 {
     public string Name { get; set; } = "";
@@ -2172,7 +2173,7 @@ public class FormattedScalarSection
     public string? Repository { get; set; }
 }
 
-[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false, FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false, FieldLayout = FieldLayout.BareList)]
 public class ScalarSectionLineBreaks
 {
     [MarkoutIgnore] public string Name { get; set; } = "";

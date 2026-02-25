@@ -104,41 +104,25 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteField(string key, string? value)
+    public override void WriteFieldBareList(params ReadOnlySpan<MarkoutField> fields)
     {
-        if (SectionExcluded)
+        if (SectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
+            return;
+
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
             return;
 
         EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        Writer.Write(value ?? string.Empty);
-        Writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        HasContent = true;
-    }
 
-    /// <inheritdoc/>
-    public override void WriteField(string key, bool value)
-    {
-        if (SectionExcluded)
-            return;
+        for (int i = 0; i < projected.Length; i++)
+        {
+            WriteFieldName(projected[i].Key);
+            Writer.Write(projected[i].Value);
+            Writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
+        }
 
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        Writer.Write(value ? "yes" : "no");
-        Writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteField<T>(string key, T value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        Writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
+        NeedsBlankLine = true;
         HasContent = true;
     }
 

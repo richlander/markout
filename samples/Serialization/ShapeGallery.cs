@@ -27,16 +27,17 @@ public static class ShapeGallery
 
         // Fields (identity continued)
         writer.WriteHeading(2, "Fields");
-        writer.WriteField("Name", "Markout");
-        writer.WriteField("Version", "0.6.0");
-        writer.WriteField("License", "MIT");
+        writer.WriteFieldBareList(
+            new("Name", "Markout"),
+            new("Version", "0.6.0"),
+            new("License", "MIT"));
 
         // Field list
         writer.WriteHeading(2, "Field List");
-        writer.WriteFieldList(
-            new MarkoutField("Language", "C#"),
-            new MarkoutField("Runtime", ".NET 10"),
-            new MarkoutField("Source Gen", "yes"));
+        writer.WriteFieldLine(
+            new("Language", "C#"),
+            new("Runtime", ".NET 10"),
+            new("Source Gen", "yes"));
 
         // Enumeration — list
         writer.WriteHeading(2, "Features");

@@ -21,7 +21,6 @@ public class ShapeSupportTests
         Assert.True(all.HasFlag(MarkoutShape.Headings));
         Assert.True(all.HasFlag(MarkoutShape.Paragraphs));
         Assert.True(all.HasFlag(MarkoutShape.Fields));
-        Assert.True(all.HasFlag(MarkoutShape.FieldList));
         Assert.True(all.HasFlag(MarkoutShape.Tables));
         Assert.True(all.HasFlag(MarkoutShape.Lists));
         Assert.True(all.HasFlag(MarkoutShape.Trees));
@@ -58,9 +57,9 @@ public class ShapeSupportTests
         {
             var writer = new TablesOnlyWriter();
             // Call unsupported shape three times
-            writer.WriteField("A", "1");
-            writer.WriteField("B", "2");
-            writer.WriteField("C", "3");
+            writer.WriteFieldBareList([new("A", "1")]);
+            writer.WriteFieldBareList([new("B", "2")]);
+            writer.WriteFieldBareList([new("C", "3")]);
 
             var warnings = errWriter.ToString();
             // Should contain exactly one warning
@@ -84,7 +83,7 @@ public class ShapeSupportTests
             var writer = new TablesOnlyWriter();
             writer.WriteHeading(1, "Title");
             writer.WriteParagraph("text");
-            writer.WriteField("key", "value");
+            writer.WriteFieldBareList([new("key", "value")]);
             writer.WriteListItem("item");
             // Should produce no output
             Assert.Equal("", writer.ToString());

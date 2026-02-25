@@ -39,7 +39,6 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public FieldLayoutKind FieldLayout { get; }
     public NamingPolicyKind NamingPolicy { get; }
     public bool SkipNullByDefault { get; }
-    public IReadOnlyList<string> IgnoreFieldsWriters { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
     public TypeMetadata(
@@ -53,10 +52,9 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         string? descriptionProperty = null,
         bool autoFields = true,
         int autoFieldsCount = 0,
-        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
+        FieldLayoutKind fieldLayout = FieldLayoutKind.Line,
         NamingPolicyKind namingPolicy = NamingPolicyKind.Default,
         bool skipNullByDefault = false,
-        IReadOnlyList<string>? ignoreFieldsWriters = null,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
         Namespace = @namespace;
@@ -72,7 +70,6 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         FieldLayout = fieldLayout;
         NamingPolicy = namingPolicy;
         SkipNullByDefault = skipNullByDefault;
-        IgnoreFieldsWriters = ignoreFieldsWriters ?? Array.Empty<string>();
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
 
@@ -92,7 +89,6 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
                FieldLayout == other.FieldLayout &&
                NamingPolicy == other.NamingPolicy &&
                SkipNullByDefault == other.SkipNullByDefault &&
-               StringSequenceEqual(IgnoreFieldsWriters, other.IgnoreFieldsWriters) &&
                SequenceEqual(Properties, other.Properties);
     }
 
@@ -108,7 +104,6 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
             hash = hash * 397 ^ (int)FieldLayout;
             hash = hash * 397 ^ (int)NamingPolicy;
             hash = hash * 397 ^ SkipNullByDefault.GetHashCode();
-            hash = hash * 397 ^ IgnoreFieldsWriters.Count;
             foreach (var prop in Properties)
                 hash = hash * 397 ^ prop.GetHashCode();
             return hash;
@@ -204,7 +199,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? elementTitleProperty = null,
         string? elementTitleContextProperty = null,
         bool elementAutoFields = true,
-        FieldLayoutKind elementFieldLayout = FieldLayoutKind.OneLine,
+        FieldLayoutKind elementFieldLayout = FieldLayoutKind.Line,
         string? boolTrueValue = null,
         string? boolFalseValue = null,
         bool isNullableValueType = false,
@@ -386,10 +381,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
 /// </summary>
 internal enum FieldLayoutKind
 {
-    OneLine = 0,
-    LineBreaks = 1,
-    LineBreaksDoubleSpace = 2,
-    List = 3
+    Line = 0,
+    List = 1,
+    BareList = 2
 }
 
 /// <summary>

@@ -17,9 +17,10 @@ public static class WriterUsage
 
         writer.WriteHeading(1, "Product Report");
 
-        writer.WriteField("Product", "Widget Pro");
-        writer.WriteField("Price", 99.99m);
-        writer.WriteField("In Stock", true);
+        writer.WriteFieldBareList(
+            new("Product", "Widget Pro"),
+            new("Price", "99.99"),
+            new("In Stock", "yes"));
 
         writer.WriteArray("Features", new[] { "Durable", "Lightweight", "Waterproof" });
 

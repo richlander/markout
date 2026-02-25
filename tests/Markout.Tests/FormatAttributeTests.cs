@@ -12,7 +12,7 @@ public class DateFormatOneLine
     public DateTimeOffset Published { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
 public class DateFormatLineBreaks
 {
     public string? Name { get; set; }
@@ -38,7 +38,7 @@ public class NumericFormatOneLine
     public double Rate { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
 public class NumericFormatLineBreaks
 {
     public string? Label { get; set; }
@@ -54,7 +54,7 @@ public class NullableDateFormatOneLine
     public DateTimeOffset? Published { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.BareList)]
 public class NullableDateFormatLineBreaks
 {
     public string? Name { get; set; }

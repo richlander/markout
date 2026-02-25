@@ -32,47 +32,46 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteField_String_WritesKeyValue()
+    public void WriteFieldBareList_String_WritesKeyValue()
     {
         var writer = new MarkoutWriter();
-        writer.WriteField("Name", "Newtonsoft.Json");
+        writer.WriteFieldBareList([new("Name", "Newtonsoft.Json")]);
 
-        // Note: WriteField adds two trailing spaces for markdown hard line break
         Assert.Equal("Name: Newtonsoft.Json", writer.ToString());
     }
 
     [Fact]
-    public void WriteField_BooleanTrue_WritesYes()
+    public void WriteFieldBareList_BooleanTrue_WritesYes()
     {
         var writer = new MarkoutWriter();
-        writer.WriteField("Signed", true);
+        writer.WriteFieldBareList([new("Signed", "yes")]);
 
         Assert.Equal("Signed: yes", writer.ToString());
     }
 
     [Fact]
-    public void WriteField_BooleanFalse_WritesNo()
+    public void WriteFieldBareList_BooleanFalse_WritesNo()
     {
         var writer = new MarkoutWriter();
-        writer.WriteField("Signed", false);
+        writer.WriteFieldBareList([new("Signed", "no")]);
 
         Assert.Equal("Signed: no", writer.ToString());
     }
 
     [Fact]
-    public void WriteField_Integer_WritesNumber()
+    public void WriteFieldBareList_Integer_WritesNumber()
     {
         var writer = new MarkoutWriter();
-        writer.WriteField("Count", 42);
+        writer.WriteFieldBareList([new("Count", "42")]);
 
         Assert.Equal("Count: 42", writer.ToString());
     }
 
     [Fact]
-    public void WriteField_Double_WritesNumber()
+    public void WriteFieldBareList_Double_WritesNumber()
     {
         var writer = new MarkoutWriter();
-        writer.WriteField("Version", 3.14);
+        writer.WriteFieldBareList([new("Version", "3.14")]);
 
         Assert.Equal("Version: 3.14", writer.ToString());
     }
@@ -159,10 +158,11 @@ public class MarkoutWriterTests
     {
         var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package");
-        writer.WriteField("Name", "Test");
-        writer.WriteField("Version", "1.0.0");
+        writer.WriteFieldBareList(
+            new("Name", "Test"),
+            new("Version", "1.0.0"));
         writer.WriteHeading(2, "Dependencies");
-        writer.WriteField("Count", 5);
+        writer.WriteFieldBareList([new("Count", "5")]);
 
         var expected = "# Package\n\nName: Test  \nVersion: 1.0.0  \n\n## Dependencies\n\nCount: 5";
         Assert.Equal(expected, writer.ToString());
@@ -173,7 +173,7 @@ public class MarkoutWriterTests
     {
         var writer = new MarkoutWriter();
         var date = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
-        writer.WriteField("Published", date);
+        writer.WriteFieldBareList([new("Published", date.ToString("O"))]);
 
         Assert.StartsWith("Published: 2024-01-15T10:30:00", writer.ToString());
     }
@@ -186,11 +186,11 @@ public class MarkoutWriterTests
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Intro");
         writer.WriteHeading(2, "First");    // included
-        writer.WriteField("A", "1");
+        writer.WriteFieldBareList([new("A", "1")]);
         writer.WriteHeading(2, "Second");   // excluded
-        writer.WriteField("B", "2");
+        writer.WriteFieldBareList([new("B", "2")]);
         writer.WriteHeading(2, "Third");    // excluded
-        writer.WriteField("C", "3");
+        writer.WriteFieldBareList([new("C", "3")]);
 
         var expected = "# Title\n\nIntro\n\n## First\n\nA: 1";
         Assert.Equal(expected, writer.ToString());
@@ -203,11 +203,11 @@ public class MarkoutWriterTests
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "First");    // included
-        writer.WriteField("A", "1");
+        writer.WriteFieldBareList([new("A", "1")]);
         writer.WriteHeading(2, "Second");   // excluded
-        writer.WriteField("B", "2");
+        writer.WriteFieldBareList([new("B", "2")]);
         writer.WriteHeading(2, "Third");    // included
-        writer.WriteField("C", "3");
+        writer.WriteFieldBareList([new("C", "3")]);
 
         var expected = "# Title\n\n## First\n\nA: 1  \n\n## Third\n\nC: 3";
         Assert.Equal(expected, writer.ToString());
@@ -221,9 +221,9 @@ public class MarkoutWriterTests
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("This is before any H2");
         writer.WriteHeading(2, "First");    // excluded
-        writer.WriteField("A", "1");
+        writer.WriteFieldBareList([new("A", "1")]);
         writer.WriteHeading(2, "Second");   // included
-        writer.WriteField("B", "2");
+        writer.WriteFieldBareList([new("B", "2")]);
 
         var expected = "# Title\n\nThis is before any H2\n\n## Second\n\nB: 2";
         Assert.Equal(expected, writer.ToString());
@@ -240,26 +240,26 @@ public class MarkoutWriterTests
         writer.WriteTableRow("Foo", "Bar");
         writer.WriteTableEnd();
         writer.WriteHeading(2, "Other");    // included
-        writer.WriteField("X", "Y");
+        writer.WriteFieldBareList([new("X", "Y")]);
 
         var expected = "# Title\n\n## Other\n\nX: Y";
         Assert.Equal(expected, writer.ToString());
     }
 
     [Fact]
-    public void WriteFieldList_SingleField_WritesSinglePair()
+    public void WriteFieldLine_SingleField_WritesSinglePair()
     {
         var writer = new MarkoutWriter();
-        writer.WriteFieldList(new MarkoutField("Type", "Library"));
+        writer.WriteFieldLine([new("Type", "Library")]);
 
         Assert.Equal("Type: Library", writer.ToString());
     }
 
     [Fact]
-    public void WriteFieldList_MultipleFields_WritesPipeSeparated()
+    public void WriteFieldLine_MultipleFields_WritesPipeSeparated()
     {
         var writer = new MarkoutWriter();
-        writer.WriteFieldList(
+        writer.WriteFieldLine(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"),
             new MarkoutField("Updated", "2026-01-15"));
@@ -268,55 +268,36 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteFieldList_EmptyFields_WritesNothing()
+    public void WriteFieldLine_EmptyFields_WritesNothing()
     {
         var writer = new MarkoutWriter();
-        writer.WriteFieldList();
+        writer.WriteFieldLine();
 
         Assert.Equal("", writer.ToString());
     }
 
     [Fact]
-    public void WriteFieldList_NullValue_WritesEmptyString()
+    public void WriteFieldLine_EmptyValue_WritesEmptyString()
     {
         var writer = new MarkoutWriter();
-        writer.WriteFieldList(
-            new MarkoutField("Status", null),
-            new MarkoutField("Count", "5"));
+        writer.WriteFieldLine(
+            new("Status", ""),
+            new("Count", "5"));
 
         Assert.Equal("Status:  | Count: 5", writer.ToString());
     }
 
     [Fact]
-    public void WriteFieldList_AfterHeading_AddsBlankLine()
+    public void WriteFieldLine_AfterHeading_AddsBlankLine()
     {
         var writer = new MarkdownWriter();
         writer.WriteHeading(1, "Package 1.0.0");
-        writer.WriteFieldList(
+        writer.WriteFieldLine(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"));
 
         var expected = "# Package 1.0.0\n\nType: Library | TFM: net8.0";
         Assert.Equal(expected, writer.ToString());
-    }
-
-    [Fact]
-    public void MarkoutField_CreateWithBool_RendersYesNo()
-    {
-        var field = MarkoutField.Create("Active", true);
-        Assert.Equal("Active", field.Key);
-        Assert.Equal("yes", field.Value);
-
-        var field2 = MarkoutField.Create("Active", false);
-        Assert.Equal("no", field2.Value);
-    }
-
-    [Fact]
-    public void MarkoutField_CreateWithInt_RendersNumber()
-    {
-        var field = MarkoutField.Create("Count", 42);
-        Assert.Equal("Count", field.Key);
-        Assert.Equal("42", field.Value);
     }
 
     [Fact]
@@ -400,35 +381,6 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void WriteFieldNoBreak_Double_WritesNumber()
-    {
-        var writer = new MarkoutWriter();
-        writer.WriteFieldNoBreak("Score", 9.5);
-
-        Assert.Equal("Score: 9.5", writer.ToString());
-    }
-
-    [Fact]
-    public void WriteFieldNoBreak_DateTime_WritesIso8601()
-    {
-        var writer = new MarkoutWriter();
-        var date = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
-        writer.WriteFieldNoBreak("Created", date);
-
-        Assert.StartsWith("Created: 2024-06-15T12:00:00", writer.ToString());
-    }
-
-    [Fact]
-    public void WriteFieldNoBreak_DateTimeOffset_WritesIso8601()
-    {
-        var writer = new MarkoutWriter();
-        var date = new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero);
-        writer.WriteFieldNoBreak("Modified", date);
-
-        Assert.StartsWith("Modified: 2024-06-15T12:00:00", writer.ToString());
-    }
-
-    [Fact]
     public void MarkoutWriterOptions_Default_HasExpectedValues()
     {
         var options = new MarkoutWriterOptions();
@@ -480,7 +432,7 @@ public class MarkoutWriterTests
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Preamble text");
         writer.WriteHeading(2, "First");
-        writer.WriteField("A", "1");
+        writer.WriteFieldBareList([new("A", "1")]);
 
         var expected = "# Title\n\nPreamble text";
         Assert.Equal(expected, writer.ToString());

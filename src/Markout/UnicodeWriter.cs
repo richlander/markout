@@ -106,28 +106,10 @@ public class UnicodeWriter : MarkoutWriter
 
     // ── Fields ──
 
-    /// <inheritdoc/>
-    public override void WriteField(string key, string? value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        Writer.WriteLine();
-        HasContent = true;
-    }
-
     protected override void WriteFieldName(string key)
     {
         Writer.Write(key);
         Writer.Write(": ");
-    }
-
-    private void WriteFormattedValue(string? value)
-    {
-        Writer.Write(value ?? "");
     }
 
     // ── Code ──
@@ -278,44 +260,26 @@ public class UnicodeWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Field list ──
+    // ── Field line (inline pipe-separated) ──
 
     /// <inheritdoc/>
-    public override void WriteFieldList(params MarkoutField[] fields)
+    public override void WriteFieldLine(params ReadOnlySpan<MarkoutField> fields)
     {
-        if (SectionExcluded)
+        if (SectionExcluded || fields.Length == 0)
             return;
 
         EnsureBlankLineIfNeeded();
 
-        int maxKeyWidth = fields.Max(f => f.Key.Length);
+        int maxKeyWidth = 0;
+        foreach (var field in fields)
+            if (field.Key.Length > maxKeyWidth)
+                maxKeyWidth = field.Key.Length;
 
         foreach (var field in fields)
         {
             Writer.Write(field.Key.PadRight(maxKeyWidth));
             Writer.Write(" │ ");
-            Writer.WriteLine(field.Value ?? "");
-        }
-
-        NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteFieldList(IReadOnlyList<MarkoutField> fields)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
-        int maxKeyWidth = fields.Max(f => f.Key.Length);
-
-        foreach (var field in fields)
-        {
-            Writer.Write(field.Key.PadRight(maxKeyWidth));
-            Writer.Write(" │ ");
-            Writer.WriteLine(field.Value ?? "");
+            Writer.WriteLine(field.Value);
         }
 
         NeedsBlankLine = true;

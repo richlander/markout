@@ -22,29 +22,25 @@ internal static class FieldEmitter
     {
         switch (fieldLayout)
         {
-            case FieldLayoutKind.OneLine:
-                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
-                break;
-
-            case FieldLayoutKind.LineBreaks:
-                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: false, sectionHeading, sectionLevel);
-                break;
-
-            case FieldLayoutKind.LineBreaksDoubleSpace:
-                EmitLineBreaksScalars(sb, scalarProps, valueExpr, indentLevel, doubleSpace: true, sectionHeading, sectionLevel);
+            case FieldLayoutKind.Line:
+                EmitFieldLine(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
                 break;
 
             case FieldLayoutKind.List:
-                EmitListScalars(sb, scalarProps, valueExpr, indentLevel, sectionHeading, sectionLevel);
+                EmitFieldList(sb, scalarProps, valueExpr, indentLevel, sectionHeading, sectionLevel);
+                break;
+
+            case FieldLayoutKind.BareList:
+                EmitFieldBareList(sb, scalarProps, valueExpr, indentLevel, sectionHeading, sectionLevel);
                 break;
 
             default:
-                EmitOneLineScalars(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
+                EmitFieldLine(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
                 break;
         }
     }
 
-    private static void EmitOneLineScalars(
+    private static void EmitFieldLine(
         StringBuilder sb,
         List<PropertyMetadata> scalarProps,
         string valueExpr,
@@ -134,7 +130,7 @@ internal static class FieldEmitter
             sb.AppendLine($"{indent}{{");
             if (sectionHeading != null)
                 sb.AppendLine($"{indent}    writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
-            sb.AppendLine($"{indent}    writer.WriteFieldList({fieldsVar});");
+            sb.AppendLine($"{indent}    writer.WriteFieldLine(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({fieldsVar}));");
             sb.AppendLine($"{indent}}}");
         }
         else
@@ -151,213 +147,121 @@ internal static class FieldEmitter
 
             if (sectionHeading != null)
                 sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
-            sb.AppendLine($"{indent}writer.WriteFieldList({string.Join(", ", fields)});");
+            sb.AppendLine($"{indent}writer.WriteFieldLine({string.Join(", ", fields)});");
         }
     }
 
-    private static void EmitLineBreaksScalars(
+    private static void EmitFieldBareList(
         StringBuilder sb,
         List<PropertyMetadata> scalarProps,
         string valueExpr,
         int indentLevel,
-        bool doubleSpace,
         string? sectionHeading = null,
         int sectionLevel = 2)
     {
         var indent = new string(' ', indentLevel * 4);
-        var methodName = doubleSpace ? "WriteField" : "WriteFieldNoBreak";
-
-        // For LineBreaks layout, all fields are emitted individually so we need a different
-        // strategy for section headings: use a builder flag when any field is conditional,
-        // or emit heading unconditionally when all fields always render.
-        bool anyConditional = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
+        bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
             || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
+        var fieldsVar = "__fields";
 
-        string? renderedVar = null;
-        if (sectionHeading != null && anyConditional)
+        if (useBuilder)
         {
-            renderedVar = "__sectionRendered";
-            sb.AppendLine($"{indent}var {renderedVar} = false;");
-        }
-        else if (sectionHeading != null)
-        {
-            sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
-        }
-
-        foreach (var prop in scalarProps)
-        {
-            var propAccess = $"{valueExpr}.{prop.Name}";
-            var emitIndent = indent;
-
-            // ShowWhenProperty wraps the entire field emission
-            bool hasShowWhen = prop.ShowWhenProperty != null;
-            if (hasShowWhen)
+            // Use List<MarkoutField> builder pattern when any scalar is nullable or string (to skip nulls/empties)
+            sb.AppendLine($"{indent}var {fieldsVar} = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
+            foreach (var prop in scalarProps)
             {
-                sb.AppendLine($"{indent}if ({valueExpr}.{prop.ShowWhenProperty})");
-                sb.AppendLine($"{indent}{{");
-                emitIndent = indent + "    ";
-            }
+                var propAccess = $"{valueExpr}.{prop.Name}";
+                var fieldIndent = indent;
 
-            // Wrap with skip-default or skip-null condition if needed (for types not already conditionally rendered)
-            bool needsSkipDefault = prop.SkipWhenDefault && !prop.IsNullableValueType
-                && prop.Kind != PropertyKind.String
-                && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
-            bool needsSkipNull = !needsSkipDefault && prop.SkipWhenNull && !prop.IsNullableValueType
-                && prop.Kind != PropertyKind.String
-                && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
-            bool emittedSkipBlock = false;
-            if (needsSkipDefault)
-            {
-                var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
-                sb.AppendLine($"{emitIndent}if ({condition})");
-                sb.AppendLine($"{emitIndent}{{");
-                emitIndent = emitIndent + "    ";
-                emittedSkipBlock = true;
-            }
-            else if (needsSkipNull)
-            {
-                var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
-                if (condition != null)
+                // ShowWhenProperty guard wraps the entire field emission
+                if (prop.ShowWhenProperty != null)
                 {
-                    sb.AppendLine($"{emitIndent}if ({condition})");
-                    sb.AppendLine($"{emitIndent}{{");
-                    emitIndent = emitIndent + "    ";
-                    emittedSkipBlock = true;
+                    sb.AppendLine($"{indent}if ({valueExpr}.{prop.ShowWhenProperty})");
+                    sb.AppendLine($"{indent}{{");
+                    fieldIndent = indent + "    ";
                 }
-            }
 
-            // For nullable value types and strings, the condition is emitted inline;
-            // we need to wrap the write call in a block to insert the heading guard.
-            bool isInlineConditional = prop.IsNullableValueType || prop.Kind == PropertyKind.String
-                || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
-
-            if (prop.ValueFormatterTypeName != null)
-            {
                 if (prop.IsNullableValueType)
                 {
-                    sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
-                    if (renderedVar != null)
-                    {
-                        sb.AppendLine($"{emitIndent}{{");
-                        EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
-                        sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}.Value));");
-                        sb.AppendLine($"{emitIndent}}}");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}.Value));");
-                    }
+                    var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess, nullable: true);
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+                    sb.AppendLine($"{fieldIndent}if ({propAccess}.HasValue)");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                }
+                else if (prop.Kind == PropertyKind.String)
+                {
+                    var valueStr = EmitHelpers.WrapWithValueMap(prop, propAccess);
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+                    sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                }
+                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+                {
+                    var countProp = prop.IsArray ? "Length" : "Count";
+                    sb.AppendLine($"{fieldIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)}));");
                 }
                 else
                 {
-                    EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
-                    sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", new {prop.ValueFormatterTypeName}().Format({propAccess}));");
-                }
-            }
-            else if (prop.IsNullableValueType)
-            {
-                sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
-                if (renderedVar != null)
-                {
-                    sb.AppendLine($"{emitIndent}{{");
-                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
-                }
-                if (prop.Kind == PropertyKind.Boolean)
-                {
-                    var writeIndent = renderedVar != null ? emitIndent + "    " : emitIndent + "    ";
-                    if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
+                    var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+                    if (prop.SkipWhenDefault)
                     {
-                        sb.AppendLine($"{writeIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value ? \"{EmitHelpers.EscapeString(prop.BoolTrueValue)}\" : \"{EmitHelpers.EscapeString(prop.BoolFalseValue)}\");");
+                        var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
+                        sb.AppendLine($"{fieldIndent}if ({condition})");
+                        sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                    }
+                    else if (prop.SkipWhenNull)
+                    {
+                        var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
+                        if (condition != null)
+                        {
+                            sb.AppendLine($"{fieldIndent}if ({condition})");
+                            sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"{fieldIndent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                        }
                     }
                     else
                     {
-                        sb.AppendLine($"{writeIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
+                        sb.AppendLine($"{fieldIndent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                     }
                 }
-                else if (prop.CustomFormat != null)
+
+                if (prop.ShowWhenProperty != null)
                 {
-                    var writeIndent = renderedVar != null ? emitIndent + "    " : emitIndent + "    ";
-                    sb.AppendLine($"{writeIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value.ToString(\"{EmitHelpers.EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
-                }
-                else
-                {
-                    var writeIndent = renderedVar != null ? emitIndent + "    " : emitIndent + "    ";
-                    sb.AppendLine($"{writeIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.Value);");
-                }
-                if (renderedVar != null)
-                {
-                    sb.AppendLine($"{emitIndent}}}");
+                    sb.AppendLine($"{indent}}}");
                 }
             }
-            else if (prop.Kind == PropertyKind.String)
+            sb.AppendLine($"{indent}if ({fieldsVar}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            if (sectionHeading != null)
+                sb.AppendLine($"{indent}    writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
+            sb.AppendLine($"{indent}    writer.WriteFieldBareList(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({fieldsVar}));");
+            sb.AppendLine($"{indent}}}");
+        }
+        else
+        {
+            // Build inline MarkoutField array (no nullable/string scalars)
+            var fields = new List<string>();
+            foreach (var prop in scalarProps)
             {
-                var valueStr = EmitHelpers.WrapWithValueMap(prop, propAccess);
+                var propAccess = $"{valueExpr}.{prop.Name}";
+                var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
                 valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
-                sb.AppendLine($"{emitIndent}if ({propAccess} != null)");
-                if (renderedVar != null)
-                {
-                    sb.AppendLine($"{emitIndent}{{");
-                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
-                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr});");
-                    sb.AppendLine($"{emitIndent}}}");
-                }
-                else
-                {
-                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr});");
-                }
-            }
-            else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
-            {
-                var countProp = prop.IsArray ? "Length" : "Count";
-                sb.AppendLine($"{emitIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
-                if (renderedVar != null)
-                {
-                    sb.AppendLine($"{emitIndent}{{");
-                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
-                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)});");
-                    sb.AppendLine($"{emitIndent}}}");
-                }
-                else
-                {
-                    sb.AppendLine($"{emitIndent}    writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)});");
-                }
-            }
-            else if (prop.Kind == PropertyKind.Boolean)
-            {
-                EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
-                if (prop.BoolTrueValue != null && prop.BoolFalseValue != null)
-                {
-                    sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess} ? \"{EmitHelpers.EscapeString(prop.BoolTrueValue)}\" : \"{EmitHelpers.EscapeString(prop.BoolFalseValue)}\");");
-                }
-                else
-                {
-                    sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
-                }
-            }
-            else if (prop.CustomFormat != null)
-            {
-                EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
-                sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}.ToString(\"{EmitHelpers.EscapeString(prop.CustomFormat)}\", System.Globalization.CultureInfo.InvariantCulture));");
-            }
-            else
-            {
-                EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
-                sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
+                fields.Add($"new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr})");
             }
 
-            if (emittedSkipBlock)
-            {
-                sb.AppendLine($"{(hasShowWhen ? indent + "    " : indent)}}}");
-            }
-            if (hasShowWhen)
-            {
-                sb.AppendLine($"{indent}}}");
-            }
+            if (sectionHeading != null)
+                sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
+            sb.AppendLine($"{indent}writer.WriteFieldBareList(new global::Markout.MarkoutField[] {{ {string.Join(", ", fields)} }});");
         }
     }
 
-    private static void EmitListScalars(
+    private static void EmitFieldList(
         StringBuilder sb,
         List<PropertyMetadata> scalarProps,
         string valueExpr,
@@ -366,147 +270,105 @@ internal static class FieldEmitter
         int sectionLevel = 2)
     {
         var indent = new string(' ', indentLevel * 4);
-
-        bool anyConditional = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
+        bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
             || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
+        var fieldsVar = "__fields";
 
-        string? renderedVar = null;
-        if (sectionHeading != null && anyConditional)
+        if (useBuilder)
         {
-            renderedVar = "__sectionRendered";
-            sb.AppendLine($"{indent}var {renderedVar} = false;");
+            // Use List<MarkoutField> builder pattern when any scalar is nullable or string (to skip nulls/empties)
+            sb.AppendLine($"{indent}var {fieldsVar} = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
+            foreach (var prop in scalarProps)
+            {
+                var propAccess = $"{valueExpr}.{prop.Name}";
+                var fieldIndent = indent;
+
+                // ShowWhenProperty guard wraps the entire field emission
+                if (prop.ShowWhenProperty != null)
+                {
+                    sb.AppendLine($"{indent}if ({valueExpr}.{prop.ShowWhenProperty})");
+                    sb.AppendLine($"{indent}{{");
+                    fieldIndent = indent + "    ";
+                }
+
+                if (prop.IsNullableValueType)
+                {
+                    var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess, nullable: true);
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+                    sb.AppendLine($"{fieldIndent}if ({propAccess}.HasValue)");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                }
+                else if (prop.Kind == PropertyKind.String)
+                {
+                    var valueStr = EmitHelpers.WrapWithValueMap(prop, propAccess);
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+                    sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                }
+                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+                {
+                    var countProp = prop.IsArray ? "Length" : "Count";
+                    sb.AppendLine($"{fieldIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
+                    sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {EmitHelpers.GetScalarValueExpression(prop, propAccess)}));");
+                }
+                else
+                {
+                    var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
+                    valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+                    if (prop.SkipWhenDefault)
+                    {
+                        var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
+                        sb.AppendLine($"{fieldIndent}if ({condition})");
+                        sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                    }
+                    else if (prop.SkipWhenNull)
+                    {
+                        var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
+                        if (condition != null)
+                        {
+                            sb.AppendLine($"{fieldIndent}if ({condition})");
+                            sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"{fieldIndent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                        }
+                    }
+                    else
+                    {
+                        sb.AppendLine($"{fieldIndent}{fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
+                    }
+                }
+
+                if (prop.ShowWhenProperty != null)
+                {
+                    sb.AppendLine($"{indent}}}");
+                }
+            }
+            sb.AppendLine($"{indent}if ({fieldsVar}.Count > 0)");
+            sb.AppendLine($"{indent}{{");
+            if (sectionHeading != null)
+                sb.AppendLine($"{indent}    writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
+            sb.AppendLine($"{indent}    writer.WriteFieldList(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({fieldsVar}));");
+            sb.AppendLine($"{indent}}}");
         }
-        else if (sectionHeading != null)
+        else
         {
-            sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
-        }
-
-        foreach (var prop in scalarProps)
-        {
-            var propAccess = $"{valueExpr}.{prop.Name}";
-            var emitIndent = indent;
-
-            // ShowWhenProperty wraps the entire field emission
-            bool hasShowWhen = prop.ShowWhenProperty != null;
-            if (hasShowWhen)
+            // Build inline MarkoutField array (no nullable/string scalars)
+            var fields = new List<string>();
+            foreach (var prop in scalarProps)
             {
-                sb.AppendLine($"{indent}if ({valueExpr}.{prop.ShowWhenProperty})");
-                sb.AppendLine($"{indent}{{");
-                emitIndent = indent + "    ";
-            }
-
-            bool needsSkipDefault = prop.SkipWhenDefault && !prop.IsNullableValueType
-                && prop.Kind != PropertyKind.String
-                && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
-            bool needsSkipNull = !needsSkipDefault && prop.SkipWhenNull && !prop.IsNullableValueType
-                && prop.Kind != PropertyKind.String
-                && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
-            bool emittedSkipBlock = false;
-            if (needsSkipDefault)
-            {
-                var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
-                sb.AppendLine($"{emitIndent}if ({condition})");
-                sb.AppendLine($"{emitIndent}{{");
-                emitIndent = emitIndent + "    ";
-                emittedSkipBlock = true;
-            }
-            else if (needsSkipNull)
-            {
-                var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
-                if (condition != null)
-                {
-                    sb.AppendLine($"{emitIndent}if ({condition})");
-                    sb.AppendLine($"{emitIndent}{{");
-                    emitIndent = emitIndent + "    ";
-                    emittedSkipBlock = true;
-                }
-            }
-
-            if (prop.IsNullableValueType)
-            {
-                var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess, nullable: true);
-                valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
-                sb.AppendLine($"{emitIndent}if ({propAccess}.HasValue)");
-                if (renderedVar != null)
-                {
-                    sb.AppendLine($"{emitIndent}{{");
-                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
-                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-                    sb.AppendLine($"{emitIndent}}}");
-                }
-                else
-                {
-                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-                }
-            }
-            else if (prop.Kind == PropertyKind.String)
-            {
-                var valueStr = EmitHelpers.WrapWithValueMap(prop, propAccess);
-                valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
-                sb.AppendLine($"{emitIndent}if ({propAccess} != null)");
-                if (renderedVar != null)
-                {
-                    sb.AppendLine($"{emitIndent}{{");
-                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
-                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-                    sb.AppendLine($"{emitIndent}}}");
-                }
-                else
-                {
-                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-                }
-            }
-            else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
-            {
-                var countProp = prop.IsArray ? "Length" : "Count";
-                var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
-                sb.AppendLine($"{emitIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
-                if (renderedVar != null)
-                {
-                    sb.AppendLine($"{emitIndent}{{");
-                    EmitHeadingOnce(sb, renderedVar, sectionHeading!, sectionLevel, emitIndent + "    ");
-                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-                    sb.AppendLine($"{emitIndent}}}");
-                }
-                else
-                {
-                    sb.AppendLine($"{emitIndent}    writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
-                }
-            }
-            else
-            {
+                var propAccess = $"{valueExpr}.{prop.Name}";
                 var valueStr = EmitHelpers.GetScalarValueExpression(prop, propAccess);
                 valueStr = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
-                EmitHeadingOnceIfNeeded(sb, renderedVar, sectionHeading, sectionLevel, emitIndent);
-                sb.AppendLine($"{emitIndent}writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
+                fields.Add($"new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr})");
             }
 
-            if (emittedSkipBlock)
-            {
-                sb.AppendLine($"{(hasShowWhen ? indent + "    " : indent)}}}");
-            }
-            if (hasShowWhen)
-            {
-                sb.AppendLine($"{indent}}}");
-            }
+            if (sectionHeading != null)
+                sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
+            sb.AppendLine($"{indent}writer.WriteFieldList(new global::Markout.MarkoutField[] {{ {string.Join(", ", fields)} }});");
         }
     }
 
-    /// <summary>
-    /// Emits a heading-once guard: if the flag is false, write the heading and set it to true.
-    /// </summary>
-    private static void EmitHeadingOnce(StringBuilder sb, string renderedVar, string heading, int level, string indent)
-    {
-        sb.AppendLine($"{indent}if (!{renderedVar}) {{ writer.WriteHeading({level}, \"{EmitHelpers.EscapeString(heading)}\"); {renderedVar} = true; }}");
-    }
-
-    /// <summary>
-    /// Convenience: emits heading-once guard only when renderedVar is set (conditional section heading).
-    /// </summary>
-    private static void EmitHeadingOnceIfNeeded(StringBuilder sb, string? renderedVar, string? heading, int level, string indent)
-    {
-        if (renderedVar != null)
-            EmitHeadingOnce(sb, renderedVar, heading!, level, indent);
-    }
 }

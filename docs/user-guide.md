@@ -90,10 +90,10 @@ The source generator fills in the `partial class` with all the serialization log
 
 ## Quick Tweaks
 
-The same city can be rendered differently by changing just the `FieldLayout`. `LineBreaks` puts one field per line — both top-level fields and within sections:
+The same city can be rendered differently by changing just the `FieldLayout`. `BareList` puts one field per line with trailing double-spaces for proper rendering as HTML line breaks:
 
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.BareList)]
 public class CityView { /* same properties */ }
 ```
 
@@ -111,7 +111,7 @@ Altitude (m): 0
 Temperature: 6.2 °C
 ```
 
-> **Note:** In standard Markdown, adjacent lines without a blank line between them collapse into a single paragraph when rendered as HTML. `LineBreaksDoubleSpace` avoids this by appending two trailing spaces (`  `) to each line, which Markdown renders as `<br>`. Use `LineBreaks` when you're targeting plain text or terminals; use `LineBreaksDoubleSpace` when your output will be rendered as HTML.
+> **Note:** In standard Markdown, adjacent lines without a blank line between them collapse into a single paragraph when rendered as HTML. `BareList` appends two trailing spaces (`  `) to each line, which Markdown renders as `<br>`.
 
 `List` renders each field as a bullet item:
 
@@ -347,12 +347,12 @@ public class ActorRow
 Name: Ryan Gosling | Birthplace: London, Ontario | Born: 1980
 ```
 
-### LineBreaks
+### BareList
 
-Each field on its own line:
+Each field on its own line with trailing double-spaces:
 
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.BareList)]
 public class PackageView
 {
     public string Name { get; set; } = "";
@@ -505,7 +505,7 @@ public int ErrorCount { get; set; }  // omitted when 0
 Use `[MarkoutShowWhen]` to render a field only when a bool property on the same type is `true`:
 
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.BareList)]
 public class PackageView
 {
     public string Name { get; set; } = "";

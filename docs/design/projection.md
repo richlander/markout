@@ -181,7 +181,7 @@ Of markout's shape vocabulary, projection targets two:
 
 | Shape | Projection | Mechanism |
 | --- | --- | --- |
-| **Identity** (Fields, FieldList) | `IncludeFields` / `ExcludeFields` | Filter by key name |
+| **Identity** (Fields) | `IncludeFields` / `ExcludeFields` | Filter by key name |
 | **Tabulation** (Tables) | `IncludeColumns` / `ExcludeColumns` | Filter and reorder by header name |
 
 Other shapes (Trees, Metrics, Breakdowns, Descriptions, Code, Callouts) pass through unchanged. They don't have named sub-elements that a user would want to select individually.

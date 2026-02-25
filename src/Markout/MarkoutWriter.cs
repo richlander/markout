@@ -196,12 +196,6 @@ public class MarkoutWriter
     protected bool Supports(MarkoutShape shape) => (SupportedShapes & shape) != 0;
 
     /// <summary>
-    /// Suppresses warnings for the specified shape. Use when a type explicitly opts out of
-    /// certain shapes for specific writers via <see cref="MarkoutIgnoreFieldsAttribute"/>.
-    /// </summary>
-    public void SuppressWarning(MarkoutShape shape) => _suppressedShapes |= shape;
-
-    /// <summary>
     /// Writes a diagnostic warning for an unsupported shape (once per shape) and returns true.
     /// Returns false if the shape is supported. Use as: <c>if (ShapeUnsupported(shape)) return;</c>
     /// </summary>
@@ -244,18 +238,15 @@ public class MarkoutWriter
         return true;
     }
 
-    private MarkoutField[] ProjectFields(IReadOnlyList<MarkoutField> fields)
+    /// <summary>
+    /// Projects fields through the configured projection filter.
+    /// Returns filtered and optionally reordered fields.
+    /// </summary>
+    protected MarkoutField[] ProjectFields(ReadOnlySpan<MarkoutField> fields)
     {
         var projection = _options.Projection;
         if (projection == null || _projectionSectionActive)
-        {
-            if (fields is MarkoutField[] array)
-                return array;
-            var result = new MarkoutField[fields.Count];
-            for (int i = 0; i < fields.Count; i++)
-                result[i] = fields[i];
-            return result;
-        }
+            return fields.ToArray();
 
         if (projection.IncludeFields != null)
         {
@@ -263,7 +254,7 @@ public class MarkoutWriter
             var result = new List<MarkoutField>(projection.IncludeFields.Count);
             foreach (var name in projection.IncludeFields)
             {
-                for (int i = 0; i < fields.Count; i++)
+                for (int i = 0; i < fields.Length; i++)
                 {
                     if (string.Equals(name, fields[i].Key, projection.Comparison))
                     {
@@ -277,8 +268,8 @@ public class MarkoutWriter
 
         if (projection.ExcludeFields != null)
         {
-            var result = new List<MarkoutField>(fields.Count);
-            for (int i = 0; i < fields.Count; i++)
+            var result = new List<MarkoutField>(fields.Length);
+            for (int i = 0; i < fields.Length; i++)
             {
                 if (projection.IsFieldIncluded(fields[i].Key))
                     result.Add(fields[i]);
@@ -286,12 +277,7 @@ public class MarkoutWriter
             return result.ToArray();
         }
 
-        if (fields is MarkoutField[] arr)
-            return arr;
-        var copy = new MarkoutField[fields.Count];
-        for (int i = 0; i < fields.Count; i++)
-            copy[i] = fields[i];
-        return copy;
+        return fields.ToArray();
     }
 
     /// <summary>
@@ -462,113 +448,6 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a key-value field with a string value.
-    /// </summary>
-    public virtual void WriteField(string key, string? value)
-    {
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
-            return;
-
-        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        _writer.WriteLine(value ?? string.Empty);
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field with a boolean value (yes/no).
-    /// </summary>
-    public virtual void WriteField(string key, bool value)
-    {
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
-            return;
-
-        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        _writer.WriteLine(value ? "yes" : "no");
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field with a formattable value (int, long, double, decimal, DateTime, DateTimeOffset, etc.).
-    /// </summary>
-    public virtual void WriteField<T>(string key, T value) where T : ISpanFormattable
-    {
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
-            return;
-
-        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _writer.WriteLine();
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field without trailing spaces (no markdown soft break).
-    /// Use for LineBreaks layout where each field is on its own line.
-    /// </summary>
-    public virtual void WriteFieldNoBreak(string key, string? value)
-    {
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
-            return;
-
-        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        _writer.WriteLine(value ?? string.Empty);
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field without trailing spaces (no markdown soft break).
-    /// Use for LineBreaks layout where each field is on its own line.
-    /// </summary>
-    public virtual void WriteFieldNoBreak(string key, bool value)
-    {
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
-            return;
-
-        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        _writer.WriteLine(value ? "yes" : "no");
-        _hasContent = true;
-    }
-
-    /// <summary>
-    /// Writes a key-value field without trailing spaces (no markdown soft break).
-    /// Use for LineBreaks layout where each field is on its own line.
-    /// </summary>
-    public virtual void WriteFieldNoBreak<T>(string key, T value) where T : ISpanFormattable
-    {
-        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Fields))
-            return;
-
-        if (_options.Projection != null && !_projectionSectionActive && !_options.Projection.IsFieldIncluded(key))
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _writer.WriteLine();
-        _hasContent = true;
-    }
-
-    /// <summary>
     /// Writes a single bullet list item.
     /// </summary>
     public virtual void WriteListItem(string text)
@@ -598,16 +477,16 @@ public class MarkoutWriter
     /// <param name="fields">Fields to write.</param>
     /// <example>
     /// <code>
-    /// writer.WriteFieldList(
+    /// writer.WriteFieldLine(
     ///     new MarkoutField("Type", "Library"),
     ///     new MarkoutField("TFM", "net8.0"),
     ///     new MarkoutField("Updated", "2026-01-15"));
     /// // Output: Type: Library | TFM: net8.0 | Updated: 2026-01-15
     /// </code>
     /// </example>
-    public virtual void WriteFieldList(params MarkoutField[] fields)
+    public virtual void WriteFieldLine(params ReadOnlySpan<MarkoutField> fields)
     {
-        if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.FieldList))
+        if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         var projected = ProjectFields(fields);
@@ -622,7 +501,7 @@ public class MarkoutWriter
                 _writer.Write(" | ");
 
             WriteFieldName(projected[i].Key);
-            _writer.Write(projected[i].Value ?? string.Empty);
+            _writer.Write(projected[i].Value);
         }
 
         _writer.WriteLine();
@@ -631,13 +510,13 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes multiple key-value fields on a single line, separated by pipes.
-    /// Useful for compact summary lines with essential metadata.
+    /// Writes multiple key-value fields as a bullet list.
+    /// Each field is rendered as a list item in "- Key: Value" format.
     /// </summary>
     /// <param name="fields">Fields to write.</param>
-    public virtual void WriteFieldList(IReadOnlyList<MarkoutField> fields)
+    public virtual void WriteFieldList(params ReadOnlySpan<MarkoutField> fields)
     {
-        if (_sectionExcluded || fields.Count == 0 || ShapeUnsupported(MarkoutShape.FieldList))
+        if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         var projected = ProjectFields(fields);
@@ -648,35 +527,58 @@ public class MarkoutWriter
 
         for (int i = 0; i < projected.Length; i++)
         {
-            if (i > 0)
-                _writer.Write(" | ");
-
+            _writer.Write("- ");
             WriteFieldName(projected[i].Key);
-            _writer.Write(projected[i].Value ?? string.Empty);
+            _writer.WriteLine(projected[i].Value);
         }
 
-        _writer.WriteLine();
         _needsBlankLine = true;
         _hasContent = true;
     }
 
     /// <summary>
-    /// Writes fields as a two-column Property/Value table.
+    /// Writes multiple key-value fields, each on its own line with trailing double-space.
+    /// The trailing spaces create soft line breaks when rendered as HTML.
     /// </summary>
-    /// <param name="fields">Fields to write as table rows.</param>
-    public virtual void WriteFieldTable(IReadOnlyList<MarkoutField> fields)
+    /// <param name="fields">Fields to write.</param>
+    public virtual void WriteFieldBareList(params ReadOnlySpan<MarkoutField> fields)
     {
-        if (fields.Count == 0)
+        if (_sectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
             return;
 
         var projected = ProjectFields(fields);
         if (projected.Length == 0)
             return;
 
-        WriteTableStart("Property", "Value");
+        EnsureBlankLineIfNeeded();
+
         for (int i = 0; i < projected.Length; i++)
         {
-            WriteTableRow(projected[i].Key, projected[i].Value ?? string.Empty);
+            WriteFieldName(projected[i].Key);
+            _writer.WriteLine(projected[i].Value);
+        }
+
+        _needsBlankLine = true;
+        _hasContent = true;
+    }
+
+    /// <summary>
+    /// Writes fields as a two-column Field/Value table.
+    /// </summary>
+    /// <param name="fields">Fields to write as table rows.</param>
+    public virtual void WriteFieldTable(params ReadOnlySpan<MarkoutField> fields)
+    {
+        if (fields.Length == 0)
+            return;
+
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
+            return;
+
+        WriteTableStart("Field", "Value");
+        for (int i = 0; i < projected.Length; i++)
+        {
+            WriteTableRow(projected[i].Key, projected[i].Value);
         }
         WriteTableEnd();
     }

@@ -1,14 +1,18 @@
+using System.Runtime.InteropServices;
+
 namespace Markout;
 
 /// <summary>
 /// A writer that produces compact columnar output (docker-style).
 /// Tables use space-padded columns with uppercase headers.
-/// Suppresses headings, fields, paragraphs, and code regions.
+/// Fields are buffered and rendered as two-column tables at section boundaries.
+/// Field lists are rendered inline (values only, pipe-separated).
 /// </summary>
 public class OneLineWriter : MarkoutWriter
 {
     private const int ColumnGap = 2;
     private readonly bool _showHeader;
+    private readonly List<MarkoutField> _fieldBuffer = new();
 
     /// <summary>
     /// Creates a one-line writer targeting the specified TextWriter.
@@ -29,12 +33,81 @@ public class OneLineWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override MarkoutShape SupportedShapes => MarkoutShape.Tables | MarkoutShape.Lists;
+    public override MarkoutShape SupportedShapes => MarkoutShape.Tables | MarkoutShape.Lists | MarkoutShape.Fields;
 
     /// <inheritdoc/>
     public override void WriteHeading(int level, string text, string? context)
     {
+        FlushFieldBuffer();
         UpdateSectionState(level, text);
+    }
+
+    /// <inheritdoc/>
+    public override void WriteFieldLine(params ReadOnlySpan<MarkoutField> fields)
+    {
+        if (SectionExcluded || fields.Length == 0)
+            return;
+
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
+            return;
+
+        // Render inline: just values, pipe-separated
+        for (int i = 0; i < projected.Length; i++)
+        {
+            if (i > 0)
+                Writer.Write(" | ");
+            Writer.Write(projected[i].Value);
+        }
+        Writer.WriteLine();
+    }
+
+    /// <inheritdoc/>
+    public override void WriteFieldList(params ReadOnlySpan<MarkoutField> fields)
+    {
+        // Buffer fields for table rendering
+        if (SectionExcluded || fields.Length == 0)
+            return;
+
+        for (int i = 0; i < fields.Length; i++)
+            _fieldBuffer.Add(fields[i]);
+    }
+
+    /// <inheritdoc/>
+    public override void WriteFieldBareList(params ReadOnlySpan<MarkoutField> fields)
+    {
+        // Buffer fields for table rendering
+        if (SectionExcluded || fields.Length == 0)
+            return;
+
+        for (int i = 0; i < fields.Length; i++)
+            _fieldBuffer.Add(fields[i]);
+    }
+
+    /// <summary>
+    /// Flushes any buffered fields as a two-column FIELD/VALUE table.
+    /// </summary>
+    private void FlushFieldBuffer()
+    {
+        if (_fieldBuffer.Count == 0)
+            return;
+
+        var projected = ProjectFields(CollectionsMarshal.AsSpan(_fieldBuffer));
+        if (projected.Length == 0)
+        {
+            _fieldBuffer.Clear();
+            return;
+        }
+
+        // Convert to table rows
+        var rows = new List<string[]>(projected.Length);
+        foreach (var field in projected)
+        {
+            rows.Add(new[] { field.Key, field.Value });
+        }
+
+        WriteTable(new[] { "Field", "Value" }, rows);
+        _fieldBuffer.Clear();
     }
 
     /// <inheritdoc/>
@@ -111,4 +184,11 @@ public class OneLineWriter : MarkoutWriter
 
     /// <inheritdoc/>
     protected override void EnsureBlankLineIfNeeded() { }
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        FlushFieldBuffer();
+        return base.ToString();
+    }
 }

@@ -31,7 +31,6 @@ internal static class TypeParser
     private const string MarkoutValueMapAttribute = "Markout.MarkoutValueMapAttribute";
     private const string MarkoutUnwrapAttribute = "Markout.MarkoutUnwrapAttribute";
     private const string MarkoutIgnoreColumnWhenAttribute = "Markout.MarkoutIgnoreColumnWhenAttribute";
-    private const string MarkoutIgnoreFieldsAttribute = "Markout.MarkoutIgnoreFieldsAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -139,21 +138,13 @@ internal static class TypeParser
         // Default to 0 (unlimited)
         autoFieldsCount ??= 0;
         // Default to OneLine
-        fieldLayout ??= FieldLayoutKind.OneLine;
+        fieldLayout ??= FieldLayoutKind.Line;
         // Default naming policy
         namingPolicy ??= NamingPolicyKind.Default;
 
         // Check for type-level [MarkoutSkipNull]
         bool skipNullByDefault = typeSymbol.GetAttributes()
             .Any(a => a.AttributeClass?.ToDisplayString() == MarkoutSkipNullAttribute);
-
-        // Parse [MarkoutIgnoreFields] attributes (AllowMultiple)
-        var ignoreFieldsWriters = typeSymbol.GetAttributes()
-            .Where(a => a.AttributeClass?.ToDisplayString() == MarkoutIgnoreFieldsAttribute)
-            .Select(a => a.ConstructorArguments.Length > 0 && a.ConstructorArguments[0].Value is string s ? s : null)
-            .Where(s => s != null)
-            .Cast<string>()
-            .ToList();
 
         var properties = new List<PropertyMetadata>();
         var diagnostics = new List<DiagnosticInfo>();
@@ -218,7 +209,6 @@ internal static class TypeParser
             fieldLayout.Value,
             namingPolicy.Value,
             skipNullByDefault,
-            ignoreFieldsWriters.Count > 0 ? ignoreFieldsWriters : null,
             filteredDiagnostics);
     }
 
@@ -520,12 +510,12 @@ internal static class TypeParser
         // Primitives
         return type.SpecialType switch
         {
-            SpecialType.System_String => (PropertyKind.String, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
-            SpecialType.System_Boolean => (PropertyKind.Boolean, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
-            SpecialType.System_Int32 => (PropertyKind.Int32, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
-            SpecialType.System_Int64 => (PropertyKind.Int64, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
-            SpecialType.System_Double => (PropertyKind.Double, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
-            SpecialType.System_Decimal => (PropertyKind.Decimal, null, null, false, null, null, true, FieldLayoutKind.OneLine, false),
+            SpecialType.System_String => (PropertyKind.String, null, null, false, null, null, true, FieldLayoutKind.Line, false),
+            SpecialType.System_Boolean => (PropertyKind.Boolean, null, null, false, null, null, true, FieldLayoutKind.Line, false),
+            SpecialType.System_Int32 => (PropertyKind.Int32, null, null, false, null, null, true, FieldLayoutKind.Line, false),
+            SpecialType.System_Int64 => (PropertyKind.Int64, null, null, false, null, null, true, FieldLayoutKind.Line, false),
+            SpecialType.System_Double => (PropertyKind.Double, null, null, false, null, null, true, FieldLayoutKind.Line, false),
+            SpecialType.System_Decimal => (PropertyKind.Decimal, null, null, false, null, null, true, FieldLayoutKind.Line, false),
             _ => DetermineComplexPropertyKind(type, compilation, knownTypes, diagnostics, propertyName, propertyLocation, visitedTypes)
         };
     }
@@ -535,21 +525,21 @@ internal static class TypeParser
     {
         // DateTime types
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTime))
-            return (PropertyKind.DateTime, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+            return (PropertyKind.DateTime, null, null, false, null, null, true, FieldLayoutKind.Line, false);
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.DateTimeOffset))
-            return (PropertyKind.DateTimeOffset, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+            return (PropertyKind.DateTimeOffset, null, null, false, null, null, true, FieldLayoutKind.Line, false);
 
         // CodeSection type - renders as code
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.CodeSection))
-            return (PropertyKind.CodeSection, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+            return (PropertyKind.CodeSection, null, null, false, null, null, true, FieldLayoutKind.Line, false);
 
         // Callout type - renders as admonition block
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.Callout))
-            return (PropertyKind.Callout, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+            return (PropertyKind.Callout, null, null, false, null, null, true, FieldLayoutKind.Line, false);
 
         // Enum types
         if (type.TypeKind == TypeKind.Enum)
-            return (PropertyKind.Enum, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+            return (PropertyKind.Enum, null, null, false, null, null, true, FieldLayoutKind.Line, false);
 
         // Check for arrays
         if (type is IArrayTypeSymbol arrayType)
@@ -558,10 +548,10 @@ internal static class TypeParser
 
             // Check for MarkoutField[] - renders as compact line or field table
             if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.MarkoutField))
-                return (PropertyKind.FieldCollection, null, null, false, null, null, true, FieldLayoutKind.OneLine, true);
+                return (PropertyKind.FieldCollection, null, null, false, null, null, true, FieldLayoutKind.Line, true);
 
             if (elementType.SpecialType == SpecialType.System_String)
-                return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, true);
+                return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.Line, true);
 
             var elementSettings = GetElementTypeSettings(elementType);
             var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes, elementSettings.NamingPolicy, elementSettings.SkipNullByDefault);
@@ -585,7 +575,7 @@ internal static class TypeParser
                         propertyLocation,
                         propertyName));
                 }
-                return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.Line, false);
             }
 
             var enumerableInterface = knownTypes.IEnumerable != null
@@ -619,7 +609,7 @@ internal static class TypeParser
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.FieldCollection, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.FieldCollection, null, null, false, null, null, true, FieldLayoutKind.Line, false);
                         }
                         // IEnumerable<MarkoutField> without materialization is not supported
                         // User should use List<MarkoutField> or IReadOnlyList<MarkoutField>
@@ -631,7 +621,7 @@ internal static class TypeParser
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>")
                         {
-                            return (PropertyKind.Tree, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Tree, null, null, false, null, null, true, FieldLayoutKind.Line, false);
                         }
                     }
 
@@ -643,7 +633,7 @@ internal static class TypeParser
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.Metric, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Metric, null, null, false, null, null, true, FieldLayoutKind.Line, false);
                         }
                     }
 
@@ -655,7 +645,7 @@ internal static class TypeParser
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.Description, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Description, null, null, false, null, null, true, FieldLayoutKind.Line, false);
                         }
                     }
 
@@ -667,12 +657,12 @@ internal static class TypeParser
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
                             typeDisplayString == "System.Collections.Generic.IList<T>")
                         {
-                            return (PropertyKind.Breakdown, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                            return (PropertyKind.Breakdown, null, null, false, null, null, true, FieldLayoutKind.Line, false);
                         }
                     }
 
                     if (elementType.SpecialType == SpecialType.System_String)
-                        return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+                        return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.Line, false);
 
                     var elementSettings = GetElementTypeSettings(elementType);
                     var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes, elementSettings.NamingPolicy, elementSettings.SkipNullByDefault);
@@ -686,7 +676,7 @@ internal static class TypeParser
         if (knownTypes.IMarkoutFormattable != null &&
             type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, knownTypes.IMarkoutFormattable)))
         {
-            return (PropertyKind.Formattable, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+            return (PropertyKind.Formattable, null, null, false, null, null, true, FieldLayoutKind.Line, false);
         }
 
         // Nested object
@@ -698,7 +688,7 @@ internal static class TypeParser
                 return (PropertyKind.NestedObject, null, props, false, null, null, nestedSettings.AutoFields, nestedSettings.FieldLayout, false);
         }
 
-        return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.OneLine, false);
+        return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.Line, false);
     }
 
     private static bool HasNestedContent(IReadOnlyList<PropertyMetadata>? props)
@@ -716,12 +706,12 @@ internal static class TypeParser
     private static (string? TitleProperty, string? TitleContextProperty, bool AutoFields, FieldLayoutKind FieldLayout, NamingPolicyKind NamingPolicy, bool SkipNullByDefault) GetElementTypeSettings(ITypeSymbol type)
     {
         if (type is not INamedTypeSymbol namedType)
-            return (null, null, true, FieldLayoutKind.OneLine, NamingPolicyKind.Default, false);
+            return (null, null, true, FieldLayoutKind.Line, NamingPolicyKind.Default, false);
 
         string? titleProperty = null;
         string? titleContextProperty = null;
         bool autoFields = true;
-        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine;
+        FieldLayoutKind fieldLayout = FieldLayoutKind.Line;
         NamingPolicyKind namingPolicy = NamingPolicyKind.Default;
 
         var serializableAttr = namedType.GetAttributes()

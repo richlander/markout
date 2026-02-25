@@ -9,24 +9,19 @@ public enum FieldLayout
     /// Fields on a single line, separated by pipes.
     /// Example: Birthplace: London | Born: 1980 | Citizenship: Canadian
     /// </summary>
-    OneLine,
-
-    /// <summary>
-    /// Each field on its own line, no trailing spaces.
-    /// </summary>
-    LineBreaks,
-
-    /// <summary>
-    /// Each field on its own line with trailing double-space for markdown soft breaks.
-    /// Example: Birthplace: London··
-    ///          Born: 1980··
-    /// </summary>
-    LineBreaksDoubleSpace,
+    Line,
 
     /// <summary>
     /// Fields as a bullet list.
     /// Example: - Birthplace: London
     ///          - Born: 1980
     /// </summary>
-    List
+    List,
+
+    /// <summary>
+    /// Each field on its own line with trailing double-space for markdown line breaks.
+    /// Example: Birthplace: London
+    ///          Born: 1980
+    /// </summary>
+    BareList
 }

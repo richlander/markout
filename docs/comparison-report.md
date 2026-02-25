@@ -196,7 +196,7 @@ Markout's structure is clean but could benefit from:
 
 ```csharp
 [MarkoutContextOptions(
-    DefaultFieldLayout = FieldLayout.LineBreaks,
+    DefaultFieldLayout = FieldLayout.BareList,
     BoldFieldNames = true)]
 [MarkoutContext(typeof(Report))]
 public partial class ReportContext : MarkoutSerializerContext { }
@@ -634,7 +634,7 @@ context.SyntaxProvider
 
 ```csharp
 [MarkoutContextOptions(
-    DefaultFieldLayout = FieldLayout.LineBreaks,
+    DefaultFieldLayout = FieldLayout.BareList,
     BoldFieldNames = true,
     IncludeBadges = true)]
 [MarkoutContext(typeof(Report))]
