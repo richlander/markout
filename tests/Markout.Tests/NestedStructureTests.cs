@@ -256,6 +256,45 @@ public class Person
         public string Value7 { get; set; } = "";
     }
 
+    // Nested object with NamingPolicy and FieldLayout on the nested type
+    [MarkoutSerializable(TitleProperty = nameof(FileName))]
+    public class LibraryReport
+    {
+        public string FileName { get; set; } = "";
+
+        [MarkoutSection(Name = "Library Info")]
+        public LibraryInfoSection? Info { get; set; }
+    }
+
+    [MarkoutSerializable(NamingPolicy = NamingPolicy.PascalCaseWords, FieldLayout = FieldLayout.LineBreaks)]
+    [MarkoutSkipNull]
+    public class LibraryInfoSection
+    {
+        public string? Name { get; set; }
+        public string? Version { get; set; }
+        public string? InformationalVersion { get; set; }
+        public string? AssemblyVersion { get; set; }
+        public string? TargetFramework { get; set; }
+    }
+
+    // Nested object in a collection with NamingPolicy
+    [MarkoutSerializable(NamingPolicy = NamingPolicy.PascalCaseWords)]
+    public class AttributeRow
+    {
+        public string Name { get; set; } = "";
+        public string TargetKind { get; set; } = "";
+        public string AttributeValue { get; set; } = "";
+    }
+
+    [MarkoutSerializable(TitleProperty = nameof(Title))]
+    public class AttributeReport
+    {
+        public string Title { get; set; } = "";
+
+        [MarkoutSection(Name = "Custom Attributes")]
+        public List<AttributeRow>? Attributes { get; set; }
+    }
+
 #endregion
 
 #region Nested Structure Test Context
@@ -270,6 +309,8 @@ public class Person
 [MarkoutContext(typeof(OrgNode))]
 [MarkoutContext(typeof(CycleDepartment))]
 [MarkoutContext(typeof(Level1))]
+[MarkoutContext(typeof(LibraryReport))]
+[MarkoutContext(typeof(AttributeReport))]
 public partial class NestedTestContext : MarkoutSerializerContext
 {
 }
@@ -1862,5 +1903,103 @@ public class UnwrapTests
 
         Assert.Contains("# Clean", md);
         Assert.DoesNotContain("##", md);
+    }
+
+    [Fact]
+    public void NestedObject_RespectsNamingPolicy_PascalCaseWords()
+    {
+        var report = new LibraryReport
+        {
+            FileName = "System.Text.Json.dll",
+            Info = new LibraryInfoSection
+            {
+                Name = "System.Text.Json",
+                Version = "11.0.0",
+                InformationalVersion = "11.0.0+abc123",
+                AssemblyVersion = "11.0.0.0",
+                TargetFramework = ".NETCoreApp,Version=v11.0"
+            }
+        };
+
+        var md = MarkoutSerializer.Serialize(report, NestedTestContext.Default);
+
+        // NamingPolicy should split PascalCase into words
+        Assert.Contains("Informational Version", md);
+        Assert.Contains("Assembly Version", md);
+        Assert.Contains("Target Framework", md);
+        // Should NOT contain unsplit names
+        Assert.DoesNotContain("InformationalVersion", md);
+        Assert.DoesNotContain("AssemblyVersion", md);
+        Assert.DoesNotContain("TargetFramework", md);
+    }
+
+    [Fact]
+    public void NestedObject_RespectsFieldLayout_LineBreaks()
+    {
+        var report = new LibraryReport
+        {
+            FileName = "System.Text.Json.dll",
+            Info = new LibraryInfoSection
+            {
+                Name = "System.Text.Json",
+                Version = "11.0.0",
+                AssemblyVersion = "11.0.0.0",
+            }
+        };
+
+        var md = MarkoutSerializer.Serialize(report, NestedTestContext.Default);
+
+        // LineBreaks layout renders fields individually (one per line), not pipe-delimited
+        Assert.Contains("Name: System.Text.Json", md);
+        Assert.Contains("Version: 11.0.0", md);
+        Assert.Contains("Assembly Version: 11.0.0.0", md);
+        // Should NOT contain pipe-delimited format
+        Assert.DoesNotContain("Name: System.Text.Json |", md);
+    }
+
+    [Fact]
+    public void NestedObject_SkipNull_HidesNullFields()
+    {
+        var report = new LibraryReport
+        {
+            FileName = "Test.dll",
+            Info = new LibraryInfoSection
+            {
+                Name = "Test",
+                Version = "1.0.0",
+                // InformationalVersion, AssemblyVersion, TargetFramework are null
+            }
+        };
+
+        var md = MarkoutSerializer.Serialize(report, NestedTestContext.Default);
+
+        Assert.Contains("Name: Test", md);
+        Assert.Contains("Version: 1.0.0", md);
+        // Null fields should be skipped
+        Assert.DoesNotContain("Informational Version", md);
+        Assert.DoesNotContain("Assembly Version", md);
+        Assert.DoesNotContain("Target Framework", md);
+    }
+
+    [Fact]
+    public void ComplexArray_RespectsNamingPolicy_PascalCaseWords()
+    {
+        var report = new AttributeReport
+        {
+            Title = "Attributes",
+            Attributes = [
+                new AttributeRow { Name = "CLSCompliant", TargetKind = "Assembly", AttributeValue = "true" },
+                new AttributeRow { Name = "Extension", TargetKind = "Assembly", AttributeValue = "" },
+            ]
+        };
+
+        var md = MarkoutSerializer.Serialize(report, NestedTestContext.Default);
+
+        // Table column headers should have PascalCase split
+        Assert.Contains("Target Kind", md);
+        Assert.Contains("Attribute Value", md);
+        // Should NOT contain unsplit names
+        Assert.DoesNotContain("TargetKind", md);
+        Assert.DoesNotContain("AttributeValue", md);
     }
 }
