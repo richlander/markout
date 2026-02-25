@@ -206,12 +206,14 @@ internal static class FieldEmitter
             bool needsSkipNull = !needsSkipDefault && prop.SkipWhenNull && !prop.IsNullableValueType
                 && prop.Kind != PropertyKind.String
                 && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
+            bool emittedSkipBlock = false;
             if (needsSkipDefault)
             {
                 var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
                 sb.AppendLine($"{emitIndent}if ({condition})");
                 sb.AppendLine($"{emitIndent}{{");
                 emitIndent = emitIndent + "    ";
+                emittedSkipBlock = true;
             }
             else if (needsSkipNull)
             {
@@ -221,6 +223,7 @@ internal static class FieldEmitter
                     sb.AppendLine($"{emitIndent}if ({condition})");
                     sb.AppendLine($"{emitIndent}{{");
                     emitIndent = emitIndent + "    ";
+                    emittedSkipBlock = true;
                 }
             }
 
@@ -343,7 +346,7 @@ internal static class FieldEmitter
                 sb.AppendLine($"{emitIndent}writer.{methodName}(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
             }
 
-            if (needsSkipDefault || needsSkipNull)
+            if (emittedSkipBlock)
             {
                 sb.AppendLine($"{(hasShowWhen ? indent + "    " : indent)}}}");
             }
@@ -399,12 +402,14 @@ internal static class FieldEmitter
             bool needsSkipNull = !needsSkipDefault && prop.SkipWhenNull && !prop.IsNullableValueType
                 && prop.Kind != PropertyKind.String
                 && !(prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
+            bool emittedSkipBlock = false;
             if (needsSkipDefault)
             {
                 var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
                 sb.AppendLine($"{emitIndent}if ({condition})");
                 sb.AppendLine($"{emitIndent}{{");
                 emitIndent = emitIndent + "    ";
+                emittedSkipBlock = true;
             }
             else if (needsSkipNull)
             {
@@ -414,6 +419,7 @@ internal static class FieldEmitter
                     sb.AppendLine($"{emitIndent}if ({condition})");
                     sb.AppendLine($"{emitIndent}{{");
                     emitIndent = emitIndent + "    ";
+                    emittedSkipBlock = true;
                 }
             }
 
@@ -476,7 +482,7 @@ internal static class FieldEmitter
                 sb.AppendLine($"{emitIndent}writer.WriteListItem($\"{EmitHelpers.EscapeString(prop.DisplayName)}: {{{valueStr}}}\");");
             }
 
-            if (needsSkipDefault || needsSkipNull)
+            if (emittedSkipBlock)
             {
                 sb.AppendLine($"{(hasShowWhen ? indent + "    " : indent)}}}");
             }
