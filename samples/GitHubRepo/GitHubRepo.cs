@@ -64,8 +64,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         "oneline" => new OneLineWriter(Console.Out, new MarkoutWriterOptions
         {
             IncludeDescription = false,
-            IncludeSections = options.IncludeSections ?? new HashSet<string> { "Releases" },
-            SuppressedShapes = MarkoutShape.FieldList
+            IncludeSections = options.IncludeSections ?? new HashSet<string> { "Releases" }
         }),
         _ => new SpectreWriter(AnsiConsole.Console, options),
     };

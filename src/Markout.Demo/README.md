@@ -10,7 +10,7 @@ The markdown renders correctly when written to a file:
 dotnet run -- simple > output/simple.md
 ```
 
-**Note:** Copy/paste from a terminal loses trailing spaces. Markout uses two trailing spaces to force `<br/>` line breaks in fields—these are stripped by most terminal emulators during copy operations.
+**Note:** Copy/paste from a terminal may lose trailing whitespace.
 
 ## Data Source
 
@@ -41,11 +41,12 @@ Demos are ordered from simplest to most complex.
 ```
 # Altra Torin 7
 
-Name: Altra Torin 7  
-Id: torin-7  
-Category: Road  
-Price: 149.99  
-InStock: yes  
+| Field | Value |
+| ----- | ----- |
+| Id | torin-7 |
+| Category | Road |
+| Price | 149.99 |
+| InStock | yes |
 ```
 
 ---
@@ -59,9 +60,10 @@ InStock: yes
 ```
 # Altra Lone Peak 8
 
-Name: Altra Lone Peak 8  
-Id: lone-peak-8  
-Price: 144.99  
+| Field | Value |
+| ----- | ----- |
+| Id | lone-peak-8 |
+| Price | 144.99 |
 
 ## Specifications
 
@@ -129,9 +131,11 @@ This demonstrates that when you need custom formatting, you project your data to
 
 ### Torin 7
 
-Name: Torin 7  
-Category: Road  
-Price: 149.99  
+| Field | Value |
+| ----- | ----- |
+| Name | Torin 7 |
+| Category | Road |
+| Price | 149.99 |
 
 #### Features
 

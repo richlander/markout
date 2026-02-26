@@ -167,46 +167,6 @@ public class AnsiWriter : MarkoutWriter
         Writer.Write(": ");
     }
 
-    /// <inheritdoc/>
-    public override void WriteField(string key, string? value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        Writer.WriteLine(value ?? string.Empty);
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteField(string key, bool value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        _terminal.SetColor(value ? TerminalColor.Green : TerminalColor.Red);
-        Writer.Write(value ? "yes" : "no");
-        _terminal.ResetColor();
-        Writer.WriteLine();
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteField<T>(string key, T value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        Writer.WriteLine();
-        HasContent = true;
-    }
-
     // ── Code ──
 
     /// <inheritdoc/>
@@ -333,7 +293,7 @@ public class AnsiWriter : MarkoutWriter
     // ── Arrays and lists ──
 
     /// <inheritdoc/>
-    public override void WriteArray(string key, IEnumerable<string>? items)
+    public override void WriteArray(string key, params ReadOnlySpan<string> items)
     {
         if (SectionExcluded)
             return;
@@ -362,10 +322,10 @@ public class AnsiWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Field list ──
+    // ── Fields inline (pipe-separated) ──
 
     /// <inheritdoc/>
-    public override void WriteFieldList(params MarkoutField[] fields)
+    public override void WriteFieldsInline(params ReadOnlySpan<MarkoutField> fields)
     {
         if (SectionExcluded || fields.Length == 0)
             return;
@@ -373,33 +333,6 @@ public class AnsiWriter : MarkoutWriter
         EnsureBlankLineIfNeeded();
 
         for (int i = 0; i < fields.Length; i++)
-        {
-            if (i > 0)
-            {
-                _terminal.SetColor(TerminalColor.DarkGray);
-                Writer.Write(" │ ");
-                _terminal.ResetColor();
-            }
-
-            Writer.Write(AnsiCodes.MakeBold(fields[i].Key));
-            Writer.Write(": ");
-            Writer.Write(fields[i].Value ?? string.Empty);
-        }
-
-        Writer.WriteLine();
-        NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteFieldList(IReadOnlyList<MarkoutField> fields)
-    {
-        if (SectionExcluded || fields.Count == 0)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
-        for (int i = 0; i < fields.Count; i++)
         {
             if (i > 0)
             {
@@ -653,15 +586,14 @@ public class AnsiWriter : MarkoutWriter
     // ── Trees (node rendering) ──
 
     /// <inheritdoc/>
-    public override void WriteTree(IEnumerable<TreeNode>? nodes)
+    public override void WriteTree(params ReadOnlySpan<TreeNode> nodes)
     {
-        if (nodes == null || SectionExcluded) return;
+        if (nodes.Length == 0 || SectionExcluded) return;
 
-        var nodeList = nodes as IList<TreeNode> ?? [.. nodes];
-        for (int i = 0; i < nodeList.Count; i++)
+        for (int i = 0; i < nodes.Length; i++)
         {
-            var isLast = i == nodeList.Count - 1;
-            WriteAnsiTreeNode(nodeList[i], "", isLast, 0);
+            var isLast = i == nodes.Length - 1;
+            WriteAnsiTreeNode(nodes[i], "", isLast, 0);
         }
     }
 

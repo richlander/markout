@@ -82,10 +82,9 @@ public class GroupByWithIgnoreColumnWhenView
         => rows?.Select(r => r.Pattern).Distinct().Count() <= 1;
 }
 
-// --- OneLineWriter + IgnoreColumnWhen + IgnoreFields integration ---
+// --- OneLineWriter + IgnoreColumnWhen integration ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-[MarkoutIgnoreFields(nameof(OneLineWriter))]
 public class OneLineIgnoreColumnWhenView
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
@@ -418,7 +417,7 @@ public class IgnoreColumnWhenTests
             var writer = new OneLineWriter(sw);
             MarkoutSerializer.Serialize(view, writer, IgnoreColumnWhenTestContext.Default);
 
-            // No "does not support Fields" warning thanks to [MarkoutIgnoreFields]
+            // No warnings - OneLineWriter supports Fields
             Assert.Equal("", errWriter.ToString());
             Assert.Contains("Class", sw.ToString());
         }

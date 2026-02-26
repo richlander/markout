@@ -90,10 +90,10 @@ The source generator fills in the `partial class` with all the serialization log
 
 ## Quick Tweaks
 
-The same city can be rendered differently by changing just the `FieldLayout`. `LineBreaks` puts one field per line — both top-level fields and within sections:
+The same city can be rendered differently by changing just the `FieldLayout`. `Vertical` puts one field per line with trailing double-spaces for proper rendering as HTML line breaks:
 
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Vertical)]
 public class CityView { /* same properties */ }
 ```
 
@@ -111,12 +111,12 @@ Altitude (m): 0
 Temperature: 6.2 °C
 ```
 
-> **Note:** In standard Markdown, adjacent lines without a blank line between them collapse into a single paragraph when rendered as HTML. `LineBreaksDoubleSpace` avoids this by appending two trailing spaces (`  `) to each line, which Markdown renders as `<br>`. Use `LineBreaks` when you're targeting plain text or terminals; use `LineBreaksDoubleSpace` when your output will be rendered as HTML.
+> **Note:** In standard Markdown, adjacent lines without a blank line between them collapse into a single paragraph when rendered as HTML. `Vertical` appends two trailing spaces (`  `) to each line, which Markdown renders as `<br>`.
 
-`List` renders each field as a bullet item:
+`Bulleted` renders each field as a bullet item:
 
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Bulleted)]
 public class CityView { /* same properties */ }
 ```
 
@@ -138,7 +138,7 @@ public class CityView { /* same properties */ }
 
 Markout has two kinds of attributes: **type-level attributes** on the view model class, and **property-level attributes** on individual properties.
 
-A type becomes serializable when it is registered on a context class with `[MarkoutContext(typeof(T))]`. The `[MarkoutSerializable]` attribute on the type itself is **optional** — use it only when you need to customize behavior like `TitleProperty`, `FieldLayout`, or `AutoFields`. Without it, the type uses sensible defaults (all fields rendered, `OneLine` layout, no title heading).
+A type becomes serializable when it is registered on a context class with `[MarkoutContext(typeof(T))]`. The `[MarkoutSerializable]` attribute on the type itself is **optional** — use it only when you need to customize behavior like `TitleProperty`, `FieldLayout`, or `AutoFields`. Without it, the type uses sensible defaults (all fields rendered, `Inline` layout, no title heading).
 
 For simple row types used in tables, you typically don't need `[MarkoutSerializable]`:
 
@@ -326,9 +326,9 @@ public List<TreeNode>? Releases { get; set; }
 
 ## Field Layout
 
-The `FieldLayout` property controls how scalar fields are arranged. The default is `OneLine`.
+The `FieldLayout` property controls how scalar fields are arranged. The default is `Inline`.
 
-### OneLine (default)
+### Inline (default)
 
 All fields on a single line separated by pipes:
 
@@ -347,12 +347,12 @@ public class ActorRow
 Name: Ryan Gosling | Birthplace: London, Ontario | Born: 1980
 ```
 
-### LineBreaks
+### Vertical
 
-Each field on its own line:
+Each field on its own line with trailing double-spaces:
 
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Vertical)]
 public class PackageView
 {
     public string Name { get; set; } = "";
@@ -368,16 +368,12 @@ Homepage: https://github.com/richlander/dotnet-inspect
 Repository: https://github.com/richlander/dotnet-inspect.git
 ```
 
-### LineBreaksDoubleSpace
-
-Like `LineBreaks` but appends two trailing spaces for Markdown hard line breaks. Useful when rendering in contexts that collapse single line breaks.
-
-### List
+### Bulleted
 
 Each field as a bullet list item:
 
 ```csharp
-[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
 public class ConfigView
 {
     public string Host { get; set; } = "";
@@ -505,7 +501,7 @@ public int ErrorCount { get; set; }  // omitted when 0
 Use `[MarkoutShowWhen]` to render a field only when a bool property on the same type is `true`:
 
 ```csharp
-[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Vertical)]
 public class PackageView
 {
     public string Name { get; set; } = "";
@@ -779,7 +775,7 @@ Homepage: [https://github.com/richlander/dotnet-inspect](https://github.com/rich
 Repository: [dotnet-inspect](https://github.com/richlander/dotnet-inspect.git)
 ```
 
-Link formatting works in all field layouts (OneLine, LineBreaks, List) and in table cells.
+Link formatting works in all field layouts (Inline, Vertical, Bulleted) and in table cells.
 
 > From the [AdvancedFeatures](../samples/Serialization/AdvancedFeatures.cs) sample.
 
@@ -913,10 +909,10 @@ writer.WriteTableRow("Widget B", "Electronics", "$49.99");
 writer.WriteTableEnd();
 ```
 
-### Field List
+### Inline Fields
 
 ```csharp
-writer.WriteFieldList(
+writer.WriteFieldsInline(
     new MarkoutField("Name", "Widget"),
     new MarkoutField("Price", "$29.99"),
     new MarkoutField("Stock", "Yes")

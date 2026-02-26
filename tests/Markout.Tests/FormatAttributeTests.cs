@@ -12,7 +12,7 @@ public class DateFormatOneLine
     public DateTimeOffset Published { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class DateFormatLineBreaks
 {
     public string? Name { get; set; }
@@ -20,7 +20,7 @@ public class DateFormatLineBreaks
     public DateTimeOffset Published { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
 public class DateFormatList
 {
     public string? Name { get; set; }
@@ -38,7 +38,7 @@ public class NumericFormatOneLine
     public double Rate { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class NumericFormatLineBreaks
 {
     public string? Label { get; set; }
@@ -54,7 +54,7 @@ public class NullableDateFormatOneLine
     public DateTimeOffset? Published { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class NullableDateFormatLineBreaks
 {
     public string? Name { get; set; }
@@ -104,7 +104,7 @@ public class FormatAttributeTests
 
         var mdf = MarkoutSerializer.Serialize(record, FormatAttributeTestContext.Default);
 
-        Assert.Contains("Published: 2024-06-15", mdf);
+        Assert.Contains("| Published | 2024-06-15 |", mdf);
         // Should NOT contain the full ISO format
         Assert.DoesNotContain("T12:00:00", mdf);
     }
@@ -120,7 +120,7 @@ public class FormatAttributeTests
 
         var mdf = MarkoutSerializer.Serialize(record, FormatAttributeTestContext.Default);
 
-        Assert.Contains("Published: 2024-06-15", mdf);
+        Assert.Contains("| Published | 2024-06-15 |", mdf);
         Assert.DoesNotContain("T12:00:00", mdf);
     }
 
@@ -151,8 +151,8 @@ public class FormatAttributeTests
 
         var mdf = MarkoutSerializer.Serialize(record, FormatAttributeTestContext.Default);
 
-        Assert.Contains("Size: 1,234,567", mdf);
-        Assert.Contains("Rate: 85.6", mdf);
+        Assert.Contains("| Size | 1,234,567 |", mdf);
+        Assert.Contains("| Rate | 85.6", mdf);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public class FormatAttributeTests
 
         var mdf = MarkoutSerializer.Serialize(record, FormatAttributeTestContext.Default);
 
-        Assert.Contains("Size: 1,234,567", mdf);
+        Assert.Contains("| Size | 1,234,567 |", mdf);
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class FormatAttributeTests
 
         var mdf = MarkoutSerializer.Serialize(record, FormatAttributeTestContext.Default);
 
-        Assert.Contains("Published: 2024-03-01", mdf);
+        Assert.Contains("| Published | 2024-03-01 |", mdf);
         Assert.DoesNotContain("T00:00:00", mdf);
     }
 
@@ -195,8 +195,8 @@ public class FormatAttributeTests
 
         var mdf = MarkoutSerializer.Serialize(record, FormatAttributeTestContext.Default);
 
-        Assert.Contains("Name: Package", mdf);
-        Assert.DoesNotContain("Published:", mdf);
+        Assert.Contains("| Name | Package |", mdf);
+        Assert.DoesNotContain("Published", mdf);
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public class FormatAttributeTests
 
         var mdf = MarkoutSerializer.Serialize(record, FormatAttributeTestContext.Default);
 
-        Assert.Contains("Published: 2024-03-01", mdf);
+        Assert.Contains("| Published | 2024-03-01 |", mdf);
     }
 
     [Fact]

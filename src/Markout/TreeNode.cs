@@ -25,54 +25,21 @@ public class TreeNode
     public List<TreeNode>? Children { get; set; }
 
     /// <summary>
-    /// Creates a tree node with an optional list of children.
+    /// Creates a leaf node with optional badge.
     /// </summary>
-    public TreeNode(string text, IEnumerable<TreeNode>? children = null)
-    {
-        Text = text;
-        Children = children?.ToList();
-    }
-
-    /// <summary>
-    /// Creates a tree node with a badge and optional list of children.
-    /// </summary>
-    public TreeNode(string text, string? badge, IEnumerable<TreeNode>? children = null)
+    public TreeNode(string text, string? badge = null)
     {
         Text = text;
         Badge = badge;
-        Children = children?.ToList();
     }
 
     /// <summary>
-    /// Creates a tree node with string children (convenience for leaf nodes).
+    /// Creates a tree node with children. Pass null for badge if not needed.
     /// </summary>
-    public TreeNode(string text, IEnumerable<string>? children)
-    {
-        Text = text;
-        Children = children?.Select(c => new TreeNode(c)).ToList();
-    }
-
-    /// <summary>
-    /// Creates a tree node with a badge and string children.
-    /// </summary>
-    public TreeNode(string text, string? badge, IEnumerable<string>? children)
+    public TreeNode(string text, string? badge, params ReadOnlySpan<TreeNode> children)
     {
         Text = text;
         Badge = badge;
-        Children = children?.Select(c => new TreeNode(c)).ToList();
-    }
-
-    /// <summary>
-    /// Creates a leaf node with no children.
-    /// </summary>
-    public TreeNode(string text) : this(text, (IEnumerable<TreeNode>?)null)
-    {
-    }
-
-    /// <summary>
-    /// Creates a leaf node with a badge and no children.
-    /// </summary>
-    public TreeNode(string text, string? badge) : this(text, badge, (IEnumerable<TreeNode>?)null)
-    {
+        Children = children.Length > 0 ? [..children] : null;
     }
 }

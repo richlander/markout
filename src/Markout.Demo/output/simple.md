@@ -2,4 +2,9 @@
 
 This demo shows a basic product with scalar fields.
 
-Id: torin-7 | Category: Road | Price: 149.99 | InStock: yes
+| Field | Value |
+| ----- | ----- |
+| Id | torin-7 |
+| Category | Road |
+| Price | 149.99 |
+| InStock | yes |

@@ -6,10 +6,10 @@ namespace Markout.Tests;
 public class OneLineWriterTests
 {
     [Fact]
-    public void SupportedShapes_ReturnsTablesAndLists()
+    public void SupportedShapes_ReturnsTablesListsAndFields()
     {
         var writer = new OneLineWriter(TextWriter.Null);
-        Assert.Equal(MarkoutShape.Tables | MarkoutShape.Lists, writer.SupportedShapes);
+        Assert.Equal(MarkoutShape.Tables | MarkoutShape.Lists | MarkoutShape.Fields, writer.SupportedShapes);
     }
 
     [Fact]
@@ -92,23 +92,57 @@ public class OneLineWriterTests
     }
 
     [Fact]
-    public void WriteField_Suppressed()
+    public void WriteFields_BufferedAndRenderedAsTable()
     {
-        var errWriter = new StringWriter();
-        var origErr = Console.Error;
-        Console.SetError(errWriter);
-        try
-        {
-            var sw = new StringWriter();
-            var writer = new OneLineWriter(sw);
-            writer.WriteField("Key", "Value");
-            Assert.Equal("", sw.ToString());
-            Assert.Contains("does not support Fields", errWriter.ToString());
-        }
-        finally
-        {
-            Console.SetError(origErr);
-        }
+        var sw = new StringWriter();
+        var writer = new OneLineWriter(sw);
+        writer.WriteFields(
+            new MarkoutField("Name", "System.Text.Json"),
+            new MarkoutField("Version", "11.0.0"));
+
+        // Fields are buffered until ToString() or next heading
+        var output = writer.ToString();
+
+        // Should be rendered as a FIELD/VALUE table
+        Assert.Contains("FIELD", output);
+        Assert.Contains("VALUE", output);
+        Assert.Contains("Name", output);
+        Assert.Contains("System.Text.Json", output);
+        Assert.Contains("Version", output);
+        Assert.Contains("11.0.0", output);
+    }
+
+    [Fact]
+    public void WriteFieldsInline_RendersInline()
+    {
+        var sw = new StringWriter();
+        var writer = new OneLineWriter(sw);
+        writer.WriteFieldsInline(
+            new MarkoutField("Name", "System.Text.Json"),
+            new MarkoutField("Version", "11.0.0"));
+
+        var output = sw.ToString();
+
+        // Should be rendered inline, values only, pipe-separated
+        Assert.Contains("System.Text.Json", output);
+        Assert.Contains("|", output);
+        Assert.Contains("11.0.0", output);
+        // Field names are not included in inline mode
+        Assert.DoesNotContain("Name:", output);
+    }
+
+    [Fact]
+    public void WriteFields_FlushedOnHeading()
+    {
+        var sw = new StringWriter();
+        var writer = new OneLineWriter(sw);
+        writer.WriteHeading(2, "Section 1", null);
+        writer.WriteFields([new("Key1", "Value1")]);
+        writer.WriteHeading(2, "Section 2", null);  // Should flush buffered fields
+
+        var output = sw.ToString();
+        Assert.Contains("Key1", output);
+        Assert.Contains("Value1", output);
     }
 
     [Fact]

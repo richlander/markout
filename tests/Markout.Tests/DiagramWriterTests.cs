@@ -17,12 +17,10 @@ public class DiagramWriterTests
     {
         var sw = new StringWriter();
         var writer = new DiagramWriter(sw);
-        writer.WriteTree([
-            new TreeNode("Root", [
+        writer.WriteTree(
+            new TreeNode("Root", null,
                 new TreeNode("Child A"),
-                new TreeNode("Child B")
-            ])
-        ]);
+                new TreeNode("Child B")));
         var output = sw.ToString();
         Assert.Contains("Root", output);
         Assert.Contains("Child A", output);
@@ -72,7 +70,7 @@ public class DiagramWriterTests
         {
             var sw = new StringWriter();
             var writer = new DiagramWriter(sw);
-            writer.WriteField("Key", "Value");
+            writer.WriteFields([new("Key", "Value")]);
             Assert.Equal("", sw.ToString());
             Assert.Contains("does not support Fields", errWriter.ToString());
         }

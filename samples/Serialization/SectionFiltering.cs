@@ -22,13 +22,13 @@ public static class SectionFiltering
         writer.WriteHeading(1, "Product Details");
 
         writer.WriteHeading(2, "Overview");        // included
-        writer.WriteField("Name", "Widget Pro");
+        writer.WriteFields([new("Name", "Widget Pro")]);
 
         writer.WriteHeading(2, "Specifications");  // excluded
-        writer.WriteField("Weight", "1.5 kg");
+        writer.WriteFields([new("Weight", "1.5 kg")]);
 
         writer.WriteHeading(2, "Reviews");         // included
-        writer.WriteField("Rating", "4.5 stars");
+        writer.WriteFields([new("Rating", "4.5 stars")]);
 
         Console.WriteLine(writer.ToString());
         // # Product Details
@@ -58,13 +58,13 @@ public static class SectionFiltering
         writer.WriteHeading(1, "Product Details");
 
         writer.WriteHeading(2, "Overview");        // included
-        writer.WriteField("Name", "Widget Pro");
+        writer.WriteFields([new("Name", "Widget Pro")]);
 
         writer.WriteHeading(2, "Specifications");  // excluded
-        writer.WriteField("Weight", "1.5 kg");
+        writer.WriteFields([new("Weight", "1.5 kg")]);
 
         writer.WriteHeading(2, "Reviews");         // included
-        writer.WriteField("Rating", "4.5 stars");
+        writer.WriteFields([new("Rating", "4.5 stars")]);
 
         Console.WriteLine(writer.ToString());
         #endregion

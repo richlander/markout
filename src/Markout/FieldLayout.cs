@@ -6,27 +6,31 @@ namespace Markout;
 public enum FieldLayout
 {
     /// <summary>
+    /// Fields as a two-column pipe table (default).
+    /// Example: | Property | Value |
+    ///          | -------- | ----- |
+    ///          | Birthplace | London |
+    ///          | Born | 1980 |
+    /// </summary>
+    Table,
+
+    /// <summary>
     /// Fields on a single line, separated by pipes.
     /// Example: Birthplace: London | Born: 1980 | Citizenship: Canadian
     /// </summary>
-    OneLine,
+    Inline,
 
     /// <summary>
-    /// Each field on its own line, no trailing spaces.
-    /// </summary>
-    LineBreaks,
-
-    /// <summary>
-    /// Each field on its own line with trailing double-space for markdown soft breaks.
-    /// Example: Birthplace: London··
-    ///          Born: 1980··
-    /// </summary>
-    LineBreaksDoubleSpace,
-
-    /// <summary>
-    /// Fields as a bullet list.
+    /// Fields as a bulleted list.
     /// Example: - Birthplace: London
     ///          - Born: 1980
     /// </summary>
-    List
+    Bulleted,
+
+    /// <summary>
+    /// Fields as a numbered list.
+    /// Example: 1. Birthplace: London
+    ///          2. Born: 1980
+    /// </summary>
+    Numbered
 }

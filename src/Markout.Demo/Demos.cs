@@ -146,14 +146,14 @@ public static class Demos
         // Project to TreeNode structure
         var tree = shoes.Select(s => new TreeNode(
             $"{s.Model} ({s.Category}, ${s.Price})",
-            s.Reviews?.Select(r => 
+            null,
+            [..s.Reviews?.Select(r =>
             {
-                var comment = r.Comment.Length > 40 
-                    ? r.Comment.Substring(0, 37) + "..." 
+                var comment = r.Comment.Length > 40
+                    ? r.Comment.Substring(0, 37) + "..."
                     : r.Comment;
-                return $"\"{comment}\" — {r.Author} ({r.Rating}★)";
-            })
-        ));
+                return new TreeNode($"\"{comment}\" — {r.Author} ({r.Rating}★)");
+            }) ?? []]));
 
         var writer = new MarkdownWriter(output);
         
@@ -162,7 +162,7 @@ public static class Demos
         
         writer.WriteHeading(2, "Products with Reviews");
         writer.WriteCodeStart();
-        writer.WriteTree(tree);
+        writer.WriteTree(tree.ToArray());
         writer.WriteCodeEnd();
         writer.Flush();
     }

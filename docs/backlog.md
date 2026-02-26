@@ -86,13 +86,12 @@ With `[MarkoutColumnWhen]`, this becomes a single list.
 - The controlling property must be on the parent type (the one with the section),
   not the element type — requires threading the parent context through emission
 
-## LineBreaksBr field layout
+## HtmlBreak field layout
 
-Add a `LineBreaksBr` value to `FieldLayout` that renders each field on its own line using an explicit HTML `<br>` tag instead of trailing double-space (`  `) or plain newlines.
+Add an `HtmlBreak` value to `FieldLayout` that renders each field on its own line using an explicit HTML `<br>` tag instead of trailing double-space.
 
-- `LineBreaks` — plain newlines (for terminals / plain text)
-- `LineBreaksDoubleSpace` — trailing `  ` (markdown hard line break)
-- `LineBreaksBr` — trailing `<br>` (explicit HTML tag)
+- `Vertical` — trailing `  ` (markdown hard line break, current default for MarkdownWriter)
+- `HtmlBreak` — trailing `<br>` (explicit HTML tag for maximum compatibility)
 
 ## ~~DefinitionItem — definition lists~~ → Use Description
 
@@ -138,15 +137,6 @@ Useful between sections when headings are suppressed.
 
 A numbered variant is a visual parameter (`numbered: true`), not a distinct
 data relationship. Fails criterion #2 (semantically distinct).
-
-## Matrix ✅ Accepted
-
-2D grid with row/column headers and cell values (pivot table).
-Distinct from flat Table: has both row and column headers. Passes all five criteria.
-
-```csharp
-writer.WriteMatrix(rowHeaders, colHeaders, values);
-```
 
 ## Diagram shapes
 

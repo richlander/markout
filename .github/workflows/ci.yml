@@ -114,7 +114,7 @@ jobs:
         run: |
           # Validate key content in demo outputs
           grep -q "# Altra Torin 7" demo-simple.md
-          grep -q "Category: Road" demo-simple.md
+          grep -q "| Category | Road |" demo-simple.md
           grep -q "## Specifications" demo-sections.md
           grep -q "## Available Models" demo-list.md
           grep -q "| Model | Category | Price | In Stock |" demo-table.md

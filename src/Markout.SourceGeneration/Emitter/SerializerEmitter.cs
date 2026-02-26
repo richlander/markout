@@ -50,20 +50,6 @@ internal static class SerializerEmitter
             sb.AppendLine();
         }
 
-        // Suppress field warnings for specified writer types
-        if (type.IgnoreFieldsWriters.Count > 0)
-        {
-            foreach (var writerType in type.IgnoreFieldsWriters)
-            {
-                sb.AppendLine($"        if (writer is global::Markout.{writerType})");
-                sb.AppendLine("        {");
-                sb.AppendLine($"            writer.SuppressWarning(global::Markout.MarkoutShape.Fields);");
-                sb.AppendLine($"            writer.SuppressWarning(global::Markout.MarkoutShape.FieldList);");
-                sb.AppendLine("        }");
-            }
-            sb.AppendLine();
-        }
-
         sb.AppendLine("        OnSerializing(writer, value);");
 
         // Emit title (H1) if TitleProperty is set — opens document section
@@ -261,7 +247,7 @@ internal static class SerializerEmitter
         int nestingDepth = 0,
         bool autoFields = true,
         int autoFieldsCount = 0,
-        FieldLayoutKind fieldLayout = FieldLayoutKind.OneLine,
+        FieldLayoutKind fieldLayout = FieldLayoutKind.Table,
         string? rootValueExpr = null,
         string? rootTypeName = null)
     {
@@ -502,7 +488,7 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteFieldTable({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteFieldsTable(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
         }
@@ -572,7 +558,7 @@ internal static class SerializerEmitter
             }
             else
             {
-                sb.AppendLine($"{indent}    writer.WriteArray({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteArray(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
             }
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -591,7 +577,7 @@ internal static class SerializerEmitter
             }
             else
             {
-                sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteTree(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
             }
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -696,18 +682,18 @@ internal static class SerializerEmitter
         switch (prop.Kind)
         {
             case PropertyKind.StringArray:
-                sb.AppendLine($"{indent}if ({propAccess} != null)");
-                sb.AppendLine($"{indent}    writer.WriteArray(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess});");
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}    writer.WriteArray(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
                 break;
 
             case PropertyKind.FieldCollection:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteFieldList({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteFieldsInline(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
                 break;
 
             case PropertyKind.Tree:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteTree({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteTree(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
                 break;
 
             case PropertyKind.Metric:

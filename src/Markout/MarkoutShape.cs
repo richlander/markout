@@ -17,11 +17,11 @@ public enum MarkoutShape
     /// <summary>Paragraphs and blank lines.</summary>
     Paragraphs = 2,
 
-    /// <summary>Key-value fields (scalar and formatted).</summary>
+    /// <summary>
+    /// Key-value fields. Includes individual fields, inline field lists, and field tables.
+    /// Layout (multiline, inline, tabular) is a presentation concern, not a shape distinction.
+    /// </summary>
     Fields = 4,
-
-    /// <summary>Multi-field summary line.</summary>
-    FieldList = 8,
 
     /// <summary>Tables (streaming and batch).</summary>
     Tables = 16,
@@ -50,9 +50,6 @@ public enum MarkoutShape
     /// <summary>Prose quotation blocks.</summary>
     Quotation = 8192,
 
-    /// <summary>2D grid with row and column headers.</summary>
-    Matrices = 16384,
-
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | FieldList | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation | Matrices
+    All = Headings | Paragraphs | Fields | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation
 }

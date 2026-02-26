@@ -27,16 +27,17 @@ public static class ShapeGallery
 
         // Fields (identity continued)
         writer.WriteHeading(2, "Fields");
-        writer.WriteField("Name", "Markout");
-        writer.WriteField("Version", "0.6.0");
-        writer.WriteField("License", "MIT");
+        writer.WriteFields(
+            new("Name", "Markout"),
+            new("Version", "0.6.0"),
+            new("License", "MIT"));
 
         // Field list
         writer.WriteHeading(2, "Field List");
-        writer.WriteFieldList(
-            new MarkoutField("Language", "C#"),
-            new MarkoutField("Runtime", ".NET 10"),
-            new MarkoutField("Source Gen", "yes"));
+        writer.WriteFieldsInline(
+            new("Language", "C#"),
+            new("Runtime", ".NET 10"),
+            new("Source Gen", "yes"));
 
         // Enumeration — list
         writer.WriteHeading(2, "Features");
@@ -81,16 +82,13 @@ public static class ShapeGallery
 
         // Hierarchy — tree
         writer.WriteHeading(2, "Project Structure");
-        writer.WriteTree([
-            new TreeNode("src", [
-                new TreeNode("Markout", ["MarkoutWriter.cs", "MarkoutShape.cs"]),
-                new TreeNode("Markout.SourceGeneration", ["Parser", "Emitter"]),
-                new TreeNode("Markout.Ansi", ["AnsiWriter.cs"]),
-            ]),
-            new TreeNode("tests", [
-                new TreeNode("Markout.Tests"),
-            ]),
-        ]);
+        writer.WriteTree(
+            new TreeNode("src", null,
+                new TreeNode("Markout", null, new TreeNode("MarkoutWriter.cs"), new TreeNode("MarkoutShape.cs")),
+                new TreeNode("Markout.SourceGeneration", null, new TreeNode("Parser"), new TreeNode("Emitter")),
+                new TreeNode("Markout.Ansi", null, new TreeNode("AnsiWriter.cs"))),
+            new TreeNode("tests", null,
+                new TreeNode("Markout.Tests")));
 
         // Quotation — code section
         writer.WriteHeading(2, "Quick Start");
@@ -104,19 +102,6 @@ public static class ShapeGallery
 
         // Separator
         writer.WriteRule();
-
-        // Matrix
-        writer.WriteHeading(2, "Renderer × Shape Support");
-        writer.WriteMatrix(
-            ["Markdown", "ANSI", "Plain", "OneLine"],
-            ["Tables", "Trees", "Metrics", "Breakdowns"],
-            new string?[,]
-            {
-                { "✓", "✓", "✓", "✓" },
-                { "✓", "✓", "✓", "—" },
-                { "✓", "✓", "✓", "—" },
-                { "✓", "✓", "✓", "—" },
-            });
 
         Console.WriteLine(writer.ToString());
     }

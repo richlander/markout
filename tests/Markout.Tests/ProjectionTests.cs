@@ -220,9 +220,10 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteField("Name", "System.Text.Json");
-        writer.WriteField("Version", "9.0.0");
-        writer.WriteField("License", "MIT");
+        writer.WriteFields(
+            new MarkoutField("Name", "System.Text.Json"),
+            new MarkoutField("Version", "9.0.0"),
+            new MarkoutField("License", "MIT"));
         var output = writer.ToString();
         Assert.Contains("Name: System.Text.Json", output);
         Assert.Contains("License: MIT", output);
@@ -240,8 +241,9 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteField("Name", "Foo");
-        writer.WriteField("Signed", true);
+        writer.WriteFields(
+            new MarkoutField("Name", "Foo"),
+            new MarkoutField("Signed", "yes"));
         var output = writer.ToString();
         Assert.Contains("Signed: yes", output);
         Assert.DoesNotContain("Name", output);
@@ -258,8 +260,9 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteField("Name", "Foo");
-        writer.WriteField("Count", 42);
+        writer.WriteFields(
+            new MarkoutField("Name", "Foo"),
+            new MarkoutField("Count", "42"));
         var output = writer.ToString();
         Assert.Contains("Count: 42", output);
         Assert.DoesNotContain("Name", output);
@@ -276,8 +279,9 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteField("Name", "Foo");
-        writer.WriteField("Version", "1.0.0");
+        writer.WriteFields(
+            new MarkoutField("Name", "Foo"),
+            new MarkoutField("Version", "1.0.0"));
         var output = writer.ToString();
         Assert.Contains("Name: Foo", output);
         Assert.DoesNotContain("Version", output);
@@ -296,9 +300,10 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteField("Name", "Foo");
-        writer.WriteField("Version", "1.0.0");
-        writer.WriteField("License", "MIT");
+        writer.WriteFields(
+            new MarkoutField("Name", "Foo"),
+            new MarkoutField("Version", "1.0.0"),
+            new MarkoutField("License", "MIT"));
         var output = writer.ToString();
         Assert.Contains("Name: Foo", output);
         Assert.Contains("License: MIT", output);
@@ -318,7 +323,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldList(
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
@@ -339,7 +344,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldList(
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
@@ -360,7 +365,7 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteFieldList(
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
@@ -381,36 +386,12 @@ public class ProjectionTests
             }
         };
         var writer = new MarkoutWriter(options);
-        writer.WriteField("Name", "Foo");
-        writer.WriteFieldList(
+        writer.WriteFields([new("Name", "Foo")]);
+        writer.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
         var output = writer.ToString();
         Assert.Equal("", output);
-    }
-
-    // --- WriteFieldNoBreak projection ---
-
-    [Fact]
-    public void IncludeFields_FiltersFieldNoBreak()
-    {
-        var options = new MarkoutWriterOptions
-        {
-            Projection = new MarkoutProjection
-            {
-                IncludeFields = ["Name"]
-            }
-        };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFieldNoBreak("Name", "Foo");
-        writer.WriteFieldNoBreak("Version", "1.0.0");
-        writer.WriteFieldNoBreak("Signed", true);
-        writer.WriteFieldNoBreak("Count", 42);
-        var output = writer.ToString();
-        Assert.Contains("Name: Foo", output);
-        Assert.DoesNotContain("Version", output);
-        Assert.DoesNotContain("Signed", output);
-        Assert.DoesNotContain("Count", output);
     }
 
     // --- Projection composes with section filtering ---
@@ -428,7 +409,7 @@ public class ProjectionTests
         };
         var writer = new MarkoutWriter(options);
         writer.WriteHeading(1, "Report");
-        writer.WriteField("TopLevel", "value");
+        writer.WriteFields([new("TopLevel", "value")]);
         writer.WriteHeading(2, "Details");
         writer.WriteTableStart("Name", "Version");
         writer.WriteTableRow("Foo", "1.0.0");
@@ -489,8 +470,9 @@ public class ProjectionTests
     public void NoProjection_FieldsPassThrough()
     {
         var writer = new MarkoutWriter();
-        writer.WriteField("Name", "Foo");
-        writer.WriteField("Version", "1.0.0");
+        writer.WriteFields(
+            new MarkoutField("Name", "Foo"),
+            new MarkoutField("Version", "1.0.0"));
         var output = writer.ToString();
         Assert.Contains("Name: Foo", output);
         Assert.Contains("Version: 1.0.0", output);
@@ -608,5 +590,64 @@ public class ProjectionTests
         };
         var columns = schema.GetColumnNames();
         Assert.Equal(["Name", "Version", "Target"], columns);
+    }
+
+    // --- Factory method tests ---
+
+    [Fact]
+    public void WithColumns_CreatesProjectionWithIncludeColumns()
+    {
+        var projection = MarkoutProjection.WithColumns("Name", "TFM");
+        Assert.Equal(["Name", "TFM"], projection.IncludeColumns);
+        Assert.Null(projection.ExcludeColumns);
+    }
+
+    [Fact]
+    public void WithoutColumns_CreatesProjectionWithExcludeColumns()
+    {
+        var projection = MarkoutProjection.WithoutColumns("Version", "Signed");
+        Assert.Null(projection.IncludeColumns);
+        Assert.Contains("Version", projection.ExcludeColumns!);
+        Assert.Contains("Signed", projection.ExcludeColumns!);
+    }
+
+    [Fact]
+    public void WithFields_CreatesProjectionWithIncludeFields()
+    {
+        var projection = MarkoutProjection.WithFields("Name", "License");
+        Assert.Equal(["Name", "License"], projection.IncludeFields);
+        Assert.Null(projection.ExcludeFields);
+    }
+
+    [Fact]
+    public void WithoutFields_CreatesProjectionWithExcludeFields()
+    {
+        var projection = MarkoutProjection.WithoutFields("InternalId");
+        Assert.Null(projection.IncludeFields);
+        Assert.Contains("InternalId", projection.ExcludeFields!);
+    }
+
+    [Fact]
+    public void WithSections_CreatesProjectionWithIncludeSections()
+    {
+        var projection = MarkoutProjection.WithSections("Details", "API Surface");
+        Assert.Equal(["Details", "API Surface"], projection.IncludeSections);
+    }
+
+    [Fact]
+    public void FactoryMethod_WorksWithWriterOptions()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithColumns("Name")
+        };
+        var writer = new MarkoutWriter(options);
+        writer.WriteTableStart("Name", "Version");
+        writer.WriteTableRow("Foo", "1.0.0");
+        writer.WriteTableEnd();
+        var output = writer.ToString();
+        Assert.Contains("Name", output);
+        Assert.Contains("Foo", output);
+        Assert.DoesNotContain("Version", output);
     }
 }

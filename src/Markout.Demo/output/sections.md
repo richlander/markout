@@ -2,7 +2,10 @@
 
 This demo shows a product with separate sections for specs and reviews.
 
-Id: lone-peak-8 | Price: 144.99
+| Field | Value |
+| ----- | ----- |
+| Id | lone-peak-8 |
+| Price | 144.99 |
 
 ## Specifications
 

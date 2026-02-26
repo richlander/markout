@@ -2,7 +2,10 @@
 
 This demo shows products as a table with a section heading.
 
-Count: 6 | Lowest Price: 129.99
+| Field | Value |
+| ----- | ----- |
+| Count | 6 |
+| Lowest Price | 129.99 |
 
 ## Products
 

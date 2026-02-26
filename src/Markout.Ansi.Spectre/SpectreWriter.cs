@@ -168,44 +168,6 @@ public class SpectreWriter : MarkoutWriter
         WriteMarkup($"[bold]{Esc(key)}[/]: ");
     }
 
-    /// <inheritdoc/>
-    public override void WriteField(string key, string? value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        _console.WriteLine(value ?? string.Empty);
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteField(string key, bool value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        var color = value ? "green" : "red";
-        WriteMarkupLine($"[{color}]{(value ? "yes" : "no")}[/]");
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteField<T>(string key, T value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        _console.WriteLine();
-        HasContent = true;
-    }
-
     // ── Code ──
 
     /// <inheritdoc/>
@@ -323,7 +285,7 @@ public class SpectreWriter : MarkoutWriter
     // ── Arrays and lists ──
 
     /// <inheritdoc/>
-    public override void WriteArray(string key, IEnumerable<string>? items)
+    public override void WriteArray(string key, params ReadOnlySpan<string> items)
     {
         if (SectionExcluded)
             return;
@@ -349,10 +311,10 @@ public class SpectreWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Field list ──
+    // ── Fields inline (pipe-separated) ──
 
     /// <inheritdoc/>
-    public override void WriteFieldList(params MarkoutField[] fields)
+    public override void WriteFieldsInline(params ReadOnlySpan<MarkoutField> fields)
     {
         if (SectionExcluded || fields.Length == 0)
             return;
@@ -360,28 +322,6 @@ public class SpectreWriter : MarkoutWriter
         EnsureBlankLineIfNeeded();
 
         for (int i = 0; i < fields.Length; i++)
-        {
-            if (i > 0)
-                WriteMarkup("[grey] │ [/]");
-
-            WriteMarkup($"[bold]{Esc(fields[i].Key)}[/]: ");
-            _console.Write(new Text(fields[i].Value ?? string.Empty));
-        }
-
-        _console.WriteLine();
-        NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteFieldList(IReadOnlyList<MarkoutField> fields)
-    {
-        if (SectionExcluded || fields.Count == 0)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
-        for (int i = 0; i < fields.Count; i++)
         {
             if (i > 0)
                 WriteMarkup("[grey] │ [/]");
@@ -552,15 +492,14 @@ public class SpectreWriter : MarkoutWriter
     // ── Trees ──
 
     /// <inheritdoc/>
-    public override void WriteTree(IEnumerable<TreeNode>? nodes)
+    public override void WriteTree(params ReadOnlySpan<TreeNode> nodes)
     {
-        if (nodes == null || SectionExcluded) return;
+        if (nodes.Length == 0 || SectionExcluded) return;
 
-        var nodeList = nodes as IList<TreeNode> ?? [.. nodes];
-        for (int i = 0; i < nodeList.Count; i++)
+        for (int i = 0; i < nodes.Length; i++)
         {
-            var isLast = i == nodeList.Count - 1;
-            WriteSpectreTreeNode(nodeList[i], "", isLast, 0);
+            var isLast = i == nodes.Length - 1;
+            WriteSpectreTreeNode(nodes[i], "", isLast, 0);
         }
     }
 

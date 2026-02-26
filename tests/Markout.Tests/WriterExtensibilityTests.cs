@@ -27,14 +27,17 @@ public class WriterExtensibilityTests
             HasContent = true;
         }
 
-        public override void WriteField(string key, string? value)
+        public override void WriteFields(params ReadOnlySpan<MarkoutField> fields)
         {
             if (SectionExcluded) return;
             EnsureBlankLineIfNeeded();
             // Render as KEY = VALUE instead of Key: Value
-            Writer.Write(key.ToUpperInvariant());
-            Writer.Write(" = ");
-            Writer.WriteLine(value ?? string.Empty);
+            foreach (var field in fields)
+            {
+                Writer.Write(field.Key.ToUpperInvariant());
+                Writer.Write(" = ");
+                Writer.WriteLine(field.Value);
+            }
             HasContent = true;
         }
 
@@ -92,10 +95,10 @@ public class WriterExtensibilityTests
     }
 
     [Fact]
-    public void CustomWriter_WriteField_UsesOverriddenFormat()
+    public void CustomWriter_WriteFields_UsesOverriddenFormat()
     {
         var writer = new TestConsoleWriter();
-        writer.WriteField("Name", "Markout");
+        writer.WriteFields([new("Name", "Markout")]);
 
         Assert.Equal("NAME = Markout", writer.ToString());
     }
@@ -145,7 +148,7 @@ public class WriterExtensibilityTests
         Assert.Equal(MarkoutRenderContext.Block, writer.CurrentContext);
 
         writer.WriteHeading(1, "Test");
-        writer.WriteField("Key", "Value");
+        writer.WriteFields([new("Key", "Value")]);
 
         // Verify content was written via overridden methods
         var result = writer.ToString();
@@ -159,7 +162,7 @@ public class WriterExtensibilityTests
         // Verify that a custom writer can be passed to the serializer
         var writer = new TestConsoleWriter();
         writer.WriteHeading(1, "Test");
-        writer.WriteField("Version", "1.0");
+        writer.WriteFields([new("Version", "1.0")]);
 
         var result = writer.ToString();
         Assert.Contains("[H1]", result);
@@ -175,7 +178,7 @@ public class WriterExtensibilityTests
         };
         var writer = new TestConsoleWriter(options);
         writer.WriteHeading(2, "Excluded");
-        writer.WriteField("Key", "Value");
+        writer.WriteFields([new("Key", "Value")]);
 
         // The excluded section should produce no output
         Assert.Equal("", writer.ToString());

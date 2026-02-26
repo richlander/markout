@@ -13,7 +13,7 @@ public class NullableScalarsOneLine
     public DateTimeOffset? Modified { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaks)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class NullableScalarsLineBreaks
 {
     public string? Label { get; set; }
@@ -22,7 +22,7 @@ public class NullableScalarsLineBreaks
     public double? Score { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.LineBreaksDoubleSpace)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class NullableScalarsDoubleSpace
 {
     public string? Label { get; set; }
@@ -30,7 +30,7 @@ public class NullableScalarsDoubleSpace
     public bool? Active { get; set; }
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.List)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
 public class NullableScalarsList
 {
     public string? Label { get; set; }
@@ -123,10 +123,10 @@ public class NullableAndTitleTests
 
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        Assert.Contains("Label: Test", mdf);
-        Assert.Contains("Count: 42", mdf);
-        Assert.Contains("Active: yes", mdf);
-        Assert.Contains("Modified: 2024-06-15T12:00:00", mdf);
+        Assert.Contains("| Label | Test |", mdf);
+        Assert.Contains("| Count | 42 |", mdf);
+        Assert.Contains("| Active | yes |", mdf);
+        Assert.Contains("| Modified | 2024-06-15T12:00:00", mdf);
     }
 
     [Fact]
@@ -142,10 +142,10 @@ public class NullableAndTitleTests
 
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        Assert.Contains("Label: Test", mdf);
-        Assert.DoesNotContain("Count:", mdf);
-        Assert.DoesNotContain("Active:", mdf);
-        Assert.DoesNotContain("Modified:", mdf);
+        Assert.Contains("| Label | Test |", mdf);
+        Assert.DoesNotContain("| Count |", mdf);
+        Assert.DoesNotContain("| Active |", mdf);
+        Assert.DoesNotContain("| Modified |", mdf);
     }
 
     [Fact]
@@ -183,10 +183,10 @@ public class NullableAndTitleTests
 
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        Assert.Contains("Label: Test", mdf);
-        Assert.Contains("Count: 10", mdf);
-        Assert.Contains("Active: no", mdf);
-        Assert.Contains("Score: 9.5", mdf);
+        Assert.Contains("| Label | Test |", mdf);
+        Assert.Contains("| Count | 10 |", mdf);
+        Assert.Contains("| Active | no |", mdf);
+        Assert.Contains("| Score | 9.5 |", mdf);
     }
 
     [Fact]
@@ -202,10 +202,10 @@ public class NullableAndTitleTests
 
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        Assert.Contains("Label: Test", mdf);
-        Assert.DoesNotContain("Count:", mdf);
-        Assert.DoesNotContain("Active:", mdf);
-        Assert.DoesNotContain("Score:", mdf);
+        Assert.Contains("| Label | Test |", mdf);
+        Assert.DoesNotContain("| Count |", mdf);
+        Assert.DoesNotContain("| Active |", mdf);
+        Assert.DoesNotContain("| Score |", mdf);
     }
 
     // --- Nullable: LineBreaksDoubleSpace layout ---
@@ -222,9 +222,9 @@ public class NullableAndTitleTests
 
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        Assert.Contains("Label: Test", mdf);
-        Assert.DoesNotContain("Count:", mdf);
-        Assert.Contains("Active: yes", mdf);
+        Assert.Contains("| Label | Test |", mdf);
+        Assert.DoesNotContain("| Count |", mdf);
+        Assert.Contains("| Active | yes |", mdf);
     }
 
     // --- Nullable: List layout ---
@@ -288,10 +288,10 @@ public class NullableAndTitleTests
         // Title should appear as H1
         Assert.Contains("# MyWidget", mdf);
         // Name should NOT appear again as a scalar field
-        Assert.DoesNotContain("Name: MyWidget", mdf);
+        Assert.DoesNotContain("| Name |", mdf);
         // Other scalars should still appear
-        Assert.Contains("Kind: gadget", mdf);
-        Assert.Contains("Count: 3", mdf);
+        Assert.Contains("| Kind | gadget |", mdf);
+        Assert.Contains("| Count | 3 |", mdf);
     }
 
     [Fact]
@@ -312,11 +312,11 @@ public class NullableAndTitleTests
         // Description should appear as paragraph
         Assert.Contains("A useful widget", mdf);
         // Neither Name nor Summary should appear as scalar fields
-        Assert.DoesNotContain("Name: MyWidget", mdf);
-        Assert.DoesNotContain("Summary: A useful widget", mdf);
+        Assert.DoesNotContain("| Name |", mdf);
+        Assert.DoesNotContain("| Summary |", mdf);
         // Other scalars should still appear
-        Assert.Contains("Kind: gadget", mdf);
-        Assert.Contains("Count: 3", mdf);
+        Assert.Contains("| Kind | gadget |", mdf);
+        Assert.Contains("| Count | 3 |", mdf);
     }
 
     [Fact]
@@ -334,10 +334,10 @@ public class NullableAndTitleTests
         // Title with context should appear as H1
         Assert.Contains("# MyWidget (2.0)", mdf);
         // Neither Name nor Version should appear as scalar fields
-        Assert.DoesNotContain("Name: MyWidget", mdf);
-        Assert.DoesNotContain("Version: 2.0", mdf);
+        Assert.DoesNotContain("| Name |", mdf);
+        Assert.DoesNotContain("| Version |", mdf);
         // Other scalars should still appear
-        Assert.Contains("Kind: gadget", mdf);
+        Assert.Contains("| Kind | gadget |", mdf);
     }
 
     // --- String null-skipping in OneLine mode ---
@@ -348,9 +348,9 @@ public class NullableAndTitleTests
         var record = new StringOnlyOneLine { Name = null, Description = "hello", Count = 5 };
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        Assert.DoesNotContain("Name:", mdf);
-        Assert.Contains("Description: hello", mdf);
-        Assert.Contains("Count: 5", mdf);
+        Assert.DoesNotContain("| Name |", mdf);
+        Assert.Contains("| Description | hello |", mdf);
+        Assert.Contains("| Count | 5 |", mdf);
     }
 
     [Fact]
@@ -359,8 +359,8 @@ public class NullableAndTitleTests
         var record = new StringOnlyOneLine { Name = "", Description = "hello", Count = 5 };
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        Assert.DoesNotContain("Name:", mdf);
-        Assert.Contains("Description: hello", mdf);
+        Assert.DoesNotContain("| Name |", mdf);
+        Assert.Contains("| Description | hello |", mdf);
     }
 
     [Fact]
@@ -369,8 +369,8 @@ public class NullableAndTitleTests
         var record = new StringOnlyOneLine { Name = "Widget", Description = "A thing", Count = 1 };
         var mdf = MarkoutSerializer.Serialize(record, NullableAndTitleTestContext.Default);
 
-        Assert.Contains("Name: Widget", mdf);
-        Assert.Contains("Description: A thing", mdf);
-        Assert.Contains("Count: 1", mdf);
+        Assert.Contains("| Name | Widget |", mdf);
+        Assert.Contains("| Description | A thing |", mdf);
+        Assert.Contains("| Count | 1 |", mdf);
     }
 }

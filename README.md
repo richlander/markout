@@ -94,7 +94,6 @@ The [GitHubRepo](samples/GitHubRepo) sample fetches four GitHub API endpoints in
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
-[MarkoutIgnoreFields(nameof(OneLineWriter))]
 public class RepoView
 {
     public string Title { get; set; } = "";

@@ -267,7 +267,7 @@ internal static class EmitHelpers
         var remainVar = nestingDepth == 0 ? "__remaining" : $"__remaining{nestingDepth}";
 
         sb.AppendLine($"{indent}var {remainVar} = {propAccess}.{countProp} - {maxItems};");
-        sb.AppendLine($"{indent}var {truncVar} = {remainVar} > 0 ? global::System.Linq.Enumerable.Take({propAccess}, {maxItems}) : {propAccess};");
+        sb.AppendLine($"{indent}var {truncVar} = {remainVar} > 0 ? global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Take({propAccess}, {maxItems})) : global::System.Linq.Enumerable.ToArray({propAccess});");
 
         return (truncVar, true);
     }

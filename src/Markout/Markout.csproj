@@ -8,7 +8,7 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.9.7</Version>
+    <Version>0.10.0</Version>
   </PropertyGroup>
 
   <!-- Include source generator in this package -->

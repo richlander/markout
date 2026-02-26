@@ -72,14 +72,13 @@ That's it. The output is Markdown by default.
 |---|---|---|
 | `[MarkoutSerializable]` | Mark type for serialization | `[MarkoutSerializable(TitleProperty = "Name")]` |
 | `[MarkoutContext(typeof(T))]` | Register type with context | `[MarkoutContext(typeof(MyView))]` |
-| `[MarkoutIgnoreFields("OneLineWriter")]` | Suppress field warnings for a writer | `[MarkoutIgnoreFields(nameof(OneLineWriter))]` |
 
 `MarkoutSerializable` properties:
 
 - `TitleProperty` — Property to render as the H1 heading
 - `DescriptionProperty` — Property to render as a paragraph below the heading
 - `AutoFields` — Auto-render scalar properties as fields (default: `true`)
-- `FieldLayout` — `OneLine` (pipe-separated) or `LineBreaks`
+- `FieldLayout` — `Line` (pipe-separated), `List` (bullets), or `BareList` (one per line)
 
 ### Property-level attributes
 

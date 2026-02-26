@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace Markout;
 
 /// <summary>
@@ -38,13 +40,13 @@ public sealed class MarkoutSchemaInfo
         var markout = new MarkdownWriter(writer);
         
         writer.WriteLine($"{TypeName} (as document)");
-        markout.WriteTree(ToTreeNodes(AsDocument));
-        
+        markout.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsDocument)));
+
         if (AsTableItem.Count > 0 && HasDifferences())
         {
             writer.WriteLine();
             writer.WriteLine($"{TypeName} (in table)");
-            markout.WriteTree(ToTreeNodes(AsTableItem));
+            markout.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsTableItem)));
         }
         
         markout.Flush();
@@ -155,10 +157,13 @@ public sealed class MarkoutSchemaInfo
     
     private static List<TreeNode> ToTreeNodes(IReadOnlyList<MarkoutPropertySchema> props)
     {
-        return props.Select(p => new TreeNode(
-            $"{p.Name}: {p.TypeName} → {p.Rendering}",
-            p.Children.Count > 0 ? ToTreeNodes(p.Children) : null
-        )).ToList();
+        return props.Select(p => p.Children.Count > 0
+            ? new TreeNode(
+                $"{p.Name}: {p.TypeName} → {p.Rendering}",
+                null,
+                [..ToTreeNodes(p.Children)])
+            : new TreeNode($"{p.Name}: {p.TypeName} → {p.Rendering}")
+        ).ToList();
     }
 }
 

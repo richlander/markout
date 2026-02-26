@@ -106,28 +106,10 @@ public class UnicodeWriter : MarkoutWriter
 
     // ── Fields ──
 
-    /// <inheritdoc/>
-    public override void WriteField(string key, string? value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        Writer.WriteLine();
-        HasContent = true;
-    }
-
     protected override void WriteFieldName(string key)
     {
         Writer.Write(key);
         Writer.Write(": ");
-    }
-
-    private void WriteFormattedValue(string? value)
-    {
-        Writer.Write(value ?? "");
     }
 
     // ── Code ──
@@ -243,7 +225,7 @@ public class UnicodeWriter : MarkoutWriter
     // ── Arrays and lists ──
 
     /// <inheritdoc/>
-    public override void WriteArray(string key, IEnumerable<string>? items)
+    public override void WriteArray(string key, params ReadOnlySpan<string> items)
     {
         if (SectionExcluded)
             return;
@@ -255,13 +237,10 @@ public class UnicodeWriter : MarkoutWriter
         Writer.Write(key);
         Writer.WriteLine(":");
 
-        if (items != null)
+        foreach (var item in items)
         {
-            foreach (var item in items)
-            {
-                Writer.Write("  • ");
-                Writer.WriteLine(item);
-            }
+            Writer.Write("  • ");
+            Writer.WriteLine(item);
         }
 
         HasContent = true;
@@ -278,44 +257,26 @@ public class UnicodeWriter : MarkoutWriter
         HasContent = true;
     }
 
-    // ── Field list ──
+    // ── Fields inline (pipe-separated) ──
 
     /// <inheritdoc/>
-    public override void WriteFieldList(params MarkoutField[] fields)
+    public override void WriteFieldsInline(params ReadOnlySpan<MarkoutField> fields)
     {
-        if (SectionExcluded)
+        if (SectionExcluded || fields.Length == 0)
             return;
 
         EnsureBlankLineIfNeeded();
 
-        int maxKeyWidth = fields.Max(f => f.Key.Length);
+        int maxKeyWidth = 0;
+        foreach (var field in fields)
+            if (field.Key.Length > maxKeyWidth)
+                maxKeyWidth = field.Key.Length;
 
         foreach (var field in fields)
         {
             Writer.Write(field.Key.PadRight(maxKeyWidth));
             Writer.Write(" │ ");
-            Writer.WriteLine(field.Value ?? "");
-        }
-
-        NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteFieldList(IReadOnlyList<MarkoutField> fields)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
-        int maxKeyWidth = fields.Max(f => f.Key.Length);
-
-        foreach (var field in fields)
-        {
-            Writer.Write(field.Key.PadRight(maxKeyWidth));
-            Writer.Write(" │ ");
-            Writer.WriteLine(field.Value ?? "");
+            Writer.WriteLine(field.Value);
         }
 
         NeedsBlankLine = true;
@@ -325,26 +286,26 @@ public class UnicodeWriter : MarkoutWriter
     // ── Trees ──
 
     /// <inheritdoc/>
-    public override void WriteTree(IEnumerable<TreeNode>? nodes)
+    public override void WriteTree(params ReadOnlySpan<TreeNode> nodes)
     {
-        if (SectionExcluded)
+        if (SectionExcluded || nodes.Length == 0)
             return;
 
         EnsureBlankLineIfNeeded();
-        WriteTreeNodes(nodes, "");
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            bool isLast = i == nodes.Length - 1;
+            WriteTreeNode(nodes[i], "", isLast);
+        }
         NeedsBlankLine = true;
     }
 
-    private void WriteTreeNodes(IEnumerable<TreeNode>? nodes, string prefix)
+    private void WriteTreeNodes(IReadOnlyList<TreeNode> nodes, string prefix)
     {
-        if (nodes == null)
-            return;
-
-        var nodeList = nodes.ToList();
-        for (int i = 0; i < nodeList.Count; i++)
+        for (int i = 0; i < nodes.Count; i++)
         {
-            var node = nodeList[i];
-            bool isLast = i == nodeList.Count - 1;
+            var node = nodes[i];
+            bool isLast = i == nodes.Count - 1;
             WriteTreeNode(node, prefix, isLast);
         }
     }

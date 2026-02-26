@@ -89,10 +89,10 @@ public class AnsiWriterTests
     // ── Fields ──
 
     [Fact]
-    public void WriteField_String_RendersBoldKey()
+    public void WriteFields_String_RendersBoldKey()
     {
         var (writer, terminal) = Create();
-        writer.WriteField("Name", "Markout");
+        writer.WriteFields([new("Name", "Markout")]);
 
         var output = terminal.Output;
         Assert.Contains(AnsiCodes.SetBold, output); // Bold key
@@ -101,34 +101,16 @@ public class AnsiWriterTests
     }
 
     [Fact]
-    public void WriteField_BoolTrue_RendersGreen()
+    public void WriteFields_MultipleFields_RendersBoldKeys()
     {
         var (writer, terminal) = Create();
-        writer.WriteField("Signed", true);
+        writer.WriteFields(
+            new MarkoutField("Signed", "yes"),
+            new MarkoutField("Count", "42"));
 
         var output = terminal.Output;
-        Assert.Contains($"\x1b[{(int)TerminalColor.Green}m", output);
+        Assert.Contains("Signed", output);
         Assert.Contains("yes", output);
-    }
-
-    [Fact]
-    public void WriteField_BoolFalse_RendersRed()
-    {
-        var (writer, terminal) = Create();
-        writer.WriteField("Signed", false);
-
-        var output = terminal.Output;
-        Assert.Contains($"\x1b[{(int)TerminalColor.Red}m", output);
-        Assert.Contains("no", output);
-    }
-
-    [Fact]
-    public void WriteField_Int_RendersBoldKeyAndValue()
-    {
-        var (writer, terminal) = Create();
-        writer.WriteField("Count", 42);
-
-        var output = terminal.Output;
         Assert.Contains("Count", output);
         Assert.Contains("42", output);
     }
@@ -171,15 +153,7 @@ public class AnsiWriterTests
     public void WriteTree_RendersWithDimBoxDrawing()
     {
         var (writer, terminal) = Create();
-        var nodes = new List<TreeNode>
-        {
-            new("Root", new List<TreeNode>
-            {
-                new("Child1"),
-                new("Child2")
-            })
-        };
-        writer.WriteTree(nodes);
+        writer.WriteTree(new TreeNode("Root", null, new TreeNode("Child1"), new TreeNode("Child2")));
 
         var output = terminal.Output;
         Assert.Contains("Root", output);
@@ -193,11 +167,7 @@ public class AnsiWriterTests
     public void WriteTree_WithIcons_RendersIcons()
     {
         var (writer, terminal) = Create();
-        var nodes = new List<TreeNode>
-        {
-            new("lib", "📁", new[] { "net8.0" })
-        };
-        writer.WriteTree(nodes);
+        writer.WriteTree(new TreeNode("lib", "📁", new TreeNode("net8.0")));
 
         var output = terminal.Output;
         Assert.Contains("📁", output);
@@ -233,10 +203,10 @@ public class AnsiWriterTests
     // ── Field list ──
 
     [Fact]
-    public void WriteFieldList_RendersBoldKeysWithSeparator()
+    public void WriteFieldsInline_RendersBoldKeysWithSeparator()
     {
         var (writer, terminal) = Create();
-        writer.WriteFieldList(
+        writer.WriteFieldsInline(
             new MarkoutField("Type", "Library"),
             new MarkoutField("TFM", "net8.0"));
 
@@ -269,7 +239,7 @@ public class AnsiWriterTests
     {
         var (writer, terminal) = Create(new MarkoutWriterOptions { ExcludeSections = ["Hidden"] });
         writer.WriteHeading(2, "Hidden");
-        writer.WriteField("Key", "Value");
+        writer.WriteFields([new("Key", "Value")]);
 
         Assert.DoesNotContain("Value", terminal.Output);
     }
@@ -283,7 +253,7 @@ public class AnsiWriterTests
         var terminal = new CapturingTerminal();
         MarkoutWriter writer = new AnsiWriter(terminal);
         writer.WriteHeading(1, "Test");
-        writer.WriteField("Key", "Value");
+        writer.WriteFields([new("Key", "Value")]);
 
         var output = terminal.Output;
         Assert.Contains("Test", output);

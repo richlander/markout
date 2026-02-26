@@ -104,41 +104,25 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteField(string key, string? value)
+    public override void WriteFields(params ReadOnlySpan<MarkoutField> fields)
     {
-        if (SectionExcluded)
+        if (SectionExcluded || fields.Length == 0 || ShapeUnsupported(MarkoutShape.Fields))
+            return;
+
+        var projected = ProjectFields(fields);
+        if (projected.Length == 0)
             return;
 
         EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        Writer.Write(value ?? string.Empty);
-        Writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        HasContent = true;
-    }
 
-    /// <inheritdoc/>
-    public override void WriteField(string key, bool value)
-    {
-        if (SectionExcluded)
-            return;
+        for (int i = 0; i < projected.Length; i++)
+        {
+            WriteFieldName(projected[i].Key);
+            Writer.Write(projected[i].Value);
+            Writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
+        }
 
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        Writer.Write(value ? "yes" : "no");
-        Writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteField<T>(string key, T value)
-    {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        WriteFieldName(key);
-        WriteFormattedValue(value);
-        Writer.WriteLine("  "); // Two trailing spaces for markdown hard line break
+        NeedsBlankLine = true;
         HasContent = true;
     }
 
@@ -399,77 +383,7 @@ public class MarkdownWriter : MarkoutWriter
     }
 
     /// <inheritdoc/>
-    public override void WriteMatrix(string[] rowHeaders, string[] colHeaders, string?[,] values)
-    {
-        if (SectionExcluded || ShapeUnsupported(MarkoutShape.Matrices))
-            return;
-
-        if (rowHeaders.Length == 0 || colHeaders.Length == 0)
-            return;
-
-        if (HasContent)
-            NeedsBlankLine = true;
-        EnsureBlankLineIfNeeded();
-
-        // Calculate column widths (first column is row header)
-        var colWidths = new int[colHeaders.Length + 1];
-        colWidths[0] = rowHeaders.Max(h => h.Length);
-        for (int c = 0; c < colHeaders.Length; c++)
-        {
-            colWidths[c + 1] = colHeaders[c].Length;
-            for (int r = 0; r < rowHeaders.Length; r++)
-            {
-                var val = values[r, c] ?? "";
-                if (val.Length > colWidths[c + 1])
-                    colWidths[c + 1] = val.Length;
-            }
-        }
-
-        // Header row: | (empty) | Col1 | Col2 | ...
-        Writer.Write("| ");
-        Writer.Write("".PadRight(colWidths[0]));
-        Writer.Write(" ");
-        for (int c = 0; c < colHeaders.Length; c++)
-        {
-            Writer.Write("| ");
-            Writer.Write(colHeaders[c].PadRight(colWidths[c + 1]));
-            Writer.Write(" ");
-        }
-        Writer.WriteLine("|");
-
-        // Separator row
-        Writer.Write("| ");
-        Writer.Write(new string('-', colWidths[0]));
-        Writer.Write(" ");
-        for (int c = 0; c < colHeaders.Length; c++)
-        {
-            Writer.Write("| ");
-            Writer.Write(new string('-', colWidths[c + 1]));
-            Writer.Write(" ");
-        }
-        Writer.WriteLine("|");
-
-        // Data rows
-        for (int r = 0; r < rowHeaders.Length; r++)
-        {
-            Writer.Write("| ");
-            Writer.Write(rowHeaders[r].PadRight(colWidths[0]));
-            Writer.Write(" ");
-            for (int c = 0; c < colHeaders.Length; c++)
-            {
-                Writer.Write("| ");
-                Writer.Write((values[r, c] ?? "").PadRight(colWidths[c + 1]));
-                Writer.Write(" ");
-            }
-            Writer.WriteLine("|");
-        }
-
-        NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteArray(string key, IEnumerable<string>? items)
+    public override void WriteArray(string key, params ReadOnlySpan<string> items)
     {
         if (SectionExcluded)
             return;

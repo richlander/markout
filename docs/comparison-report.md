@@ -196,7 +196,7 @@ Markout's structure is clean but could benefit from:
 
 ```csharp
 [MarkoutContextOptions(
-    DefaultFieldLayout = FieldLayout.LineBreaks,
+    DefaultFieldLayout = FieldLayout.Vertical,
     BoldFieldNames = true)]
 [MarkoutContext(typeof(Report))]
 public partial class ReportContext : MarkoutSerializerContext { }
@@ -336,7 +336,7 @@ public override void Serialize(MarkoutWriter writer, Package value)
         __fields.Add(new MarkoutField("Name", value.Name));
     // ...
     if (__fields.Count > 0)
-        writer.WriteFieldList(__fields);
+        writer.WriteFieldsBulleted(__fields);
     
     // Arrays
     if (value.Frameworks != null)
@@ -366,7 +366,7 @@ public override MarkoutTypeInfo<T>? GetTypeInfo<T>()
 
 **Areas for Improvement:**
 
-1. **List allocation in OneLine layout:**
+1. **List allocation in Inline layout:**
 
 ```csharp
 // Current: allocates List<MarkoutField> for every call
@@ -375,11 +375,11 @@ if (!string.IsNullOrEmpty(value.Name))
     __fields.Add(new MarkoutField("Name", value.Name));
 ```
 
-**Recommendation:** For types where all scalars are non-nullable value types, emit direct `WriteFieldList(params ReadOnlySpan<MarkoutField>)` calls:
+**Recommendation:** For types where all scalars are non-nullable value types, emit direct `WriteFields(params ReadOnlySpan<MarkoutField>)` calls:
 
 ```csharp
 // Optimized path for all-non-nullable scalars
-writer.WriteFieldList(
+writer.WriteFields(
     new MarkoutField("Count", value.Count.ToString(CultureInfo.InvariantCulture)),
     new MarkoutField("Price", value.Price.ToString(CultureInfo.InvariantCulture)));
 ```
@@ -543,7 +543,7 @@ This would preserve the closed type system while allowing specific extension poi
 
 ```csharp
 // If all scalars are non-nullable non-string, use params overload
-writer.WriteFieldList(
+writer.WriteFields(
     new MarkoutField("Id", value.Id),
     new MarkoutField("Count", value.Count));
 ```
@@ -634,7 +634,7 @@ context.SyntaxProvider
 
 ```csharp
 [MarkoutContextOptions(
-    DefaultFieldLayout = FieldLayout.LineBreaks,
+    DefaultFieldLayout = FieldLayout.Vertical,
     BoldFieldNames = true,
     IncludeBadges = true)]
 [MarkoutContext(typeof(Report))]
@@ -648,7 +648,7 @@ This bakes options into generated code, avoiding runtime options objects.
 **Pattern:** LoggerMessage uses `LoggerMessage.Define<>()` for simple cases, custom structs for complex cases.
 
 **Application to Markout:**
-- **Simple types** (all non-nullable scalars, no sections): Emit direct `WriteFieldList(params ...)` call
+- **Simple types** (all non-nullable scalars, no sections): Emit direct `WriteFields(params ...)` call
 - **Complex types** (nullable, sections, nested): Use current List builder pattern
 
 #### 6. Multi-File Emission (from STJ)
@@ -834,7 +834,7 @@ enum PropertyRenderingShape
     TableCell             = 0x02,  // Can render in table column
     TableRows             = 0x04,  // Can render as table (collection of scalars)
     Section               = 0x08,  // Can render as H2+ section
-    FieldList          = 0x10,  // Can render in pipe-separated line
+    InlineFields       = 0x10,  // Can render in pipe-separated line
     TreeRenderable        = 0x20,  // Can render as tree structure
     DynamicFields         = 0x40,  // Is List<MarkoutField>
 }
@@ -854,7 +854,7 @@ This pattern keeps code manageable—each generator only needs to know about its
 Stage 1: NullCheck         → if (value == null) return;
 Stage 2: Title             → writer.WriteHeading(1, ...)
 Stage 3: Description       → writer.WriteParagraph(...)
-Stage 4: FieldList     → writer.WriteFieldList(...)
+Stage 4: InlineFields  → writer.WriteFieldsInline(...)
 Stage 5: ScalarFields      → writer.WriteField(...) per property
 Stage 6: Sections          → writer.WriteHeading(2, ...) per section
 Stage 7: Collections       → tables, arrays, trees
@@ -1225,7 +1225,7 @@ This pattern cannot be expressed with current Markout attributes.
 | `WriteListItem(text)` | ~15 calls | Bullet items |
 | `WriteArray(label, items)` | ~5 calls | Lists of strings |
 | `WriteTree(nodes)` | 1 call | Assembly reference tree |
-| `WriteFieldList(fields)` | 1 call | Pipe-separated display |
+| `WriteFieldsInline(fields)` | 1 call | Pipe-separated display |
 | `WriteCodeStart/End` | 2 calls | Code samples |
 
 The most common operations are conditional (`if (value != null)`) writes of fields and table rows—precisely what the source generator cannot express.
@@ -1558,11 +1558,11 @@ Today, "scalar" does double duty:
 
 The `FieldLayout` enum makes this visible — it describes four ways to render a list of fields:
 
-```
-OneLine:              "Version: 10.0 | Security: true | Updated: 2026-01"
-LineBreaks:           "Version: 10.0\nSecurity: true\nUpdated: 2026-01"
-LineBreaksDoubleSpace: "Version: 10.0  \nSecurity: true  \nUpdated: 2026-01  "
-List:                 "- Version: 10.0\n- Security: true\n- Updated: 2026-01"
+```text
+Inline:   "Version: 10.0 | Security: true | Updated: 2026-01"
+Vertical: "Version: 10.0  \nSecurity: true  \nUpdated: 2026-01  "
+Bulleted: "- Version: 10.0\n- Security: true\n- Updated: 2026-01"
+Numbered: "1. Version: 10.0\n2. Security: true\n3. Updated: 2026-01"
 ```
 
 These are not four kinds of scalars. They are four renderings of the **same data**: a vector of `MarkoutField` KVPs. There may be more variants in the future (e.g., definition lists, two-column tables, indented blocks).
@@ -1595,9 +1595,10 @@ The internal naming (`scalarProps`, `IsScalarKind`) is acceptable — it correct
 | `FieldLayout` | (keep) | Already correct — it describes how a field list is laid out |
 | `MarkoutField` | (keep) | Good name — suggests KVP |
 | `EmitScalarsWithLayout` | `EmitFieldListWithLayout` | Internal, but clearer intent |
-| `WriteFieldList` | (keep) | Describes the `OneLine` layout rendering |
-| `WriteField` | (keep) | Describes the `LineBreaksDoubleSpace` layout (one field at a time) |
-| `WriteFieldNoBreak` | (keep) | Describes the `LineBreaks` layout |
+| `WriteFieldsInline` | (keep) | Describes the `Inline` layout rendering |
+| `WriteFields` | (keep) | Describes the `Vertical` layout rendering |
+| `WriteFieldsBulleted` | (keep) | Describes the `Bulleted` layout rendering |
+| `WriteFieldsNumbered` | (keep) | Describes the `Numbered` layout rendering |
 
 ### Why This Matters
 

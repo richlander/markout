@@ -38,11 +38,11 @@ public class UnicodeWriterTests
     }
 
     [Fact]
-    public void WriteField_KeyValueFormat()
+    public void WriteFields_KeyValueFormat()
     {
         var sw = new StringWriter();
         var writer = new UnicodeWriter(sw);
-        writer.WriteField("Name", "Alice");
+        writer.WriteFields([new("Name", "Alice")]);
         var output = sw.ToString();
         Assert.Contains("Name: Alice", output);
     }
@@ -101,12 +101,10 @@ public class UnicodeWriterTests
     {
         var sw = new StringWriter();
         var writer = new UnicodeWriter(sw);
-        writer.WriteTree([
-            new TreeNode("Root", [
+        writer.WriteTree(
+            new TreeNode("Root", null,
                 new TreeNode("Child A"),
-                new TreeNode("Child B")
-            ])
-        ]);
+                new TreeNode("Child B")));
         var output = sw.ToString();
         Assert.Contains("Root", output);
         Assert.Contains("Child A", output);
@@ -120,14 +118,11 @@ public class UnicodeWriterTests
     {
         var sw = new StringWriter();
         var writer = new UnicodeWriter(sw);
-        writer.WriteTree([
-            new TreeNode("Root", [
-                new TreeNode("Parent", [
+        writer.WriteTree(
+            new TreeNode("Root", null,
+                new TreeNode("Parent", null,
                     new TreeNode("Child 1"),
-                    new TreeNode("Child 2")
-                ])
-            ])
-        ]);
+                    new TreeNode("Child 2"))));
         var output = sw.ToString();
         Assert.Contains("Root", output);
         Assert.Contains("Parent", output);
@@ -142,14 +137,11 @@ public class UnicodeWriterTests
     {
         var sw = new StringWriter();
         var writer = new UnicodeWriter(sw);
-        writer.WriteTree([
-            new TreeNode("Root", [
-                new TreeNode("Parent 1", [
-                    new TreeNode("Child")
-                ]),
-                new TreeNode("Parent 2")
-            ])
-        ]);
+        writer.WriteTree(
+            new TreeNode("Root", null,
+                new TreeNode("Parent 1", null,
+                    new TreeNode("Child")),
+                new TreeNode("Parent 2")));
         var output = sw.ToString();
         Assert.Contains("│", output); // Vertical line should appear in prefix
     }
@@ -192,11 +184,11 @@ public class UnicodeWriterTests
     }
 
     [Fact]
-    public void WriteFieldList_WithVerticalBar()
+    public void WriteFieldsInline_WithVerticalBar()
     {
         var sw = new StringWriter();
         var writer = new UnicodeWriter(sw);
-        writer.WriteFieldList([
+        writer.WriteFieldsInline([
             new MarkoutField("Name", "Alice"),
             new MarkoutField("Age", "30")
         ]);
