@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Markout.Formatting;
 
 namespace Markout;
 
@@ -296,13 +297,18 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a field name.
-    /// Override to customize how field names are rendered.
+    /// Writes a field name. Dispatches to <see cref="IFieldFormatter.FormatFieldName"/>
+    /// when implemented, otherwise writes plain "key: " text.
     /// </summary>
     protected virtual void WriteFieldName(string key)
     {
-        _writer.Write(key);
-        _writer.Write(": ");
+        if (this is IFieldFormatter ff)
+            ff.FormatFieldName(_writer, key, BoldFieldNames);
+        else
+        {
+            _writer.Write(key);
+            _writer.Write(": ");
+        }
     }
 
     /// <summary>
@@ -337,13 +343,18 @@ public class MarkoutWriter
             _writer.WriteLine();
         }
 
-        _writer.Write(text);
-
-        if (!string.IsNullOrEmpty(context))
+        if (this is IHeadingFormatter hf)
+            hf.FormatHeading(_writer, level, text, context);
+        else
         {
-            _writer.Write(" (");
-            _writer.Write(context);
-            _writer.Write(')');
+            _writer.Write(text);
+
+            if (!string.IsNullOrEmpty(context))
+            {
+                _writer.Write(" (");
+                _writer.Write(context);
+                _writer.Write(')');
+            }
         }
 
         _writer.WriteLine();
@@ -427,6 +438,10 @@ public class MarkoutWriter
             return;
 
         EnsureBlankLineIfNeeded();
+
+        if (this is ICodeBlockFormatter cf)
+            cf.FormatCodeStart(_writer, language);
+
         _hasContent = true;
     }
 
@@ -444,6 +459,9 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return;
 
+        if (this is ICodeBlockFormatter cf)
+            cf.FormatCodeEnd(_writer);
+
         _needsBlankLine = true;
     }
 
@@ -456,8 +474,15 @@ public class MarkoutWriter
             return;
 
         EnsureBlankLineIfNeeded();
-        _writer.Write("- ");
-        _writer.WriteLine(text);
+
+        if (this is IListFormatter lf)
+            lf.FormatListItem(_writer, text);
+        else
+        {
+            _writer.Write("- ");
+            _writer.WriteLine(text);
+        }
+
         _hasContent = true;
     }
 
@@ -530,10 +555,15 @@ public class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
 
-        for (int i = 0; i < projected.Length; i++)
+        if (this is IFieldFormatter ff)
+            ff.FormatFields(_writer, projected, BoldFieldNames);
+        else
         {
-            WriteFieldName(projected[i].Key);
-            _writer.WriteLine(projected[i].Value);
+            for (int i = 0; i < projected.Length; i++)
+            {
+                WriteFieldName(projected[i].Key);
+                _writer.WriteLine(projected[i].Value);
+            }
         }
 
         _needsBlankLine = true;
@@ -667,10 +697,15 @@ public class MarkoutWriter
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
 
-        _writer.Write(key);
-        _writer.WriteLine(":");
+        if (this is IListFormatter lf)
+            lf.FormatArray(_writer, key, items, BoldFieldNames);
+        else
+        {
+            _writer.Write(key);
+            _writer.WriteLine(":");
 
-        WriteBulletItems(items);
+            WriteBulletItems(items);
+        }
     }
 
     /// <summary>
@@ -686,7 +721,18 @@ public class MarkoutWriter
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
 
-        WriteBulletItems(items);
+        if (this is IListFormatter lf)
+        {
+            foreach (var item in items)
+                lf.FormatListItem(_writer, item);
+        }
+        else
+        {
+            WriteBulletItems(items);
+        }
+
+        _needsBlankLine = true;
+        _hasContent = true;
     }
 
     /// <summary>
@@ -789,43 +835,50 @@ public class MarkoutWriter
     /// </summary>
     protected virtual void FlushStreamingTable(string[] headers, IList<string[]> rows, int skippedRows)
     {
-        // Calculate column widths
-        var widths = new int[headers.Length];
-        for (int i = 0; i < headers.Length; i++)
-            widths[i] = headers[i].Length;
-        foreach (var row in rows)
-        {
-            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
-                widths[i] = Math.Max(widths[i], row[i].Length);
-        }
-
         EnsureBlankLineIfNeeded();
 
-        // Headers
-        for (int i = 0; i < headers.Length; i++)
+        if (this is ITableFormatter tf)
         {
-            if (i < headers.Length - 1)
-                _writer.Write(headers[i].PadRight(widths[i] + 2));
-            else
-                _writer.Write(headers[i]);
+            tf.FormatTable(_writer, headers, rows, skippedRows, _options);
         }
-        _writer.WriteLine();
-
-        // Rows
-        foreach (var row in rows)
+        else
         {
-            for (int i = 0; i < row.Length; i++)
+            // Calculate column widths
+            var widths = new int[headers.Length];
+            for (int i = 0; i < headers.Length; i++)
+                widths[i] = headers[i].Length;
+            foreach (var row in rows)
             {
-                if (i < row.Length - 1)
-                    _writer.Write(row[i].PadRight(widths[i] + 2));
+                for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+                    widths[i] = Math.Max(widths[i], row[i].Length);
+            }
+
+            // Headers
+            for (int i = 0; i < headers.Length; i++)
+            {
+                if (i < headers.Length - 1)
+                    _writer.Write(headers[i].PadRight(widths[i] + 2));
                 else
-                    _writer.Write(row[i]);
+                    _writer.Write(headers[i]);
             }
             _writer.WriteLine();
-        }
 
-        if (skippedRows > 0)
-            _writer.WriteLine($"\n... and {skippedRows} more");
+            // Rows
+            foreach (var row in rows)
+            {
+                for (int i = 0; i < row.Length; i++)
+                {
+                    if (i < row.Length - 1)
+                        _writer.Write(row[i].PadRight(widths[i] + 2));
+                    else
+                        _writer.Write(row[i]);
+                }
+                _writer.WriteLine();
+            }
+
+            if (skippedRows > 0)
+                _writer.WriteLine($"\n... and {skippedRows} more");
+        }
 
         _hasContent = true;
     }
@@ -837,14 +890,14 @@ public class MarkoutWriter
     /// <param name="rows">Row data. Each row should have the same number of columns as headers.</param>
     public virtual void WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
     {
-        if (ShapeUnsupported(MarkoutShape.Tables))
+        if (_sectionExcluded || ShapeUnsupported(MarkoutShape.Tables))
             return;
 
         var headerArray = headers as string[] ?? headers.ToArray();
         var rowList = rows as IList<string[]> ?? rows.ToList();
 
         // Apply column projection
-        var columnMap = _options.Projection?.ComputeColumnMap(headerArray);
+        var columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headerArray);
         if (columnMap != null)
         {
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
@@ -854,50 +907,65 @@ public class MarkoutWriter
             rowList = projected;
         }
 
-        // Calculate column widths
-        var widths = new int[headerArray.Length];
-        for (int i = 0; i < headerArray.Length; i++)
-            widths[i] = headerArray[i].Length;
-        foreach (var row in rowList)
-        {
-            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
-                widths[i] = Math.Max(widths[i], row[i].Length);
-        }
-
         // Apply MaxItems
         var maxItems = _options.MaxItems;
-        var visibleRows = maxItems.HasValue && rowList.Count > maxItems.Value
-            ? rowList.Take(maxItems.Value).ToList()
-            : rowList;
-        var skipped = rowList.Count - visibleRows.Count;
+        IList<string[]> visibleRows;
+        int skipped;
+        if (maxItems.HasValue && rowList.Count > maxItems.Value)
+        {
+            visibleRows = rowList.Take(maxItems.Value).ToList();
+            skipped = rowList.Count - visibleRows.Count;
+        }
+        else
+        {
+            visibleRows = rowList;
+            skipped = 0;
+        }
 
         EnsureBlankLineIfNeeded();
 
-        // Headers
-        for (int i = 0; i < headerArray.Length; i++)
+        if (this is ITableFormatter tf)
         {
-            if (i < headerArray.Length - 1)
-                _writer.Write(headerArray[i].PadRight(widths[i] + 2));
-            else
-                _writer.Write(headerArray[i]);
+            tf.FormatTable(_writer, headerArray, visibleRows, skipped, _options);
         }
-        _writer.WriteLine();
-
-        // Rows
-        foreach (var row in visibleRows)
+        else
         {
-            for (int i = 0; i < row.Length; i++)
+            // Calculate column widths
+            var widths = new int[headerArray.Length];
+            for (int i = 0; i < headerArray.Length; i++)
+                widths[i] = headerArray[i].Length;
+            foreach (var row in visibleRows)
             {
-                if (i < row.Length - 1)
-                    _writer.Write(row[i].PadRight(widths[i] + 2));
+                for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+                    widths[i] = Math.Max(widths[i], row[i].Length);
+            }
+
+            // Headers
+            for (int i = 0; i < headerArray.Length; i++)
+            {
+                if (i < headerArray.Length - 1)
+                    _writer.Write(headerArray[i].PadRight(widths[i] + 2));
                 else
-                    _writer.Write(row[i]);
+                    _writer.Write(headerArray[i]);
             }
             _writer.WriteLine();
-        }
 
-        if (skipped > 0)
-            _writer.WriteLine($"\n... and {skipped} more");
+            // Rows
+            foreach (var row in visibleRows)
+            {
+                for (int i = 0; i < row.Length; i++)
+                {
+                    if (i < row.Length - 1)
+                        _writer.Write(row[i].PadRight(widths[i] + 2));
+                    else
+                        _writer.Write(row[i]);
+                }
+                _writer.WriteLine();
+            }
+
+            if (skipped > 0)
+                _writer.WriteLine($"\n... and {skipped} more");
+        }
 
         _needsBlankLine = true;
         _hasContent = true;
@@ -985,15 +1053,20 @@ public class MarkoutWriter
     /// </summary>
     protected virtual void WriteDescription(Description item)
     {
-        _writer.Write("- ");
-        _writer.Write(item.Term);
-        _writer.Write(": ");
-        _writer.WriteLine(item.Text);
-
-        if (item.Detail != null)
+        if (this is IBlockFormatter bf)
+            bf.FormatDescription(_writer, item);
+        else
         {
-            _writer.Write("  ");
-            _writer.WriteLine(item.Detail);
+            _writer.Write("- ");
+            _writer.Write(item.Term);
+            _writer.Write(": ");
+            _writer.WriteLine(item.Text);
+
+            if (item.Detail != null)
+            {
+                _writer.Write("  ");
+                _writer.WriteLine(item.Detail);
+            }
         }
     }
 
@@ -1009,10 +1082,15 @@ public class MarkoutWriter
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
 
-        var label = severity.ToString().ToUpperInvariant();
-        _writer.Write(label);
-        _writer.Write(": ");
-        _writer.WriteLine(message);
+        if (this is IBlockFormatter bf)
+            bf.FormatCallout(_writer, severity, message);
+        else
+        {
+            var label = severity.ToString().ToUpperInvariant();
+            _writer.Write(label);
+            _writer.Write(": ");
+            _writer.WriteLine(message);
+        }
 
         _needsBlankLine = true;
         _hasContent = true;
@@ -1032,10 +1110,15 @@ public class MarkoutWriter
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
 
-        foreach (var line in text.Split('\n'))
+        if (this is IBlockFormatter bf)
+            bf.FormatQuotation(_writer, text);
+        else
         {
-            _writer.Write("  ");
-            _writer.WriteLine(line);
+            foreach (var line in text.Split('\n'))
+            {
+                _writer.Write("  ");
+                _writer.WriteLine(line);
+            }
         }
 
         _needsBlankLine = true;
@@ -1056,7 +1139,10 @@ public class MarkoutWriter
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
 
-        _writer.WriteLine("────────────────────────────────");
+        if (this is IBlockFormatter bf)
+            bf.FormatRule(_writer);
+        else
+            _writer.WriteLine("────────────────────────────────");
 
         _needsBlankLine = true;
         _hasContent = true;
@@ -1079,6 +1165,14 @@ public class MarkoutWriter
         if (_hasContent)
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
+
+        if (this is IMetricsFormatter mf)
+        {
+            mf.FormatBreakdown(_writer, items, maxBarWidth, uniformBarWidth);
+            _needsBlankLine = true;
+            _hasContent = true;
+            return;
+        }
 
         // Build category order from first appearance across all items
         var categories = new List<string>();
@@ -1183,6 +1277,14 @@ public class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
 
+        if (this is IMetricsFormatter mf)
+        {
+            mf.FormatMetrics(_writer, items, maxBarWidth);
+            _needsBlankLine = true;
+            _hasContent = true;
+            return;
+        }
+
         var maxValue = 0.0;
         var maxLabelWidth = 0;
         var maxValueWidth = 0;
@@ -1249,7 +1351,12 @@ public class MarkoutWriter
             return;
 
         EnsureBlankLineIfNeeded();
-        WriteVerticalMetricsBody(items, maxBarHeight, barWidth);
+
+        if (this is IMetricsFormatter mf)
+            mf.FormatVerticalMetrics(_writer, items, maxBarHeight, barWidth);
+        else
+            WriteVerticalMetricsBody(items, maxBarHeight, barWidth);
+
         _needsBlankLine = true;
         _hasContent = true;
     }

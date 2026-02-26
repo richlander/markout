@@ -1,4 +1,5 @@
 using Markout;
+using Markout.Formatting;
 
 namespace Markout.Tests;
 
@@ -260,5 +261,73 @@ public class ShapeSupportTests
         var writer = new MarkoutWriter();
         writer.WriteVerticalMetrics([]);
         Assert.Equal("", writer.ToString());
+    }
+
+    // ── Capability interface tests ──
+
+    [Fact]
+    public void MarkdownWriter_ImplementsAllCapabilityInterfaces()
+    {
+        var writer = new MarkdownWriter();
+        Assert.IsAssignableFrom<IHeadingFormatter>(writer);
+        Assert.IsAssignableFrom<IFieldFormatter>(writer);
+        Assert.IsAssignableFrom<ITableFormatter>(writer);
+        Assert.IsAssignableFrom<IListFormatter>(writer);
+        Assert.IsAssignableFrom<ICodeBlockFormatter>(writer);
+        Assert.IsAssignableFrom<IBlockFormatter>(writer);
+        Assert.IsAssignableFrom<IMetricsFormatter>(writer);
+    }
+
+    [Fact]
+    public void OneLineWriter_ImplementsSubsetOfInterfaces()
+    {
+        var tw = new StringWriter();
+        var writer = new OneLineWriter(tw);
+        Assert.IsAssignableFrom<ITableFormatter>(writer);
+        Assert.IsAssignableFrom<IFieldFormatter>(writer);
+        Assert.IsAssignableFrom<IListFormatter>(writer);
+    }
+
+    [Fact]
+    public void OneLineWriter_DoesNotImplementUnsupportedInterfaces()
+    {
+        var tw = new StringWriter();
+        var writer = new OneLineWriter(tw);
+        Assert.False(writer is IHeadingFormatter);
+        Assert.False(writer is ICodeBlockFormatter);
+        Assert.False(writer is IBlockFormatter);
+        Assert.False(writer is IMetricsFormatter);
+    }
+
+    [Fact]
+    public void BaseWriter_DoesNotImplementAnyCapabilityInterface()
+    {
+        var writer = new MarkoutWriter();
+        Assert.False(writer is IHeadingFormatter);
+        Assert.False(writer is IFieldFormatter);
+        Assert.False(writer is ITableFormatter);
+        Assert.False(writer is IListFormatter);
+        Assert.False(writer is ICodeBlockFormatter);
+        Assert.False(writer is IBlockFormatter);
+        Assert.False(writer is IMetricsFormatter);
+    }
+
+    [Fact]
+    public void UnicodeWriter_DoesNotImplementCapabilityInterfaces()
+    {
+        var tw = new StringWriter();
+        var writer = new UnicodeWriter(tw);
+        Assert.False(writer is IHeadingFormatter);
+        Assert.False(writer is IFieldFormatter);
+        Assert.False(writer is ITableFormatter);
+    }
+
+    [Fact]
+    public void DiagramWriter_DoesNotImplementCapabilityInterfaces()
+    {
+        var tw = new StringWriter();
+        var writer = new DiagramWriter(tw);
+        Assert.False(writer is IHeadingFormatter);
+        Assert.False(writer is ITableFormatter);
     }
 }

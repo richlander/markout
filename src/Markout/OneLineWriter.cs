@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Markout.Formatting;
 
 namespace Markout;
 
@@ -8,7 +9,8 @@ namespace Markout;
 /// Fields are buffered and rendered as two-column tables at section boundaries.
 /// Field lists are rendered inline (values only, pipe-separated).
 /// </summary>
-public class OneLineWriter : MarkoutWriter
+public class OneLineWriter : MarkoutWriter,
+    ITableFormatter, IFieldFormatter, IListFormatter
 {
     private const int ColumnGap = 2;
     private readonly bool _showHeader;
@@ -34,6 +36,88 @@ public class OneLineWriter : MarkoutWriter
 
     /// <inheritdoc/>
     public override MarkoutShape SupportedShapes => MarkoutShape.Tables | MarkoutShape.Lists | MarkoutShape.Fields;
+
+    // ── ITableFormatter ──
+
+    void ITableFormatter.FormatTable(TextWriter w, string[] headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
+    {
+        // Calculate column widths from headers and visible data
+        var widths = new int[headers.Length];
+        for (int i = 0; i < headers.Length; i++)
+            widths[i] = headers[i].Length;
+        foreach (var row in rows)
+        {
+            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+                widths[i] = Math.Max(widths[i], row[i].Length);
+        }
+
+        if (_showHeader)
+        {
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var text = headers[i].ToUpperInvariant();
+                if (i < headers.Length - 1)
+                    w.Write(text.PadRight(widths[i] + ColumnGap));
+                else
+                    w.Write(text);
+            }
+            w.WriteLine();
+        }
+
+        foreach (var row in rows)
+        {
+            for (int i = 0; i < row.Length; i++)
+            {
+                if (i < row.Length - 1)
+                    w.Write(row[i].PadRight(widths[i] + ColumnGap));
+                else
+                    w.Write(row[i]);
+            }
+            w.WriteLine();
+        }
+
+        if (skippedRows > 0)
+            w.WriteLine($"\n... and {skippedRows} more");
+    }
+
+    // ── IFieldFormatter ──
+
+    void IFieldFormatter.FormatFieldName(TextWriter w, string key, bool bold)
+    {
+        w.Write(key);
+        w.Write(": ");
+    }
+
+    void IFieldFormatter.FormatFields(TextWriter w, MarkoutField[] fields, bool bold)
+    {
+        // OneLineWriter buffers fields — this is only called if the base WriteFields runs
+        // (shouldn't happen since we override WriteFields), but provide a sensible default
+        for (int i = 0; i < fields.Length; i++)
+        {
+            if (i > 0)
+                w.Write(" | ");
+            w.Write(fields[i].Value);
+        }
+        w.WriteLine();
+    }
+
+    // ── IListFormatter ──
+
+    void IListFormatter.FormatListItem(TextWriter w, string text)
+    {
+        w.WriteLine(text);
+    }
+
+    void IListFormatter.FormatArray(TextWriter w, string key, ReadOnlySpan<string> items, bool bold)
+    {
+        w.Write(key);
+        w.WriteLine(":");
+
+        foreach (var item in items)
+            w.WriteLine(item);
+    }
+
+    // ── Orchestration overrides (behavioral, not formatting) ──
 
     /// <inheritdoc/>
     public override void WriteHeading(int level, string text, string? context)
@@ -119,78 +203,6 @@ public class OneLineWriter : MarkoutWriter
 
         WriteTable(new[] { "Field", "Value" }, rows);
         _fieldBuffer.Clear();
-    }
-
-    /// <inheritdoc/>
-    protected override void FlushStreamingTable(string[] headers, IList<string[]> rows, int skippedRows)
-    {
-        WriteTable(headers, rows);
-        if (skippedRows > 0)
-            Writer.WriteLine($"\n... and {skippedRows} more");
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
-    {
-        if (SectionExcluded)
-            return;
-
-        var headerArray = headers as string[] ?? headers.ToArray();
-        var rowList = rows as IList<string[]> ?? rows.ToList();
-
-        // Apply MaxItems
-        var maxItems = Options.MaxItems;
-        var visibleRows = maxItems.HasValue && rowList.Count > maxItems.Value
-            ? rowList.Take(maxItems.Value).ToList()
-            : rowList;
-        var skipped = rowList.Count - visibleRows.Count;
-
-        // Calculate column widths from headers and visible data
-        var widths = new int[headerArray.Length];
-        for (int i = 0; i < headerArray.Length; i++)
-            widths[i] = headerArray[i].Length;
-        foreach (var row in visibleRows)
-        {
-            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
-                widths[i] = Math.Max(widths[i], row[i].Length);
-        }
-
-        if (_showHeader)
-        {
-            for (int i = 0; i < headerArray.Length; i++)
-            {
-                var text = headerArray[i].ToUpperInvariant();
-                if (i < headerArray.Length - 1)
-                    Writer.Write(text.PadRight(widths[i] + ColumnGap));
-                else
-                    Writer.Write(text);
-            }
-            Writer.WriteLine();
-        }
-
-        foreach (var row in visibleRows)
-        {
-            for (int i = 0; i < row.Length; i++)
-            {
-                if (i < row.Length - 1)
-                    Writer.Write(row[i].PadRight(widths[i] + ColumnGap));
-                else
-                    Writer.Write(row[i]);
-            }
-            Writer.WriteLine();
-        }
-
-        if (skipped > 0)
-            Writer.WriteLine($"\n... and {skipped} more");
-    }
-
-    /// <inheritdoc/>
-    public override void WriteListItem(string text)
-    {
-        if (SectionExcluded)
-            return;
-
-        Writer.WriteLine(text);
     }
 
     /// <inheritdoc/>
