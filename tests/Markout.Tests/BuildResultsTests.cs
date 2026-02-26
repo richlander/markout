@@ -298,13 +298,13 @@ public class BuildResultsTests
 
         // Title and basic fields
         Assert.Contains("# MyApp.sln", mdf);
-        Assert.Contains("Configuration: Debug", mdf);
-        Assert.Contains("Platform: Any CPU", mdf);
-        Assert.Contains("Succeeded: yes", mdf);
-        Assert.Contains("Build Duration: 00:00:12.345", mdf);
-        Assert.Contains("Total Projects: 5", mdf);
-        Assert.Contains("Succeeded Projects: 5", mdf);
-        Assert.Contains("Failed Projects: 0", mdf);
+        Assert.Contains("| Configuration | Debug |", mdf);
+        Assert.Contains("| Platform | Any CPU |", mdf);
+        Assert.Contains("| Succeeded | yes |", mdf);
+        Assert.Contains("| Build Duration | 00:00:12.345 |", mdf);
+        Assert.Contains("| Total Projects | 5 |", mdf);
+        Assert.Contains("| Succeeded Projects | 5 |", mdf);
+        Assert.Contains("| Failed Projects | 0 |", mdf);
 
         // Projects table
         Assert.Contains("## Projects", mdf);
@@ -320,9 +320,9 @@ public class BuildResultsTests
 
         // Summary section
         Assert.Contains("## Build Summary", mdf);
-        Assert.Contains("Total Warnings: 2", mdf);
-        Assert.Contains("Total Errors: 0", mdf);
-        Assert.Contains("Build Time: 12.345s", mdf);
+        Assert.Contains("| Total Warnings | 2 |", mdf);
+        Assert.Contains("| Total Errors | 0 |", mdf);
+        Assert.Contains("| Build Time | 12.345s |", mdf);
     }
 
     [Fact]
@@ -372,10 +372,10 @@ public class BuildResultsTests
         var mdf = MarkoutSerializer.Serialize(result, BuildResultsContext.Default);
 
         Assert.Contains("# FailingApp.sln", mdf);
-        Assert.Contains("Succeeded: no", mdf);
-        Assert.Contains("Failed Projects: 1", mdf);
+        Assert.Contains("| Succeeded | no |", mdf);
+        Assert.Contains("| Failed Projects | 1 |", mdf);
         Assert.Contains("| App.Api |", mdf);
-        Assert.Contains("Total Errors: 5", mdf);
+        Assert.Contains("| Total Errors | 5 |", mdf);
     }
 
     #endregion
@@ -412,10 +412,10 @@ public class BuildResultsTests
 
         // Title
         Assert.Contains("# MyLibrary", mdf);
-        Assert.Contains("Project File: src/MyLibrary/MyLibrary.csproj", mdf);
-        Assert.Contains("Target Framework: netstandard2.0", mdf);
-        Assert.Contains("Configuration: Release", mdf);
-        Assert.Contains("Succeeded: yes", mdf);
+        Assert.Contains("| Project File | src/MyLibrary/MyLibrary.csproj |", mdf);
+        Assert.Contains("| Target Framework | netstandard2.0 |", mdf);
+        Assert.Contains("| Configuration | Release |", mdf);
+        Assert.Contains("| Succeeded | yes |", mdf);
 
         // Targets table
         Assert.Contains("## Targets", mdf);
@@ -430,8 +430,8 @@ public class BuildResultsTests
 
         // Diagnostics section
         Assert.Contains("## Diagnostics", mdf);
-        Assert.Contains("Warnings: 0", mdf);
-        Assert.Contains("Errors: 0", mdf);
+        Assert.Contains("| Warnings | 0 |", mdf);
+        Assert.Contains("| Errors | 0 |", mdf);
     }
 
     [Fact]
@@ -455,7 +455,7 @@ public class BuildResultsTests
 
         Assert.Contains("# LegacyApp", mdf);
         Assert.Contains("## Diagnostics", mdf);
-        Assert.Contains("Warnings: 5", mdf);
+        Assert.Contains("| Warnings | 5 |", mdf);
         Assert.Contains("Warning Codes:", mdf);
         Assert.Contains("- CS0618", mdf);
         Assert.Contains("- CS8600", mdf);
@@ -506,13 +506,13 @@ public class BuildResultsTests
 
         // Title
         Assert.Contains("# MyApp Test Suite", mdf);
-        Assert.Contains("Framework: xUnit.net 2.5.3", mdf);
-        Assert.Contains("Passed: yes", mdf);
-        Assert.Contains("Total Tests: 247", mdf);
-        Assert.Contains("Passed Tests: 247", mdf);
-        Assert.Contains("Failed Tests: 0", mdf);
-        Assert.Contains("Skipped Tests: 3", mdf);
-        Assert.Contains("Total Duration: 00:01:23.456", mdf);
+        Assert.Contains("| Framework | xUnit.net 2.5.3 |", mdf);
+        Assert.Contains("| Passed | yes |", mdf);
+        Assert.Contains("| Total Tests | 247 |", mdf);
+        Assert.Contains("| Passed Tests | 247 |", mdf);
+        Assert.Contains("| Failed Tests | 0 |", mdf);
+        Assert.Contains("| Skipped Tests | 3 |", mdf);
+        Assert.Contains("| Total Duration | 00:01:23.456 |", mdf);
 
         // Test assemblies table
         Assert.Contains("## Test Assemblies", mdf);
@@ -586,8 +586,8 @@ public class BuildResultsTests
         var mdf = MarkoutSerializer.Serialize(result, BuildResultsContext.Default);
 
         Assert.Contains("# Integration Tests", mdf);
-        Assert.Contains("Passed: no", mdf);
-        Assert.Contains("Failed Tests: 4", mdf);
+        Assert.Contains("| Passed | no |", mdf);
+        Assert.Contains("| Failed Tests | 4 |", mdf);
 
         // Failed tests table
         Assert.Contains("## Failures", mdf);
@@ -630,11 +630,11 @@ public class BuildResultsTests
 
         // Title
         Assert.Contains("# Build and Deploy", mdf);
-        Assert.Contains("Run Number: 1234", mdf);
-        Assert.Contains("Branch: main", mdf);
-        Assert.Contains("Commit: a1b2c3d4", mdf);
-        Assert.Contains("Status: Succeeded", mdf);
-        Assert.Contains("Total Duration: 00:15:32", mdf);
+        Assert.Contains("| Run Number | 1234 |", mdf);
+        Assert.Contains("| Branch | main |", mdf);
+        Assert.Contains("| Commit | a1b2c3d4 |", mdf);
+        Assert.Contains("| Status | Succeeded |", mdf);
+        Assert.Contains("| Total Duration | 00:15:32 |", mdf);
 
         // Stages table
         Assert.Contains("## Stages", mdf);
@@ -670,7 +670,7 @@ public class BuildResultsTests
         var mdf = MarkoutSerializer.Serialize(result, BuildResultsContext.Default);
 
         Assert.Contains("# Release Pipeline", mdf);
-        Assert.Contains("Status: Failed", mdf);
+        Assert.Contains("| Status | Failed |", mdf);
         Assert.Contains("| Test |", mdf);
         Assert.Contains("| Failed |", mdf);
         Assert.Contains("| Skipped |", mdf);
@@ -698,7 +698,7 @@ public class BuildResultsTests
         var mdf = MarkoutSerializer.Serialize(result, BuildResultsContext.Default);
 
         Assert.Contains("# Empty.sln", mdf);
-        Assert.Contains("Total Projects: 0", mdf);
+        Assert.Contains("| Total Projects | 0 |", mdf);
         // Empty projects list should not create section
         Assert.DoesNotContain("## Projects", mdf);
     }

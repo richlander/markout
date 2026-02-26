@@ -71,9 +71,9 @@ public class SerializerTests
 
         var mdf = MarkoutSerializer.Serialize(record, TestMarkoutContext.Default);
 
-        Assert.Contains("Title: My Title", mdf);
-        Assert.Contains("Display Name: Test Name", mdf);
-        Assert.Contains("Count: 42", mdf);
+        Assert.Contains("| Title | My Title |", mdf);
+        Assert.Contains("| Display Name | Test Name |", mdf);
+        Assert.Contains("| Count | 42 |", mdf);
         Assert.DoesNotContain("Secret", mdf);
         Assert.DoesNotContain("Should be ignored", mdf);
     }
@@ -90,9 +90,9 @@ public class SerializerTests
 
         var mdf = MarkoutSerializer.Serialize(package, TestMarkoutContext.Default);
 
-        Assert.Contains("Name: Newtonsoft.Json", mdf);
-        Assert.Contains("Version: 13.0.3", mdf);
-        Assert.Contains("Signed: yes", mdf);
+        Assert.Contains("| Name | Newtonsoft.Json |", mdf);
+        Assert.Contains("| Version | 13.0.3 |", mdf);
+        Assert.Contains("| Signed | yes |", mdf);
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class SerializerTests
 
         var mdf = TestMarkoutContext.Default.Serialize(record);
 
-        Assert.Contains("Title: Hello", mdf);
+        Assert.Contains("| Title | Hello |", mdf);
     }
 
     [Fact]
@@ -241,8 +241,8 @@ public class SerializerTests
         var mdf = context.Serialize(audit);
 
         // Should use custom symbols instead of yes/no
-        Assert.Contains("IsDeterministic: ✓", mdf);
-        Assert.Contains("HasSourceLink: ✗", mdf);
+        Assert.Contains("| IsDeterministic | ✓ |", mdf);
+        Assert.Contains("| HasSourceLink | ✗ |", mdf);
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public class SerializerTests
 
         // Should render tree structure
         Assert.Contains("# MyClass", mdf);
-        Assert.Contains("Kind: class", mdf);
+        Assert.Contains("| Kind | class |", mdf);
         Assert.Contains("Inherits", mdf);
         Assert.Contains("BaseClass", mdf);
         Assert.Contains("Properties (2)", mdf);
@@ -464,7 +464,7 @@ public class SerializerTests
     {
         var record = new BoldRecord { Label = "Test", Value = 1 };
         var mdf = MarkoutSerializer.Serialize(record, BoldContext.Default);
-        Assert.Contains("**Label:**", mdf);
+        Assert.Contains("| Label |", mdf);
     }
 
     [Fact]
@@ -473,8 +473,8 @@ public class SerializerTests
         var task = new TaskItem { Name = "Build", Priority = Priority.High };
         var mdf = MarkoutSerializer.Serialize(task, EnumTestContext.Default);
 
-        Assert.Contains("Priority: High", mdf);
-        Assert.Contains("Name: Build", mdf);
+        Assert.Contains("| Priority | High |", mdf);
+        Assert.Contains("| Name | Build |", mdf);
     }
 
     [Fact]
@@ -483,8 +483,8 @@ public class SerializerTests
         var task = new TaskItem { Name = "Build", Priority = Priority.Low, OptionalPriority = null };
         var mdf = MarkoutSerializer.Serialize(task, EnumTestContext.Default);
 
-        Assert.Contains("Priority: Low", mdf);
-        Assert.DoesNotContain("OptionalPriority", mdf);
+        Assert.Contains("| Priority | Low |", mdf);
+        Assert.DoesNotContain("| OptionalPriority |", mdf);
     }
 
     [Fact]
@@ -507,8 +507,8 @@ public class SerializerTests
         };
         var mdf = MarkoutSerializer.Serialize(project, JoinTestContext.Default);
 
-        Assert.Contains("Tags: api, web, tools", mdf);
-        Assert.Contains("Frameworks: net8.0 | net9.0", mdf);
+        Assert.Contains("| Tags | api, web, tools |", mdf);
+        Assert.Contains("| Frameworks | net8.0 \\| net9.0 |", mdf);
         Assert.DoesNotContain("- api", mdf); // Should NOT be a bullet list
     }
 
@@ -518,9 +518,9 @@ public class SerializerTests
         var project = new ProjectInfo { Name = "MyLib", Tags = null, Frameworks = null };
         var mdf = MarkoutSerializer.Serialize(project, JoinTestContext.Default);
 
-        Assert.Contains("Name: MyLib", mdf);
-        Assert.DoesNotContain("Tags", mdf);
-        Assert.DoesNotContain("Frameworks", mdf);
+        Assert.Contains("| Name | MyLib |", mdf);
+        Assert.DoesNotContain("| Tags |", mdf);
+        Assert.DoesNotContain("| Frameworks |", mdf);
     }
 
     [Fact]
@@ -529,9 +529,9 @@ public class SerializerTests
         var project = new ProjectInfo { Name = "MyLib", Tags = [], Frameworks = [] };
         var mdf = MarkoutSerializer.Serialize(project, JoinTestContext.Default);
 
-        Assert.Contains("Name: MyLib", mdf);
-        Assert.DoesNotContain("Tags", mdf);
-        Assert.DoesNotContain("Frameworks", mdf);
+        Assert.Contains("| Name | MyLib |", mdf);
+        Assert.DoesNotContain("| Tags |", mdf);
+        Assert.DoesNotContain("| Frameworks |", mdf);
     }
 
     [Fact]
@@ -544,7 +544,7 @@ public class SerializerTests
         };
         var mdf = MarkoutSerializer.Serialize(person, FormattableTestContext.Default);
 
-        Assert.Contains("Name: Alice", mdf);
+        Assert.Contains("| Name | Alice |", mdf);
         Assert.Contains("Street: 123 Main St", mdf);
         Assert.Contains("City: Portland", mdf);
         Assert.Contains("State: OR", mdf);
@@ -556,9 +556,9 @@ public class SerializerTests
         var person = new PersonWithAddress { Name = "Bob", Address = null };
         var mdf = MarkoutSerializer.Serialize(person, FormattableTestContext.Default);
 
-        Assert.Contains("Name: Bob", mdf);
-        Assert.DoesNotContain("Street", mdf);
-        Assert.DoesNotContain("City", mdf);
+        Assert.Contains("| Name | Bob |", mdf);
+        Assert.DoesNotContain("| Street |", mdf);
+        Assert.DoesNotContain("| City |", mdf);
     }
 
     [Fact]
@@ -567,12 +567,12 @@ public class SerializerTests
         var status = new ServerStatus { Name = "Server1", IsOnline = false, ConnectionCount = 0, AlertLevel = Priority.Low, BytesTransferred = 0, CpuUsage = 0 };
         var mdf = MarkoutSerializer.Serialize(status, SkipDefaultTestContext.Default);
 
-        Assert.Contains("Name: Server1", mdf);
-        Assert.DoesNotContain("IsOnline", mdf);
-        Assert.DoesNotContain("ConnectionCount", mdf);
-        Assert.DoesNotContain("AlertLevel", mdf);
-        Assert.DoesNotContain("BytesTransferred", mdf);
-        Assert.DoesNotContain("CpuUsage", mdf);
+        Assert.Contains("| Name | Server1 |", mdf);
+        Assert.DoesNotContain("| IsOnline |", mdf);
+        Assert.DoesNotContain("| ConnectionCount |", mdf);
+        Assert.DoesNotContain("| AlertLevel |", mdf);
+        Assert.DoesNotContain("| BytesTransferred |", mdf);
+        Assert.DoesNotContain("| CpuUsage |", mdf);
     }
 
     [Fact]
@@ -581,12 +581,12 @@ public class SerializerTests
         var status = new ServerStatus { Name = "Server1", IsOnline = true, ConnectionCount = 42, AlertLevel = Priority.High, BytesTransferred = 1024, CpuUsage = 85.5 };
         var mdf = MarkoutSerializer.Serialize(status, SkipDefaultTestContext.Default);
 
-        Assert.Contains("Name: Server1", mdf);
-        Assert.Contains("IsOnline", mdf);
-        Assert.Contains("ConnectionCount", mdf);
-        Assert.Contains("AlertLevel", mdf);
-        Assert.Contains("BytesTransferred", mdf);
-        Assert.Contains("CpuUsage", mdf);
+        Assert.Contains("| Name | Server1 |", mdf);
+        Assert.Contains("| IsOnline |", mdf);
+        Assert.Contains("| ConnectionCount |", mdf);
+        Assert.Contains("| AlertLevel |", mdf);
+        Assert.Contains("| BytesTransferred |", mdf);
+        Assert.Contains("| CpuUsage |", mdf);
     }
 
     [Fact]
@@ -637,10 +637,10 @@ public class SerializerTests
         var pkg = new PackageInfo { Name = "MyPackage", License = null, Repository = null, Downloads = 100 };
         var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
 
-        Assert.Contains("Name: MyPackage", mdf);
-        Assert.Contains("Downloads: 100", mdf);
-        Assert.DoesNotContain("License", mdf);
-        Assert.DoesNotContain("Repository", mdf);
+        Assert.Contains("| Name | MyPackage |", mdf);
+        Assert.Contains("| Downloads | 100 |", mdf);
+        Assert.DoesNotContain("| License |", mdf);
+        Assert.DoesNotContain("| Repository |", mdf);
     }
 
     [Fact]
@@ -649,8 +649,8 @@ public class SerializerTests
         var pkg = new PackageInfo { Name = "MyPackage", License = "MIT", Repository = "https://github.com/test", Downloads = 100 };
         var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
 
-        Assert.Contains("License: MIT", mdf);
-        Assert.Contains("Repository: https://github.com/test", mdf);
+        Assert.Contains("| License | MIT |", mdf);
+        Assert.Contains("| Repository | https://github.com/test |", mdf);
     }
 
     [Fact]
@@ -668,7 +668,7 @@ public class SerializerTests
         var pkg = new PackageInfo { Name = "MyPackage", Downloads = 100, Stars = 42 };
         var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
 
-        Assert.Contains("Stars: 42", mdf);
+        Assert.Contains("| Stars | 42 |", mdf);
     }
 
     [Fact]
@@ -677,8 +677,8 @@ public class SerializerTests
         var pkg = new PackageInfo { Name = "MyPackage", Downloads = 0, Stars = 0 };
         var mdf = MarkoutSerializer.Serialize(pkg, SkipNullTestContext.Default);
 
-        Assert.Contains("Downloads: 0", mdf);
-        Assert.Contains("Stars: 0", mdf);
+        Assert.Contains("| Downloads | 0 |", mdf);
+        Assert.Contains("| Stars | 0 |", mdf);
     }
 
     [Fact]
@@ -879,7 +879,7 @@ public class SerializerTests
         var mdf = MarkoutSerializer.Serialize(item, TableDisplayTestContext.Default);
 
         // In block context, Count should render as "42" not "42 items"
-        Assert.Contains("Count: 42", mdf);
+        Assert.Contains("| Count | 42 |", mdf);
         Assert.DoesNotContain("42 items", mdf);
     }
 
@@ -891,8 +891,8 @@ public class SerializerTests
         var pkg = new VerifiedPackage { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft", IsTool = false, ToolFormat = "global" };
         var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
 
-        Assert.Contains("VerifiedBy: Microsoft", mdf);
-        Assert.DoesNotContain("ToolFormat", mdf);
+        Assert.Contains("| VerifiedBy | Microsoft |", mdf);
+        Assert.DoesNotContain("| ToolFormat |", mdf);
     }
 
     [Fact]
@@ -911,7 +911,7 @@ public class SerializerTests
         var pkg = new VerifiedPackageOneLine { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft" };
         var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
 
-        Assert.Contains("VerifiedBy: Microsoft", mdf);
+        Assert.Contains("| VerifiedBy | Microsoft |", mdf);
     }
 
     [Fact]
@@ -1189,11 +1189,11 @@ public class SerializerTests
         var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
 
         Assert.Contains("## Info", mdf);
-        Assert.Contains("Author: Alice", mdf);
-        Assert.Contains("License: MIT", mdf);
+        Assert.Contains("| Author | Alice |", mdf);
+        Assert.Contains("| License | MIT |", mdf);
         Assert.Contains("## Stats", mdf);
-        Assert.Contains("Downloads: 100", mdf);
-        Assert.Contains("Stars: 50", mdf);
+        Assert.Contains("| Downloads | 100 |", mdf);
+        Assert.Contains("| Stars | 50 |", mdf);
 
         // Info should come before Stats
         var infoIdx = mdf.IndexOf("## Info", StringComparison.Ordinal);
@@ -1217,7 +1217,7 @@ public class SerializerTests
         var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
 
         Assert.Contains("## Stats", mdf);
-        Assert.Contains("Downloads: 100", mdf);
+        Assert.Contains("| Downloads | 100 |", mdf);
         Assert.Contains("## Dependencies", mdf);
         Assert.Contains("Dep1", mdf);
 
@@ -1256,8 +1256,8 @@ public class SerializerTests
         var mdf = MarkoutSerializer.Serialize(view, ScalarSectionTestContext.Default);
 
         Assert.Contains("## Stats", mdf);
-        Assert.Contains("Downloads: 100", mdf);
-        Assert.Contains("Stars: 50", mdf);
+        Assert.Contains("| Downloads | 100 |", mdf);
+        Assert.Contains("| Stars | 50 |", mdf);
     }
 
     [Fact]
@@ -1386,7 +1386,7 @@ public class SerializerTests
 
         // Scalar section should render
         Assert.Contains("## Stats", mdf);
-        Assert.Contains("Downloads: 500", mdf);
+        Assert.Contains("| Downloads | 500 |", mdf);
         // Collection section should be excluded
         Assert.DoesNotContain("## Dependencies", mdf);
         Assert.DoesNotContain("Dep1", mdf);

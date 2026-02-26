@@ -64,7 +64,6 @@ public class IgnoreFieldsTests
         var output = MarkoutSerializer.Serialize(view, IgnoreFieldsTestContext.Default);
 
         Assert.Contains("# Test", output);
-        Assert.Contains("Count:", output);
-        Assert.Contains("42", output);
+        Assert.Contains("| Count | 42 |", output);
     }
 }

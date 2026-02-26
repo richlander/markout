@@ -350,15 +350,15 @@ public class NestedStructureTests
         Assert.Contains("# John Doe", mdf);
 
         // Should have top-level fields
-        Assert.Contains("Age: 30", mdf);
+        Assert.Contains("| Age | 30 |", mdf);
 
         // Should have section for nested object
         Assert.Contains("## Contact Info", mdf);
 
         // Should have nested object fields
-        Assert.Contains("Email: john@example.com", mdf);
-        Assert.Contains("Phone: 555-1234", mdf);
-        Assert.Contains("City: Seattle", mdf);
+        Assert.Contains("| Email | john@example.com |", mdf);
+        Assert.Contains("| Phone | 555-1234 |", mdf);
+        Assert.Contains("| City | Seattle |", mdf);
     }
 
     [Fact]
@@ -374,7 +374,7 @@ public class NestedStructureTests
         var mdf = MarkoutSerializer.Serialize(person, NestedTestContext.Default);
 
         Assert.Contains("# Jane Doe", mdf);
-        Assert.Contains("Age: 25", mdf);
+        Assert.Contains("| Age | 25 |", mdf);
         Assert.DoesNotContain("## Contact Info", mdf);
     }
 
@@ -461,12 +461,12 @@ public class NestedStructureTests
 
         // Title and top-level fields
         Assert.Contains("# Markout Library", mdf);
-        Assert.Contains("Version: 1.0.0", mdf);
+        Assert.Contains("| Version | 1.0.0 |", mdf);
 
         // Nested object section
         Assert.Contains("## Team Info", mdf);
-        Assert.Contains("Lead: Alice", mdf);
-        Assert.Contains("Size: 3", mdf);
+        Assert.Contains("| Lead | Alice |", mdf);
+        Assert.Contains("| Size | 3 |", mdf);
 
         // List within nested object - should become table
         Assert.Contains("## Contributors", mdf);
@@ -513,7 +513,7 @@ public class NestedStructureTests
 
         // Title
         Assert.Contains("# Newtonsoft.Json", mdf);
-        Assert.Contains("Version: 13.0.3", mdf);
+        Assert.Contains("| Version | 13.0.3 |", mdf);
 
         // Main section for dependencies
         Assert.Contains("## Dependencies", mdf);
@@ -708,12 +708,12 @@ public class NestedStructureTests
 
         // Root renders with title and field
         Assert.Contains("# Alice", mdf);
-        Assert.Contains("Role: Engineer", mdf);
+        Assert.Contains("| Role | Engineer |", mdf);
 
         // Nested Manager renders as section with fields
         Assert.Contains("## Manager", mdf);
-        Assert.Contains("Name: Bob", mdf);
-        Assert.Contains("Role: Director", mdf);
+        Assert.Contains("| Name | Bob |", mdf);
+        Assert.Contains("| Role | Director |", mdf);
 
         // Manager.Manager is NOT rendered (cycle stopped)
         // Only one "## Manager" heading should exist
@@ -762,8 +762,8 @@ public class NestedStructureTests
 
         // Employee section renders with fields
         Assert.Contains("## Lead", mdf);
-        Assert.Contains("Name: Alice", mdf);
-        Assert.Contains("Title: VP Engineering", mdf);
+        Assert.Contains("| Name | Alice |", mdf);
+        Assert.Contains("| Title | VP Engineering |", mdf);
 
         // Inner CycleDepartment renders one level (name only)
         Assert.Contains("Inner Dept", mdf);
@@ -805,12 +805,12 @@ public class NestedStructureTests
 
         // All values should be present
         Assert.Contains("# Root", mdf);      // H1 — root title
-        Assert.Contains("Value2: L2", mdf);
-        Assert.Contains("Value3: L3", mdf);
-        Assert.Contains("Value4: L4", mdf);
-        Assert.Contains("Value5: L5", mdf);
-        Assert.Contains("Value6: L6", mdf);
-        Assert.Contains("Value7: L7", mdf);
+        Assert.Contains("| Value2 | L2 |", mdf);
+        Assert.Contains("| Value3 | L3 |", mdf);
+        Assert.Contains("| Value4 | L4 |", mdf);
+        Assert.Contains("| Value5 | L5 |", mdf);
+        Assert.Contains("| Value6 | L6 |", mdf);
+        Assert.Contains("| Value7 | L7 |", mdf);
 
         // Heading levels: H1 (root), H2 (Child), H3 (Child), H4, H5, H6
         // H7 should NOT exist — capped at H6
@@ -1056,19 +1056,19 @@ public class NestedStructureRealWorldTests
         Assert.Contains("# System.Text.Json", mdf);
 
         // Top-level fields
-        Assert.Contains("Architecture: AnyCPU", mdf);
-        Assert.Contains("Signed: yes", mdf);
+        Assert.Contains("| Architecture | AnyCPU |", mdf);
+        Assert.Contains("| Signed | yes |", mdf);
 
         // First nested section
         Assert.Contains("## Assembly Info", mdf);
-        Assert.Contains("Assembly Version: 6.0.0.0", mdf);
-        Assert.Contains("File Version: 6.0.21.52210", mdf);
-        Assert.Contains("Target Framework: net6.0", mdf);
+        Assert.Contains("| Assembly Version | 6.0.0.0 |", mdf);
+        Assert.Contains("| File Version | 6.0.21.52210 |", mdf);
+        Assert.Contains("| Target Framework | net6.0 |", mdf);
 
         // Second nested section
         Assert.Contains("## API Surface", mdf);
-        Assert.Contains("Public Types: 144", mdf);
-        Assert.Contains("Public Methods: 892", mdf);
+        Assert.Contains("| Public Types | 144 |", mdf);
+        Assert.Contains("| Public Methods | 892 |", mdf);
     }
 }
 
@@ -1339,7 +1339,7 @@ public class CodeSectionTests
         var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
 
         Assert.Contains("# JsonSerializer.Serialize", mdf);
-        Assert.Contains("Kind: Method", mdf);
+        Assert.Contains("| Kind | Method |", mdf);
         Assert.Contains("```csharp", mdf);
         Assert.Contains("public static string Serialize(object? value);", mdf);
         Assert.Contains("```", mdf);
@@ -1383,7 +1383,7 @@ public class CodeSectionTests
         var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
 
         Assert.Contains("# Test", mdf);
-        Assert.Contains("Kind: Method", mdf);
+        Assert.Contains("| Kind | Method |", mdf);
         Assert.DoesNotContain("```", mdf);
     }
 
@@ -1401,7 +1401,7 @@ public class CodeSectionTests
         var mdf = MarkoutSerializer.Serialize(view, CodeSectionTestContext.Default);
 
         Assert.Contains("# JsonSerializer.Serialize", mdf);
-        Assert.Contains("Kind: Method", mdf);
+        Assert.Contains("| Kind | Method |", mdf);
 
         // IL section with heading + code block
         Assert.Contains("## IL", mdf);
@@ -1451,7 +1451,7 @@ public class CodeSectionTests
         var mdf = MarkoutSerializer.Serialize(report, CodeSectionTestContext.Default);
 
         Assert.Contains("# System.Text.Json", mdf);
-        Assert.Contains("Version: 6.0.0", mdf);
+        Assert.Contains("| Version | 6.0.0 |", mdf);
 
         // Callout rendered in markdown format
         Assert.Contains("> [!WARNING]", mdf);
@@ -1509,7 +1509,7 @@ public class CodeSectionTests
 
         // Top level
         Assert.Contains("# JsonSerializerOptions", mdf);
-        Assert.Contains("Kind: Class", mdf);
+        Assert.Contains("| Kind | Class |", mdf);
 
         // Section heading
         Assert.Contains("## Constructors", mdf);
@@ -1547,7 +1547,7 @@ public class DistributionTests
         var mdf = MarkoutSerializer.Serialize(summary, DistributionTestContext.Default);
 
         Assert.Contains("# .NET 9", mdf);
-        Assert.Contains("TotalCves: 12", mdf);
+        Assert.Contains("| TotalCves | 12 |", mdf);
         Assert.Contains("## Severity Distribution", mdf);
         Assert.Contains("Jan 2025", mdf);
         Assert.Contains("Feb 2025", mdf);
@@ -1823,7 +1823,7 @@ public class NestedCalloutSectionTests
 
         Assert.DoesNotContain("## Families", md);
         Assert.Contains("# Clean", md);
-        Assert.Contains("Generated: 2026-02-22", md);
+        Assert.Contains("| Generated | 2026-02-22 |", md);
     }
 }
 
@@ -1953,12 +1953,10 @@ public class UnwrapTests
 
         var md = MarkoutSerializer.Serialize(report, NestedTestContext.Default);
 
-        // LineBreaks layout renders fields individually (one per line), not pipe-delimited
-        Assert.Contains("Name: System.Text.Json", md);
-        Assert.Contains("Version: 11.0.0", md);
-        Assert.Contains("Assembly Version: 11.0.0.0", md);
-        // Should NOT contain pipe-delimited format
-        Assert.DoesNotContain("Name: System.Text.Json |", md);
+        // Table layout renders fields as markdown table
+        Assert.Contains("| Name | System.Text.Json |", md);
+        Assert.Contains("| Version | 11.0.0 |", md);
+        Assert.Contains("| Assembly Version | 11.0.0.0 |", md);
     }
 
     [Fact]
@@ -1977,8 +1975,8 @@ public class UnwrapTests
 
         var md = MarkoutSerializer.Serialize(report, NestedTestContext.Default);
 
-        Assert.Contains("Name: Test", md);
-        Assert.Contains("Version: 1.0.0", md);
+        Assert.Contains("| Name | Test |", md);
+        Assert.Contains("| Version | 1.0.0 |", md);
         // Null fields should be skipped
         Assert.DoesNotContain("Informational Version", md);
         Assert.DoesNotContain("Assembly Version", md);
@@ -2025,8 +2023,8 @@ public class UnwrapTests
         var md = MarkoutSerializer.Serialize(report, NestedTestContext.Default);
 
         // Bool fields should render with custom format despite class-level [MarkoutSkipNull]
-        Assert.Contains("Deterministic: Yes", md);
-        Assert.Contains("Reproducible: No", md);
+        Assert.Contains("| Deterministic | Yes |", md);
+        Assert.Contains("| Reproducible | No |", md);
         // Null strings should still be skipped
         Assert.DoesNotContain("Informational Version", md);
         Assert.DoesNotContain("Assembly Version", md);

@@ -39,8 +39,8 @@ public class BindContextTests
 
         var result = template.Bind(report, SecurityContext.Default).Render();
 
-        Assert.Contains("Title: CVE Report", result);
-        Assert.Contains("Date: 2024-10", result);
+        Assert.Contains("| Title | CVE Report |", result);
+        Assert.Contains("| Date | 2024-10 |", result);
     }
 
     [Fact]
@@ -55,6 +55,6 @@ public class BindContextTests
             .Render();
 
         Assert.Contains("Generated: 2024-10-08T12:00:00Z", result);
-        Assert.Contains("Title: October Report", result);
+        Assert.Contains("| Title | October Report |", result);
     }
 }
