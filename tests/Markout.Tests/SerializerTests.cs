@@ -1749,7 +1749,7 @@ public partial class SkipDefaultTestContext : MarkoutSerializerContext
 {
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class ServerStatusLineBreaks
 {
     public string? Name { get; set; }
@@ -1855,7 +1855,7 @@ public partial class SkipNullTestContext : MarkoutSerializerContext
 {
 }
 
-[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class PackageInfoLineBreaks
 {
     public string? Name { get; set; }
@@ -1991,7 +1991,7 @@ public partial class TableDisplayTestContext : MarkoutSerializerContext
 
 // --- ShowWhen test types ---
 
-[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class VerifiedPackage
 {
     public string Name { get; set; } = "";
@@ -2023,7 +2023,7 @@ public class VerifiedPackageList
 
 // --- Link test types ---
 
-[MarkoutSerializable(FieldLayout = FieldLayout.Vertical)]
+[MarkoutSerializable(FieldLayout = FieldLayout.Table)]
 public class LinkProjectInfo
 {
     public string Name { get; set; } = "";
@@ -2169,7 +2169,7 @@ public class FormattedScalarSection
     public string? Repository { get; set; }
 }
 
-[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false, FieldLayout = FieldLayout.Vertical)]
+[MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false, FieldLayout = FieldLayout.Table)]
 public class ScalarSectionLineBreaks
 {
     [MarkoutIgnore] public string Name { get; set; } = "";

@@ -22,8 +22,8 @@ internal static class FieldEmitter
     {
         switch (fieldLayout)
         {
-            case FieldLayoutKind.Vertical:
-                EmitFields(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
+            case FieldLayoutKind.Table:
+                EmitFieldsTable(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
                 break;
 
             case FieldLayoutKind.Inline:
@@ -39,7 +39,7 @@ internal static class FieldEmitter
                 break;
 
             default:
-                EmitFields(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
+                EmitFieldsTable(sb, scalarProps, valueExpr, indentLevel, nestingDepth, sectionHeading, sectionLevel);
                 break;
         }
     }
@@ -155,7 +155,7 @@ internal static class FieldEmitter
         }
     }
 
-    private static void EmitFields(
+    private static void EmitFieldsTable(
         StringBuilder sb,
         List<PropertyMetadata> scalarProps,
         string valueExpr,
@@ -245,7 +245,7 @@ internal static class FieldEmitter
             sb.AppendLine($"{indent}{{");
             if (sectionHeading != null)
                 sb.AppendLine($"{indent}    writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
-            sb.AppendLine($"{indent}    writer.WriteFields(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({fieldsVar}));");
+            sb.AppendLine($"{indent}    writer.WriteFieldsTable(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({fieldsVar}));");
             sb.AppendLine($"{indent}}}");
         }
         else
@@ -262,7 +262,7 @@ internal static class FieldEmitter
 
             if (sectionHeading != null)
                 sb.AppendLine($"{indent}writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
-            sb.AppendLine($"{indent}writer.WriteFields(new global::Markout.MarkoutField[] {{ {string.Join(", ", fields)} }});");
+            sb.AppendLine($"{indent}writer.WriteFieldsTable(new global::Markout.MarkoutField[] {{ {string.Join(", ", fields)} }});");
         }
     }
 

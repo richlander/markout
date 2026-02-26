@@ -6,11 +6,13 @@ namespace Markout;
 public enum FieldLayout
 {
     /// <summary>
-    /// Each field on its own line (default).
-    /// Example: Birthplace: London
-    ///          Born: 1980
+    /// Fields as a two-column pipe table (default).
+    /// Example: | Property | Value |
+    ///          | -------- | ----- |
+    ///          | Birthplace | London |
+    ///          | Born | 1980 |
     /// </summary>
-    Vertical,
+    Table,
 
     /// <summary>
     /// Fields on a single line, separated by pipes.

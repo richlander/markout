@@ -247,7 +247,7 @@ internal static class SerializerEmitter
         int nestingDepth = 0,
         bool autoFields = true,
         int autoFieldsCount = 0,
-        FieldLayoutKind fieldLayout = FieldLayoutKind.Vertical,
+        FieldLayoutKind fieldLayout = FieldLayoutKind.Table,
         string? rootValueExpr = null,
         string? rootTypeName = null)
     {

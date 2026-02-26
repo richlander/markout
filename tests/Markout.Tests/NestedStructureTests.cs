@@ -266,7 +266,7 @@ public class Person
         public LibraryInfoSection? Info { get; set; }
     }
 
-    [MarkoutSerializable(NamingPolicy = NamingPolicy.PascalCaseWords, FieldLayout = FieldLayout.Vertical)]
+    [MarkoutSerializable(NamingPolicy = NamingPolicy.PascalCaseWords, FieldLayout = FieldLayout.Table)]
     [MarkoutSkipNull]
     public class LibraryInfoSection
     {
