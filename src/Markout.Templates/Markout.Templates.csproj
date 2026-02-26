@@ -8,7 +8,7 @@
     <RootNamespace>Markout.Templates</RootNamespace>
     <Description>Template engine for Markout — compose human-authored documents with data-driven content</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.1.1</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)..\..\README.md"

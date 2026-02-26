@@ -12,7 +12,7 @@
   <PropertyGroup>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>markout-demo</ToolCommandName>
-    <VersionPrefix>0.2.1</VersionPrefix>
+    <VersionPrefix>0.3.0</VersionPrefix>
     <PackageId>Markout.Demo</PackageId>
     <Description>Demo app showcasing Markout markdown serialization capabilities</Description>
   </PropertyGroup>
