@@ -2,13 +2,20 @@
 
 This demo shows detailed products with nested features and reviews.
 
-Count: 6 | Lowest Price: 129.99
+| Field | Value |
+| ----- | ----- |
+| Count | 6 |
+| Lowest Price | 129.99 |
 
 ## Products
 
 ### Torin 7
 
-Name: Torin 7 | Category: Road | Price: 149.99
+| Field | Value |
+| ----- | ----- |
+| Name | Torin 7 |
+| Category | Road |
+| Price | 149.99 |
 
 #### Features
 
@@ -28,7 +35,11 @@ Name: Torin 7 | Category: Road | Price: 149.99
 
 ### Escalante 4
 
-Name: Escalante 4 | Category: Road | Price: 139.99
+| Field | Value |
+| ----- | ----- |
+| Name | Escalante 4 |
+| Category | Road |
+| Price | 139.99 |
 
 #### Features
 
@@ -47,7 +58,11 @@ Name: Escalante 4 | Category: Road | Price: 139.99
 
 ### Lone Peak 8
 
-Name: Lone Peak 8 | Category: Trail | Price: 144.99
+| Field | Value |
+| ----- | ----- |
+| Name | Lone Peak 8 |
+| Category | Trail |
+| Price | 144.99 |
 
 #### Features
 
@@ -69,7 +84,11 @@ Name: Lone Peak 8 | Category: Trail | Price: 144.99
 
 ### Olympus 6
 
-Name: Olympus 6 | Category: Trail | Price: 179.99
+| Field | Value |
+| ----- | ----- |
+| Name | Olympus 6 |
+| Category | Trail |
+| Price | 179.99 |
 
 #### Features
 
@@ -88,7 +107,11 @@ Name: Olympus 6 | Category: Trail | Price: 179.99
 
 ### Timp 5
 
-Name: Timp 5 | Category: Trail | Price: 159.99
+| Field | Value |
+| ----- | ----- |
+| Name | Timp 5 |
+| Category | Trail |
+| Price | 159.99 |
 
 #### Features
 
@@ -107,7 +130,11 @@ Name: Timp 5 | Category: Trail | Price: 159.99
 
 ### Rivera 4
 
-Name: Rivera 4 | Category: Road | Price: 129.99
+| Field | Value |
+| ----- | ----- |
+| Name | Rivera 4 |
+| Category | Road |
+| Price | 129.99 |
 
 #### Features
 

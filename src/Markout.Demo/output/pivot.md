@@ -2,7 +2,10 @@
 
 This demo shows pivoted inventory data: rows are sizes, columns are colors.
 
-Price: 149.99 | Total Units: 148
+| Field | Value |
+| ----- | ----- |
+| Price | 149.99 |
+| Total Units | 148 |
 
 ## Inventory by Size
 
