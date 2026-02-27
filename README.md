@@ -141,11 +141,11 @@ Population: 2632000
 
 ## Landmarks
 
-| Name             | Type       | Year |
-| ---------------- | ---------- | ---- |
-| Stanley Park     | Park       | 1888 |
-| Gastown          | Historic   | 1867 |
-| Science World    | Museum     | 1989 |
+| Name | Type | Year |
+| ----- | ----- | ----- |
+| Stanley Park | Park | 1888 |
+| Gastown | Historic | 1867 |
+| Science World | Museum | 1989 |
 ```
 
 ## Real-World Example: GitHub Repository Report
@@ -211,27 +211,27 @@ Stars: 17,698 | Forks: 5,350 | Open Issues: 8,385 | Language: C# | License: MIT 
 ## Languages
 
 | Category | Count | % |
-| -------- | ----- | - |
-| C#       | 80    | 83 |
-| C++      | 9     | 9  |
-| C        | 7     | 7  |
+| ----- | ----- | ----- |
+| C# | 80 | 83 |
+| C++ | 9 | 9 |
+| C | 7 | 7 |
 
 ## Top Contributors
 
-| Label       | Value |
-| ----------- | ----- |
-| vargaz      | 11910 |
+| Label | Value |
+| ----- | ----- |
+| vargaz | 11910 |
 | stephentoub | 10417 |
-| kumpera     | 4074  |
-| jkotas      | 3244  |
+| kumpera | 4074 |
+| jkotas | 3244 |
 
 ## Releases
 
-| Tag     | Name        | Published  |
-| ------- | ----------- | ---------- |
+| Tag | Name | Published |
+| ----- | ----- | ----- |
 | v10.0.3 | .NET 10.0.3 | 2026-02-10 |
 | v10.0.2 | .NET 10.0.2 | 2026-01-14 |
-| v9.0.13 | v9.0.13     | 2026-02-10 |
+| v9.0.13 | v9.0.13 | 2026-02-10 |
 ```
 
 **One-line output** — same model, `--oneline` flag, shows the Releases table only:
