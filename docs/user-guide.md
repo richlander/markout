@@ -4,7 +4,7 @@ Markout is a source-generated .NET library that serializes objects to clean, rea
 
 - [Quick Start](#quick-start)
 - [Quick Tweaks](#quick-tweaks)
-- [Defining Models](#defining-view-models)
+- [Defining Models](#defining-models)
 - [Serialization](#serialization)
 - [Scalar Fields](#scalar-fields)
 - [Field Layout](#field-layout)
