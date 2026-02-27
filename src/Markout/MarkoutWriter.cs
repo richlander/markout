@@ -26,13 +26,9 @@ public class MarkoutWriter
     private bool _sectionExcluded;
     private bool _projectionSectionActive;
 
-    // Streaming tables
-    private int _tableRowCount;
-    private int _tableRowsSkipped;
-    private string[]? _streamingHeaders;
-    private List<string[]>? _streamingRows;
+    // Table delegation
+    private TableWriter? _tableWriter;
     private int[]? _columnMap;
-    private bool _streamingDirect;
 
     // Pending section (deferred until content written)
     private PendingSectionHeading? _pendingSection;
@@ -448,6 +444,9 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return true;
 
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
         var headerArray = headers as string[] ?? headers.ToArray();
 
         // Apply column projection
@@ -455,51 +454,21 @@ public class MarkoutWriter
         if (columnMap != null)
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
 
-        // LINQ-style cascade: batch ITableFormatter (if IList) → IStreamingTableFormatter → materialize + batch ITableFormatter
-        if (_formatter is ITableFormatter tf && rows is IList<string[]> list)
+        // Materialize and project rows
+        var rowList = rows as IList<string[]> ?? rows.ToList();
+        if (columnMap != null)
         {
-            var rowList = ProjectAndTruncateRows(list, columnMap, out int skipped);
-            EnsureBlankLineIfNeeded();
-            tf.FormatTable(_writer, headerArray, rowList, skipped, _options);
-            _needsBlankLine = true;
-            _hasContent = true;
-            return true;
+            var projected = new List<string[]>(rowList.Count);
+            foreach (var row in rowList)
+                projected.Add(MarkoutProjection.ProjectRow(row, columnMap));
+            rowList = projected;
         }
 
-        if (_formatter is IStreamingTableFormatter stf)
-        {
-            EnsureBlankLineIfNeeded();
-            stf.BeginTable(_writer, headerArray, _options);
-            int rowCount = 0;
-            int rowsSkipped = 0;
-            foreach (var row in rows)
-            {
-                if (_options.MaxItems is int max2 && rowCount >= max2)
-                {
-                    rowsSkipped++;
-                    continue;
-                }
-                var projected = columnMap != null ? MarkoutProjection.ProjectRow(row, columnMap) : row;
-                stf.WriteRow(_writer, projected);                rowCount++;
-            }
-            stf.EndTable(_writer, rowsSkipped);
-            _needsBlankLine = true;
-            _hasContent = true;
-            return true;
-        }
-
-        if (_formatter is ITableFormatter tf2)
-        {
-            var rowList = rows as IList<string[]> ?? rows.ToList();
-            rowList = ProjectAndTruncateRows(rowList, columnMap, out int skipped);
-            EnsureBlankLineIfNeeded();
-            tf2.FormatTable(_writer, headerArray, rowList, skipped, _options);
-            _needsBlankLine = true;
-            _hasContent = true;
-            return true;
-        }
-
-        return false;
+        EnsureBlankLineIfNeeded();
+        CreateTableWriter().WriteTable(headerArray, rowList);
+        _needsBlankLine = true;
+        _hasContent = true;
+        return true;
     }
 
     /// <summary>
@@ -512,10 +481,8 @@ public class MarkoutWriter
             throw new InvalidOperationException("Cannot start a table inside a code region.");
 
         _inTable = true;
-        _tableRowCount = 0;
-        _tableRowsSkipped = 0;
         _columnMap = null;
-        _streamingDirect = false;
+        _tableWriter = null;
 
         if (_sectionExcluded)
             return true;
@@ -527,22 +494,13 @@ public class MarkoutWriter
             throw new ArgumentException("At least one header is required.", nameof(headers));
 
         _columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headers);
-        _streamingHeaders = _columnMap != null
+        var projectedHeaders = _columnMap != null
             ? MarkoutProjection.ProjectHeaders(headers, _columnMap)
             : headers;
 
-        // Cascade: IStreamingTableFormatter (direct) → buffer + ITableFormatter
-        if (_formatter is IStreamingTableFormatter stf)
-        {
-            _streamingDirect = true;
-            EnsureBlankLineIfNeeded();
-            stf.BeginTable(_writer, _streamingHeaders, _options);
-        }
-        else
-        {
-            _streamingRows = [];
-        }
-
+        EnsureBlankLineIfNeeded();
+        _tableWriter = CreateTableWriter();
+        _tableWriter.WriteTableStart(projectedHeaders);
         return true;
     }
 
@@ -554,24 +512,14 @@ public class MarkoutWriter
         if (!_inTable)
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
 
-        if (_sectionExcluded || _streamingHeaders == null)
-            return;
-
-        if (!ShouldWriteTableRow())
+        if (_sectionExcluded || _tableWriter == null)
             return;
 
         var projected = _columnMap != null
             ? MarkoutProjection.ProjectRow(values, _columnMap)
             : values;
 
-        if (_streamingDirect && _formatter is IStreamingTableFormatter stf)
-        {
-            stf.WriteRow(_writer, projected);
-        }
-        else
-        {
-            _streamingRows?.Add(projected);
-        }
+        _tableWriter.WriteTableRow(projected);
     }
 
     /// <summary>
@@ -581,26 +529,15 @@ public class MarkoutWriter
     {
         _inTable = false;
 
-        if (!_sectionExcluded && _streamingHeaders != null)
+        if (!_sectionExcluded && _tableWriter != null)
         {
-            if (_streamingDirect && _formatter is IStreamingTableFormatter stf)
-            {
-                stf.EndTable(_writer, _tableRowsSkipped);
-                _needsBlankLine = true;
-                _hasContent = true;
-            }
-            else if (_formatter is ITableFormatter tf)
-            {
-                EnsureBlankLineIfNeeded();
-                tf.FormatTable(_writer, _streamingHeaders, _streamingRows ?? [], _tableRowsSkipped, _options);
-                _needsBlankLine = true;
-                _hasContent = true;
-            }
+            _tableWriter.WriteTableEnd();
+            _needsBlankLine = true;
+            _hasContent = true;
         }
 
-        _streamingHeaders = null;
-        _streamingRows = null;
-        _streamingDirect = false;
+        _tableWriter = null;
+        _columnMap = null;
     }
 
     // ── Code blocks ──
@@ -977,73 +914,33 @@ public class MarkoutWriter
         _needsBlankLine = true;
     }
 
-    private bool ShouldWriteTableRow()
+    private TableWriter CreateTableWriter()
     {
-        if (_options.MaxItems is int max && _tableRowCount >= max)
-        {
-            _tableRowsSkipped++;
-            return false;
-        }
-        _tableRowCount++;
-        return true;
+        if (_formatter is ITableFormatter tf)
+            return new TableWriter(_writer, tf, _options);
+        if (_formatter is IStreamingTableFormatter stf)
+            return new TableWriter(_writer, stf, _options);
+        throw new InvalidOperationException("Formatter does not support tables.");
     }
 
     /// <summary>
     /// Cascade fallback: renders fields as a 2-column Field/Value table.
-    /// Tries ITableFormatter → IStreamingTableFormatter → returns false.
     /// </summary>
     private bool RenderFieldsAsTable(MarkoutField[] fields)
     {
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
         var headers = new[] { "Field", "Value" };
         var rows = new List<string[]>(fields.Length);
         foreach (var field in fields)
             rows.Add([field.Key, field.Value]);
 
-        if (_formatter is ITableFormatter tf)
-        {
-            EnsureBlankLineIfNeeded();
-            tf.FormatTable(_writer, headers, rows, 0, _options);
-            _needsBlankLine = true;
-            _hasContent = true;
-            return true;
-        }
-
-        if (_formatter is IStreamingTableFormatter stf)
-        {
-            EnsureBlankLineIfNeeded();
-            stf.BeginTable(_writer, headers, _options);
-            foreach (var row in rows)
-                stf.WriteRow(_writer, row);
-            stf.EndTable(_writer, 0);
-            _needsBlankLine = true;
-            _hasContent = true;
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Projects and truncates rows for batch table rendering.
-    /// </summary>
-    private IList<string[]> ProjectAndTruncateRows(IList<string[]> rowList, int[]? columnMap, out int skipped)
-    {
-        if (columnMap != null)
-        {
-            var projected = new List<string[]>(rowList.Count);
-            foreach (var row in rowList)
-                projected.Add(MarkoutProjection.ProjectRow(row, columnMap));
-            rowList = projected;
-        }
-
-        if (_options.MaxItems is int max && rowList.Count > max)
-        {
-            skipped = rowList.Count - max;
-            return rowList.Take(max).ToList();
-        }
-
-        skipped = 0;
-        return rowList;
+        EnsureBlankLineIfNeeded();
+        CreateTableWriter().WriteTable(headers, rows);
+        _needsBlankLine = true;
+        _hasContent = true;
+        return true;
     }
 
     internal static string EscapeTableCell(string value)
