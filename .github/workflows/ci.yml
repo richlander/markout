@@ -75,7 +75,7 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build -c Release -p:OfficialBuild=true -p:ExcludeAnsi=true --no-restore
+        run: dotnet build -c Release -p:ExcludeAnsi=true --no-restore
 
       - name: Test
         run: |
@@ -83,7 +83,7 @@ jobs:
           dotnet run --project tests/Markout.Templates.Tests -c Release -p:ExcludeAnsi=true
 
       - name: Pack
-        run: dotnet pack -c Release -p:OfficialBuild=true -p:ExcludeAnsi=true --no-build
+        run: dotnet pack -c Release -p:ExcludeAnsi=true --no-build
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
