@@ -384,7 +384,8 @@ internal enum FieldLayoutKind
     Table = 0,
     Inline = 1,
     Bulleted = 2,
-    Numbered = 3
+    Numbered = 3,
+    Plain = 4
 }
 
 /// <summary>

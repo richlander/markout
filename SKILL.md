@@ -78,7 +78,7 @@ That's it. The output is Markdown by default.
 - `TitleProperty` — Property to render as the H1 heading
 - `DescriptionProperty` — Property to render as a paragraph below the heading
 - `AutoFields` — Auto-render scalar properties as fields (default: `true`)
-- `FieldLayout` — `Line` (pipe-separated), `List` (bullets), or `BareList` (one per line)
+- `FieldLayout` — `Table` (two-column, default), `Inline` (pipe-separated), `Bulleted`, `Numbered`, or `Plain` (bare lines)
 
 ### Property-level attributes
 

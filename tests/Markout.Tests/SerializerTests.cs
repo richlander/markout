@@ -632,6 +632,35 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_SkipDefault_PlainLayout()
+    {
+        var status = new ServerStatusPlain { Name = "Server1", IsOnline = false, ConnectionCount = 0 };
+        var mdf = MarkoutSerializer.Serialize(status, SkipDefaultPlainContext.Default);
+
+        Assert.Contains("Name", mdf);
+        Assert.DoesNotContain("Is Online", mdf);
+        Assert.DoesNotContain("Connection Count", mdf);
+        // Plain layout: no bullets, no numbers, no table pipes
+        Assert.DoesNotContain("- ", mdf);
+        Assert.DoesNotContain("1.", mdf);
+        Assert.DoesNotContain("| ", mdf);
+    }
+
+    [Fact]
+    public void Serialize_SkipDefault_PlainRendersNonDefault()
+    {
+        var status = new ServerStatusPlain { Name = "Server1", IsOnline = true, ConnectionCount = 10 };
+        var mdf = MarkoutSerializer.Serialize(status, SkipDefaultPlainContext.Default);
+
+        Assert.Contains("Is Online", mdf);
+        Assert.Contains("Connection Count", mdf);
+        // Plain layout: no bullets, no numbers, no table pipes
+        Assert.DoesNotContain("- ", mdf);
+        Assert.DoesNotContain("1.", mdf);
+        Assert.DoesNotContain("| ", mdf);
+    }
+
+    [Fact]
     public void Serialize_SkipNull_SuppressesNullStrings()
     {
         var pkg = new PackageInfo { Name = "MyPackage", License = null, Repository = null, Downloads = 100 };
@@ -1776,6 +1805,21 @@ public class ServerStatusList
 
 [MarkoutContext(typeof(ServerStatusList))]
 public partial class SkipDefaultListContext : MarkoutSerializerContext
+{
+}
+
+[MarkoutSerializable(FieldLayout = FieldLayout.Plain)]
+public class ServerStatusPlain
+{
+    public string? Name { get; set; }
+    [MarkoutSkipDefault]
+    public bool IsOnline { get; set; }
+    [MarkoutSkipDefault]
+    public int ConnectionCount { get; set; }
+}
+
+[MarkoutContext(typeof(ServerStatusPlain))]
+public partial class SkipDefaultPlainContext : MarkoutSerializerContext
 {
 }
 

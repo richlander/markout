@@ -87,6 +87,17 @@ Or `Numbered`:
 4. Best Known For: Angel, Building a Mystery, Adia
 ```
 
+Or `Plain` — bare lines, no markers:
+
+```markdown
+# Sarah McLachlan
+
+Genre: Pop / Adult Contemporary
+Origin: Halifax, Nova Scotia
+Debut Year: 1988
+Best Known For: Angel, Building a Mystery, Adia
+```
+
 The data model doesn't change — only the attribute controls the shape.
 
 ## Adding Sections and Tables
