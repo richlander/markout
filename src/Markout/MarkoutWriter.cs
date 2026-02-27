@@ -12,6 +12,7 @@ namespace Markout;
 public class MarkoutWriter
 {
     private readonly TextWriter _writer;
+    private readonly Stream? _stream;
     private readonly IMarkoutFormatter _formatter;
     private readonly MarkoutWriterOptions _options;
 
@@ -53,6 +54,17 @@ public class MarkoutWriter
     public MarkoutWriter(IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
         : this(new StringWriter(), formatter, options)
     {
+    }
+
+    /// <summary>
+    /// Creates a writer that writes to a Stream. String-based methods use a StreamWriter wrapper;
+    /// byte-based methods (BeginTableRow, WriteUtf8, etc.) write directly to the Stream for
+    /// zero-allocation output.
+    /// </summary>
+    public MarkoutWriter(Stream stream, IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
+        : this(new StreamWriter(stream, leaveOpen: true), formatter, options)
+    {
+        _stream = stream;
     }
 
     /// <summary>
@@ -483,15 +495,26 @@ public class MarkoutWriter
         _inTable = true;
         _columnMap = null;
         _tableWriter = null;
+        _utf8TableActive = false;
 
         if (_sectionExcluded)
             return true;
 
-        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
-            return false;
-
         if (headers.Length == 0)
             throw new ArgumentException("At least one header is required.", nameof(headers));
+
+        // Prefer byte-based path when Stream is available and formatter supports it
+        if (_stream != null && _formatter is IUtf8StreamingTableFormatter utf8f)
+        {
+            EnsureBlankLineIfNeeded();
+            _writer.Flush();
+            utf8f.BeginTable(_stream, headers, _options);
+            _utf8TableActive = true;
+            return true;
+        }
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
 
         _columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headers);
 
@@ -528,15 +551,108 @@ public class MarkoutWriter
     {
         _inTable = false;
 
-        if (!_sectionExcluded && _tableWriter != null)
+        if (!_sectionExcluded)
         {
-            _tableWriter.WriteTableEnd();
+            if (_utf8TableActive)
+            {
+                GetUtf8Formatter().EndTable(_stream!, 0);
+                _utf8TableActive = false;
+            }
+            else if (_tableWriter != null)
+            {
+                _tableWriter.WriteTableEnd();
+            }
+
             _needsBlankLine = true;
             _hasContent = true;
         }
 
         _tableWriter = null;
         _columnMap = null;
+    }
+
+    // ── UTF-8 byte-based table rows ──
+    // Zero-allocation hot path: BeginTableRow → (BeginTableCell → WriteUtf8* → EndTableCell)+ → EndTableRow
+    // Requires the writer to be constructed with a Stream.
+
+    private bool _utf8TableActive;
+
+    /// <summary>
+    /// Begins a streaming table row using UTF-8 byte output.
+    /// Must be between WriteTableStart and WriteTableEnd.
+    /// Requires the writer to be constructed with a Stream and the formatter
+    /// to implement <see cref="IUtf8StreamingTableFormatter"/>.
+    /// </summary>
+    public void BeginTableRow()
+    {
+        if (!_inTable)
+            throw new InvalidOperationException("Cannot write table row without starting a table first.");
+        if (_sectionExcluded) return;
+
+        // First byte-based row in this table — transition from string to byte path
+        if (!_utf8TableActive)
+        {
+            _writer.Flush();
+            _utf8TableActive = true;
+        }
+
+        GetUtf8Formatter().BeginRow(_stream!);
+    }
+
+    /// <summary>
+    /// Begins a table cell within a UTF-8 byte row.
+    /// Call WriteUtf8 one or more times, then EndTableCell.
+    /// </summary>
+    public void BeginTableCell()
+    {
+        GetUtf8Formatter().BeginCell(_stream!);
+    }
+
+    /// <summary>
+    /// Writes raw UTF-8 bytes as content within a table cell.
+    /// May be called multiple times between BeginTableCell and EndTableCell
+    /// to build composite content (e.g. markdown links) without allocation.
+    /// </summary>
+    public void WriteUtf8(ReadOnlySpan<byte> content)
+    {
+        GetUtf8Formatter().WriteUtf8(_stream!, content);
+    }
+
+    /// <summary>
+    /// Ends the current table cell.
+    /// </summary>
+    public void EndTableCell()
+    {
+        GetUtf8Formatter().EndCell(_stream!);
+    }
+
+    /// <summary>
+    /// Ends the current UTF-8 byte table row.
+    /// </summary>
+    public void EndTableRow()
+    {
+        GetUtf8Formatter().EndRow(_stream!);
+    }
+
+    /// <summary>
+    /// Convenience: writes a single-value table cell as UTF-8 bytes.
+    /// Equivalent to BeginTableCell + WriteUtf8 + EndTableCell.
+    /// </summary>
+    public void WriteTableCellUtf8(ReadOnlySpan<byte> content)
+    {
+        var f = GetUtf8Formatter();
+        f.BeginCell(_stream!);
+        f.WriteUtf8(_stream!, content);
+        f.EndCell(_stream!);
+    }
+
+    private IUtf8StreamingTableFormatter GetUtf8Formatter()
+    {
+        if (_stream == null)
+            throw new InvalidOperationException("UTF-8 byte methods require the writer to be constructed with a Stream.");
+        if (_formatter is not IUtf8StreamingTableFormatter f)
+            throw new InvalidOperationException("The formatter does not support IUtf8StreamingTableFormatter.");
+        return f;
     }
 
     // ── Code blocks ──

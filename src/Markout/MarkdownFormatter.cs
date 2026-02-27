@@ -9,7 +9,7 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter
+    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IUtf8StreamingTableFormatter
 {
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
 
@@ -426,5 +426,72 @@ public class MarkdownFormatter : IMarkoutFormatter,
     {
         // Same as horizontal — vertical layout is a terminal concept
         ((IMetricsFormatter)this).FormatMetrics(w, items, maxBarHeight, options);
+    }
+
+    // ── IUtf8StreamingTableFormatter ──
+    // Zero-allocation byte-based streaming table output.
+    // Writes directly to a Stream as UTF-8 — no TextWriter, no string allocation.
+
+    void IUtf8StreamingTableFormatter.BeginTable(Stream output, ReadOnlySpan<string> headers, MarkoutWriterOptions options)
+    {
+        // Header row: | h1 | h2 | ... |
+        Span<byte> buf = stackalloc byte[128];
+        output.WriteByte((byte)'|');
+        foreach (var header in headers)
+        {
+            output.WriteByte((byte)' ');
+            int len = Encoding.UTF8.GetBytes(header.AsSpan(), buf);
+            output.Write(buf[..len]);
+            output.Write(" |"u8);
+        }
+        output.WriteByte((byte)'\n');
+
+        // Separator row: | --- | --- | ... |
+        output.WriteByte((byte)'|');
+        foreach (var header in headers)
+        {
+            output.WriteByte((byte)' ');
+            for (int i = 0; i < header.Length; i++)
+                output.WriteByte((byte)'-');
+            output.Write(" |"u8);
+        }
+        output.WriteByte((byte)'\n');
+    }
+
+    void IUtf8StreamingTableFormatter.BeginRow(Stream output)
+    {
+        output.WriteByte((byte)'|');
+    }
+
+    void IUtf8StreamingTableFormatter.BeginCell(Stream output)
+    {
+        output.WriteByte((byte)' ');
+    }
+
+    void IUtf8StreamingTableFormatter.WriteUtf8(Stream output, ReadOnlySpan<byte> content)
+    {
+        output.Write(content);
+    }
+
+    void IUtf8StreamingTableFormatter.EndCell(Stream output)
+    {
+        output.Write(" |"u8);
+    }
+
+    void IUtf8StreamingTableFormatter.EndRow(Stream output)
+    {
+        output.WriteByte((byte)'\n');
+    }
+
+    void IUtf8StreamingTableFormatter.EndTable(Stream output, int skippedRows)
+    {
+        if (skippedRows > 0)
+        {
+            output.Write("\n... and "u8);
+            Span<byte> buf = stackalloc byte[16];
+            int len = Encoding.UTF8.GetBytes(skippedRows.ToString().AsSpan(), buf);
+            output.Write(buf[..len]);
+            output.Write(" more\n"u8);
+        }
     }
 }
