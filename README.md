@@ -35,10 +35,70 @@ public partial class ArtistContext : MarkoutSerializerContext { }
 ```markdown
 # Sarah McLachlan
 
+| Field | Value |
+| ----- | ----- |
+| Genre | Pop / Adult Contemporary |
+| Origin | Halifax, Nova Scotia |
+| Debut Year | 1988 |
+| Best Known For | Angel, Building a Mystery, Adia |
+```
+
+Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as a field table.
+
+## Field Layouts
+
+The same model renders differently with `FieldLayout`. The default is a two-column table. Switch to `Inline` for a compact summary line:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Artist.Name), FieldLayout = FieldLayout.Inline)]
+public record Artist( ... );
+```
+
+```markdown
+# Sarah McLachlan
+
 Genre: Pop / Adult Contemporary | Origin: Halifax, Nova Scotia | Debut Year: 1988 | Best Known For: Angel, Building a Mystery, Adia
 ```
 
-Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as fields.
+Or `Bulleted` for a list:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Artist.Name), FieldLayout = FieldLayout.Bulleted)]
+public record Artist( ... );
+```
+
+```markdown
+# Sarah McLachlan
+
+- Genre: Pop / Adult Contemporary
+- Origin: Halifax, Nova Scotia
+- Debut Year: 1988
+- Best Known For: Angel, Building a Mystery, Adia
+```
+
+Or `Numbered`:
+
+```markdown
+# Sarah McLachlan
+
+1. Genre: Pop / Adult Contemporary
+2. Origin: Halifax, Nova Scotia
+3. Debut Year: 1988
+4. Best Known For: Angel, Building a Mystery, Adia
+```
+
+Or `Plain` — bare lines, no markers. Each line ends with two trailing spaces, which is the markdown signal for `<br>`:
+
+```markdown
+# Sarah McLachlan
+
+Genre: Pop / Adult Contemporary  
+Origin: Halifax, Nova Scotia  
+Debut Year: 1988  
+Best Known For: Angel, Building a Mystery, Adia  
+```
+
+The data model doesn't change — only the attribute controls the shape.
 
 ## Adding Sections and Tables
 
@@ -76,16 +136,18 @@ MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default);
 ```markdown
 # Vancouver
 
-Province: British Columbia
-Population: 2632000
+| Field | Value |
+| ----- | ----- |
+| Province | British Columbia |
+| Population | 2632000 |
 
 ## Landmarks
 
-| Name             | Type       | Year |
-| ---------------- | ---------- | ---- |
-| Stanley Park     | Park       | 1888 |
-| Gastown          | Historic   | 1867 |
-| Science World    | Museum     | 1989 |
+| Name | Type | Year |
+| ----- | ----- | ----- |
+| Stanley Park | Park | 1888 |
+| Gastown | Historic | 1867 |
+| Science World | Museum | 1989 |
 ```
 
 ## Real-World Example: GitHub Repository Report
@@ -107,7 +169,6 @@ public class RepoInfo
     [MarkoutDisplayFormat("{0:N0}")]
     public int Forks { get; set; }
 
-    [MarkoutPropertyName("Open Issues")]
     [MarkoutDisplayFormat("{0:N0}")]
     public int OpenIssues { get; set; }
 
@@ -146,37 +207,50 @@ dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format oneline  
 
 .NET is a cross-platform runtime for cloud, mobile, desktop, and IoT apps.
 
-Stars: 17,698 | Forks: 5,350 | Open Issues: 8,385 | Language: C# | License: MIT License
+| Field | Value |
+| ----- | ----- |
+| Stars | 17,703 |
+| Forks | 5,353 |
+| Open Issues | 8,371 |
+| Language | C# |
+| License | MIT License |
 
 ## Languages
 
 | Category | Count | % |
 | -------- | ----- | - |
-| C#       | 80    | 83 |
-| C++      | 9     | 9  |
-| C        | 7     | 7  |
+| C# | 80 | 83 |
+| C++ | 9 | 9 |
+| C | 7 | 7 |
 
 ## Top Contributors
 
-| Label       | Value |
-| ----------- | ----- |
-| vargaz      | 11910 |
-| stephentoub | 10417 |
-| kumpera     | 4074  |
-| jkotas      | 3244  |
+| Label | Value |
+| ----- | ----- |
+| vargaz | 11910 |
+| stephentoub | 10418 |
+| kumpera | 4074 |
+| jkotas | 3245 |
 
 ## Releases
 
-| Tag     | Name        | Published  |
-| ------- | ----------- | ---------- |
+| Tag | Name | Published |
+| --- | ---- | --------- |
+| v8.0.24 | .NET 8.0.24 | 2026-02-10 |
+| v9.0.13 | v9.0.13 | 2026-02-10 |
 | v10.0.3 | .NET 10.0.3 | 2026-02-10 |
-| v10.0.2 | .NET 10.0.2 | 2026-01-14 |
-| v9.0.13 | v9.0.13     | 2026-02-10 |
 ```
 
-**One-line output** — same model, `--oneline` flag, shows the Releases table only:
+**One-line output** — same model, `--oneline` flag:
 
 ```text
+FIELD        VALUE
+Stars        17,703
+Forks        5,353
+Open Issues  8,371
+Language     C#
+License      MIT License
+
 TAG      NAME         PUBLISHED
 v8.0.24  .NET 8.0.24  2026-02-10
 v9.0.13  v9.0.13      2026-02-10

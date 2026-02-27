@@ -32,5 +32,13 @@ public enum FieldLayout
     /// Example: 1. Birthplace: London
     ///          2. Born: 1980
     /// </summary>
-    Numbered
+    Numbered,
+
+    /// <summary>
+    /// Fields as plain lines, one per line with no markers.
+    /// Uses markdown hard line breaks (trailing double space).
+    /// Example: Birthplace: London
+    ///          Born: 1980
+    /// </summary>
+    Plain
 }
