@@ -26,12 +26,12 @@ internal static class DemoData
     /// <summary>
     /// Simple view: first shoe with basic fields.
     /// </summary>
-    public static SimpleShoeView GetSimpleView(string shoeId)
+    public static SimpleShoe GetSimpleShoe(string shoeId)
     {
         var shoe = Data.GetShoe(shoeId) ?? Data.Shoes?.First()
             ?? throw new InvalidOperationException("No shoes found");
             
-        return new SimpleShoeView
+        return new SimpleShoe
         {
             Name = $"Altra {shoe.Model}",
             Description = "This demo shows a basic product with scalar fields.",
@@ -45,11 +45,11 @@ internal static class DemoData
     /// <summary>
     /// Bullet list view: shoes as formatted strings.
     /// </summary>
-    public static ShoeBulletListView GetBulletListView()
+    public static ShoeBulletList GetShoeBulletList()
     {
         var shoes = Data.Shoes ?? new List<Shoe>();
         
-        return new ShoeBulletListView
+        return new ShoeBulletList
         {
             Name = Data.Catalog?.Name ?? "Shoes",
             Description = "This demo shows products as a bullet list with custom formatting.",
@@ -64,11 +64,11 @@ internal static class DemoData
     /// <summary>
     /// Table view: all shoes as table rows.
     /// </summary>
-    public static ShoeTableView GetTableView()
+    public static ShoeTable GetShoeTable()
     {
         var shoes = Data.Shoes ?? new List<Shoe>();
         
-        return new ShoeTableView
+        return new ShoeTable
         {
             Name = Data.Catalog?.Name ?? "Shoes",
             Description = "This demo shows products as a table with a section heading.",
@@ -87,11 +87,11 @@ internal static class DemoData
     /// <summary>
     /// Detail view: shoes with nested features and reviews.
     /// </summary>
-    public static ShoeDetailView GetDetailView()
+    public static ShoeDetail GetShoeDetail()
     {
         var shoes = Data.Shoes ?? new List<Shoe>();
         
-        return new ShoeDetailView
+        return new ShoeDetail
         {
             Name = Data.Catalog?.Name ?? "Shoes",
             Description = "This demo shows detailed products with nested features and reviews.",
@@ -111,12 +111,12 @@ internal static class DemoData
     /// <summary>
     /// Sections view: single shoe with specs and reviews.
     /// </summary>
-    public static ShoeSectionsView GetSectionsView(string shoeId)
+    public static ShoeSections GetShoeSections(string shoeId)
     {
         var shoe = Data.GetShoe(shoeId) ?? Data.Shoes?.First()
             ?? throw new InvalidOperationException("No shoes found");
             
-        return new ShoeSectionsView
+        return new ShoeSections
         {
             Name = $"Altra {shoe.Model}",
             Description = "This demo shows a product with separate sections for specs and reviews.",
@@ -130,7 +130,7 @@ internal static class DemoData
     /// <summary>
     /// Inventory view: pivoted by size and color.
     /// </summary>
-    public static ShoeInventoryView GetInventoryView(string shoeId)
+    public static ShoeInventory GetShoeInventory(string shoeId)
     {
         var shoe = Data.GetShoe(shoeId) ?? Data.Shoes?.First()
             ?? throw new InvalidOperationException("No shoes found");
@@ -138,7 +138,7 @@ internal static class DemoData
         var entries = Data.Inventory?.Where(i => i.ShoeId == shoeId).ToList()
             ?? new List<InventoryEntry>();
             
-        return new ShoeInventoryView
+        return new ShoeInventory
         {
             Name = $"Altra {shoe.Model}",
             Description = "This demo shows pivoted inventory data: rows are sizes, columns are colors.",

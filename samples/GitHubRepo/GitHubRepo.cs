@@ -84,7 +84,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     int maxPreviewReleases = 5;
     int maxReleaseNameLength = 40;
 
-    var view = new RepoView
+    var view = new RepoInfo
     {
         Title = repoData.FullName ?? repo,
         Description = repoData.Description ?? "",
@@ -147,7 +147,7 @@ static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)
 // --- View Models ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
-public class RepoView
+public class RepoInfo
 {
     public string Title { get; set; } = "";
 
@@ -213,7 +213,7 @@ public class ReleaseRow
     public string Published { get; set; } = "";
 }
 
-[MarkoutContext(typeof(RepoView))]
+[MarkoutContext(typeof(RepoInfo))]
 [MarkoutContext(typeof(ContributorRow))]
 [MarkoutContext(typeof(ReleaseRow))]
 public partial class RepoContext : MarkoutSerializerContext { }

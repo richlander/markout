@@ -94,7 +94,7 @@ var severityCounts = cveInfo.Values
 var criticalCount = severityCounts.GetValueOrDefault("CRITICAL");
 
 // Serialize to markdown
-var view = new LatestCvesView
+var view = new CveReport
 {
     Title = ".NET Security Advisories",
     Span = $"{cutoff:MMM yyyy} \u2013 {DateTimeOffset.UtcNow:MMM yyyy}",
@@ -111,7 +111,7 @@ MarkoutSerializer.Serialize(view, Console.Out, new SpectreFormatter(AnsiConsole.
 // --- View Model ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class LatestCvesView
+public class CveReport
 {
     public string Title { get; set; } = "";
 
@@ -129,7 +129,7 @@ public class LatestCvesView
     public List<TreeNode>? Releases { get; set; }
 }
 
-[MarkoutContext(typeof(LatestCvesView))]
+[MarkoutContext(typeof(CveReport))]
 public partial class LatestCvesContext : MarkoutSerializerContext { }
 
 // --- JSON Models (snake_case via options; explicit for HAL _embedded/_links) ---

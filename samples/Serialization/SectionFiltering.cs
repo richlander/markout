@@ -82,7 +82,7 @@ public static class SectionFiltering
             BoldFieldNames = true                       // Enable bold field names
         });
 
-        ProductView product = new ProductView
+        Product product = new Product
         {
             Name = "Widget Pro",
             Category = "Electronics",

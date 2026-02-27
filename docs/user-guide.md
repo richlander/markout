@@ -1,10 +1,10 @@
 # Markout User Guide
 
-Markout is a source-generated .NET library that serializes objects to clean, readable Markdown. Define your view models with attributes, and Markout generates efficient serialization code at compile time — no reflection, no runtime overhead.
+Markout is a source-generated .NET library that serializes objects to clean, readable Markdown. Define your models with attributes, and Markout generates efficient serialization code at compile time — no reflection, no runtime overhead.
 
 - [Quick Start](#quick-start)
 - [Quick Tweaks](#quick-tweaks)
-- [Defining View Models](#defining-view-models)
+- [Defining Models](#defining-view-models)
 - [Serialization](#serialization)
 - [Scalar Fields](#scalar-fields)
 - [Field Layout](#field-layout)
@@ -21,12 +21,12 @@ Markout is a source-generated .NET library that serializes objects to clean, rea
 
 ## Quick Start
 
-The simplest Markout program is a view model, a context, and a serialize call.
+The simplest Markout program is a model, a context, and a serialize call.
 
 ```csharp
 using Markout;
 
-var city = new CityView
+var city = new City
 {
     Name = "Vancouver",
     Country = "Canada",
@@ -40,7 +40,7 @@ var city = new CityView
 MarkoutSerializer.Serialize(city, Console.Out, CityContext.Default);
 
 [MarkoutSerializable(TitleProperty = nameof(Name))]
-public class CityView
+public class City
 {
     public string Name { get; set; } = "";
     public string Country { get; set; } = "";
@@ -62,7 +62,7 @@ public class CityView
     public double Temperature { get; set; }
 }
 
-[MarkoutContext(typeof(CityView))]
+[MarkoutContext(typeof(City))]
 public partial class CityContext : MarkoutSerializerContext { }
 ```
 
@@ -82,7 +82,7 @@ Latitude: 49.2827 | Longitude: -123.1207 | Altitude (m): 0 | Temperature: 6.2 °
 
 Three things are required:
 
-1. **A view model** — a class, optionally decorated with `[MarkoutSerializable]` for customization.
+1. **A model** — a class, optionally decorated with `[MarkoutSerializable]` for customization.
 2. **A context** — a `partial class` inheriting `MarkoutSerializerContext` with `[MarkoutContext(typeof(...))]` for each type.
 3. **A serialize call** — `MarkoutSerializer.Serialize(value, context)`.
 
@@ -94,7 +94,7 @@ The same city can be rendered differently by changing just the `FieldLayout`. `V
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Vertical)]
-public class CityView { /* same properties */ }
+public class City { /* same properties */ }
 ```
 
 ```markdown
@@ -117,7 +117,7 @@ Temperature: 6.2 °C
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Bulleted)]
-public class CityView { /* same properties */ }
+public class City { /* same properties */ }
 ```
 
 ```markdown
@@ -134,9 +134,9 @@ public class CityView { /* same properties */ }
 - Temperature: 6.2 °C
 ```
 
-## Defining View Models
+## Defining Models
 
-Markout has two kinds of attributes: **type-level attributes** on the view model class, and **property-level attributes** on individual properties.
+Markout has two kinds of attributes: **type-level attributes** on the model class, and **property-level attributes** on individual properties.
 
 A type becomes serializable when it is registered on a context class with `[MarkoutContext(typeof(T))]`. The `[MarkoutSerializable]` attribute on the type itself is **optional** — use it only when you need to customize behavior like `TitleProperty`, `FieldLayout`, or `AutoFields`. Without it, the type uses sensible defaults (all fields rendered, `Inline` layout, no title heading).
 
@@ -159,7 +159,7 @@ For top-level document types, use `[MarkoutSerializable]` to configure the title
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ReleasesView
+public class Releases
 {
     public string Title { get; set; } = "";
 
@@ -175,7 +175,7 @@ public class ReleasesView
 All types must be registered on the context class:
 
 ```csharp
-[MarkoutContext(typeof(ReleasesView))]
+[MarkoutContext(typeof(Releases))]
 [MarkoutContext(typeof(ReleaseRow))]
 public partial class ReleasesContext : MarkoutSerializerContext { }
 ```
@@ -192,7 +192,7 @@ Use `TitleContextProperty` when you want a secondary identifier rendered in pare
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), TitleContextProperty = nameof(Version))]
-public class PackageView
+public class Package
 {
     public string Name { get; set; } = "";
     public string Version { get; set; } = "";
@@ -206,7 +206,7 @@ Set `DescriptionProperty` to render a property as a paragraph below the heading:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Summary))]
-public class ApiView
+public class ApiReport
 {
     public string Name { get; set; } = "";
     public string Summary { get; set; } = "";
@@ -278,7 +278,7 @@ Or set at compile time on the context class with `[MarkoutContextOptions]`, so e
 
 ```csharp
 [MarkoutContextOptions(BoldFieldNames = true, SuppressTableWarnings = true)]
-[MarkoutContext(typeof(ProductView))]
+[MarkoutContext(typeof(Product))]
 public partial class SampleContext : MarkoutSerializerContext { }
 ```
 
@@ -353,7 +353,7 @@ Each field on its own line with trailing double-spaces:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Vertical)]
-public class PackageView
+public class Package
 {
     public string Name { get; set; } = "";
     public string? Homepage { get; set; }
@@ -374,7 +374,7 @@ Each field as a bullet list item:
 
 ```csharp
 [MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]
-public class ConfigView
+public class Config
 {
     public string Host { get; set; } = "";
     public int Port { get; set; }
@@ -467,7 +467,7 @@ Use `[MarkoutSkipNull]` to omit fields when their value is null, empty, or (for 
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name))]
-public class PackageView
+public class Package
 {
     public string Name { get; set; } = "";
     [MarkoutSkipNull]
@@ -502,7 +502,7 @@ Use `[MarkoutShowWhen]` to render a field only when a bool property on the same 
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Vertical)]
-public class PackageView
+public class Package
 {
     public string Name { get; set; } = "";
 
@@ -549,7 +549,7 @@ When scalar properties share the same section name, they are grouped under a sin
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
-public class PackageView
+public class Package
 {
     public string Name { get; set; } = "";
 
@@ -586,7 +586,7 @@ When a `List<T>` of complex objects has `[MarkoutSection]`, it renders as a head
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ShowDetailView
+public class ShowDetail
 {
     public string Title { get; set; } = "";
     public string Type { get; set; } = "";
@@ -672,7 +672,7 @@ Use `List<MarkoutField>` for dynamic key-value fields built at runtime:
 
 ```csharp
 [MarkoutSerializable(AutoFields = false)]
-public class DynamicView
+public class DynamicReport
 {
     public List<MarkoutField>? Fields { get; set; }
 }
@@ -686,7 +686,7 @@ Properties that cannot be rendered in table context (nested objects, arrays) emi
 
 ```csharp
 [MarkoutSerializable]
-public class LatestCvesView
+public class CveReport
 {
     public string Span { get; set; } = "";
 
@@ -710,7 +710,7 @@ If you register many types and most table warnings are expected, use `[MarkoutCo
 
 ```csharp
 [MarkoutContextOptions(SuppressTableWarnings = true)]
-[MarkoutContext(typeof(MyView))]
+[MarkoutContext(typeof(MyReport))]
 public partial class MyContext : MarkoutSerializerContext { }
 ```
 
@@ -856,7 +856,7 @@ Set defaults via `[MarkoutContextOptions]`:
 
 ```csharp
 [MarkoutContextOptions(BoldFieldNames = true, SuppressTableWarnings = true)]
-[MarkoutContext(typeof(MyView))]
+[MarkoutContext(typeof(MyReport))]
 public partial class MyContext : MarkoutSerializerContext { }
 ```
 

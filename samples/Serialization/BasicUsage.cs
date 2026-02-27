@@ -2,9 +2,9 @@ using Markout;
 
 namespace Markout.Samples.Serialization;
 
-#region ProductViewObject
+#region ProductObject
 [MarkoutSerializable(TitleProperty = nameof(Name))]
-public class ProductView
+public class Product
 {
     public string Name { get; set; } = "";
     public string Category { get; set; } = "";
@@ -12,7 +12,7 @@ public class ProductView
     public bool InStock { get; set; }
 }
 
-[MarkoutContext(typeof(ProductView))]
+[MarkoutContext(typeof(Product))]
 public partial class SampleContext : MarkoutSerializerContext
 {
 }
@@ -29,7 +29,7 @@ public static class BasicUsage
     public static void SerializeSimpleType()
     {
         #region SerializeSimpleType
-        ProductView product = new ProductView
+        Product product = new Product
         {
             Name = "Widget Pro",
             Category = "Electronics",
@@ -54,7 +54,7 @@ public static class BasicUsage
     public static void WriteToStream()
     {
         #region WriteToStream
-        ProductView product = new ProductView
+        Product product = new Product
         {
             Name = "Gadget X",
             Category = "Tools",

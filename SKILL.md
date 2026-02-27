@@ -20,7 +20,7 @@ dotnet add package Markout.Ansi.Spectre
 
 Every markout integration follows three steps:
 
-### 1. Define a view model
+### 1. Define a model
 
 Annotate a class or record with `[MarkoutSerializable]`. Scalar properties become fields. `List<T>` properties become tables. Built-in types like `Metric`, `Breakdown`, `Callout`, and `TreeNode` produce charts, bars, alerts, and trees.
 
@@ -48,7 +48,7 @@ public class ResultRow
 
 ### 2. Define a context
 
-Create a partial class that registers your view models for source generation:
+Create a partial class that registers your models for source generation:
 
 ```csharp
 [MarkoutContext(typeof(ToolReport))]
@@ -71,7 +71,7 @@ That's it. The output is Markdown by default.
 | Attribute | Purpose | Example |
 |---|---|---|
 | `[MarkoutSerializable]` | Mark type for serialization | `[MarkoutSerializable(TitleProperty = "Name")]` |
-| `[MarkoutContext(typeof(T))]` | Register type with context | `[MarkoutContext(typeof(MyView))]` |
+| `[MarkoutContext(typeof(T))]` | Register type with context | `[MarkoutContext(typeof(MyReport))]` |
 
 `MarkoutSerializable` properties:
 
@@ -111,7 +111,7 @@ That's it. The output is Markdown by default.
 
 ## Built-in Shape Types
 
-Use these types as properties on your view model to get rich output:
+Use these types as properties on your model to get rich output:
 
 ```csharp
 // Bar chart — comparative quantities
@@ -153,18 +153,18 @@ public CodeSection? SourceCode { get; set; }
 
 ```csharp
 // Markdown (default) — documentation, LLM output, reports
-MarkoutSerializer.Serialize(view, Console.Out, context);
+MarkoutSerializer.Serialize(report, Console.Out, context);
 
 // Markdown with explicit formatter
-MarkoutSerializer.Serialize(view, Console.Out, new MarkdownFormatter(), context);
+MarkoutSerializer.Serialize(report, Console.Out, new MarkdownFormatter(), context);
 
 // Spectre terminal — colored, interactive
 using Markout.Ansi.Spectre;
 using Spectre.Console;
-MarkoutSerializer.Serialize(view, Console.Out, new SpectreFormatter(AnsiConsole.Console), context);
+MarkoutSerializer.Serialize(report, Console.Out, new SpectreFormatter(AnsiConsole.Console), context);
 
 // One-line — compact table, grep-friendly
-MarkoutSerializer.Serialize(view, Console.Out, new OneLineFormatter(), context);
+MarkoutSerializer.Serialize(report, Console.Out, new OneLineFormatter(), context);
 
 // One-line with section filter — show only one table
 var options = new MarkoutWriterOptions
@@ -172,15 +172,15 @@ var options = new MarkoutWriterOptions
     IncludeDescription = false,
     IncludeSections = new HashSet<string> { "Results" }
 };
-MarkoutSerializer.Serialize(view, Console.Out, new OneLineFormatter(), context, options);
+MarkoutSerializer.Serialize(report, Console.Out, new OneLineFormatter(), context, options);
 
 // Plain text — log files, piped output
-MarkoutSerializer.Serialize(view, Console.Out, new UnicodeFormatter(), context);
+MarkoutSerializer.Serialize(report, Console.Out, new UnicodeFormatter(), context);
 ```
 
 ## Common Recipe: JSON API to Report
 
-This is the most common pattern — fetch JSON, project to view model, serialize:
+This is the most common pattern — fetch JSON, project to a model, serialize:
 
 ```csharp
 using System.Text.Json;
@@ -192,8 +192,8 @@ using var http = new HttpClient();
 var json = await http.GetStringAsync("https://api.example.com/data");
 var data = JsonSerializer.Deserialize(json, ApiJsonContext.Default.ApiResponse)!;
 
-// 2. Project to view model
-var view = new ReportView
+// 2. Project to model
+var report = new Report
 {
     Title = data.Name,
     Count = data.Items.Count,
@@ -205,11 +205,11 @@ var view = new ReportView
 };
 
 // 3. Serialize
-MarkoutSerializer.Serialize(view, Console.Out, ReportContext.Default);
+MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 
-// --- View Model ---
+// --- Model ---
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ReportView
+public class Report
 {
     public string Title { get; set; } = "";
     public int Count { get; set; }
@@ -225,11 +225,11 @@ public class ItemRow
     public string Status { get; set; } = "";
 }
 
-[MarkoutContext(typeof(ReportView))]
+[MarkoutContext(typeof(Report))]
 [MarkoutContext(typeof(ItemRow))]
 public partial class ReportContext : MarkoutSerializerContext { }
 
-// --- JSON Model (separate from view model) ---
+// --- JSON Model (separate from report model) ---
 public class ApiResponse { public string Name { get; set; } = ""; public List<ApiItem> Items { get; set; } = []; }
 public class ApiItem { public string Name { get; set; } = ""; public string Status { get; set; } = ""; }
 
@@ -239,7 +239,7 @@ internal partial class ApiJsonContext : JsonSerializerContext { }
 
 ## Key Principles
 
-1. **View models are not domain models.** Keep your JSON/API models separate. The view model is the projection layer — it decides what the user sees.
+1. **Data models work directly with Markout.** In the simplest case, your data model is your Markout model — no separate projection layer needed. For more complex scenarios (e.g., combining multiple API responses), a dedicated report model is fine, but it's still just a data model.
 2. **Attributes describe data relationships, not visuals.** Say "this is a measurement" (`Metric`), not "draw a bar."
 3. **Register every type.** Every class used in serialization needs `[MarkoutSerializable]` and must be registered via `[MarkoutContext(typeof(T))]` on the context.
 4. **The context must be `partial`.** The source generator fills in the implementation.

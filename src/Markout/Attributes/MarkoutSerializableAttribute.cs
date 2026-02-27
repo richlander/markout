@@ -50,7 +50,7 @@ public sealed class MarkoutSerializableAttribute : Attribute
     /// <summary>
     /// Gets or sets the naming policy for transforming property names into display names.
     /// Only applies to properties without an explicit [MarkoutPropertyName] attribute.
-    /// Default is Default (use property name as-is).
+    /// Default is PascalCaseWords (split PascalCase into separate words).
     /// </summary>
-    public NamingPolicy NamingPolicy { get; set; } = NamingPolicy.Default;
+    public NamingPolicy NamingPolicy { get; set; } = NamingPolicy.PascalCaseWords;
 }

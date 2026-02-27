@@ -16,7 +16,7 @@ public class FindRow
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
-public class FindResultView
+public class FindResult
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
 
@@ -33,7 +33,7 @@ public class FindResultView
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
-public class SingleConditionView
+public class SingleCondition
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
 
@@ -46,7 +46,7 @@ public class SingleConditionView
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
-public class MixedIgnoreView
+public class MixedIgnore
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
 
@@ -70,7 +70,7 @@ public class GroupedFindRow
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
-public class GroupByWithIgnoreColumnWhenView
+public class GroupByWithIgnoreColumnWhen
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
 
@@ -85,7 +85,7 @@ public class GroupByWithIgnoreColumnWhenView
 // --- OneLineFormatter + IgnoreColumnWhen integration ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class OneLineIgnoreColumnWhenView
+public class OneLineIgnoreColumnWhen
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
     public int Count { get; set; }
@@ -99,12 +99,12 @@ public class OneLineIgnoreColumnWhenView
 }
 
 [MarkoutContext(typeof(FindRow))]
-[MarkoutContext(typeof(FindResultView))]
-[MarkoutContext(typeof(SingleConditionView))]
-[MarkoutContext(typeof(MixedIgnoreView))]
-[MarkoutContext(typeof(GroupByWithIgnoreColumnWhenView))]
+[MarkoutContext(typeof(FindResult))]
+[MarkoutContext(typeof(SingleCondition))]
+[MarkoutContext(typeof(MixedIgnore))]
+[MarkoutContext(typeof(GroupByWithIgnoreColumnWhen))]
 [MarkoutContext(typeof(GroupedFindRow))]
-[MarkoutContext(typeof(OneLineIgnoreColumnWhenView))]
+[MarkoutContext(typeof(OneLineIgnoreColumnWhen))]
 public partial class IgnoreColumnWhenTestContext : MarkoutSerializerContext
 {
 }
@@ -117,7 +117,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void UniformPattern_HidesPatternColumn()
     {
-        var view = new FindResultView
+        var view = new FindResult
         {
             Title = "Search",
             Results = new List<FindRow>
@@ -141,7 +141,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void NonUniformPattern_ShowsAllColumns()
     {
-        var view = new FindResultView
+        var view = new FindResult
         {
             Title = "Search",
             Results = new List<FindRow>
@@ -164,7 +164,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void BothUniform_HidesBothColumns()
     {
-        var view = new FindResultView
+        var view = new FindResult
         {
             Title = "Search",
             Results = new List<FindRow>
@@ -185,7 +185,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void NeitherUniform_ShowsAllColumns()
     {
-        var view = new FindResultView
+        var view = new FindResult
         {
             Title = "Search",
             Results = new List<FindRow>
@@ -206,7 +206,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void SingleCondition_HidesWhenTrue()
     {
-        var view = new SingleConditionView
+        var view = new SingleCondition
         {
             Title = "Test",
             Items = new List<FindRow>
@@ -229,7 +229,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void SingleCondition_ShowsWhenFalse()
     {
-        var view = new SingleConditionView
+        var view = new SingleCondition
         {
             Title = "Test",
             Items = new List<FindRow>
@@ -249,7 +249,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void MixedWithStaticIgnore_BothApply()
     {
-        var view = new MixedIgnoreView
+        var view = new MixedIgnore
         {
             Title = "Test",
             Items = new List<FindRow>
@@ -273,7 +273,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void MixedWithStaticIgnore_DynamicShowsWhenNotUniform()
     {
-        var view = new MixedIgnoreView
+        var view = new MixedIgnore
         {
             Title = "Test",
             Items = new List<FindRow>
@@ -297,7 +297,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void GroupBy_WithIgnoreColumnWhen_HidesUniformColumn()
     {
-        var view = new GroupByWithIgnoreColumnWhenView
+        var view = new GroupByWithIgnoreColumnWhen
         {
             Title = "Search",
             Results = new List<GroupedFindRow>
@@ -323,7 +323,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void GroupBy_WithIgnoreColumnWhen_ShowsNonUniformColumn()
     {
-        var view = new GroupByWithIgnoreColumnWhenView
+        var view = new GroupByWithIgnoreColumnWhen
         {
             Title = "Search",
             Results = new List<GroupedFindRow>
@@ -348,7 +348,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void OneLineFormatter_WithIgnoreColumnWhen_HidesUniformColumn()
     {
-        var view = new OneLineIgnoreColumnWhenView
+        var view = new OneLineIgnoreColumnWhen
         {
             Title = "Search",
             Count = 2,
@@ -373,7 +373,7 @@ public class IgnoreColumnWhenTests
     [Fact]
     public void OneLineFormatter_WithIgnoreColumnWhen_ShowsNonUniformColumn()
     {
-        var view = new OneLineIgnoreColumnWhenView
+        var view = new OneLineIgnoreColumnWhen
         {
             Title = "Search",
             Count = 2,
@@ -401,7 +401,7 @@ public class IgnoreColumnWhenTests
         Console.SetError(errWriter);
         try
         {
-            var view = new OneLineIgnoreColumnWhenView
+            var view = new OneLineIgnoreColumnWhen
             {
                 Title = "Search",
                 Count = 42,

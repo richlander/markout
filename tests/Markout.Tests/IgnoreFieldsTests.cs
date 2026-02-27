@@ -5,7 +5,7 @@ namespace Markout.Tests;
 // --- Test types ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ViewWithFields
+public class TypeWithFields
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
     public int Count { get; set; }
@@ -22,7 +22,7 @@ public class SimpleRow
 }
 
 [MarkoutContext(typeof(SimpleRow))]
-[MarkoutContext(typeof(ViewWithFields))]
+[MarkoutContext(typeof(TypeWithFields))]
 public partial class IgnoreFieldsTestContext : MarkoutSerializerContext
 {
 }
@@ -35,7 +35,7 @@ public class IgnoreFieldsTests
     [Fact]
     public void Serialize_OneLineFormatter_RendersFieldsAsTable()
     {
-        var view = new ViewWithFields
+        var view = new TypeWithFields
         {
             Title = "Test",
             Count = 42,
@@ -53,7 +53,7 @@ public class IgnoreFieldsTests
     [Fact]
     public void Serialize_MarkdownFormatter_RendersFields()
     {
-        var view = new ViewWithFields
+        var view = new TypeWithFields
         {
             Title = "Test",
             Count = 42,

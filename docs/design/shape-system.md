@@ -52,11 +52,11 @@ public class PackageReport
     public string License { get; set; }                      // → License: MIT
 
     [MarkoutSection(Name = "Assemblies")]                    // → ## Assemblies
-    public List<AssemblyView> Assemblies { get; set; }       //   each item → ### name
+    public List<Assembly> Assemblies { get; set; }       //   each item → ### name
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Name))]          // → ### Foo.dll
-public class AssemblyView
+public class Assembly
 {
     [MarkoutIgnore] public string Name { get; set; }
     public string Architecture { get; set; }                 //   Architecture: AnyCPU

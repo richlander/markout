@@ -60,13 +60,13 @@ public class InventoryEntry
 
 #endregion
 
-#region Markout View Models
+#region Markout Models
 
 /// <summary>
 /// Simple view: single shoe with basic scalar fields.
 /// </summary>
 [MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Description))]
-public class SimpleShoeView
+public class SimpleShoe
 {
     public string Name { get; set; } = "";
     
@@ -83,7 +83,7 @@ public class SimpleShoeView
 /// List view: catalog with shoes as bullet list.
 /// </summary>
 [MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Description))]
-public class ShoeBulletListView
+public class ShoeBulletList
 {
     public string Name { get; set; } = "";
     
@@ -98,7 +98,7 @@ public class ShoeBulletListView
 /// Table view: catalog with shoes as table rows.
 /// </summary>
 [MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Description))]
-public class ShoeTableView
+public class ShoeTable
 {
     public string Name { get; set; } = "";
     
@@ -129,7 +129,7 @@ public class ShoeTableRow
 /// Nested view: detailed shoes with features and reviews.
 /// </summary>
 [MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Description))]
-public class ShoeDetailView
+public class ShoeDetail
 {
     public string Name { get; set; } = "";
     
@@ -163,7 +163,7 @@ public class ShoeDetailItem
 /// Sections view: single shoe with specs and reviews sections.
 /// </summary>
 [MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Description))]
-public class ShoeSectionsView
+public class ShoeSections
 {
     public string Name { get; set; } = "";
     
@@ -184,7 +184,7 @@ public class ShoeSectionsView
 /// Pivot view: inventory pivoted by size and color.
 /// </summary>
 [MarkoutSerializable(TitleProperty = nameof(Name), DescriptionProperty = nameof(Description))]
-public class ShoeInventoryView
+public class ShoeInventory
 {
     public string Name { get; set; } = "";
     
@@ -238,13 +238,13 @@ public class Review
 [MarkoutContext(typeof(Feature))]
 [MarkoutContext(typeof(Review))]
 // View types (for serialization)
-[MarkoutContext(typeof(SimpleShoeView))]
-[MarkoutContext(typeof(ShoeBulletListView))]
-[MarkoutContext(typeof(ShoeTableView))]
+[MarkoutContext(typeof(SimpleShoe))]
+[MarkoutContext(typeof(ShoeBulletList))]
+[MarkoutContext(typeof(ShoeTable))]
 [MarkoutContext(typeof(ShoeTableRow))]
-[MarkoutContext(typeof(ShoeDetailView))]
-[MarkoutContext(typeof(ShoeSectionsView))]
-[MarkoutContext(typeof(ShoeInventoryView))]
+[MarkoutContext(typeof(ShoeDetail))]
+[MarkoutContext(typeof(ShoeSections))]
+[MarkoutContext(typeof(ShoeInventory))]
 public partial class DemoContext : MarkoutSerializerContext
 {
 }
