@@ -61,10 +61,10 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         var terminal = new AnsiTerminal(new SystemConsole());
         IMarkoutFormatter f = format switch
         {
-            "ansi" => new AnsiWriter(terminal),
-            "spectre" => new SpectreWriter(AnsiConsole.Console),
+            "ansi" => new AnsiFormatter(terminal),
+            "spectre" => new SpectreFormatter(AnsiConsole.Console),
             "oneline" => new OneLineFormatter(),
-            "diagram" => new DiagramWriter(),
+            "diagram" => new DiagramFormatter(),
             _ => new MarkdownFormatter(),
         };
         return (f, sw);

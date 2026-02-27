@@ -161,7 +161,7 @@ MarkoutSerializer.Serialize(view, Console.Out, new MarkdownFormatter(), context)
 // Spectre terminal — colored, interactive
 using Markout.Ansi.Spectre;
 using Spectre.Console;
-MarkoutSerializer.Serialize(view, Console.Out, new SpectreWriter(AnsiConsole.Console), context);
+MarkoutSerializer.Serialize(view, Console.Out, new SpectreFormatter(AnsiConsole.Console), context);
 
 // One-line — compact table, grep-friendly
 MarkoutSerializer.Serialize(view, Console.Out, new OneLineFormatter(), context);
@@ -175,7 +175,7 @@ var options = new MarkoutWriterOptions
 MarkoutSerializer.Serialize(view, Console.Out, new OneLineFormatter(), context, options);
 
 // Plain text — log files, piped output
-MarkoutSerializer.Serialize(view, Console.Out, new UnicodeWriter(), context);
+MarkoutSerializer.Serialize(view, Console.Out, new UnicodeFormatter(), context);
 ```
 
 ## Common Recipe: JSON API to Report

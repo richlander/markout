@@ -223,16 +223,16 @@ Markout ships four formatters. The serializer writes through `MarkoutWriter` (th
 | Formatter | Output | Use case |
 |---|---|---|
 | **MarkdownFormatter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
-| **UnicodeWriter** | Plain text, space-padded | Log files, piped output, terminals without ANSI |
+| **UnicodeFormatter** | Plain text, space-padded | Log files, piped output, terminals without ANSI |
 | **OneLineFormatter** | Tables only, no headings | Compact summaries, grep-friendly output |
-| **DiagramWriter** | Trees and structural diagrams | Dependency graphs, file trees |
+| **DiagramFormatter** | Trees and structural diagrams | Dependency graphs, file trees |
 
 Optional packages:
 
 | Package | Formatter | Use case |
 |---|---|---|
-| **Markout.Ansi** | `AnsiWriter` | Colored terminal output with bold, gradients |
-| **Markout.Ansi.Spectre** | `SpectreWriter` | Rich terminal UI via Spectre.Console |
+| **Markout.Ansi** | `AnsiFormatter` | Colored terminal output with bold, gradients |
+| **Markout.Ansi.Spectre** | `SpectreFormatter` | Rich terminal UI via Spectre.Console |
 
 Formatters declare which shapes they support by implementing capability interfaces (`ITableFormatter`, `IFieldFormatter`, `ITreeFormatter`, etc.). Unsupported shapes are silently skipped — the data is never lost, only the visual sophistication changes.
 
@@ -279,7 +279,7 @@ template.Bind("commit-table", commitData);
 Console.WriteLine(template.Render(new MarkoutWriterOptions { PrettyTables = true }));
 
 // Plain text output — same template, different formatter
-var plainWriter = new MarkoutWriter(Console.Out, new UnicodeWriter());
+var plainWriter = new MarkoutWriter(Console.Out, new UnicodeFormatter());
 template.Render(plainWriter);
 ```
 

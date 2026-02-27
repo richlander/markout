@@ -1,39 +1,39 @@
 using Markout.Formatting;
-using Spectre.Console;
+using Microsoft.Extensions.Terminal;
 
-namespace Markout.Ansi.Spectre;
+namespace Markout.Ansi;
 
 /// <summary>
-/// A formatter that renders output as rich ANSI terminal text using Spectre.Console.
-/// Drop-in alternative to Markout.Ansi.AnsiWriter for projects already using Spectre.
+/// A formatter that renders output as rich ANSI terminal text.
+/// Uses bold, color, and unicode characters for human-friendly terminal output.
 /// </summary>
-public class SpectreWriter : IMarkoutFormatter,
+public class AnsiFormatter : IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter
 {
     private const int ColumnGap = 2;
-    private readonly IAnsiConsole _console;
+    private readonly ITerminal _terminal;
 
     /// <summary>
-    /// Creates a Spectre formatter targeting the specified console.
+    /// Creates an ANSI formatter targeting the specified terminal.
     /// </summary>
-    public SpectreWriter(IAnsiConsole console)
+    public AnsiFormatter(ITerminal terminal)
     {
-        _console = console;
+        _terminal = terminal;
     }
 
     /// <summary>
-    /// Gets the console width for layout calculations.
+    /// Gets the terminal width for layout calculations.
     /// </summary>
-    private int ConsoleWidth => _console.Profile.Width;
+    private int TerminalWidth => _terminal.Width == int.MaxValue ? 80 : _terminal.Width;
     /// <summary>
-    /// Color for the heading label text. Default is white.
+    /// Color for the heading label text. Default is <see cref="TerminalColor.White"/>.
     /// </summary>
-    public Color RuleLabelColor { get; set; } = Color.White;
+    public TerminalColor RuleLabelColor { get; set; } = TerminalColor.White;
 
     /// <summary>
-    /// Color for rule lines when gradient is disabled. Default is grey.
+    /// Color for rule lines when gradient is disabled. Default is <see cref="TerminalColor.DarkGray"/>.
     /// </summary>
-    public Color RuleLineColor { get; set; } = Color.Grey;
+    public TerminalColor RuleLineColor { get; set; } = TerminalColor.DarkGray;
 
     /// <summary>
     /// Whether to render rule lines as a gradient that fades toward the edges.
@@ -45,25 +45,13 @@ public class SpectreWriter : IMarkoutFormatter,
     /// RGB color for the bright end of the gradient (nearest the label).
     /// Default is (0, 180, 180) — teal/cyan.
     /// </summary>
-    public Color RuleGradientStart { get; set; } = new Color(0, 180, 180);
+    public (byte R, byte G, byte B) RuleGradientStart { get; set; } = (0, 180, 180);
 
     /// <summary>
     /// RGB color for the dim end of the gradient (at the edges).
     /// Default is (0, 40, 50) — near-black teal.
     /// </summary>
-    public Color RuleGradientEnd { get; set; } = new Color(0, 40, 50);
-
-    /// <summary>
-    /// Color for bar chart bars. Default is cyan.
-    /// </summary>
-    public Color BarColor { get; set; } = Color.Cyan1;
-
-    /// <summary>
-    /// Color for bar chart value labels. Default is grey.
-    /// </summary>
-    public Color BarValueColor { get; set; } = Color.Grey;
-
-    /// <inheritdoc/>
+    public (byte R, byte G, byte B) RuleGradientEnd { get; set; } = (0, 40, 50);
 
     // ── Formatter Interface Implementations ──
     // Pure rendering: write ANSI escape codes directly to the TextWriter w.
@@ -72,8 +60,8 @@ public class SpectreWriter : IMarkoutFormatter,
     private static void SgrReset(TextWriter w) => w.Write("\x1b[m");
     private static void SgrBold(TextWriter w, string text) { w.Write("\x1b[1m"); w.Write(text); w.Write("\x1b[22m"); }
     private static void SgrRgb(TextWriter w, byte r, byte g, byte b) => w.Write($"\x1b[38;2;{r};{g};{b}m");
-    private static void SgrColor(TextWriter w, Color c) => SgrRgb(w, c.R, c.G, c.B);
 
+    // SGR color codes matching TerminalColor enum values
     private const int SgrCyan = 36;
     private const int SgrDarkGray = 90;
     private const int SgrRed = 31;
@@ -82,6 +70,16 @@ public class SpectreWriter : IMarkoutFormatter,
     private const int SgrMagenta = 35;
     private const int SgrBlue = 34;
     private const int SgrWhite = 37;
+
+    /// <summary>
+    /// Color for bar chart bars. Default is <see cref="TerminalColor.Cyan"/>.
+    /// </summary>
+    public TerminalColor BarColor { get; set; } = TerminalColor.Cyan;
+
+    /// <summary>
+    /// Color for bar chart values. Default is <see cref="TerminalColor.DarkGray"/>.
+    /// </summary>
+    public TerminalColor BarValueColor { get; set; } = TerminalColor.DarkGray;
 
     private static readonly int[] DistributionSgrColors = [SgrRed, SgrYellow, SgrCyan, SgrGreen, SgrMagenta, SgrBlue];
 
@@ -100,6 +98,7 @@ public class SpectreWriter : IMarkoutFormatter,
 
     void IFieldFormatter.FormatFieldName(TextWriter w, string key, bool bold)
     {
+        // ANSI formatter always bolds field names for visual emphasis
         SgrBold(w, key);
         w.Write(": ");
     }
@@ -281,7 +280,7 @@ public class SpectreWriter : IMarkoutFormatter,
         if (maxTotal == 0) return;
 
         var labelWidth = items.Max(b => b.Label.Length);
-        var barWidth = maxBarWidth ?? (ConsoleWidth - labelWidth - 4);
+        var barWidth = maxBarWidth ?? (TerminalWidth - labelWidth - 4);
         var barScale = barWidth / (double)maxTotal;
         var maxBarChars = uniformBarWidth ? (int)Math.Round(maxTotal * barScale) : 0;
 
@@ -334,13 +333,13 @@ public class SpectreWriter : IMarkoutFormatter,
             var ratio = item.Value / maxValue;
             var fullBlocks = (int)(ratio * maxBarWidth);
             var halfBlock = (ratio * maxBarWidth) - fullBlocks >= 0.5;
-            SgrColor(w, BarColor);
+            Sgr(w, (int)BarColor);
             w.Write(new string('█', fullBlocks));
             if (halfBlock) w.Write('▌');
             SgrReset(w);
             var bw = fullBlocks + (halfBlock ? 1 : 0);
             w.Write(new string(' ', maxBarWidth - bw + 1));
-            SgrColor(w, BarValueColor);
+            Sgr(w, (int)BarValueColor);
             w.Write(FormatHelper.FormatBarValue(item.Value).PadLeft(valueWidth));
             SgrReset(w);
             w.WriteLine();
@@ -354,13 +353,13 @@ public class SpectreWriter : IMarkoutFormatter,
 
     private void FormatRuleTo(TextWriter w, string title)
     {
-        int width = ConsoleWidth;
+        int width = TerminalWidth;
         string padded = $" {title} ";
         int remaining = width - padded.Length;
 
         if (remaining <= 0)
         {
-            SgrColor(w, RuleLabelColor);
+            Sgr(w, (int)RuleLabelColor);
             SgrBold(w, title);
             SgrReset(w);
             return;
@@ -370,7 +369,7 @@ public class SpectreWriter : IMarkoutFormatter,
         int right = remaining - left;
 
         FormatGradientLine(w, left, fadeInward: true);
-        SgrColor(w, RuleLabelColor);
+        Sgr(w, (int)RuleLabelColor);
         SgrBold(w, padded);
         SgrReset(w);
         FormatGradientLine(w, right, fadeInward: false);
@@ -382,14 +381,14 @@ public class SpectreWriter : IMarkoutFormatter,
 
         if (!RuleGradient)
         {
-            SgrColor(w, RuleLineColor);
+            Sgr(w, (int)RuleLineColor);
             w.Write(new string('─', length));
             SgrReset(w);
             return;
         }
 
-        var (r1, g1, b1) = (RuleGradientStart.R, RuleGradientStart.G, RuleGradientStart.B);
-        var (r2, g2, b2) = (RuleGradientEnd.R, RuleGradientEnd.G, RuleGradientEnd.B);
+        var (r1, g1, b1) = RuleGradientStart;
+        var (r2, g2, b2) = RuleGradientEnd;
 
         for (int i = 0; i < length; i++)
         {

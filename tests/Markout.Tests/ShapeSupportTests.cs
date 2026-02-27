@@ -50,10 +50,10 @@ public class ShapeSupportTests
         Console.SetError(errWriter);
         try
         {
-            // DiagramWriter doesn't support tables but state must be tracked
+            // DiagramFormatter doesn't support tables but state must be tracked
             // so WriteTableRow/End don't throw
             var sw = new StringWriter();
-            var orch = MarkoutWriter.Create(sw, new DiagramWriter());
+            var orch = MarkoutWriter.Create(sw, new DiagramFormatter());
             orch.WriteTableStart("Col");
             orch.WriteTableRow("val");
             orch.WriteTableEnd();
@@ -212,9 +212,9 @@ public class ShapeSupportTests
     }
 
     [Fact]
-    public void UnicodeWriter_ImplementsCapabilityInterfaces()
+    public void UnicodeFormatter_ImplementsCapabilityInterfaces()
     {
-        var writer = new UnicodeWriter();
+        var writer = new UnicodeFormatter();
         Assert.True(writer is IMarkoutFormatter);
         Assert.True(writer is IHeadingFormatter);
         Assert.True(writer is IFieldFormatter);
@@ -226,9 +226,9 @@ public class ShapeSupportTests
     }
 
     [Fact]
-    public void DiagramWriter_ImplementsSubsetOfInterfaces()
+    public void DiagramFormatter_ImplementsSubsetOfInterfaces()
     {
-        var writer = new DiagramWriter();
+        var writer = new DiagramFormatter();
         Assert.True(writer is IHeadingFormatter);
         Assert.True(writer is ITreeFormatter);
         Assert.True(writer is IMetricsFormatter);

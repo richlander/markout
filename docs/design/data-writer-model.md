@@ -77,9 +77,9 @@ public abstract class MarkoutWriter
 | **MarkoutWriter** | Plain text baseline | All |
 | **MarkdownFormatter** | GitHub-flavored markdown | All |
 | **OneLineFormatter** | Compact columnar (docker-style) | Tables, Lists, Fields |
-| **UnicodeWriter** | Box-drawing characters | All |
-| **AnsiWriter** | Terminal with color | All |
-| **DiagramWriter** | Visualization specialist | Headings, Trees, Metrics |
+| **UnicodeFormatter** | Box-drawing characters | All |
+| **AnsiFormatter** | Terminal with color | All |
+| **DiagramFormatter** | Visualization specialist | Headings, Trees, Metrics |
 
 ### Shape Support and Fallback
 

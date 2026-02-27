@@ -140,7 +140,7 @@ data relationship. Fails criterion #2 (semantically distinct).
 
 ## Diagram shapes
 
-Future diagram-oriented renderers (extending DiagramWriter):
+Future diagram-oriented renderers (extending DiagramFormatter):
 
 ### FlameGraph — Deferred
 
@@ -151,9 +151,9 @@ to express meaningfully in plain text. Needs more design work.
 
 Sequential labeled time spans. Same multi-renderer concern. Needs more design work.
 
-## SpectreWriter: adopt Spectre widgets for tables
+## SpectreFormatter: adopt Spectre widgets for tables
 
-SpectreWriter currently uses `IAnsiConsole` as a character-level ANSI markup emitter
+SpectreFormatter currently uses `IAnsiConsole` as a character-level ANSI markup emitter
 and hand-renders every shape — tables, trees, bars, breakdowns, rules, panels — with
 manual padding and `█` characters. It uses none of Spectre's built-in widgets (`Table`,
 `BarChart`, `BreakdownChart`, `Tree`, `Rule`, `Panel`).

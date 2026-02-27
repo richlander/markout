@@ -941,12 +941,12 @@ public class MarkoutWriterTests
         Assert.Contains("# Title", sw.ToString());
     }
 
-    // ── UnicodeWriter as orchestrator formatter ──
+    // ── UnicodeFormatter as orchestrator formatter ──
 
     [Fact]
-    public void UnicodeWriter_Orchestrator_WritesHeading()
+    public void UnicodeFormatter_Orchestrator_WritesHeading()
     {
-        var orch = MarkoutWriter.Create(new UnicodeWriter());
+        var orch = MarkoutWriter.Create(new UnicodeFormatter());
 
         var result = orch.WriteHeading(1, "Test");
 
@@ -956,9 +956,9 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void UnicodeWriter_Orchestrator_WritesTable()
+    public void UnicodeFormatter_Orchestrator_WritesTable()
     {
-        var orch = MarkoutWriter.Create(new UnicodeWriter());
+        var orch = MarkoutWriter.Create(new UnicodeFormatter());
 
         var result = orch.WriteTable(["Name", "Age"], [["Alice", "30"]]);
 
@@ -969,9 +969,9 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void UnicodeWriter_Orchestrator_WritesFields()
+    public void UnicodeFormatter_Orchestrator_WritesFields()
     {
-        var orch = MarkoutWriter.Create(new UnicodeWriter());
+        var orch = MarkoutWriter.Create(new UnicodeFormatter());
 
         var result = orch.WriteFields(new MarkoutField("Status", "OK"));
 
@@ -982,9 +982,9 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void UnicodeWriter_Orchestrator_WritesCallout()
+    public void UnicodeFormatter_Orchestrator_WritesCallout()
     {
-        var orch = MarkoutWriter.Create(new UnicodeWriter());
+        var orch = MarkoutWriter.Create(new UnicodeFormatter());
 
         var result = orch.WriteCallout(CalloutSeverity.Warning, "Watch out!");
 
@@ -994,9 +994,9 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void UnicodeWriter_Orchestrator_WritesMetrics()
+    public void UnicodeFormatter_Orchestrator_WritesMetrics()
     {
-        var orch = MarkoutWriter.Create(new UnicodeWriter());
+        var orch = MarkoutWriter.Create(new UnicodeFormatter());
 
         var result = orch.WriteMetrics([new Metric("CPU", 75)]);
 
@@ -1006,9 +1006,9 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void UnicodeWriter_Orchestrator_AllShapesReturn_True()
+    public void UnicodeFormatter_Orchestrator_AllShapesReturn_True()
     {
-        var orch = MarkoutWriter.Create(new UnicodeWriter());
+        var orch = MarkoutWriter.Create(new UnicodeFormatter());
 
         Assert.True(orch.WriteHeading(1, "H1"));
         Assert.True(orch.WriteFields(new MarkoutField("K", "V")));

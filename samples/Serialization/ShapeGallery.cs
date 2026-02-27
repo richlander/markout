@@ -49,7 +49,7 @@ public static class ShapeGallery
             ["Renderer", "Output", "Use Case"],
             [
                 ["MarkdownFormatter", "Markdown", "Documentation, GitHub issues"],
-                ["AnsiWriter", "ANSI terminal", "CLI tools with color"],
+                ["AnsiFormatter", "ANSI terminal", "CLI tools with color"],
                 ["MarkoutWriter", "Plain text", "Log files, piping"],
                 ["OneLineFormatter", "Columnar", "Compact summaries"],
             ]);
@@ -86,7 +86,7 @@ public static class ShapeGallery
             new TreeNode("src", null,
                 new TreeNode("Markout", null, new TreeNode("MarkoutWriter.cs"), new TreeNode("MarkoutShape.cs")),
                 new TreeNode("Markout.SourceGeneration", null, new TreeNode("Parser"), new TreeNode("Emitter")),
-                new TreeNode("Markout.Ansi", null, new TreeNode("AnsiWriter.cs"))),
+                new TreeNode("Markout.Ansi", null, new TreeNode("AnsiFormatter.cs"))),
             new TreeNode("tests", null,
                 new TreeNode("Markout.Tests")));
 
