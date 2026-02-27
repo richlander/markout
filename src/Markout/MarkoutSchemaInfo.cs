@@ -37,19 +37,19 @@ public sealed class MarkoutSchemaInfo
     /// </summary>
     public void WriteTree(System.IO.TextWriter writer)
     {
-        var markout = new MarkdownFormatter(writer);
+        var tree = new TreeWriter(writer);
         
         writer.WriteLine($"{TypeName} (as document)");
-        markout.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsDocument)));
+        tree.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsDocument)));
 
         if (AsTableItem.Count > 0 && HasDifferences())
         {
             writer.WriteLine();
             writer.WriteLine($"{TypeName} (in table)");
-            markout.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsTableItem)));
+            tree.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsTableItem)));
         }
         
-        markout.Flush();
+        writer.Flush();
     }
     
     /// <summary>

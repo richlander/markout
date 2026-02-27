@@ -4,58 +4,14 @@ using Markout.Formatting;
 namespace Markout;
 
 /// <summary>
-/// A MarkoutWriter that renders output as Markdown.
+/// Formatter that renders Markdown output.
 /// Produces # headings, **bold** field names, | pipe tables |, - bullet lists,
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
-public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
+public class MarkdownFormatter : IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter
 {
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
-
-    /// <summary>
-    /// Creates a writer that builds Markdown output in memory with default options.
-    /// Use ToString() to get the result.
-    /// </summary>
-    public MarkdownFormatter() : base()
-    {
-    }
-
-    /// <summary>
-    /// Creates a writer that builds Markdown output in memory with the specified options.
-    /// Use ToString() to get the result.
-    /// </summary>
-    public MarkdownFormatter(MarkoutWriterOptions options) : base(options)
-    {
-    }
-
-    /// <summary>
-    /// Creates a writer that writes Markdown to the specified TextWriter with default options.
-    /// </summary>
-    public MarkdownFormatter(TextWriter writer) : base(writer)
-    {
-    }
-
-    /// <summary>
-    /// Creates a writer that writes Markdown to the specified TextWriter with the specified options.
-    /// </summary>
-    public MarkdownFormatter(TextWriter writer, MarkoutWriterOptions options) : base(writer, options)
-    {
-    }
-
-    /// <summary>
-    /// Creates a writer that writes Markdown to the specified Stream with default options.
-    /// </summary>
-    public MarkdownFormatter(Stream stream) : base(stream)
-    {
-    }
-
-    /// <summary>
-    /// Creates a writer that writes Markdown to the specified Stream with the specified options.
-    /// </summary>
-    public MarkdownFormatter(Stream stream, MarkoutWriterOptions options) : base(stream, options)
-    {
-    }
 
     // ── IHeadingFormatter ──
 
@@ -140,7 +96,7 @@ public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
             foreach (var value in row)
             {
                 w.Write(' ');
-                w.Write(EscapeTableCell(value));
+                w.Write(FormatHelper.EscapeTableCell(value));
                 w.Write(" |");
             }
             w.WriteLine();
@@ -160,7 +116,7 @@ public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
         {
             for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
             {
-                var escaped = EscapeTableCell(row[i]);
+                var escaped = FormatHelper.EscapeTableCell(row[i]);
                 widths[i] = Math.Max(widths[i], escaped.Length);
             }
         }
@@ -192,7 +148,7 @@ public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
             for (int i = 0; i < headers.Length; i++)
             {
                 w.Write(' ');
-                var value = i < row.Length ? EscapeTableCell(row[i]) : "";
+                var value = i < row.Length ? FormatHelper.EscapeTableCell(row[i]) : "";
                 w.Write(value.PadRight(widths[i]));
                 w.Write(" |");
             }
@@ -337,7 +293,7 @@ public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
     {
         // Render as a pipe table: Label | Value
         var headers = new[] { "Label", "Value" };
-        var rows = items.Select(m => new[] { m.Label, FormatBarValue(m.Value) }).ToList();
+        var rows = items.Select(m => new[] { m.Label, FormatHelper.FormatBarValue(m.Value) }).ToList();
         ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);
     }
 

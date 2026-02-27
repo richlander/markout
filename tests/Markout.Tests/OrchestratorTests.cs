@@ -538,7 +538,7 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_Heading()
     {
-        var writer = new MarkdownFormatter();
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter());
         writer.WriteHeading(1, "Title");
         var expected = writer.ToString();
 
@@ -552,7 +552,7 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_Fields()
     {
-        var writer = new MarkdownFormatter();
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter());
         writer.WriteFields(new MarkoutField("A", "1"), new MarkoutField("B", "2"));
         var expected = writer.ToString();
 
@@ -566,7 +566,7 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_Table()
     {
-        var writer = new MarkdownFormatter();
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter());
         writer.WriteTable(["Name", "Age"], [["Alice", "30"]]);
         var expected = writer.ToString();
 
@@ -580,7 +580,7 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_HeadingThenFields()
     {
-        var writer = new MarkdownFormatter();
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter());
         writer.WriteHeading(1, "Title");
         writer.WriteFields(new MarkoutField("K", "V"));
         var expected = writer.ToString();
@@ -596,7 +596,7 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_HeadingThenTable()
     {
-        var writer = new MarkdownFormatter();
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter());
         writer.WriteHeading(2, "Data");
         writer.WriteTable(["X"], [["1"]]);
         var expected = writer.ToString();
@@ -612,7 +612,7 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_ListItems()
     {
-        var writer = new MarkdownFormatter();
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter());
         writer.WriteList("A", "B");
         var expected = writer.ToString();
 
@@ -626,7 +626,7 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_CodeBlock()
     {
-        var writer = new MarkdownFormatter();
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter());
         writer.WriteCodeStart("json");
         writer.WriteCodeEnd();
         var expected = writer.ToString();
@@ -642,7 +642,7 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_Callout()
     {
-        var writer = new MarkdownFormatter();
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter());
         writer.WriteCallout(CalloutSeverity.Note, "Info");
         var expected = writer.ToString();
 

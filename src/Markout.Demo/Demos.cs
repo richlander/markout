@@ -155,7 +155,7 @@ public static class Demos
                 return new TreeNode($"\"{comment}\" — {r.Author} ({r.Rating}★)");
             }) ?? []]));
 
-        var writer = new MarkdownFormatter(output);
+        var writer = new MarkoutOrchestrator(output, new MarkdownFormatter());
         
         writer.WriteHeading(1, "Altra Running Shoes");
         writer.WriteParagraph("This demo shows `List<List<T>>` rendered as a tree. Each shoe shows its reviews, which would be unsupported in table format.");

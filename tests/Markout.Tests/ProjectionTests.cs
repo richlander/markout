@@ -173,7 +173,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name", "TFM"]
             }
         };
-        var writer = new MarkdownFormatter(options);
+        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
         writer.WriteTableStart("Name", "Version", "TFM");
         writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         writer.WriteTableEnd();

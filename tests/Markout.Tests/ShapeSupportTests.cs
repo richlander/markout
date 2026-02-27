@@ -44,7 +44,8 @@ public class ShapeSupportTests
     public void MarkdownFormatter_SupportedShapes_IsAll()
     {
         var writer = new MarkdownFormatter();
-        Assert.Equal(MarkoutShape.All, writer.SupportedShapes);
+        Assert.IsAssignableFrom<IDocumentFormatter>(writer);
+        Assert.IsAssignableFrom<IMetricsFormatter>(writer);
     }
 
     [Fact]

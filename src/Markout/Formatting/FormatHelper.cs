@@ -12,4 +12,20 @@ public static class FormatHelper
     {
         return value == Math.Floor(value) ? ((int)value).ToString() : value.ToString("0.#");
     }
+
+    /// <summary>
+    /// Escapes pipe characters and newlines in a table cell value.
+    /// </summary>
+    public static string EscapeTableCell(string value)
+    {
+        if (value.Contains('|') || value.Contains('\n') || value.Contains('\r'))
+        {
+            return value
+                .Replace("|", "\\|")
+                .Replace("\r\n", " ")
+                .Replace("\n", " ")
+                .Replace("\r", " ");
+        }
+        return value;
+    }
 }

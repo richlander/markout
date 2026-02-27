@@ -13,7 +13,7 @@ public static class ShapeGallery
     /// </summary>
     public static void WriteAllShapes()
     {
-        var writer = new MarkdownFormatter();
+        var writer = new MarkoutOrchestrator(new MarkdownFormatter());
 
         // Identity — heading
         writer.WriteHeading(1, "Shape Gallery");
