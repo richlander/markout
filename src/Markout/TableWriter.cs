@@ -47,7 +47,7 @@ public class TableWriter
     /// <summary>
     /// Writes a complete table with headers and rows.
     /// </summary>
-    public void WriteTable(string[] headers, IList<string[]> rows)
+    public void WriteTable(ReadOnlySpan<string> headers, IList<string[]> rows)
     {
         if (_batchFormatter != null)
         {
@@ -78,13 +78,13 @@ public class TableWriter
     /// <summary>
     /// Starts a streaming table.
     /// </summary>
-    public void WriteTableStart(params string[] headers)
+    public void WriteTableStart(params ReadOnlySpan<string> headers)
     {
         _tableRowCount = 0;
         _tableRowsSkipped = 0;
         _streamingDirect = false;
 
-        _streamingHeaders = headers;
+        _streamingHeaders = headers.ToArray();
 
         if (_streamingFormatter != null)
         {
@@ -100,7 +100,7 @@ public class TableWriter
     /// <summary>
     /// Writes a single table row. Must be between WriteTableStart and WriteTableEnd.
     /// </summary>
-    public void WriteTableRow(params string[] values)
+    public void WriteTableRow(params ReadOnlySpan<string> values)
     {
         if (_streamingHeaders == null) return;
 
@@ -117,7 +117,7 @@ public class TableWriter
         }
         else
         {
-            _streamingRows?.Add(values);
+            _streamingRows?.Add(values.ToArray());
         }
     }
 

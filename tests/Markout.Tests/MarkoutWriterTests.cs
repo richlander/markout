@@ -1045,7 +1045,7 @@ public class MarkoutWriterTests
     /// </summary>
     private class TableOnlyFormatter : IMarkoutFormatter, ITableFormatter
     {
-        void ITableFormatter.FormatTable(TextWriter writer, string[] headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
+        void ITableFormatter.FormatTable(TextWriter writer, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
         {
             writer.Write(string.Join(" | ", headers));
             writer.WriteLine();
@@ -1063,14 +1063,14 @@ public class MarkoutWriterTests
     /// </summary>
     private class StreamingFormatter : IMarkoutFormatter, IStreamingTableFormatter
     {
-        void IStreamingTableFormatter.BeginTable(TextWriter writer, string[] headers, MarkoutWriterOptions options)
+        void IStreamingTableFormatter.BeginTable(TextWriter writer, ReadOnlySpan<string> headers, MarkoutWriterOptions options)
         {
             writer.Write("[BEGIN]");
             writer.Write(string.Join("|", headers));
             writer.WriteLine();
         }
 
-        void IStreamingTableFormatter.WriteRow(TextWriter writer, string[] values)
+        void IStreamingTableFormatter.WriteRow(TextWriter writer, ReadOnlySpan<string> values)
         {
             writer.Write(string.Join("|", values));
             writer.WriteLine();

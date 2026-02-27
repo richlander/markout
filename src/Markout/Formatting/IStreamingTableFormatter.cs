@@ -12,14 +12,14 @@ public interface IStreamingTableFormatter
     /// <param name="writer">The output writer.</param>
     /// <param name="headers">Column headers.</param>
     /// <param name="options">Writer options for format-specific settings.</param>
-    void BeginTable(TextWriter writer, string[] headers, MarkoutWriterOptions options);
+    void BeginTable(TextWriter writer, ReadOnlySpan<string> headers, MarkoutWriterOptions options);
 
     /// <summary>
     /// Called for each data row. The formatter decides padding; the row is written immediately.
     /// </summary>
     /// <param name="writer">The output writer.</param>
     /// <param name="values">Cell values for this row.</param>
-    void WriteRow(TextWriter writer, string[] values);
+    void WriteRow(TextWriter writer, ReadOnlySpan<string> values);
 
     /// <summary>
     /// Called when the table ends. The formatter performs cleanup (trailing rules, skip counts, etc.).

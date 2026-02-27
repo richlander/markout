@@ -114,7 +114,7 @@ public class SpectreWriter : IMarkoutFormatter,
         }
     }
 
-    void ITableFormatter.FormatTable(TextWriter w, string[] headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
+    void ITableFormatter.FormatTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
     {
         var widths = new int[headers.Length];
         for (int i = 0; i < headers.Length; i++)

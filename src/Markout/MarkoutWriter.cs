@@ -475,7 +475,7 @@ public class MarkoutWriter
     /// Starts a streaming table with the given headers.
     /// </summary>
     /// <returns><c>true</c> if the formatter supports tables or streaming tables; <c>false</c> otherwise.</returns>
-    public bool WriteTableStart(params string[] headers)
+    public bool WriteTableStart(params ReadOnlySpan<string> headers)
     {
         if (_inCode)
             throw new InvalidOperationException("Cannot start a table inside a code region.");
@@ -494,20 +494,20 @@ public class MarkoutWriter
             throw new ArgumentException("At least one header is required.", nameof(headers));
 
         _columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headers);
-        var projectedHeaders = _columnMap != null
-            ? MarkoutProjection.ProjectHeaders(headers, _columnMap)
-            : headers;
 
         EnsureBlankLineIfNeeded();
         _tableWriter = CreateTableWriter();
-        _tableWriter.WriteTableStart(projectedHeaders);
+        if (_columnMap != null)
+            _tableWriter.WriteTableStart(MarkoutProjection.ProjectHeaders(headers, _columnMap));
+        else
+            _tableWriter.WriteTableStart(headers);
         return true;
     }
 
     /// <summary>
     /// Writes a table row. Must be between WriteTableStart and WriteTableEnd.
     /// </summary>
-    public void WriteTableRow(params string[] values)
+    public void WriteTableRow(params ReadOnlySpan<string> values)
     {
         if (!_inTable)
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
@@ -515,11 +515,10 @@ public class MarkoutWriter
         if (_sectionExcluded || _tableWriter == null)
             return;
 
-        var projected = _columnMap != null
-            ? MarkoutProjection.ProjectRow(values, _columnMap)
-            : values;
-
-        _tableWriter.WriteTableRow(projected);
+        if (_columnMap != null)
+            _tableWriter.WriteTableRow(MarkoutProjection.ProjectRow(values, _columnMap));
+        else
+            _tableWriter.WriteTableRow(values);
     }
 
     /// <summary>

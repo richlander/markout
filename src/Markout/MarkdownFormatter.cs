@@ -58,7 +58,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
 
     // ── ITableFormatter ──
 
-    void ITableFormatter.FormatTable(TextWriter w, string[] headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
+    void ITableFormatter.FormatTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
     {
         if (options.PrettyTables)
             WritePrettyPipeTable(w, headers, rows, skippedRows);
@@ -66,7 +66,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             WriteCompactPipeTable(w, headers, rows, skippedRows);
     }
 
-    private static void WriteCompactPipeTable(TextWriter w, string[] headers, IList<string[]> rows, int skippedRows)
+    private static void WriteCompactPipeTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows)
     {
         // Header row
         w.Write('|');
@@ -106,7 +106,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             w.WriteLine($"\n... and {skippedRows} more");
     }
 
-    private static void WritePrettyPipeTable(TextWriter w, string[] headers, IList<string[]> rows, int skippedRows)
+    private static void WritePrettyPipeTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows)
     {
         // Calculate column widths
         var widths = new int[headers.Length];
@@ -163,7 +163,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
 
     private int[]? _streamingWidths;
 
-    void IStreamingTableFormatter.BeginTable(TextWriter w, string[] headers, MarkoutWriterOptions options)
+    void IStreamingTableFormatter.BeginTable(TextWriter w, ReadOnlySpan<string> headers, MarkoutWriterOptions options)
     {
         if (options.PrettyTables)
         {
@@ -214,7 +214,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
         }
     }
 
-    void IStreamingTableFormatter.WriteRow(TextWriter w, string[] values)
+    void IStreamingTableFormatter.WriteRow(TextWriter w, ReadOnlySpan<string> values)
     {
         w.Write('|');
         if (_streamingWidths != null)

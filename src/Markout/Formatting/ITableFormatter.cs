@@ -15,5 +15,5 @@ public interface ITableFormatter
     /// <param name="rows">Visible data rows (already truncated by MaxItems).</param>
     /// <param name="skippedRows">Number of rows omitted by MaxItems (0 if none).</param>
     /// <param name="options">Writer options for format-specific settings (e.g., PrettyTables).</param>
-    void FormatTable(TextWriter writer, string[] headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options);
+    void FormatTable(TextWriter writer, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options);
 }
