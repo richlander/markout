@@ -1,3 +1,5 @@
+using Markout.Formatting;
+
 namespace Markout;
 
 /// <summary>
@@ -5,7 +7,9 @@ namespace Markout;
 /// Provides a rich text presentation similar to Spectre but without dependencies or color.
 /// Uses ─│├└╭╮╰╯ for borders, █▆▄▂ for bars, and other Unicode decorations.
 /// </summary>
-public class UnicodeWriter : MarkoutWriter
+public class UnicodeWriter : MarkoutWriter, IMarkoutFormatter,
+    IHeadingFormatter, IFieldFormatter, ITableFormatter, IListFormatter,
+    ICodeBlockFormatter, IBlockFormatter, IMetricsFormatter
 {
     private const int ColumnGap = 2;
     private int _consoleWidth = 80;
@@ -556,5 +560,261 @@ public class UnicodeWriter : MarkoutWriter
 
         NeedsBlankLine = true;
         HasContent = true;
+    }
+
+    // ── Explicit interface implementations (for orchestrator dispatch) ──
+
+    void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
+    {
+        var fullText = string.IsNullOrEmpty(context) ? text : $"{text} ({context})";
+
+        if (level == 1)
+        {
+            string padded = $" {fullText} ";
+            int remaining = ConsoleWidth - padded.Length;
+            if (remaining <= 0)
+            {
+                w.Write(fullText);
+            }
+            else
+            {
+                int left = remaining / 2;
+                int right = remaining - left;
+                w.Write(new string(RuleCharacter, left));
+                w.Write(padded);
+                w.Write(new string(RuleCharacter, right));
+            }
+        }
+        else
+        {
+            w.Write(fullText);
+        }
+    }
+
+    void IFieldFormatter.FormatFieldName(TextWriter w, string key, bool bold)
+    {
+        w.Write(key);
+        w.Write(": ");
+    }
+
+    void IFieldFormatter.FormatFields(TextWriter w, MarkoutField[] fields, bool bold)
+    {
+        for (int i = 0; i < fields.Length; i++)
+        {
+            ((IFieldFormatter)this).FormatFieldName(w, fields[i].Key, bold);
+            w.WriteLine(fields[i].Value);
+        }
+    }
+
+    void ITableFormatter.FormatTable(TextWriter w, string[] headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
+    {
+        var widths = new int[headers.Length];
+        for (int i = 0; i < headers.Length; i++)
+            widths[i] = headers[i].Length;
+        foreach (var row in rows)
+        {
+            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+                widths[i] = Math.Max(widths[i], row[i].Length);
+        }
+
+        // Headers (uppercase)
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var text = headers[i].ToUpperInvariant();
+            if (i < headers.Length - 1)
+                w.Write(text.PadRight(widths[i] + ColumnGap));
+            else
+                w.Write(text);
+        }
+        w.WriteLine();
+
+        // Separator
+        for (int i = 0; i < headers.Length; i++)
+        {
+            if (i < headers.Length - 1)
+                w.Write(new string(RuleCharacter, widths[i]).PadRight(widths[i] + ColumnGap));
+            else
+                w.Write(new string(RuleCharacter, widths[i]));
+        }
+        w.WriteLine();
+
+        // Rows
+        foreach (var row in rows)
+        {
+            for (int i = 0; i < row.Length; i++)
+            {
+                if (i < row.Length - 1)
+                    w.Write(row[i].PadRight(widths[i] + ColumnGap));
+                else
+                    w.Write(row[i]);
+            }
+            w.WriteLine();
+        }
+
+        if (skippedRows > 0)
+        {
+            w.WriteLine();
+            w.Write("... and ");
+            w.Write(skippedRows);
+            w.WriteLine(" more");
+        }
+    }
+
+    void IListFormatter.FormatListItem(TextWriter w, string text)
+    {
+        w.Write("• ");
+        w.WriteLine(text);
+    }
+
+    void IListFormatter.FormatArray(TextWriter w, string key, ReadOnlySpan<string> items, bool bold)
+    {
+        w.Write(key);
+        w.WriteLine(":");
+        foreach (var item in items)
+        {
+            w.Write("  • ");
+            w.WriteLine(item);
+        }
+    }
+
+    void ICodeBlockFormatter.FormatCodeStart(TextWriter w, string? language)
+    {
+        // Unicode writer uses no fencing — just a blank visual separator
+    }
+
+    void ICodeBlockFormatter.FormatCodeEnd(TextWriter w)
+    {
+        // Unicode writer uses no fencing
+    }
+
+    void IBlockFormatter.FormatCallout(TextWriter w, CalloutSeverity severity, string message)
+    {
+        string prefix = severity switch
+        {
+            CalloutSeverity.Note => "ℹ ",
+            CalloutSeverity.Tip => "💡 ",
+            CalloutSeverity.Important => "❗ ",
+            CalloutSeverity.Warning => "⚠ ",
+            CalloutSeverity.Caution => "✖ ",
+            _ => "• "
+        };
+        w.Write(prefix);
+        w.WriteLine(message);
+    }
+
+    void IBlockFormatter.FormatQuotation(TextWriter w, string text)
+    {
+        w.Write("│ ");
+        var lines = text.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (i > 0)
+            {
+                w.WriteLine();
+                w.Write("│ ");
+            }
+            w.Write(lines[i].TrimEnd('\r'));
+        }
+        w.WriteLine();
+    }
+
+    void IBlockFormatter.FormatRule(TextWriter w)
+    {
+        int width = Math.Min(ConsoleWidth, 80);
+        w.WriteLine(new string(RuleCharacter, width));
+    }
+
+    void IBlockFormatter.FormatDescription(TextWriter w, Description item)
+    {
+        w.Write("• ");
+        w.Write(item.Term);
+        if (!string.IsNullOrEmpty(item.Text))
+        {
+            w.Write(" — ");
+            w.Write(item.Text);
+        }
+        w.WriteLine();
+    }
+
+    void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth)
+    {
+        int availableWidth = maxBarWidth ?? (ConsoleWidth - 20);
+        if (availableWidth < 10)
+            availableWidth = 10;
+
+        foreach (var item in items)
+        {
+            int total = item.Segments.Sum(s => s.Count);
+            if (total <= 0)
+                continue;
+
+            w.Write(item.Label.PadRight(15));
+            w.Write(" ");
+
+            foreach (var segment in item.Segments)
+            {
+                double fraction = (double)segment.Count / total;
+                int width = (int)Math.Round(fraction * availableWidth);
+                if (width == 0 && fraction > 0)
+                    width = 1;
+                w.Write(new string(BarCharacter, width));
+            }
+
+            w.WriteLine();
+        }
+    }
+
+    void IMetricsFormatter.FormatMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarWidth)
+    {
+        double maxValue = items.Max(m => m.Value);
+        if (maxValue <= 0)
+            return;
+
+        int maxLabelWidth = items.Max(m => m.Label.Length);
+
+        foreach (var item in items)
+        {
+            double fraction = item.Value / maxValue;
+            int width = (int)Math.Round(fraction * maxBarWidth);
+
+            w.Write(item.Label.PadRight(maxLabelWidth));
+            w.Write(" ");
+            w.Write(new string(BarCharacter, width));
+            w.Write(" ");
+            w.WriteLine(item.Value.ToString());
+        }
+    }
+
+    void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth)
+    {
+        double maxValue = items.Max(m => m.Value);
+        if (maxValue <= 0)
+            return;
+
+        int colWidth = barWidth ?? 8;
+
+        for (int row = maxBarHeight; row > 0; row--)
+        {
+            foreach (var item in items)
+            {
+                double fraction = item.Value / maxValue;
+                int height = (int)Math.Round(fraction * maxBarHeight);
+
+                if (height >= row)
+                    w.Write(new string(BarCharacter, colWidth - 1).PadRight(colWidth));
+                else
+                    w.Write(new string(' ', colWidth));
+            }
+            w.WriteLine();
+        }
+
+        foreach (var item in items)
+        {
+            string label = item.Label;
+            if (label.Length > colWidth - 1)
+                label = label.Substring(0, colWidth - 1);
+            w.Write(label.PadRight(colWidth));
+        }
+        w.WriteLine();
     }
 }

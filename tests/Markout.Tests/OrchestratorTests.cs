@@ -371,105 +371,92 @@ public class OrchestratorTests
         Assert.DoesNotContain("Age", output);
     }
 
-    // ── Field buffering ──
+    // ── Field-to-table cascade ──
 
     [Fact]
-    public void BufferFieldsAsTable_AccumulatesAndFlushes()
+    public void FieldCascade_TableOnlyFormatter_RendersFieldsAsTable()
     {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new TableOnlyFormatter());
+
+        orch.WriteFields(new MarkoutField("A", "1"), new MarkoutField("B", "2"));
+
+        var output = orch.ToString();
+        Assert.Contains("Field", output);
+        Assert.Contains("Value", output);
+        Assert.Contains("A", output);
+        Assert.Contains("B", output);
+    }
+
+    [Fact]
+    public void FieldCascade_FullFormatter_RendersFieldsNatively()
+    {
+        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
 
         orch.WriteFields(new MarkoutField("A", "1"));
-        orch.WriteFields(new MarkoutField("B", "2"));
 
         var output = orch.ToString();
-        // Should be rendered as a Field/Value table
-        Assert.Contains("| Field |", output);
-        Assert.Contains("| Value |", output);
-        Assert.Contains("| A |", output);
-        Assert.Contains("| B |", output);
-    }
-
-    [Fact]
-    public void BufferFieldsAsTable_FlushedAtHeadingBoundary()
-    {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
-
-        orch.WriteFields(new MarkoutField("K1", "V1"));
-        orch.WriteHeading(2, "Next Section");
-
-        var output = orch.ToString();
-        // Buffered fields should appear before the heading
-        Assert.Contains("| K1 |", output);
-        Assert.Contains("| V1 |", output);
-    }
-
-    [Fact]
-    public void BufferFieldsAsTable_WriteFieldsInline_NotBuffered()
-    {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
-
-        orch.WriteFieldsInline(new MarkoutField("A", "1"), new MarkoutField("B", "2"));
-
-        var output = orch.ToString();
-        // Inline fields should be rendered immediately, not buffered
-        Assert.Contains("A: 1 | B: 2", output);
+        // MarkdownWriter implements IFieldFormatter, so fields render as key: value, not as a table
+        Assert.Contains("A:", output);
         Assert.DoesNotContain("| Field |", output);
     }
 
     [Fact]
-    public void BufferFieldsAsTable_WriteFieldsBulleted_Buffers()
+    public void FieldCascade_WriteFieldsInline_FallsBackToTable()
     {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new TableOnlyFormatter());
+
+        orch.WriteFieldsInline(new MarkoutField("A", "1"), new MarkoutField("B", "2"));
+
+        var output = orch.ToString();
+        // No IFieldFormatter, so inline falls back to table
+        Assert.Contains("Field", output);
+        Assert.Contains("A", output);
+    }
+
+    [Fact]
+    public void FieldCascade_WriteFieldsBulleted_FallsBackToTable()
+    {
+        var orch = MarkoutOrchestrator.Create(new TableOnlyFormatter());
 
         orch.WriteFieldsBulleted(new MarkoutField("X", "Y"));
 
         var output = orch.ToString();
-        Assert.Contains("| Field |", output);
-        Assert.Contains("| X |", output);
+        Assert.Contains("Field", output);
+        Assert.Contains("X", output);
     }
 
     [Fact]
-    public void BufferFieldsAsTable_WriteFieldsNumbered_Buffers()
+    public void FieldCascade_WriteFieldsNumbered_FallsBackToTable()
     {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new TableOnlyFormatter());
 
         orch.WriteFieldsNumbered(new MarkoutField("X", "Y"));
 
         var output = orch.ToString();
-        Assert.Contains("| Field |", output);
-        Assert.Contains("| X |", output);
+        Assert.Contains("Field", output);
+        Assert.Contains("X", output);
     }
 
     [Fact]
-    public void BufferFieldsAsTable_WriteField_Buffers()
+    public void FieldCascade_WriteField_FallsBackToTable()
     {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new TableOnlyFormatter());
 
         orch.WriteField("Key", "Val");
 
         var output = orch.ToString();
-        Assert.Contains("| Field |", output);
-        Assert.Contains("| Key |", output);
+        Assert.Contains("Field", output);
+        Assert.Contains("Key", output);
     }
 
     [Fact]
-    public void BufferFieldsAsTable_FlushedAtSectionEnd()
+    public void FieldCascade_MinimalFormatter_ReturnsFalse()
     {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
-        var sw = new StringWriter();
-        var orch = MarkoutOrchestrator.Create(sw, new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MinimalFormatter());
 
-        orch.WriteFields(new MarkoutField("K", "V"));
-        orch.WriteSectionEnd();
+        var result = orch.WriteFields(new MarkoutField("A", "1"));
 
-        var output = sw.ToString();
-        Assert.Contains("| K |", output);
+        Assert.False(result);
     }
 
     // ── MaxItems ──
@@ -680,10 +667,9 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void ToString_FlushesFieldBuffer()
+    public void ToString_RendersFieldOutput()
     {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
 
         orch.WriteFields(new MarkoutField("Key", "Val"));
 
@@ -858,20 +844,251 @@ public class OrchestratorTests
     // ── Flush ──
 
     [Fact]
-    public void Flush_FlushesFieldBuffer()
+    public void Flush_WritesOutputToStream()
     {
-        var options = new MarkoutWriterOptions { BufferFieldsAsTable = true };
         var sw = new StringWriter();
-        var orch = MarkoutOrchestrator.Create(sw, new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(sw, new MarkdownWriter());
 
         orch.WriteFields(new MarkoutField("K", "V"));
         orch.Flush();
 
         var output = sw.ToString();
-        Assert.Contains("| K |", output);
+        Assert.Contains("K", output);
+    }
+
+    // ── Streaming table via IStreamingTableFormatter ──
+
+    [Fact]
+    public void StreamingTable_DirectStreaming_WritesRowsImmediately()
+    {
+        var orch = MarkoutOrchestrator.Create(new StreamingFormatter());
+
+        orch.WriteTableStart("Name", "Age");
+        orch.WriteTableRow("Alice", "30");
+        orch.WriteTableRow("Bob", "25");
+        orch.WriteTableEnd();
+
+        var output = orch.ToString();
+        Assert.Contains("[BEGIN]", output);
+        Assert.Contains("Alice|30", output);
+        Assert.Contains("Bob|25", output);
+        Assert.Contains("[END:0]", output);
+    }
+
+    [Fact]
+    public void StreamingTable_MaxItems_ReportsSkipped()
+    {
+        var options = new MarkoutWriterOptions { MaxItems = 1 };
+        var orch = MarkoutOrchestrator.Create(new StreamingFormatter(), options);
+
+        orch.WriteTableStart("Name");
+        orch.WriteTableRow("Alice");
+        orch.WriteTableRow("Bob");
+        orch.WriteTableRow("Carol");
+        orch.WriteTableEnd();
+
+        var output = orch.ToString();
+        Assert.Contains("Alice", output);
+        Assert.DoesNotContain("Bob", output);
+        Assert.Contains("[END:2]", output);
+    }
+
+    [Fact]
+    public void BatchTable_FallsBackToStreamingFormatter()
+    {
+        var orch = MarkoutOrchestrator.Create(new StreamingFormatter());
+
+        // WriteTable with IEnumerable (non-IList) should use streaming path
+        IEnumerable<string[]> rows = GetRows();
+        orch.WriteTable(["Name"], rows);
+
+        var output = orch.ToString();
+        Assert.Contains("[BEGIN]", output);
+        Assert.Contains("Alice", output);
+        Assert.Contains("[END:0]", output);
+
+        static IEnumerable<string[]> GetRows()
+        {
+            yield return ["Alice"];
+            yield return ["Bob"];
+        }
+    }
+
+    [Fact]
+    public void BatchTable_WithIList_UsesBatchFormatter()
+    {
+        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+
+        // IList<string[]> should take the batch path
+        orch.WriteTable(["Name"], new List<string[]> { new[] { "Alice" } });
+
+        var output = orch.ToString();
+        Assert.Contains("| Name |", output);
+        Assert.Contains("| Alice |", output);
+    }
+
+    // ── IDocumentFormatter aggregate ──
+
+    [Fact]
+    public void DocumentFormatter_MarkdownWriter_ImplementsAggregate()
+    {
+        var writer = new MarkdownWriter();
+        Assert.IsAssignableFrom<IDocumentFormatter>(writer);
+    }
+
+    [Fact]
+    public void DocumentFormatter_WorksAsOrchestratorConstraint()
+    {
+        // Verify MarkdownWriter can be used via IDocumentFormatter
+        var writer = new MarkdownWriter();
+        IDocumentFormatter df = writer;
+
+        var sw = new StringWriter();
+        df.FormatHeading(sw, 1, "Title", null);
+        Assert.Contains("# Title", sw.ToString());
+    }
+
+    // ── UnicodeWriter as orchestrator formatter ──
+
+    [Fact]
+    public void UnicodeWriter_Orchestrator_WritesHeading()
+    {
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+
+        var result = orch.WriteHeading(1, "Test");
+
+        Assert.True(result);
+        var output = orch.ToString();
+        Assert.Contains("Test", output);
+    }
+
+    [Fact]
+    public void UnicodeWriter_Orchestrator_WritesTable()
+    {
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+
+        var result = orch.WriteTable(["Name", "Age"], [["Alice", "30"]]);
+
+        Assert.True(result);
+        var output = orch.ToString();
+        Assert.Contains("NAME", output);
+        Assert.Contains("Alice", output);
+    }
+
+    [Fact]
+    public void UnicodeWriter_Orchestrator_WritesFields()
+    {
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+
+        var result = orch.WriteFields(new MarkoutField("Status", "OK"));
+
+        Assert.True(result);
+        var output = orch.ToString();
+        Assert.Contains("Status", output);
+        Assert.Contains("OK", output);
+    }
+
+    [Fact]
+    public void UnicodeWriter_Orchestrator_WritesCallout()
+    {
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+
+        var result = orch.WriteCallout(CalloutSeverity.Warning, "Watch out!");
+
+        Assert.True(result);
+        var output = orch.ToString();
+        Assert.Contains("Watch out!", output);
+    }
+
+    [Fact]
+    public void UnicodeWriter_Orchestrator_WritesMetrics()
+    {
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+
+        var result = orch.WriteMetrics([new Metric("CPU", 75)]);
+
+        Assert.True(result);
+        var output = orch.ToString();
+        Assert.Contains("CPU", output);
+    }
+
+    [Fact]
+    public void UnicodeWriter_Orchestrator_AllShapesReturn_True()
+    {
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+
+        Assert.True(orch.WriteHeading(1, "H1"));
+        Assert.True(orch.WriteFields(new MarkoutField("K", "V")));
+        Assert.True(orch.WriteTable(["H"], [["V"]]));
+        Assert.True(orch.WriteListItem("item"));
+        Assert.True(orch.WriteCodeStart("csharp"));
+        Assert.True(orch.WriteCodeEnd());
+        Assert.True(orch.WriteCallout(CalloutSeverity.Note, "msg"));
+        Assert.True(orch.WriteRule());
+        Assert.True(orch.WriteBreakdown([new Breakdown("test", [new Segment("a", 1)])]));
+    }
+
+    // ── Cascade field → streaming table ──
+
+    [Fact]
+    public void FieldCascade_StreamingOnlyFormatter_RendersFieldsViaStreaming()
+    {
+        var orch = MarkoutOrchestrator.Create(new StreamingFormatter());
+
+        var result = orch.WriteFields(new MarkoutField("Key", "Val"));
+
+        Assert.True(result);
+        var output = orch.ToString();
+        Assert.Contains("[BEGIN]", output);
+        Assert.Contains("Key|Val", output);
+        Assert.Contains("[END:0]", output);
     }
 
     // ── Helpers ──
+
+    /// <summary>
+    /// A formatter that only implements ITableFormatter — no IFieldFormatter.
+    /// Used to test field-to-table cascade dispatch.
+    /// </summary>
+    private class TableOnlyFormatter : IMarkoutFormatter, ITableFormatter
+    {
+        void ITableFormatter.FormatTable(TextWriter writer, string[] headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
+        {
+            writer.Write(string.Join(" | ", headers));
+            writer.WriteLine();
+            foreach (var row in rows)
+            {
+                writer.Write(string.Join(" | ", row));
+                writer.WriteLine();
+            }
+        }
+    }
+
+    /// <summary>
+    /// A formatter that only implements IStreamingTableFormatter — no batch ITableFormatter.
+    /// Used to test streaming table dispatch and field→streaming cascade.
+    /// </summary>
+    private class StreamingFormatter : IMarkoutFormatter, IStreamingTableFormatter
+    {
+        void IStreamingTableFormatter.BeginTable(TextWriter writer, string[] headers, MarkoutWriterOptions options)
+        {
+            writer.Write("[BEGIN]");
+            writer.Write(string.Join("|", headers));
+            writer.WriteLine();
+        }
+
+        void IStreamingTableFormatter.WriteRow(TextWriter writer, string[] values)
+        {
+            writer.Write(string.Join("|", values));
+            writer.WriteLine();
+        }
+
+        void IStreamingTableFormatter.EndTable(TextWriter writer, int skippedRows)
+        {
+            writer.Write($"[END:{skippedRows}]");
+            writer.WriteLine();
+        }
+    }
 
     /// <summary>
     /// A minimal formatter that only implements IMarkoutFormatter — no capabilities.

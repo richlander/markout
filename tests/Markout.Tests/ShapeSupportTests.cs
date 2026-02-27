@@ -313,13 +313,18 @@ public class ShapeSupportTests
     }
 
     [Fact]
-    public void UnicodeWriter_DoesNotImplementCapabilityInterfaces()
+    public void UnicodeWriter_ImplementsCapabilityInterfaces()
     {
         var tw = new StringWriter();
         var writer = new UnicodeWriter(tw);
-        Assert.False(writer is IHeadingFormatter);
-        Assert.False(writer is IFieldFormatter);
-        Assert.False(writer is ITableFormatter);
+        Assert.True(writer is IMarkoutFormatter);
+        Assert.True(writer is IHeadingFormatter);
+        Assert.True(writer is IFieldFormatter);
+        Assert.True(writer is ITableFormatter);
+        Assert.True(writer is IListFormatter);
+        Assert.True(writer is ICodeBlockFormatter);
+        Assert.True(writer is IBlockFormatter);
+        Assert.True(writer is IMetricsFormatter);
     }
 
     [Fact]

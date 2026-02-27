@@ -9,8 +9,7 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownWriter : MarkoutWriter, IMarkoutFormatter,
-    IHeadingFormatter, IFieldFormatter, ITableFormatter, IListFormatter,
-    ICodeBlockFormatter, IBlockFormatter, IMetricsFormatter
+    IDocumentFormatter, IMetricsFormatter
 {
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
 

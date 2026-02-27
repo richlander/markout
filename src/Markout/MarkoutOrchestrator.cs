@@ -36,12 +36,10 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
     private string[]? _streamingHeaders;
     private List<string[]>? _streamingRows;
     private int[]? _columnMap;
+    private bool _streamingDirect;
 
     // Pending section (deferred until content written)
     private PendingSectionHeading? _pendingSection;
-
-    // Field buffering (when BufferFieldsAsTable is true)
-    private List<MarkoutField>? _fieldBuffer;
 
     /// <summary>
     /// Creates an orchestrator that writes to the specified TextWriter.
@@ -87,7 +85,6 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
         if (level < 1 || level > 6)
             throw new ArgumentOutOfRangeException(nameof(level), "Heading level must be between 1 and 6.");
 
-        FlushFieldBuffer();
         UpdateSectionState(level, text);
 
         if (_sectionExcluded)
@@ -115,7 +112,6 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support headings.</returns>
     public bool WriteSectionStart(int level, string text, string? context = null)
     {
-        FlushFieldBuffer();
         UpdateSectionState(level, text);
 
         if (_sectionExcluded)
@@ -139,7 +135,6 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
     /// </summary>
     public void WriteSectionEnd()
     {
-        FlushFieldBuffer();
         _pendingSection = null;
     }
 
@@ -172,26 +167,22 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
         if (_sectionExcluded)
             return true;
 
-        if (_formatter is not IFieldFormatter)
-            return false;
-
         ReadOnlySpan<MarkoutField> field = [new(key, value)];
         var projected = ProjectFields(field);
         if (projected.Length == 0)
             return true;
 
-        if (_options.BufferFieldsAsTable)
+        // Cascade: IFieldFormatter → ITableFormatter → IStreamingTableFormatter
+        if (_formatter is IFieldFormatter ff)
         {
-            _fieldBuffer ??= [];
-            _fieldBuffer.Add(projected[0]);
+            EnsureBlankLineIfNeeded();
+            ff.FormatFieldName(_writer, projected[0].Key, _options.BoldFieldNames);
+            _writer.WriteLine(projected[0].Value);
+            _hasContent = true;
             return true;
         }
 
-        EnsureBlankLineIfNeeded();
-        ((IFieldFormatter)_formatter).FormatFieldName(_writer, projected[0].Key, _options.BoldFieldNames);
-        _writer.WriteLine(projected[0].Value);
-        _hasContent = true;
-        return true;
+        return RenderFieldsAsTable(projected);
     }
 
     /// <summary>
@@ -203,136 +194,126 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        if (_formatter is not IFieldFormatter ff)
-            return false;
-
         var projected = ProjectFields(fields);
         if (projected.Length == 0)
             return true;
 
-        if (_options.BufferFieldsAsTable)
+        // Cascade: IFieldFormatter → ITableFormatter → IStreamingTableFormatter
+        if (_formatter is IFieldFormatter ff)
         {
-            _fieldBuffer ??= [];
-            for (int i = 0; i < projected.Length; i++)
-                _fieldBuffer.Add(projected[i]);
+            EnsureBlankLineIfNeeded();
+            ff.FormatFields(_writer, projected, _options.BoldFieldNames);
+            _needsBlankLine = true;
+            _hasContent = true;
             return true;
         }
 
-        EnsureBlankLineIfNeeded();
-        ff.FormatFields(_writer, projected, _options.BoldFieldNames);
-        _needsBlankLine = true;
-        _hasContent = true;
-        return true;
+        return RenderFieldsAsTable(projected);
     }
 
     /// <summary>
     /// Writes multiple key-value fields on a single line, separated by pipes.
-    /// Not buffered even when BufferFieldsAsTable is true.
+    /// Falls back to table rendering if the formatter lacks <see cref="IFieldFormatter"/>.
     /// </summary>
-    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support fields.</returns>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support fields or tables.</returns>
     public bool WriteFieldsInline(params ReadOnlySpan<MarkoutField> fields)
     {
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        if (_formatter is not IFieldFormatter ff)
-            return false;
-
         var projected = ProjectFields(fields);
         if (projected.Length == 0)
             return true;
 
-        EnsureBlankLineIfNeeded();
-
-        for (int i = 0; i < projected.Length; i++)
+        // Cascade: IFieldFormatter (inline) → ITableFormatter → IStreamingTableFormatter
+        if (_formatter is IFieldFormatter ff)
         {
-            if (i > 0)
-                _writer.Write(" | ");
-            ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
-            _writer.Write(projected[i].Value);
+            EnsureBlankLineIfNeeded();
+
+            for (int i = 0; i < projected.Length; i++)
+            {
+                if (i > 0)
+                    _writer.Write(" | ");
+                ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
+                _writer.Write(projected[i].Value);
+            }
+
+            _writer.WriteLine();
+            _needsBlankLine = true;
+            _hasContent = true;
+            return true;
         }
 
-        _writer.WriteLine();
-        _needsBlankLine = true;
-        _hasContent = true;
-        return true;
+        return RenderFieldsAsTable(projected);
     }
 
     /// <summary>
     /// Writes multiple key-value fields as a bulleted list.
+    /// Falls back to table rendering if the formatter lacks <see cref="IFieldFormatter"/>.
     /// </summary>
-    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support fields.</returns>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support fields or tables.</returns>
     public bool WriteFieldsBulleted(params ReadOnlySpan<MarkoutField> fields)
     {
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        if (_formatter is not IFieldFormatter ff)
-            return false;
-
         var projected = ProjectFields(fields);
         if (projected.Length == 0)
             return true;
 
-        if (_options.BufferFieldsAsTable)
+        // Cascade: IFieldFormatter (bulleted) → ITableFormatter → IStreamingTableFormatter
+        if (_formatter is IFieldFormatter ff)
         {
-            _fieldBuffer ??= [];
+            EnsureBlankLineIfNeeded();
+
             for (int i = 0; i < projected.Length; i++)
-                _fieldBuffer.Add(projected[i]);
+            {
+                _writer.Write("- ");
+                ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
+                _writer.WriteLine(projected[i].Value);
+            }
+
+            _needsBlankLine = true;
+            _hasContent = true;
             return true;
         }
 
-        EnsureBlankLineIfNeeded();
-
-        for (int i = 0; i < projected.Length; i++)
-        {
-            _writer.Write("- ");
-            ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
-            _writer.WriteLine(projected[i].Value);
-        }
-
-        _needsBlankLine = true;
-        _hasContent = true;
-        return true;
+        return RenderFieldsAsTable(projected);
     }
 
     /// <summary>
     /// Writes multiple key-value fields as a numbered list.
+    /// Falls back to table rendering if the formatter lacks <see cref="IFieldFormatter"/>.
     /// </summary>
-    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support fields.</returns>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support fields or tables.</returns>
     public bool WriteFieldsNumbered(params ReadOnlySpan<MarkoutField> fields)
     {
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        if (_formatter is not IFieldFormatter ff)
-            return false;
-
         var projected = ProjectFields(fields);
         if (projected.Length == 0)
             return true;
 
-        if (_options.BufferFieldsAsTable)
+        // Cascade: IFieldFormatter (numbered) → ITableFormatter → IStreamingTableFormatter
+        if (_formatter is IFieldFormatter ff)
         {
-            _fieldBuffer ??= [];
+            EnsureBlankLineIfNeeded();
+
             for (int i = 0; i < projected.Length; i++)
-                _fieldBuffer.Add(projected[i]);
+            {
+                _writer.Write(i + 1);
+                _writer.Write(". ");
+                ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
+                _writer.WriteLine(projected[i].Value);
+            }
+
+            _needsBlankLine = true;
+            _hasContent = true;
             return true;
         }
 
-        EnsureBlankLineIfNeeded();
-
-        for (int i = 0; i < projected.Length; i++)
-        {
-            _writer.Write(i + 1);
-            _writer.Write(". ");
-            ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
-            _writer.WriteLine(projected[i].Value);
-        }
-
-        _needsBlankLine = true;
-        _hasContent = true;
-        return true;
+        return RenderFieldsAsTable(projected);
     }
 
     /// <summary>
@@ -453,48 +434,64 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
         if (_sectionExcluded)
             return true;
 
-        if (_formatter is not ITableFormatter tf)
-            return false;
-
         var headerArray = headers as string[] ?? headers.ToArray();
-        var rowList = rows as IList<string[]> ?? rows.ToList();
 
         // Apply column projection
         var columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headerArray);
         if (columnMap != null)
-        {
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
-            var projected = new List<string[]>(rowList.Count);
-            foreach (var row in rowList)
-                projected.Add(MarkoutProjection.ProjectRow(row, columnMap));
-            rowList = projected;
+
+        // LINQ-style cascade: batch ITableFormatter (if IList) → IStreamingTableFormatter → materialize + batch ITableFormatter
+        if (_formatter is ITableFormatter tf && rows is IList<string[]> list)
+        {
+            var rowList = ProjectAndTruncateRows(list, columnMap, out int skipped);
+            EnsureBlankLineIfNeeded();
+            tf.FormatTable(_writer, headerArray, rowList, skipped, _options);
+            _needsBlankLine = true;
+            _hasContent = true;
+            return true;
         }
 
-        // Apply MaxItems
-        IList<string[]> visibleRows;
-        int skipped;
-        if (_options.MaxItems is int max && rowList.Count > max)
+        if (_formatter is IStreamingTableFormatter stf)
         {
-            visibleRows = rowList.Take(max).ToList();
-            skipped = rowList.Count - max;
-        }
-        else
-        {
-            visibleRows = rowList;
-            skipped = 0;
+            EnsureBlankLineIfNeeded();
+            stf.BeginTable(_writer, headerArray, _options);
+            int rowCount = 0;
+            int rowsSkipped = 0;
+            foreach (var row in rows)
+            {
+                if (_options.MaxItems is int max2 && rowCount >= max2)
+                {
+                    rowsSkipped++;
+                    continue;
+                }
+                var projected = columnMap != null ? MarkoutProjection.ProjectRow(row, columnMap) : row;
+                stf.WriteRow(_writer, projected);                rowCount++;
+            }
+            stf.EndTable(_writer, rowsSkipped);
+            _needsBlankLine = true;
+            _hasContent = true;
+            return true;
         }
 
-        EnsureBlankLineIfNeeded();
-        tf.FormatTable(_writer, headerArray, visibleRows, skipped, _options);
-        _needsBlankLine = true;
-        _hasContent = true;
-        return true;
+        if (_formatter is ITableFormatter tf2)
+        {
+            var rowList = rows as IList<string[]> ?? rows.ToList();
+            rowList = ProjectAndTruncateRows(rowList, columnMap, out int skipped);
+            EnsureBlankLineIfNeeded();
+            tf2.FormatTable(_writer, headerArray, rowList, skipped, _options);
+            _needsBlankLine = true;
+            _hasContent = true;
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
     /// Starts a streaming table with the given headers.
     /// </summary>
-    /// <returns><c>true</c> if the formatter supports tables; <c>false</c> otherwise.</returns>
+    /// <returns><c>true</c> if the formatter supports tables or streaming tables; <c>false</c> otherwise.</returns>
     public bool WriteTableStart(params string[] headers)
     {
         if (_inCode)
@@ -504,11 +501,12 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
         _tableRowCount = 0;
         _tableRowsSkipped = 0;
         _columnMap = null;
+        _streamingDirect = false;
 
         if (_sectionExcluded)
             return true;
 
-        if (_formatter is not ITableFormatter)
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
             return false;
 
         if (headers.Length == 0)
@@ -518,7 +516,19 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
         _streamingHeaders = _columnMap != null
             ? MarkoutProjection.ProjectHeaders(headers, _columnMap)
             : headers;
-        _streamingRows = [];
+
+        // Cascade: IStreamingTableFormatter (direct) → buffer + ITableFormatter
+        if (_formatter is IStreamingTableFormatter stf)
+        {
+            _streamingDirect = true;
+            EnsureBlankLineIfNeeded();
+            stf.BeginTable(_writer, _streamingHeaders, _options);
+        }
+        else
+        {
+            _streamingRows = [];
+        }
+
         return true;
     }
 
@@ -530,15 +540,24 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
         if (!_inTable)
             throw new InvalidOperationException("Cannot write table row without starting a table first.");
 
-        if (_sectionExcluded || _formatter is not ITableFormatter)
+        if (_sectionExcluded || _streamingHeaders == null)
             return;
 
         if (!ShouldWriteTableRow())
             return;
 
-        _streamingRows?.Add(_columnMap != null
+        var projected = _columnMap != null
             ? MarkoutProjection.ProjectRow(values, _columnMap)
-            : values);
+            : values;
+
+        if (_streamingDirect && _formatter is IStreamingTableFormatter stf)
+        {
+            stf.WriteRow(_writer, projected);
+        }
+        else
+        {
+            _streamingRows?.Add(projected);
+        }
     }
 
     /// <summary>
@@ -548,16 +567,26 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
     {
         _inTable = false;
 
-        if (!_sectionExcluded && _streamingHeaders != null && _formatter is ITableFormatter tf)
+        if (!_sectionExcluded && _streamingHeaders != null)
         {
-            EnsureBlankLineIfNeeded();
-            tf.FormatTable(_writer, _streamingHeaders, _streamingRows ?? [], _tableRowsSkipped, _options);
-            _needsBlankLine = true;
-            _hasContent = true;
+            if (_streamingDirect && _formatter is IStreamingTableFormatter stf)
+            {
+                stf.EndTable(_writer, _tableRowsSkipped);
+                _needsBlankLine = true;
+                _hasContent = true;
+            }
+            else if (_formatter is ITableFormatter tf)
+            {
+                EnsureBlankLineIfNeeded();
+                tf.FormatTable(_writer, _streamingHeaders, _streamingRows ?? [], _tableRowsSkipped, _options);
+                _needsBlankLine = true;
+                _hasContent = true;
+            }
         }
 
         _streamingHeaders = null;
         _streamingRows = null;
+        _streamingDirect = false;
     }
 
     // ── Code blocks ──
@@ -843,17 +872,15 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
     /// </summary>
     public void Flush()
     {
-        FlushFieldBuffer();
         _writer.Flush();
     }
 
     /// <summary>
     /// Returns the generated output. Only valid when using the constructor without a TextWriter.
-    /// Flushes field buffers and trims trailing whitespace.
+    /// Trims trailing whitespace.
     /// </summary>
     public override string ToString()
     {
-        FlushFieldBuffer();
         if (_writer is StringWriter sw)
             return sw.ToString().TrimEnd();
         return base.ToString() ?? "";
@@ -972,25 +999,62 @@ public class MarkoutOrchestrator<TFormatter> where TFormatter : IMarkoutFormatte
         return true;
     }
 
-    private void FlushFieldBuffer()
+    /// <summary>
+    /// Cascade fallback: renders fields as a 2-column Field/Value table.
+    /// Tries ITableFormatter → IStreamingTableFormatter → returns false.
+    /// </summary>
+    private bool RenderFieldsAsTable(MarkoutField[] fields)
     {
-        if (_fieldBuffer == null || _fieldBuffer.Count == 0)
-            return;
+        var headers = new[] { "Field", "Value" };
+        var rows = new List<string[]>(fields.Length);
+        foreach (var field in fields)
+            rows.Add([field.Key, field.Value]);
 
         if (_formatter is ITableFormatter tf)
         {
-            var headers = new[] { "Field", "Value" };
-            var rows = new List<string[]>(_fieldBuffer.Count);
-            foreach (var field in _fieldBuffer)
-                rows.Add([field.Key, field.Value]);
-
             EnsureBlankLineIfNeeded();
             tf.FormatTable(_writer, headers, rows, 0, _options);
             _needsBlankLine = true;
             _hasContent = true;
+            return true;
         }
 
-        _fieldBuffer.Clear();
+        if (_formatter is IStreamingTableFormatter stf)
+        {
+            EnsureBlankLineIfNeeded();
+            stf.BeginTable(_writer, headers, _options);
+            foreach (var row in rows)
+                stf.WriteRow(_writer, row);
+            stf.EndTable(_writer, 0);
+            _needsBlankLine = true;
+            _hasContent = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Projects and truncates rows for batch table rendering.
+    /// </summary>
+    private IList<string[]> ProjectAndTruncateRows(IList<string[]> rowList, int[]? columnMap, out int skipped)
+    {
+        if (columnMap != null)
+        {
+            var projected = new List<string[]>(rowList.Count);
+            foreach (var row in rowList)
+                projected.Add(MarkoutProjection.ProjectRow(row, columnMap));
+            rowList = projected;
+        }
+
+        if (_options.MaxItems is int max && rowList.Count > max)
+        {
+            skipped = rowList.Count - max;
+            return rowList.Take(max).ToList();
+        }
+
+        skipped = 0;
+        return rowList;
     }
 
     internal static string EscapeTableCell(string value)

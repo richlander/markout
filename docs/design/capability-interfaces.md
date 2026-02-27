@@ -189,7 +189,7 @@ public interface IStreamingTableFormatter
     void BeginTable(TextWriter writer, string[] headers, MarkoutWriterOptions options);
 
     /// Called for each data row. Formatter decides padding, row written immediately.
-    void WriteData(TextWriter writer, string[] values);
+    void WriteRow(TextWriter writer, string[] values);
 
     /// Called when the table ends. Formatter performs cleanup.
     void EndTable(TextWriter writer, int skippedRows);
@@ -214,7 +214,7 @@ public bool WriteTable(string[] headers, IEnumerable<string[]> rows)
     {
         stf.BeginTable(_writer, headers, _options);
         foreach (var row in rows)
-            stf.WriteData(_writer, row);
+            stf.WriteRow(_writer, row);
         stf.EndTable(_writer, 0);
         return true;
     }
@@ -313,13 +313,13 @@ All tests pass.
 - 70 orchestrator tests pass alongside all existing tests
 - Existing MarkoutWriter path unchanged (source generator still targets it)
 
-### Phase 3 (next)
-- Add aggregate interfaces (`IDocumentFormatter`)
-- Add `IStreamingTableFormatter` with Begin/Data/End pattern
-- LINQ-style cascade dispatch in orchestrator (field → table fallback)
-- Remove `BufferFieldsAsTable` (cascade makes it unnecessary)
-- UnicodeWriter → UnicodeFormatter (adopts interfaces)
-- DiagramWriter → DiagramFormatter (adopts interfaces)
+### Phase 3 (done)
+- Aggregate `IDocumentFormatter` interface (composes 6 core interfaces)
+- `IStreamingTableFormatter` with BeginTable/WriteRow/EndTable pattern
+- LINQ-style cascade dispatch in orchestrator (field → table → streaming fallback)
+- `BufferFieldsAsTable` removed (cascade makes it unnecessary)
+- UnicodeWriter implements `IMarkoutFormatter` + all capability interfaces
+- 13 new orchestrator tests for cascade, streaming, aggregate, and UnicodeWriter
 
 ### Phase 4 (later)
 - Rename MarkdownWriter → MarkdownFormatter, OneLineWriter → OneLineFormatter
