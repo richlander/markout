@@ -176,6 +176,11 @@ public class MarkdownFormatter : IMarkoutFormatter,
 
     // ── IBlockFormatter ──
 
+    void IBlockFormatter.FormatParagraph(TextWriter w, string text)
+    {
+        w.WriteLine(text);
+    }
+
     void IBlockFormatter.FormatCallout(TextWriter w, CalloutSeverity severity, string message)
     {
         var label = severity switch
@@ -247,6 +252,39 @@ public class MarkdownFormatter : IMarkoutFormatter,
         {
             w.Write("- ");
             w.WriteLine(item);
+        }
+    }
+
+    // ── ITreeFormatter ──
+
+    void ITreeFormatter.FormatTree(TextWriter w, ReadOnlySpan<TreeNode> nodes, MarkoutWriterOptions options)
+    {
+        for (int i = 0; i < nodes.Length; i++)
+            FormatTreeNodeRecursive(w, nodes[i], "", i == nodes.Length - 1, options);
+    }
+
+    void ITreeFormatter.FormatTreeNode(TextWriter w, string text, string prefix)
+    {
+        w.Write(prefix);
+        w.WriteLine(text);
+    }
+
+    private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    {
+        w.Write(prefix);
+        w.Write(isLast ? "└─ " : "├─ ");
+        if (node.Badge != null && options.IncludeBadges)
+        {
+            w.Write(node.Badge);
+            w.Write(' ');
+        }
+        w.WriteLine(node.Text);
+
+        if (node.Children is { Count: > 0 })
+        {
+            var childPrefix = prefix + (isLast ? "   " : "│  ");
+            for (int i = 0; i < node.Children.Count; i++)
+                FormatTreeNodeRecursive(w, node.Children[i], childPrefix, i == node.Children.Count - 1, options);
         }
     }
 

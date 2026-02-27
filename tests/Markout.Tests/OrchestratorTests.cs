@@ -767,16 +767,9 @@ public class OrchestratorTests
         Assert.False(orch.WriteRule());
         Assert.False(orch.WriteBreakdown([new Breakdown("X", [new Segment("A", 1)])]));
         Assert.False(orch.WriteMetrics([new Metric("M", 1)]));
-    }
-
-    [Fact]
-    public void MinimalFormatter_UniversalShapesReturnTrue()
-    {
-        var orch = MarkoutOrchestrator.Create(new MinimalFormatter());
-
-        Assert.True(orch.WriteParagraph("text"));
-        Assert.True(orch.WriteTreeNode("node"));
-        Assert.True(orch.WriteTree(new TreeNode("root")));
+        Assert.False(orch.WriteParagraph("text"));
+        Assert.False(orch.WriteTreeNode("node"));
+        Assert.False(orch.WriteTree(new TreeNode("root")));
     }
 
     // ── WriteFieldsTable ──
@@ -953,7 +946,7 @@ public class OrchestratorTests
     [Fact]
     public void UnicodeWriter_Orchestrator_WritesHeading()
     {
-        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter());
 
         var result = orch.WriteHeading(1, "Test");
 
@@ -965,7 +958,7 @@ public class OrchestratorTests
     [Fact]
     public void UnicodeWriter_Orchestrator_WritesTable()
     {
-        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter());
 
         var result = orch.WriteTable(["Name", "Age"], [["Alice", "30"]]);
 
@@ -978,7 +971,7 @@ public class OrchestratorTests
     [Fact]
     public void UnicodeWriter_Orchestrator_WritesFields()
     {
-        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter());
 
         var result = orch.WriteFields(new MarkoutField("Status", "OK"));
 
@@ -991,7 +984,7 @@ public class OrchestratorTests
     [Fact]
     public void UnicodeWriter_Orchestrator_WritesCallout()
     {
-        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter());
 
         var result = orch.WriteCallout(CalloutSeverity.Warning, "Watch out!");
 
@@ -1003,7 +996,7 @@ public class OrchestratorTests
     [Fact]
     public void UnicodeWriter_Orchestrator_WritesMetrics()
     {
-        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter());
 
         var result = orch.WriteMetrics([new Metric("CPU", 75)]);
 
@@ -1015,7 +1008,7 @@ public class OrchestratorTests
     [Fact]
     public void UnicodeWriter_Orchestrator_AllShapesReturn_True()
     {
-        var orch = MarkoutOrchestrator.Create(new UnicodeWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new UnicodeWriter());
 
         Assert.True(orch.WriteHeading(1, "H1"));
         Assert.True(orch.WriteFields(new MarkoutField("K", "V")));

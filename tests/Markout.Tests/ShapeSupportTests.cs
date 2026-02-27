@@ -116,10 +116,10 @@ public class ShapeSupportTests
             // DiagramWriter doesn't support tables but state must be tracked
             // so WriteTableRow/End don't throw
             var sw = new StringWriter();
-            var writer = new DiagramWriter(sw);
-            writer.WriteTableStart("Col");
-            writer.WriteTableRow("val");
-            writer.WriteTableEnd();
+            var orch = MarkoutOrchestrator.Create(sw, new DiagramWriter());
+            orch.WriteTableStart("Col");
+            orch.WriteTableRow("val");
+            orch.WriteTableEnd();
             // Should not throw, and should produce no table output
             Assert.Equal("", sw.ToString());
         }
@@ -314,8 +314,7 @@ public class ShapeSupportTests
     [Fact]
     public void UnicodeWriter_ImplementsCapabilityInterfaces()
     {
-        var tw = new StringWriter();
-        var writer = new UnicodeWriter(tw);
+        var writer = new UnicodeWriter();
         Assert.True(writer is IMarkoutFormatter);
         Assert.True(writer is IHeadingFormatter);
         Assert.True(writer is IFieldFormatter);
@@ -327,11 +326,14 @@ public class ShapeSupportTests
     }
 
     [Fact]
-    public void DiagramWriter_DoesNotImplementCapabilityInterfaces()
+    public void DiagramWriter_ImplementsSubsetOfInterfaces()
     {
-        var tw = new StringWriter();
-        var writer = new DiagramWriter(tw);
-        Assert.False(writer is IHeadingFormatter);
+        var writer = new DiagramWriter();
+        Assert.True(writer is IHeadingFormatter);
+        Assert.True(writer is ITreeFormatter);
+        Assert.True(writer is IMetricsFormatter);
         Assert.False(writer is ITableFormatter);
+        Assert.False(writer is IFieldFormatter);
+        Assert.False(writer is IBlockFormatter);
     }
 }

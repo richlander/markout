@@ -160,8 +160,11 @@ public class MarkoutOrchestrator
         if (string.IsNullOrEmpty(text) || _sectionExcluded)
             return true;
 
+        if (_formatter is not IBlockFormatter bf)
+            return false;
+
         EnsureBlankLineIfNeeded();
-        _writer.WriteLine(text);
+        bf.FormatParagraph(_writer, text);
         _needsBlankLine = true;
         _hasContent = true;
         return true;
@@ -801,20 +804,22 @@ public class MarkoutOrchestrator
         return true;
     }
 
-    // ── Trees (always succeed — universal shape) ──
+    // ── Trees ──
 
     /// <summary>
     /// Writes a tree node with optional prefix for hierarchy.
     /// </summary>
-    /// <returns><c>true</c> always (trees are universal).</returns>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support trees.</returns>
     public bool WriteTreeNode(string text, string prefix = "")
     {
         if (_sectionExcluded)
             return true;
 
+        if (_formatter is not ITreeFormatter tf)
+            return false;
+
         EnsureBlankLineIfNeeded();
-        _writer.Write(prefix);
-        _writer.WriteLine(text);
+        tf.FormatTreeNode(_writer, text, prefix);
         _hasContent = true;
         return true;
     }
@@ -822,46 +827,19 @@ public class MarkoutOrchestrator
     /// <summary>
     /// Writes a tree structure from a list of TreeNode objects.
     /// </summary>
-    /// <returns><c>true</c> always (trees are universal).</returns>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support trees.</returns>
     public bool WriteTree(params ReadOnlySpan<TreeNode> nodes)
     {
         if (nodes.Length == 0 || _sectionExcluded)
             return true;
 
-        for (int i = 0; i < nodes.Length; i++)
-        {
-            var isLast = i == nodes.Length - 1;
-            WriteTreeNodeRecursive(nodes[i], "", isLast);
-        }
-
-        return true;
-    }
-
-    private void WriteTreeNodeRecursive(TreeNode node, string prefix, bool isLast)
-    {
-        if (_sectionExcluded)
-            return;
+        if (_formatter is not ITreeFormatter tf)
+            return false;
 
         EnsureBlankLineIfNeeded();
-        _writer.Write(prefix);
-        _writer.Write(isLast ? "└─ " : "├─ ");
-        if (node.Badge != null && _options.IncludeBadges)
-        {
-            _writer.Write(node.Badge);
-            _writer.Write(' ');
-        }
-        _writer.WriteLine(node.Text);
+        tf.FormatTree(_writer, nodes, _options);
         _hasContent = true;
-
-        if (node.Children != null && node.Children.Count > 0)
-        {
-            var childPrefix = prefix + (isLast ? "   " : "│  ");
-            for (int i = 0; i < node.Children.Count; i++)
-            {
-                var isChildLast = i == node.Children.Count - 1;
-                WriteTreeNodeRecursive(node.Children[i], childPrefix, isChildLast);
-            }
-        }
+        return true;
     }
 
     // ── Infrastructure ──

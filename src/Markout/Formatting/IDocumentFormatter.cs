@@ -11,4 +11,5 @@ namespace Markout.Formatting;
 /// </remarks>
 public interface IDocumentFormatter :
     IHeadingFormatter, IFieldFormatter, ITableFormatter,
-    IListFormatter, ICodeBlockFormatter, IBlockFormatter { }
+    IListFormatter, ICodeBlockFormatter, IBlockFormatter,
+    ITreeFormatter { }

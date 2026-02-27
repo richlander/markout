@@ -142,12 +142,13 @@ public class OneLineFormatterTests
     }
 
     [Fact]
-    public void WriteParagraph_Suppressed()
+    public void WriteParagraph_ReturnsFalse()
     {
         var sw = new StringWriter();
         var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
-        writer.WriteParagraph("hello");
-        // Paragraphs pass through the orchestrator as plain text
-        Assert.Equal("hello\n", sw.ToString().Replace("\r\n", "\n"));
+        var result = writer.WriteParagraph("hello");
+        // OneLineFormatter doesn't implement IBlockFormatter
+        Assert.False(result);
+        Assert.Equal("", sw.ToString());
     }
 }

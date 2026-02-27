@@ -1,8 +1,7 @@
 namespace Markout;
 
 /// <summary>
-/// Writes tree structures to a TextWriter using ASCII art connectors.
-/// Trees are a universal shape — no formatter interface needed.
+/// Writes tree structures to a TextWriter using box-drawing connectors.
 /// Document state is managed by the caller or <see cref="MarkoutOrchestrator"/>.
 /// </summary>
 public class TreeWriter(TextWriter writer, MarkoutWriterOptions? options = null)

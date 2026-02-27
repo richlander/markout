@@ -7,6 +7,11 @@ namespace Markout.Formatting;
 public interface IBlockFormatter
 {
     /// <summary>
+    /// Renders a paragraph of text.
+    /// </summary>
+    void FormatParagraph(TextWriter writer, string text);
+
+    /// <summary>
     /// Renders a callout/admonition block.
     /// </summary>
     void FormatCallout(TextWriter writer, CalloutSeverity severity, string message);
