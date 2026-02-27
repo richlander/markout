@@ -7,7 +7,7 @@ namespace Markout;
 /// Provides a rich text presentation similar to Spectre but without dependencies or color.
 /// Uses ─│├└╭╮╰╯ for borders, █▆▄▂ for bars, and other Unicode decorations.
 /// </summary>
-public class UnicodeWriter : IMarkoutFormatter,
+public class UnicodeFormatter : IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter
 {
     private const int ColumnGap = 2;

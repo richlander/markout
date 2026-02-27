@@ -63,7 +63,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     {
         "markdown" => new MarkdownFormatter(),
         "oneline" => new OneLineFormatter(),
-        _ => new SpectreWriter(AnsiConsole.Console),
+        _ => new SpectreFormatter(AnsiConsole.Console),
     };
 
     var onelineOptions = format == "oneline"

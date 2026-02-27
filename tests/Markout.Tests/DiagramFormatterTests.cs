@@ -4,12 +4,12 @@ using Markout.Formatting;
 namespace Markout.Tests;
 
 [Collection("ConsoleError")]
-public class DiagramWriterTests
+public class DiagramFormatterTests
 {
     [Fact]
-    public void DiagramWriter_ImplementsExpectedInterfaces()
+    public void DiagramFormatter_ImplementsExpectedInterfaces()
     {
-        var writer = new DiagramWriter();
+        var writer = new DiagramFormatter();
         Assert.IsAssignableFrom<IMarkoutFormatter>(writer);
         Assert.IsAssignableFrom<IHeadingFormatter>(writer);
         Assert.IsAssignableFrom<ITreeFormatter>(writer);
@@ -19,7 +19,7 @@ public class DiagramWriterTests
     [Fact]
     public void WriteTree_Renders()
     {
-        var orch = MarkoutWriter.Create(new DiagramWriter());
+        var orch = MarkoutWriter.Create(new DiagramFormatter());
         orch.WriteTree(
             new TreeNode("Root", null,
                 new TreeNode("Child A"),
@@ -35,7 +35,7 @@ public class DiagramWriterTests
     [Fact]
     public void WriteHeading_Renders()
     {
-        var orch = MarkoutWriter.Create(new DiagramWriter());
+        var orch = MarkoutWriter.Create(new DiagramFormatter());
         orch.WriteHeading(1, "My Diagram");
         Assert.Contains("My Diagram", orch.ToString());
     }
@@ -43,7 +43,7 @@ public class DiagramWriterTests
     [Fact]
     public void WriteTable_ReturnsFalse()
     {
-        var orch = MarkoutWriter.Create(new DiagramWriter());
+        var orch = MarkoutWriter.Create(new DiagramFormatter());
         var result = orch.WriteTable(["Col1"], [["val1"]]);
         Assert.False(result);
         Assert.Equal("", orch.ToString());
@@ -52,7 +52,7 @@ public class DiagramWriterTests
     [Fact]
     public void WriteFields_ReturnsFalse()
     {
-        var orch = MarkoutWriter.Create(new DiagramWriter());
+        var orch = MarkoutWriter.Create(new DiagramFormatter());
         var result = orch.WriteFields(new MarkoutField("Key", "Value"));
         Assert.False(result);
         Assert.Equal("", orch.ToString());
@@ -61,7 +61,7 @@ public class DiagramWriterTests
     [Fact]
     public void WriteMetrics_Renders()
     {
-        var orch = MarkoutWriter.Create(new DiagramWriter());
+        var orch = MarkoutWriter.Create(new DiagramFormatter());
         orch.WriteMetrics([
             new Metric("Toronto", 8),
             new Metric("Vancouver", 3),
@@ -77,7 +77,7 @@ public class DiagramWriterTests
     [Fact]
     public void WriteMetrics_ScalesProportionally()
     {
-        var orch = MarkoutWriter.Create(new DiagramWriter());
+        var orch = MarkoutWriter.Create(new DiagramFormatter());
         orch.WriteMetrics([
             new Metric("Big", 10),
             new Metric("Small", 1),

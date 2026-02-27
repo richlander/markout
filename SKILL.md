@@ -149,22 +149,22 @@ public CodeSection? SourceCode { get; set; }
 // Usage: new CodeSection("csharp", "public class Foo { }")
 ```
 
-## Choosing a Renderer
+## Choosing a Formatter
 
 ```csharp
 // Markdown (default) — documentation, LLM output, reports
 MarkoutSerializer.Serialize(view, Console.Out, context);
 
-// Markdown with writer instance
-MarkoutSerializer.Serialize(view, new MarkdownFormatter(Console.Out), context);
+// Markdown with explicit formatter
+MarkoutSerializer.Serialize(view, Console.Out, new MarkdownFormatter(), context);
 
 // Spectre terminal — colored, interactive
 using Markout.Ansi.Spectre;
 using Spectre.Console;
-MarkoutSerializer.Serialize(view, new SpectreWriter(AnsiConsole.Console), context);
+MarkoutSerializer.Serialize(view, Console.Out, new SpectreFormatter(AnsiConsole.Console), context);
 
 // One-line — compact table, grep-friendly
-MarkoutSerializer.Serialize(view, new OneLineFormatter(Console.Out), context);
+MarkoutSerializer.Serialize(view, Console.Out, new OneLineFormatter(), context);
 
 // One-line with section filter — show only one table
 var options = new MarkoutWriterOptions
@@ -172,10 +172,10 @@ var options = new MarkoutWriterOptions
     IncludeDescription = false,
     IncludeSections = new HashSet<string> { "Results" }
 };
-MarkoutSerializer.Serialize(view, new OneLineFormatter(Console.Out, options), context);
+MarkoutSerializer.Serialize(view, Console.Out, new OneLineFormatter(), context, options);
 
 // Plain text — log files, piped output
-MarkoutSerializer.Serialize(view, new MarkoutWriter(Console.Out), context);
+MarkoutSerializer.Serialize(view, Console.Out, new UnicodeFormatter(), context);
 ```
 
 ## Common Recipe: JSON API to Report

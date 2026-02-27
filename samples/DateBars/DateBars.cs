@@ -29,7 +29,7 @@ var view = new DateProgressView
 
 // Serialize into a Spectre panel via a StringWriter, then frame it
 var sw = new StringWriter();
-MarkoutSerializer.Serialize(view, Console.Out, new SpectreWriter(AnsiConsole.Console), DateBarsContext.Default);
+MarkoutSerializer.Serialize(view, Console.Out, new SpectreFormatter(AnsiConsole.Console), DateBarsContext.Default);
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class DateProgressView

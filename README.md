@@ -218,23 +218,23 @@ new CodeSection("csharp", "public class Foo { }")                 // verbatim co
 
 ## Renderers
 
-Markout ships four renderers. The serializer writes through `MarkoutWriter` — swap the writer, change the output.
+Markout ships four formatters. The serializer writes through `MarkoutWriter` (the orchestrator) — swap the formatter, change the output.
 
-| Renderer | Output | Use case |
+| Formatter | Output | Use case |
 |---|---|---|
 | **MarkdownFormatter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
-| **MarkoutWriter** | Plain text, space-padded | Log files, piped output, terminals without ANSI |
+| **UnicodeFormatter** | Plain text, space-padded | Log files, piped output, terminals without ANSI |
 | **OneLineFormatter** | Tables only, no headings | Compact summaries, grep-friendly output |
-| **DiagramWriter** | Trees and structural diagrams | Dependency graphs, file trees |
+| **DiagramFormatter** | Trees and structural diagrams | Dependency graphs, file trees |
 
 Optional packages:
 
-| Package | Renderer | Use case |
+| Package | Formatter | Use case |
 |---|---|---|
-| **Markout.Ansi** | `AnsiWriter` | Colored terminal output with bold, gradients |
-| **Markout.Ansi.Spectre** | `SpectreWriter` | Rich terminal UI via Spectre.Console |
+| **Markout.Ansi** | `AnsiFormatter` | Colored terminal output with bold, gradients |
+| **Markout.Ansi.Spectre** | `SpectreFormatter` | Rich terminal UI via Spectre.Console |
 
-Renderers declare which shapes they support via `SupportedShapes`. Unsupported shapes are silently skipped — the data is never lost, only the visual sophistication changes.
+Formatters declare which shapes they support by implementing capability interfaces (`ITableFormatter`, `IFieldFormatter`, `ITreeFormatter`, etc.). Unsupported shapes are silently skipped — the data is never lost, only the visual sophistication changes.
 
 ## Templates
 
@@ -278,8 +278,8 @@ template.Bind("commit-table", commitData);
 // Markdown output
 Console.WriteLine(template.Render(new MarkoutWriterOptions { PrettyTables = true }));
 
-// Plain text output — same template, different writer
-var plainWriter = new MarkoutWriter();
+// Plain text output — same template, different formatter
+var plainWriter = new MarkoutWriter(Console.Out, new UnicodeFormatter());
 template.Render(plainWriter);
 ```
 
@@ -330,19 +330,17 @@ var options = new MarkoutWriterOptions
     IncludeSections = new HashSet<string> { "Summary", "Errors" },  // only these sections
     BoldFieldNames = true
 };
-var writer = new MarkdownFormatter(Console.Out, options);
+MarkoutSerializer.Serialize(view, Console.Out, new MarkdownFormatter(), context, options);
 ```
 
-**Layer 3 — Renderer Subclass** (code): Override any shape for custom visual treatment.
+**Layer 3 — Custom Formatter** (code): Implement capability interfaces for custom rendering.
 
 ```csharp
-public class MyWriter : MarkdownFormatter
+public class MyFormatter : IMarkoutFormatter, IFieldFormatter, ITableFormatter
 {
-    protected override void WriteDescription(Description item)
-    {
-        // Custom rendering for descriptions
-        Writer.WriteLine($"{item.Term}: {item.Text}");
-    }
+    // Implement only the interfaces your formatter supports
+    void IFieldFormatter.FormatFieldName(TextWriter w, string key, bool bold) { ... }
+    void ITableFormatter.FormatTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options) { ... }
 }
 ```
 

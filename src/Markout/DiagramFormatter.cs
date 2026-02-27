@@ -6,7 +6,7 @@ namespace Markout;
 /// A formatter for structural and hierarchical visualizations.
 /// Supports headings, trees, and metrics with plain-text rendering.
 /// </summary>
-public class DiagramWriter : IMarkoutFormatter,
+public class DiagramFormatter : IMarkoutFormatter,
     IHeadingFormatter, ITreeFormatter, IMetricsFormatter
 {
     // ── IHeadingFormatter ──
@@ -94,11 +94,11 @@ public class DiagramWriter : IMarkoutFormatter,
 
     void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth, MarkoutWriterOptions options)
     {
-        // DiagramWriter does not render breakdowns
+        // DiagramFormatter does not render breakdowns
     }
 
     void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth, MarkoutWriterOptions options)
     {
-        // DiagramWriter does not render vertical metrics
+        // DiagramFormatter does not render vertical metrics
     }
 }

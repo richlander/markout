@@ -4,10 +4,10 @@ using Microsoft.Extensions.Terminal;
 
 namespace Markout.Tests;
 
-public class AnsiWriterTests
+public class AnsiFormatterTests
 {
     /// <summary>
-    /// Simple ITerminal required by AnsiWriter constructor.
+    /// Simple ITerminal required by AnsiFormatter constructor.
     /// </summary>
     private class CapturingTerminal : ITerminal
     {
@@ -35,7 +35,7 @@ public class AnsiWriterTests
     {
         var sw = new StringWriter();
         var terminal = new CapturingTerminal();
-        var orch = MarkoutWriter.Create(sw, new AnsiWriter(terminal));
+        var orch = MarkoutWriter.Create(sw, new AnsiFormatter(terminal));
         return (orch, sw);
     }
 
@@ -43,7 +43,7 @@ public class AnsiWriterTests
     {
         var sw = new StringWriter();
         var terminal = new CapturingTerminal();
-        var orch = MarkoutWriter.Create(sw, new AnsiWriter(terminal), options);
+        var orch = MarkoutWriter.Create(sw, new AnsiFormatter(terminal), options);
         return (orch, sw);
     }
 

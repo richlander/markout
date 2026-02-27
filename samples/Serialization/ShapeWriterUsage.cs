@@ -58,7 +58,7 @@ public static class ShapeWriterUsage
     public static void RenderMetrics()
     {
         #region RenderMetrics
-        var formatter = new UnicodeWriter();
+        var formatter = new UnicodeFormatter();
         var metrics = new MetricsWriter(Console.Out, formatter);
 
         metrics.WriteMetrics([
