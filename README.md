@@ -76,6 +76,17 @@ public record Artist( ... );
 - Best Known For: Angel, Building a Mystery, Adia
 ```
 
+Or `Numbered`:
+
+```markdown
+# Sarah McLachlan
+
+1. Genre: Pop / Adult Contemporary
+2. Origin: Halifax, Nova Scotia
+3. Debut Year: 1988
+4. Best Known For: Angel, Building a Mystery, Adia
+```
+
 The data model doesn't change — only the attribute controls the shape.
 
 ## Adding Sections and Tables
