@@ -31,8 +31,8 @@ public static class Demos
     /// </summary>
     private static void Simple(TextWriter output)
     {
-        var view = DemoData.GetSimpleView("torin-7");
-        MarkoutSerializer.Serialize(view, output, DemoContext.Default);
+        var data = DemoData.GetSimpleShoe("torin-7");
+        MarkoutSerializer.Serialize(data, output, DemoContext.Default);
     }
 
     /// <summary>
@@ -40,8 +40,8 @@ public static class Demos
     /// </summary>
     private static void ListDemo(TextWriter output)
     {
-        var view = DemoData.GetBulletListView();
-        MarkoutSerializer.Serialize(view, output, DemoContext.Default);
+        var data = DemoData.GetShoeBulletList();
+        MarkoutSerializer.Serialize(data, output, DemoContext.Default);
     }
 
     /// <summary>
@@ -49,8 +49,8 @@ public static class Demos
     /// </summary>
     private static void TableDemo(TextWriter output)
     {
-        var view = DemoData.GetTableView();
-        MarkoutSerializer.Serialize(view, output, DemoContext.Default);
+        var data = DemoData.GetShoeTable();
+        MarkoutSerializer.Serialize(data, output, DemoContext.Default);
     }
 
     /// <summary>
@@ -58,8 +58,8 @@ public static class Demos
     /// </summary>
     private static void Nested(TextWriter output)
     {
-        var view = DemoData.GetDetailView();
-        MarkoutSerializer.Serialize(view, output, DemoContext.Default);
+        var data = DemoData.GetShoeDetail();
+        MarkoutSerializer.Serialize(data, output, DemoContext.Default);
     }
 
     /// <summary>
@@ -67,8 +67,8 @@ public static class Demos
     /// </summary>
     private static void Sections(TextWriter output)
     {
-        var view = DemoData.GetSectionsView("lone-peak-8");
-        MarkoutSerializer.Serialize(view, output, DemoContext.Default);
+        var data = DemoData.GetShoeSections("lone-peak-8");
+        MarkoutSerializer.Serialize(data, output, DemoContext.Default);
     }
 
     /// <summary>
@@ -76,8 +76,8 @@ public static class Demos
     /// </summary>
     private static void Pivot(TextWriter output)
     {
-        var view = DemoData.GetInventoryView("torin-7");
-        MarkoutSerializer.Serialize(view, output, DemoContext.Default);
+        var data = DemoData.GetShoeInventory("torin-7");
+        MarkoutSerializer.Serialize(data, output, DemoContext.Default);
     }
 
     /// <summary>

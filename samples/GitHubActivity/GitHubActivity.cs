@@ -33,7 +33,7 @@ catch (HttpRequestException ex)
 var profile = JsonSerializer.Deserialize(profileJson, GitHubJsonContext.Default.GitHubUser)!;
 var events = JsonSerializer.Deserialize(eventsJson, GitHubJsonContext.Default.ListGitHubEvent) ?? [];
 
-var view = new ActivityView
+var view = new Activity
 {
     Title = profile.Login,
     Name = profile.Name ?? profile.Login,
@@ -90,9 +90,9 @@ static string? RunCommand(string cmd, string args)
 
 // --- View Models ---
 
-[MarkoutSerializable(TitleProperty = nameof(Title), NamingPolicy = NamingPolicy.PascalCaseWords)]
+[MarkoutSerializable(TitleProperty = nameof(Title))]
 [MarkoutSkipNull]
-public record ActivityView
+public record Activity
 {
     [MarkoutIgnore] public string Title { get; init; } = "";
     public string Name { get; init; } = "";
@@ -105,7 +105,7 @@ public record ActivityView
 [MarkoutSerializable]
 public record EventRow(string Type, string Repository, string Date, string Detail);
 
-[MarkoutContext(typeof(ActivityView))]
+[MarkoutContext(typeof(Activity))]
 [MarkoutContext(typeof(EventRow))]
 partial class ActivityContext : MarkoutSerializerContext;
 

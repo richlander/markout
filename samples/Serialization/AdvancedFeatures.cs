@@ -4,7 +4,7 @@ namespace Markout.Samples.Serialization;
 
 #region SkipNullAndDisplayFormat
 [MarkoutSerializable(TitleProperty = nameof(Name))]
-public class ServerView
+public class Server
 {
     public string Name { get; set; } = "";
 
@@ -61,7 +61,7 @@ public class MetricRow
 
 #region ShowWhenAndLink
 [MarkoutSerializable(TitleProperty = nameof(Name), FieldLayout = FieldLayout.Table)]
-public class PackageView
+public class Package
 {
     public string Name { get; set; } = "";
 
@@ -85,10 +85,10 @@ public class PackageView
 }
 #endregion
 
-[MarkoutContext(typeof(ServerView))]
+[MarkoutContext(typeof(Server))]
 [MarkoutContext(typeof(AuditReport))]
 [MarkoutContext(typeof(MetricRow))]
-[MarkoutContext(typeof(PackageView))]
+[MarkoutContext(typeof(Package))]
 public partial class AdvancedContext : MarkoutSerializerContext { }
 
 /// <summary>
@@ -103,7 +103,7 @@ public static class AdvancedFeatures
     public static void SkipNullAndDisplayFormat()
     {
         #region SkipNullAndDisplayFormatUsage
-        var server = new ServerView
+        var server = new Server
         {
             Name = "prod-web-01",
             Region = "us-east-1",
@@ -122,7 +122,7 @@ public static class AdvancedFeatures
         Console.WriteLine();
 
         // With nulls — Region and CpuUsage are omitted
-        var minimal = new ServerView
+        var minimal = new Server
         {
             Name = "staging-01",
             RequestsPerSecond = 50,
@@ -162,7 +162,7 @@ public static class AdvancedFeatures
     public static void ShowWhenAndLinks()
     {
         #region ShowWhenAndLinkUsage
-        var pkg = new PackageView
+        var pkg = new Package
         {
             Name = "dotnet-inspect",
             Homepage = "https://github.com/richlander/dotnet-inspect",
@@ -184,7 +184,7 @@ public static class AdvancedFeatures
         Console.WriteLine();
 
         // With IsVerified=false, IsTool=false — those fields are hidden
-        var basic = new PackageView
+        var basic = new Package
         {
             Name = "SomeLib",
             IsVerified = false,

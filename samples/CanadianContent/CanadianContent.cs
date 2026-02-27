@@ -170,7 +170,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         var (fmt, output) = CreateWriter();
         var show = shows.First(s => s.Title.Contains(titleFragment, StringComparison.OrdinalIgnoreCase));
         var castActors = actors.Where(a => show.CanadianActors.Contains(a.Name)).ToList();
-        var view = new ShowDetailView
+        var view = new ShowDetail
         {
             Title = show.Title,
             Type = show.Type,
@@ -233,7 +233,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     StringWriter FilmographyTrees()
     {
         var (fmt, output) = CreateWriter();
-        var view = new FilmographyTreeView
+        var view = new FilmographyTree
         {
             Title = "Canadian Content — Filmography Trees",
             Filmography = actors
@@ -287,7 +287,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     StringWriter GenreBreakdown()
     {
         var (fmt, output) = CreateWriter();
-        var view = new GenreBreakdownView
+        var view = new GenreBreakdown
         {
             Title = "Canadian Content — Genre Breakdown",
             Breakdown = [new Breakdown("All Shows", shows
@@ -304,7 +304,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     {
         var (fmt, output) = CreateWriter();
         var topActors = actors.Take(3).ToList();
-        var view = new CanConReportView
+        var view = new CanConReport
         {
             Title = "Canadian Content Report",
             Description = "The CRTC's Canadian content regulations require broadcasters to air a minimum percentage of Canadian programming. This report covers top actors, filming locations, and genre distribution.",
@@ -461,7 +461,7 @@ public class LocationSearchResult
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ShowDetailView
+public class ShowDetail
 {
     public string Title { get; set; } = "";
 
@@ -489,7 +489,7 @@ public class ActorFilmography
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class FilmographyTreeView
+public class FilmographyTree
 {
     public string Title { get; set; } = "";
 
@@ -507,7 +507,7 @@ public class ShowsByLocationChart
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class GenreBreakdownView
+public class GenreBreakdown
 {
     public string Title { get; set; } = "";
 
@@ -516,7 +516,7 @@ public class GenreBreakdownView
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
-public class CanConReportView
+public class CanConReport
 {
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
@@ -544,9 +544,9 @@ public class CanConReportView
     public string? Quote { get; set; }
 }
 
-public partial class CanConReportViewMarkoutTypeInfo
+public partial class CanConReportMarkoutTypeInfo
 {
-    partial void OnSerialized(MarkoutWriter writer, CanConReportView value)
+    partial void OnSerialized(MarkoutWriter writer, CanConReport value)
     {
         if (value.Quote != null)
         {
@@ -562,10 +562,10 @@ public partial class CanConReportViewMarkoutTypeInfo
 [MarkoutContext(typeof(CityRow))]
 [MarkoutContext(typeof(ActorSearchResult))]
 [MarkoutContext(typeof(LocationSearchResult))]
-[MarkoutContext(typeof(ShowDetailView))]
+[MarkoutContext(typeof(ShowDetail))]
 [MarkoutContext(typeof(ActorFilmography))]
-[MarkoutContext(typeof(FilmographyTreeView))]
+[MarkoutContext(typeof(FilmographyTree))]
 [MarkoutContext(typeof(ShowsByLocationChart))]
-[MarkoutContext(typeof(GenreBreakdownView))]
-[MarkoutContext(typeof(CanConReportView))]
+[MarkoutContext(typeof(GenreBreakdown))]
+[MarkoutContext(typeof(CanConReport))]
 public partial class CanConContext : MarkoutSerializerContext { }

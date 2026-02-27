@@ -1,6 +1,6 @@
 # Projection
 
-**Projection trims markout output to specific sections, columns, and fields at runtime, without changing view models or source generation.**
+**Projection trims markout output to specific sections, columns, and fields at runtime, without changing models or source generation.**
 
 ## The Problem
 

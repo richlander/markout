@@ -14,7 +14,7 @@ var icon = now.Hour switch
     _ => "🌙"
 };
 
-var view = new DateProgressView
+var view = new DateProgress
 {
     Title = $"{icon}  {now:dddd, MMMM d, yyyy — h:mm tt}",
     Progress =
@@ -32,7 +32,7 @@ var sw = new StringWriter();
 MarkoutSerializer.Serialize(view, Console.Out, new SpectreFormatter(AnsiConsole.Console), DateBarsContext.Default);
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class DateProgressView
+public class DateProgress
 {
     public string Title { get; set; } = "";
 
@@ -40,5 +40,5 @@ public class DateProgressView
     public IReadOnlyList<Breakdown>? Progress { get; set; }
 }
 
-[MarkoutContext(typeof(DateProgressView))]
+[MarkoutContext(typeof(DateProgress))]
 public partial class DateBarsContext : MarkoutSerializerContext { }

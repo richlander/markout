@@ -266,7 +266,7 @@ public class Person
         public LibraryInfoSection? Info { get; set; }
     }
 
-    [MarkoutSerializable(NamingPolicy = NamingPolicy.PascalCaseWords, FieldLayout = FieldLayout.Table)]
+    [MarkoutSerializable(FieldLayout = FieldLayout.Table)]
     [MarkoutSkipNull]
     public class LibraryInfoSection
     {
@@ -282,7 +282,7 @@ public class Person
     }
 
     // Nested object in a collection with NamingPolicy
-    [MarkoutSerializable(NamingPolicy = NamingPolicy.PascalCaseWords)]
+    [MarkoutSerializable]
     public class AttributeRow
     {
         public string Name { get; set; } = "";
@@ -1094,7 +1094,7 @@ public class ParameterRow
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ApiMethodView
+public class ApiMethod
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
     public string Kind { get; set; } = "";
@@ -1103,17 +1103,17 @@ public class ApiMethodView
 }
 
 [MarkoutContext(typeof(ConstructorOverload))]
-[MarkoutContext(typeof(ApiMethodView))]
-[MarkoutContext(typeof(ILView))]
+[MarkoutContext(typeof(ApiMethod))]
+[MarkoutContext(typeof(ILDetail))]
 [MarkoutContext(typeof(VulnerabilityReport))]
-[MarkoutContext(typeof(CtorEmphasisView))]
+[MarkoutContext(typeof(CtorEmphasis))]
 public partial class CodeSectionTestContext : MarkoutSerializerContext
 {
 }
 
 // Sectioned CodeSection: [MarkoutSection] on CodeSection renders heading + code block
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ILView
+public class ILDetail
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
     public string Kind { get; set; } = "";
@@ -1149,7 +1149,7 @@ public class VulnRow
 
 // Nested ctor overloads: List<ConstructorOverload> with CodeSection + table
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class CtorEmphasisView
+public class CtorEmphasis
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
     public string Kind { get; set; } = "";
@@ -1180,7 +1180,7 @@ public partial class DistributionTestContext : MarkoutSerializerContext
 public record ApiMemberRow(string? Select, string Name, string Signature, string? Description);
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class MultiIgnoreView
+public class MultiIgnore
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
 
@@ -1197,7 +1197,7 @@ public class MultiIgnoreView
     public List<ApiMemberRow>? MembersAll { get; set; }
 }
 
-[MarkoutContext(typeof(MultiIgnoreView))]
+[MarkoutContext(typeof(MultiIgnore))]
 public partial class MultiIgnoreTestContext : MarkoutSerializerContext
 {
 }
@@ -1329,7 +1329,7 @@ public class CodeSectionTests
     [Fact]
     public void Serialize_CodeSection_RendersCodeBlock()
     {
-        var view = new ApiMethodView
+        var view = new ApiMethod
         {
             Title = "JsonSerializer.Serialize",
             Kind = "Method",
@@ -1373,7 +1373,7 @@ public class CodeSectionTests
     [Fact]
     public void Serialize_CodeSection_DefaultContent_SkipsBlock()
     {
-        var view = new ApiMethodView
+        var view = new ApiMethod
         {
             Title = "Test",
             Kind = "Method",
@@ -1390,7 +1390,7 @@ public class CodeSectionTests
     [Fact]
     public void Serialize_SectionedCodeSection_RendersHeadingAndCodeBlock()
     {
-        var view = new ILView
+        var view = new ILDetail
         {
             Title = "JsonSerializer.Serialize",
             Kind = "Method",
@@ -1417,7 +1417,7 @@ public class CodeSectionTests
     [Fact]
     public void Serialize_SectionedCodeSection_SkipsWhenDefault()
     {
-        var view = new ILView
+        var view = new ILDetail
         {
             Title = "Test",
             Kind = "Method",
@@ -1482,7 +1482,7 @@ public class CodeSectionTests
     [Fact]
     public void Serialize_NestedCtorOverloads_RendersSubsections()
     {
-        var view = new CtorEmphasisView
+        var view = new CtorEmphasis
         {
             Title = "JsonSerializerOptions",
             Kind = "Class",
@@ -1547,7 +1547,7 @@ public class DistributionTests
         var mdf = MarkoutSerializer.Serialize(summary, DistributionTestContext.Default);
 
         Assert.Contains("# .NET 9", mdf);
-        Assert.Contains("| TotalCves | 12 |", mdf);
+        Assert.Contains("| Total Cves | 12 |", mdf);
         Assert.Contains("## Severity Distribution", mdf);
         Assert.Contains("Jan 2025", mdf);
         Assert.Contains("Feb 2025", mdf);
@@ -1583,7 +1583,7 @@ public class MultiIgnorePropertyTests
     [Fact]
     public void Serialize_IgnoreTwoProperties_ShowsOnlyNameAndSignature()
     {
-        var view = new MultiIgnoreView
+        var view = new MultiIgnore
         {
             Title = "TestType",
             MembersCompact = TestRows
@@ -1600,7 +1600,7 @@ public class MultiIgnorePropertyTests
     [Fact]
     public void Serialize_IgnoreSelect_ShowsNameSignatureDescription()
     {
-        var view = new MultiIgnoreView
+        var view = new MultiIgnore
         {
             Title = "TestType",
             MembersWithDocs = TestRows
@@ -1618,7 +1618,7 @@ public class MultiIgnorePropertyTests
     [Fact]
     public void Serialize_IgnoreDescription_ShowsSelectNameSignature()
     {
-        var view = new MultiIgnoreView
+        var view = new MultiIgnore
         {
             Title = "TestType",
             MembersWithSelect = TestRows
@@ -1636,7 +1636,7 @@ public class MultiIgnorePropertyTests
     [Fact]
     public void Serialize_NoIgnore_ShowsAllColumns()
     {
-        var view = new MultiIgnoreView
+        var view = new MultiIgnore
         {
             Title = "TestType",
             MembersAll = TestRows

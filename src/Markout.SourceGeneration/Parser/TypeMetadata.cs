@@ -53,7 +53,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         bool autoFields = true,
         int autoFieldsCount = 0,
         FieldLayoutKind fieldLayout = FieldLayoutKind.Table,
-        NamingPolicyKind namingPolicy = NamingPolicyKind.Default,
+        NamingPolicyKind namingPolicy = NamingPolicyKind.PascalCaseWords,
         bool skipNullByDefault = false,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
@@ -392,8 +392,8 @@ internal enum FieldLayoutKind
 /// </summary>
 internal enum NamingPolicyKind
 {
-    Default = 0,
-    PascalCaseWords = 1
+    PascalCaseWords = 0,
+    Verbatim = 1
 }
 
 /// <summary>

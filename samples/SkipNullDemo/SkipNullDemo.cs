@@ -4,7 +4,7 @@
 using Markout;
 
 // Only Name and License are set — Repository and Stars are omitted from output
-var pkg = new PackageView
+var pkg = new Package
 {
     Name = "Markout",
     License = "MIT",
@@ -17,7 +17,7 @@ MarkoutSerializer.Serialize(pkg, Console.Out, PackageContext.Default);
 
 [MarkoutSerializable(TitleProperty = nameof(Name))]
 [MarkoutSkipNull]
-public class PackageView
+public class Package
 {
     public string Name { get; set; } = "";
     public string? License { get; set; }
@@ -26,5 +26,5 @@ public class PackageView
     public int? Stars { get; set; }
 }
 
-[MarkoutContext(typeof(PackageView))]
+[MarkoutContext(typeof(Package))]
 public partial class PackageContext : MarkoutSerializerContext { }

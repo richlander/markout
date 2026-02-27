@@ -241,8 +241,8 @@ public class SerializerTests
         var mdf = context.Serialize(audit);
 
         // Should use custom symbols instead of yes/no
-        Assert.Contains("| IsDeterministic | ✓ |", mdf);
-        Assert.Contains("| HasSourceLink | ✗ |", mdf);
+        Assert.Contains("| Is Deterministic | ✓ |", mdf);
+        Assert.Contains("| Has Source Link | ✗ |", mdf);
     }
 
     [Fact]
@@ -582,11 +582,11 @@ public class SerializerTests
         var mdf = MarkoutSerializer.Serialize(status, SkipDefaultTestContext.Default);
 
         Assert.Contains("| Name | Server1 |", mdf);
-        Assert.Contains("| IsOnline |", mdf);
-        Assert.Contains("| ConnectionCount |", mdf);
-        Assert.Contains("| AlertLevel |", mdf);
-        Assert.Contains("| BytesTransferred |", mdf);
-        Assert.Contains("| CpuUsage |", mdf);
+        Assert.Contains("| Is Online |", mdf);
+        Assert.Contains("| Connection Count |", mdf);
+        Assert.Contains("| Alert Level |", mdf);
+        Assert.Contains("| Bytes Transferred |", mdf);
+        Assert.Contains("| Cpu Usage |", mdf);
     }
 
     [Fact]
@@ -596,8 +596,8 @@ public class SerializerTests
         var mdf = MarkoutSerializer.Serialize(status, SkipDefaultLineBreaksContext.Default);
 
         Assert.Contains("Name", mdf);
-        Assert.DoesNotContain("IsOnline", mdf);
-        Assert.DoesNotContain("ConnectionCount", mdf);
+        Assert.DoesNotContain("Is Online", mdf);
+        Assert.DoesNotContain("Connection Count", mdf);
     }
 
     [Fact]
@@ -606,8 +606,8 @@ public class SerializerTests
         var status = new ServerStatusLineBreaks { Name = "Server1", IsOnline = true, ConnectionCount = 5 };
         var mdf = MarkoutSerializer.Serialize(status, SkipDefaultLineBreaksContext.Default);
 
-        Assert.Contains("IsOnline", mdf);
-        Assert.Contains("ConnectionCount", mdf);
+        Assert.Contains("Is Online", mdf);
+        Assert.Contains("Connection Count", mdf);
     }
 
     [Fact]
@@ -617,8 +617,8 @@ public class SerializerTests
         var mdf = MarkoutSerializer.Serialize(status, SkipDefaultListContext.Default);
 
         Assert.Contains("Name", mdf);
-        Assert.DoesNotContain("IsOnline", mdf);
-        Assert.DoesNotContain("ConnectionCount", mdf);
+        Assert.DoesNotContain("Is Online", mdf);
+        Assert.DoesNotContain("Connection Count", mdf);
     }
 
     [Fact]
@@ -627,8 +627,8 @@ public class SerializerTests
         var status = new ServerStatusList { Name = "Server1", IsOnline = true, ConnectionCount = 10 };
         var mdf = MarkoutSerializer.Serialize(status, SkipDefaultListContext.Default);
 
-        Assert.Contains("IsOnline", mdf);
-        Assert.Contains("ConnectionCount", mdf);
+        Assert.Contains("Is Online", mdf);
+        Assert.Contains("Connection Count", mdf);
     }
 
     [Fact]
@@ -857,7 +857,7 @@ public class SerializerTests
     [Fact]
     public void Serialize_TableDisplay_FormatsInTableContext()
     {
-        var view = new InventoryView
+        var view = new Inventory
         {
             Title = "Inventory",
             Items = new()
@@ -891,8 +891,8 @@ public class SerializerTests
         var pkg = new VerifiedPackage { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft", IsTool = false, ToolFormat = "global" };
         var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
 
-        Assert.Contains("| VerifiedBy | Microsoft |", mdf);
-        Assert.DoesNotContain("| ToolFormat |", mdf);
+        Assert.Contains("| Verified By | Microsoft |", mdf);
+        Assert.DoesNotContain("| Tool Format |", mdf);
     }
 
     [Fact]
@@ -901,8 +901,8 @@ public class SerializerTests
         var pkg = new VerifiedPackage { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft", IsTool = false, ToolFormat = "global" };
         var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
 
-        Assert.DoesNotContain("VerifiedBy", mdf);
-        Assert.DoesNotContain("ToolFormat", mdf);
+        Assert.DoesNotContain("Verified By", mdf);
+        Assert.DoesNotContain("Tool Format", mdf);
     }
 
     [Fact]
@@ -911,7 +911,7 @@ public class SerializerTests
         var pkg = new VerifiedPackageOneLine { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft" };
         var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
 
-        Assert.Contains("| VerifiedBy | Microsoft |", mdf);
+        Assert.Contains("| Verified By | Microsoft |", mdf);
     }
 
     [Fact]
@@ -920,7 +920,7 @@ public class SerializerTests
         var pkg = new VerifiedPackageOneLine { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft" };
         var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
 
-        Assert.DoesNotContain("VerifiedBy", mdf);
+        Assert.DoesNotContain("Verified By", mdf);
     }
 
     [Fact]
@@ -929,7 +929,7 @@ public class SerializerTests
         var pkg = new VerifiedPackageList { Name = "MyPkg", IsVerified = true, VerifiedBy = "Microsoft" };
         var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
 
-        Assert.Contains("VerifiedBy: Microsoft", mdf);
+        Assert.Contains("Verified By: Microsoft", mdf);
     }
 
     [Fact]
@@ -938,7 +938,7 @@ public class SerializerTests
         var pkg = new VerifiedPackageList { Name = "MyPkg", IsVerified = false, VerifiedBy = "Microsoft" };
         var mdf = MarkoutSerializer.Serialize(pkg, ShowWhenTestContext.Default);
 
-        Assert.DoesNotContain("VerifiedBy", mdf);
+        Assert.DoesNotContain("Verified By", mdf);
     }
 
     // --- Link tests ---
@@ -993,7 +993,7 @@ public class SerializerTests
     [Fact]
     public void Serialize_Link_InTable()
     {
-        var view = new LinkProjectListView
+        var doc = new ProjectListDocument
         {
             Title = "Projects",
             Projects = new List<LinkProjectRow>
@@ -1002,7 +1002,7 @@ public class SerializerTests
                 new() { Name = "Beta", Url = "https://beta.com" }
             }
         };
-        var mdf = MarkoutSerializer.Serialize(view, LinkTestContext.Default);
+        var mdf = MarkoutSerializer.Serialize(doc, LinkTestContext.Default);
 
         Assert.Contains("[https://alpha.com](https://alpha.com)", mdf);
         Assert.Contains("[https://beta.com](https://beta.com)", mdf);
@@ -1178,7 +1178,7 @@ public class SerializerTests
     [Fact]
     public void Serialize_ScalarSection_MultipleSectionGroups()
     {
-        var view = new MultiSectionView
+        var view = new MultiSection
         {
             Name = "TestView",
             Author = "Alice",
@@ -1204,7 +1204,7 @@ public class SerializerTests
     [Fact]
     public void Serialize_ScalarSection_MixedWithCollectionSection()
     {
-        var view = new MixedSectionView
+        var view = new MixedSection
         {
             Name = "MixedView",
             Downloads = 100,
@@ -1353,7 +1353,7 @@ public class SerializerTests
     [Fact]
     public void Serialize_ScalarSection_ExcludeScalarSection_OtherSectionsRender()
     {
-        var view = new MixedSectionView
+        var view = new MixedSection
         {
             Name = "TestPkg",
             Downloads = 500,
@@ -1374,7 +1374,7 @@ public class SerializerTests
     [Fact]
     public void Serialize_ScalarSection_IncludeScalarSection_OnlyThatSectionRenders()
     {
-        var view = new MixedSectionView
+        var view = new MixedSection
         {
             Name = "TestPkg",
             Downloads = 500,
@@ -1635,8 +1635,8 @@ public partial class AutoFieldsCountTestContext : MarkoutSerializerContext
 {
 }
 
-// Test type for NamingPolicy — PascalCase → space-separated words
-[MarkoutSerializable(NamingPolicy = NamingPolicy.PascalCaseWords)]
+// Test type for NamingPolicy — PascalCase → space-separated words (now the default)
+[MarkoutSerializable]
 public class NamingPolicyTest
 {
     public string AssemblyVersion { get; set; } = "";
@@ -1975,7 +1975,7 @@ public class ItemRow
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
-public class InventoryView
+public class Inventory
 {
     [MarkoutIgnore]
     public string? Title { get; set; }
@@ -1983,7 +1983,7 @@ public class InventoryView
     public List<ItemRow>? Items { get; set; }
 }
 
-[MarkoutContext(typeof(InventoryView))]
+[MarkoutContext(typeof(Inventory))]
 [MarkoutContext(typeof(ItemRow))]
 public partial class TableDisplayTestContext : MarkoutSerializerContext
 {
@@ -2060,7 +2060,7 @@ public class LinkProjectRow
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
-public class LinkProjectListView
+public class ProjectListDocument
 {
     [MarkoutIgnore]
     public string? Title { get; set; }
@@ -2071,7 +2071,7 @@ public class LinkProjectListView
 [MarkoutContext(typeof(LinkProjectInfo))]
 [MarkoutContext(typeof(LinkProjectOneLine))]
 [MarkoutContext(typeof(LinkProjectList))]
-[MarkoutContext(typeof(LinkProjectListView))]
+[MarkoutContext(typeof(ProjectListDocument))]
 [MarkoutContext(typeof(LinkProjectRow))]
 public partial class LinkTestContext : MarkoutSerializerContext
 {
@@ -2101,7 +2101,7 @@ public class PackageWithScalarSection
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
-public class MultiSectionView
+public class MultiSection
 {
     [MarkoutIgnore] public string Name { get; set; } = "";
 
@@ -2121,7 +2121,7 @@ public class MultiSectionView
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Name), AutoFields = false)]
-public class MixedSectionView
+public class MixedSection
 {
     [MarkoutIgnore] public string Name { get; set; } = "";
 
@@ -2203,8 +2203,8 @@ public class FieldCollectionBeforeSections
 }
 
 [MarkoutContext(typeof(PackageWithScalarSection))]
-[MarkoutContext(typeof(MultiSectionView))]
-[MarkoutContext(typeof(MixedSectionView))]
+[MarkoutContext(typeof(MultiSection))]
+[MarkoutContext(typeof(MixedSection))]
 [MarkoutContext(typeof(ConditionalScalarSection))]
 [MarkoutContext(typeof(FormattedScalarSection))]
 [MarkoutContext(typeof(ScalarSectionLineBreaks))]

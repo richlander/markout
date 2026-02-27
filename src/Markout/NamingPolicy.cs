@@ -6,13 +6,14 @@ namespace Markout;
 public enum NamingPolicy
 {
     /// <summary>
-    /// Use the property name as-is (or [MarkoutPropertyName] if specified).
-    /// </summary>
-    Default,
-
-    /// <summary>
     /// Split PascalCase into separate words.
     /// Example: InformationalVersion → "Informational Version", PublicKeyToken → "Public Key Token".
+    /// This is the default.
     /// </summary>
-    PascalCaseWords
+    PascalCaseWords = 0,
+
+    /// <summary>
+    /// Use the property name as-is (or [MarkoutPropertyName] if specified).
+    /// </summary>
+    Verbatim = 1
 }

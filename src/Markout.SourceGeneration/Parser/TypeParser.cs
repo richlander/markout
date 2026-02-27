@@ -140,7 +140,7 @@ internal static class TypeParser
         // Default to OneLine
         fieldLayout ??= FieldLayoutKind.Table;
         // Default naming policy
-        namingPolicy ??= NamingPolicyKind.Default;
+        namingPolicy ??= NamingPolicyKind.PascalCaseWords;
 
         // Check for type-level [MarkoutSkipNull]
         bool skipNullByDefault = typeSymbol.GetAttributes()
@@ -218,7 +218,7 @@ internal static class TypeParser
         KnownTypeSymbols knownTypes,
         List<DiagnosticInfo> diagnostics,
         HashSet<ITypeSymbol>? visitedTypes = null,
-        NamingPolicyKind namingPolicy = NamingPolicyKind.Default,
+        NamingPolicyKind namingPolicy = NamingPolicyKind.PascalCaseWords,
         bool skipNullByDefault = false)
     {
         var isIgnored = HasAttribute(prop, MarkoutIgnoreAttribute);
@@ -706,13 +706,13 @@ internal static class TypeParser
     private static (string? TitleProperty, string? TitleContextProperty, bool AutoFields, FieldLayoutKind FieldLayout, NamingPolicyKind NamingPolicy, bool SkipNullByDefault) GetElementTypeSettings(ITypeSymbol type)
     {
         if (type is not INamedTypeSymbol namedType)
-            return (null, null, true, FieldLayoutKind.Table, NamingPolicyKind.Default, false);
+            return (null, null, true, FieldLayoutKind.Table, NamingPolicyKind.PascalCaseWords, false);
 
         string? titleProperty = null;
         string? titleContextProperty = null;
         bool autoFields = true;
         FieldLayoutKind fieldLayout = FieldLayoutKind.Table;
-        NamingPolicyKind namingPolicy = NamingPolicyKind.Default;
+        NamingPolicyKind namingPolicy = NamingPolicyKind.PascalCaseWords;
 
         var serializableAttr = namedType.GetAttributes()
             .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutSerializableAttribute);
@@ -746,7 +746,7 @@ internal static class TypeParser
         KnownTypeSymbols? knownTypes = null,
         List<DiagnosticInfo>? diagnostics = null,
         HashSet<ITypeSymbol>? visitedTypes = null,
-        NamingPolicyKind namingPolicy = NamingPolicyKind.Default,
+        NamingPolicyKind namingPolicy = NamingPolicyKind.PascalCaseWords,
         bool skipNullByDefault = false)
     {
         var properties = new List<PropertyMetadata>();

@@ -2,14 +2,14 @@
 
 **Markup adds instructions to content. Markout removes structure from data.**
 
-Markout is a source-generated .NET serializer that projects objects into human-readable documents instead of data formats like JSON. You annotate view models with attributes that describe data relationships — identity, enumeration, tabulation, measurement, hierarchy — and the source generator emits code that writes through an abstract renderer. The same object graph produces Markdown tables, ANSI terminal output with colored bars, plain text with aligned columns, or one-line summaries, without the developer making visual decisions.
+Markout is a source-generated .NET serializer that projects objects into human-readable documents instead of data formats like JSON. You annotate your models with attributes that describe data relationships — identity, enumeration, tabulation, measurement, hierarchy — and the source generator emits code that writes through an abstract renderer. The same object graph produces Markdown tables, ANSI terminal output with colored bars, plain text with aligned columns, or one-line summaries, without the developer making visual decisions.
 
 ## Quick Start
 
 ```csharp
 using Markout;
 
-var artist = new ArtistView(
+var artist = new Artist(
     Name: "Sarah McLachlan",
     Genre: "Pop / Adult Contemporary",
     Origin: "Halifax, Nova Scotia",
@@ -18,15 +18,15 @@ var artist = new ArtistView(
 
 MarkoutSerializer.Serialize(artist, Console.Out, ArtistContext.Default);
 
-[MarkoutSerializable(TitleProperty = nameof(ArtistView.Name))]
-public record ArtistView(
+[MarkoutSerializable(TitleProperty = nameof(Artist.Name))]
+public record Artist(
     string Name,
     string Genre,
     string Origin,
     int DebutYear,
     string BestKnownFor);
 
-[MarkoutContext(typeof(ArtistView))]
+[MarkoutContext(typeof(Artist))]
 public partial class ArtistContext : MarkoutSerializerContext { }
 ```
 
@@ -35,7 +35,7 @@ public partial class ArtistContext : MarkoutSerializerContext { }
 ```markdown
 # Sarah McLachlan
 
-Genre: Pop / Adult Contemporary | Origin: Halifax, Nova Scotia | DebutYear: 1988 | BestKnownFor: Angel, Building a Mystery, Adia
+Genre: Pop / Adult Contemporary | Origin: Halifax, Nova Scotia | Debut Year: 1988 | Best Known For: Angel, Building a Mystery, Adia
 ```
 
 Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as fields.
@@ -90,11 +90,11 @@ Population: 2632000
 
 ## Real-World Example: GitHub Repository Report
 
-The [GitHubRepo](samples/GitHubRepo) sample fetches four GitHub API endpoints in parallel and projects the combined JSON into a single report — fields, bar charts, contributor metrics, and release tables — all from one view model:
+The [GitHubRepo](samples/GitHubRepo) sample fetches four GitHub API endpoints in parallel and projects the combined JSON into a single report — fields, bar charts, contributor metrics, and release tables — all from one model:
 
 ```csharp
 [MarkoutSerializable(TitleProperty = nameof(Title), DescriptionProperty = nameof(Description))]
-public class RepoView
+public class RepoInfo
 {
     public string Title { get; set; } = "";
 
@@ -174,7 +174,7 @@ Stars: 17,698 | Forks: 5,350 | Open Issues: 8,385 | Language: C# | License: MIT 
 | v9.0.13 | v9.0.13     | 2026-02-10 |
 ```
 
-**One-line output** — same view model, `--oneline` flag, shows the Releases table only:
+**One-line output** — same model, `--oneline` flag, shows the Releases table only:
 
 ```text
 TAG      NAME         PUBLISHED
@@ -183,11 +183,11 @@ v9.0.13  v9.0.13      2026-02-10
 v10.0.3  .NET 10.0.3  2026-02-10
 ```
 
-The pattern is always the same: deserialize your API data, project to a view model, serialize. Markout handles the rest.
+The pattern is always the same: deserialize your API data, project to a model, serialize. Markout handles the rest.
 
 ## Shape Library
 
-Each property on a view model maps to a data relationship, not a visual element. Renderers decide how to present each shape.
+Each property on a model maps to a data relationship, not a visual element. Renderers decide how to present each shape.
 
 | Relationship | C# type | What it means | Markdown | ANSI |
 |---|---|---|---|---|
@@ -355,7 +355,7 @@ The package includes the source generator — no additional packages needed.
 ## Samples
 
 - **[HelloMarkout](samples/HelloMarkout)** — Simplest possible example: a class, a context, one line of serialization
-- **[RecordDemo](samples/RecordDemo)** — Records as view models
+- **[RecordDemo](samples/RecordDemo)** — Records as data models
 - **[GitHubRepo](samples/GitHubRepo)** — GitHub API → fields, breakdowns, metrics, and tables with Spectre/Markdown/OneLineFormatter output
 - **[GitHubActivity](samples/GitHubActivity)** — User profile and recent events from the GitHub API
 - **[CanadianContent](samples/CanadianContent)** — Canadian actors and shows with tables, trees, metrics, and multiple renderers
@@ -370,7 +370,7 @@ If you are an LLM or coding agent building a CLI tool that needs structured, rea
 
 ## Real-World Usage
 
-Markout was created for [dotnet-inspect](https://github.com/richlander/dotnet-inspect), which uses all ten data relationships across 49 view models to generate API inspection reports, diff analysis, dependency trees, and security summaries.
+Markout was created for [dotnet-inspect](https://github.com/richlander/dotnet-inspect), which uses all ten data relationships across 49 models to generate API inspection reports, diff analysis, dependency trees, and security summaries.
 
 ## Documentation
 

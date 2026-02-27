@@ -1,6 +1,6 @@
 using Markout;
 
-var city = new CityView
+var city = new City
 {
     Name = "Vancouver",
     Country = "Canada",
@@ -14,7 +14,7 @@ var city = new CityView
 MarkoutSerializer.Serialize(city, Console.Out, CityContext.Default);
 
 [MarkoutSerializable(TitleProperty = nameof(Name))]
-public class CityView
+public class City
 {
     public string Name { get; set; } = "";
     public string Country { get; set; } = "";
@@ -36,5 +36,5 @@ public class CityView
     public double Temperature { get; set; }
 }
 
-[MarkoutContext(typeof(CityView))]
+[MarkoutContext(typeof(City))]
 public partial class CityContext : MarkoutSerializerContext { }
