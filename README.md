@@ -35,10 +35,48 @@ public partial class ArtistContext : MarkoutSerializerContext { }
 ```markdown
 # Sarah McLachlan
 
+| Field | Value |
+| ----- | ----- |
+| Genre | Pop / Adult Contemporary |
+| Origin | Halifax, Nova Scotia |
+| Debut Year | 1988 |
+| Best Known For | Angel, Building a Mystery, Adia |
+```
+
+Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as a field table.
+
+## Field Layouts
+
+The same model renders differently with `FieldLayout`. The default is a two-column table. Switch to `Inline` for a compact summary line:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Artist.Name), FieldLayout = FieldLayout.Inline)]
+public record Artist( ... );
+```
+
+```markdown
+# Sarah McLachlan
+
 Genre: Pop / Adult Contemporary | Origin: Halifax, Nova Scotia | Debut Year: 1988 | Best Known For: Angel, Building a Mystery, Adia
 ```
 
-Three things: a record, a context, one line of serialization. The `TitleProperty` becomes a heading; everything else renders as fields.
+Or `Bulleted` for a list:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Artist.Name), FieldLayout = FieldLayout.Bulleted)]
+public record Artist( ... );
+```
+
+```markdown
+# Sarah McLachlan
+
+- Genre: Pop / Adult Contemporary
+- Origin: Halifax, Nova Scotia
+- Debut Year: 1988
+- Best Known For: Angel, Building a Mystery, Adia
+```
+
+The data model doesn't change — only the attribute controls the shape.
 
 ## Adding Sections and Tables
 
