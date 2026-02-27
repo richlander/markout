@@ -325,8 +325,13 @@ All tests pass.
 - Rename MarkdownWriter → MarkdownFormatter, OneLineWriter → OneLineFormatter
 - Updated all references in both markout and dotnet-inspect repos
 
-### Phase 4b (later)
+### Phase 4b (done)
 - Update serializer to target orchestrator
 - Source generator emits orchestrator API
+- AnsiWriter + SpectreWriter implement IMarkoutFormatter (pure ANSI to TextWriter)
+- MarkoutSerializerContext gains IMarkoutFormatter + TextWriter overloads
+- OneLineFormatter parameterless constructor for orchestrator model
+
+### Phase 4c (later)
 - Remove MarkoutWriter base class entirely
 - `SupportedShapes` flags enum removed (interfaces are the capability model)
