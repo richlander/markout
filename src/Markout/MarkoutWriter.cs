@@ -34,7 +34,7 @@ public class MarkoutWriter
     private PendingSectionHeading? _pendingSection;
 
     /// <summary>
-    /// Creates an orchestrator that writes to the specified TextWriter.
+    /// Creates a writer that writes to the specified TextWriter.
     /// </summary>
     public MarkoutWriter(TextWriter writer, IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
     {
@@ -48,7 +48,7 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Creates an orchestrator that builds output in memory. Use ToString() to get the result.
+    /// Creates a writer that builds output in memory. Use ToString() to get the result.
     /// </summary>
     public MarkoutWriter(IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
         : this(new StringWriter(), formatter, options)
@@ -150,7 +150,7 @@ public class MarkoutWriter
     /// <summary>
     /// Writes a paragraph of text.
     /// </summary>
-    /// <returns><c>true</c> always (paragraphs are universal).</returns>
+    /// <returns><c>true</c> if rendered; <c>false</c> if the formatter lacks paragraph support.</returns>
     public bool WriteParagraph(string? text)
     {
         if (string.IsNullOrEmpty(text) || _sectionExcluded)
@@ -943,23 +943,10 @@ public class MarkoutWriter
         return true;
     }
 
-    internal static string EscapeTableCell(string value)
-    {
-        if (value.Contains('|') || value.Contains('\n') || value.Contains('\r'))
-        {
-            return value
-                .Replace("|", "\\|")
-                .Replace("\r\n", " ")
-                .Replace("\n", " ")
-                .Replace("\r", " ");
-        }
-        return value;
-    }
-
     // ── Static factories ──
 
     /// <summary>
-    /// Creates a generic orchestrator that writes to the specified TextWriter.
+    /// Creates a generic writer that writes to the specified TextWriter.
     /// The generic type enables JIT devirtualization of capability checks.
     /// </summary>
     public static MarkoutWriter<TFormatter> Create<TFormatter>(
@@ -968,7 +955,7 @@ public class MarkoutWriter
         => new(writer, formatter, options);
 
     /// <summary>
-    /// Creates a generic orchestrator that builds output in memory. Use ToString() to get the result.
+    /// Creates a generic writer that builds output in memory. Use ToString() to get the result.
     /// </summary>
     public static MarkoutWriter<TFormatter> Create<TFormatter>(
         TFormatter formatter, MarkoutWriterOptions? options = null)
@@ -977,14 +964,14 @@ public class MarkoutWriter
 }
 
 /// <summary>
-/// Generic orchestrator subclass that preserves the concrete formatter type for
+/// Generic writer subclass that preserves the concrete formatter type for
 /// JIT devirtualization of <c>_formatter is IHeadingFormatter</c> checks.
 /// </summary>
 /// <typeparam name="TFormatter">The concrete formatter type.</typeparam>
 public class MarkoutWriter<TFormatter> : MarkoutWriter where TFormatter : IMarkoutFormatter
 {
     /// <summary>
-    /// Creates an orchestrator that writes to the specified TextWriter.
+    /// Creates a writer that writes to the specified TextWriter.
     /// </summary>
     public MarkoutWriter(TextWriter writer, TFormatter formatter, MarkoutWriterOptions? options = null)
         : base(writer, formatter, options)
@@ -992,7 +979,7 @@ public class MarkoutWriter<TFormatter> : MarkoutWriter where TFormatter : IMarko
     }
 
     /// <summary>
-    /// Creates an orchestrator that builds output in memory. Use ToString() to get the result.
+    /// Creates a writer that builds output in memory. Use ToString() to get the result.
     /// </summary>
     public MarkoutWriter(TFormatter formatter, MarkoutWriterOptions? options = null)
         : base(formatter, options)

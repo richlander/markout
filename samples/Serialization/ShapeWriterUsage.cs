@@ -18,7 +18,7 @@ public static class ShapeWriterUsage
     {
         #region RenderTable
         var formatter = new MarkdownFormatter();
-        var table = new TableWriter(Console.Out, formatter);
+        var table = new TableWriter(Console.Out, (ITableFormatter)formatter);
 
         table.WriteTable(
             ["Package", "Version", "License"],
@@ -41,7 +41,7 @@ public static class ShapeWriterUsage
     public static void RenderStreamingTable()
     {
         #region RenderStreamingTable
-        var formatter = new OneLineFormatter();
+        var formatter = new MarkdownFormatter();
         var table = new TableWriter(Console.Out, (IStreamingTableFormatter)formatter);
 
         table.WriteTableStart("Name", "Status");

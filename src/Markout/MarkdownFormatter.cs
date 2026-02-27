@@ -9,7 +9,7 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter
+    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter
 {
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
 
@@ -155,6 +155,93 @@ public class MarkdownFormatter : IMarkoutFormatter,
             w.WriteLine();
         }
 
+        if (skippedRows > 0)
+            w.WriteLine($"\n... and {skippedRows} more");
+    }
+
+    // ── IStreamingTableFormatter ──
+
+    private int[]? _streamingWidths;
+
+    void IStreamingTableFormatter.BeginTable(TextWriter w, string[] headers, MarkoutWriterOptions options)
+    {
+        if (options.PrettyTables)
+        {
+            _streamingWidths = new int[headers.Length];
+            for (int i = 0; i < headers.Length; i++)
+                _streamingWidths[i] = headers[i].Length;
+
+            w.Write('|');
+            for (int i = 0; i < headers.Length; i++)
+            {
+                w.Write(' ');
+                w.Write(headers[i].PadRight(_streamingWidths[i]));
+                w.Write(" |");
+            }
+            w.WriteLine();
+
+            w.Write('|');
+            for (int i = 0; i < headers.Length; i++)
+            {
+                w.Write(' ');
+                w.Write(new string('-', _streamingWidths[i]));
+                w.Write(" |");
+            }
+            w.WriteLine();
+        }
+        else
+        {
+            _streamingWidths = null;
+
+            w.Write('|');
+            foreach (var header in headers)
+            {
+                w.Write(' ');
+                w.Write(header);
+                w.Write(" |");
+            }
+            w.WriteLine();
+
+            w.Write('|');
+            foreach (var header in headers)
+            {
+                w.Write(' ');
+                for (int i = 0; i < header.Length; i++)
+                    w.Write('-');
+                w.Write(" |");
+            }
+            w.WriteLine();
+        }
+    }
+
+    void IStreamingTableFormatter.WriteRow(TextWriter w, string[] values)
+    {
+        w.Write('|');
+        if (_streamingWidths != null)
+        {
+            for (int i = 0; i < _streamingWidths.Length; i++)
+            {
+                w.Write(' ');
+                var value = i < values.Length ? FormatHelper.EscapeTableCell(values[i]) : "";
+                w.Write(value.PadRight(_streamingWidths[i]));
+                w.Write(" |");
+            }
+        }
+        else
+        {
+            foreach (var value in values)
+            {
+                w.Write(' ');
+                w.Write(FormatHelper.EscapeTableCell(value));
+                w.Write(" |");
+            }
+        }
+        w.WriteLine();
+    }
+
+    void IStreamingTableFormatter.EndTable(TextWriter w, int skippedRows)
+    {
+        _streamingWidths = null;
         if (skippedRows > 0)
             w.WriteLine($"\n... and {skippedRows} more");
     }
