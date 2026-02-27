@@ -6,7 +6,7 @@ namespace Markout;
 /// Writes key-value fields to a TextWriter using a field formatter.
 /// Handles projection (include/exclude fields) and layout variants
 /// (standard, inline, bulleted, numbered). Document state is managed
-/// by the caller or <see cref="MarkoutOrchestrator"/>.
+/// by the caller or <see cref="MarkoutWriter"/>.
 /// </summary>
 public class FieldWriter(TextWriter writer, IFieldFormatter formatter, MarkoutWriterOptions? options = null)
 {

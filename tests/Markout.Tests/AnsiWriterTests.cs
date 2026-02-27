@@ -31,19 +31,19 @@ public class AnsiWriterTests
 
     private const string SetBold = "\x1b[1m";
 
-    private static (MarkoutOrchestrator orch, StringWriter output) Create()
+    private static (MarkoutWriter orch, StringWriter output) Create()
     {
         var sw = new StringWriter();
         var terminal = new CapturingTerminal();
-        var orch = MarkoutOrchestrator.Create(sw, new AnsiWriter(terminal));
+        var orch = MarkoutWriter.Create(sw, new AnsiWriter(terminal));
         return (orch, sw);
     }
 
-    private static (MarkoutOrchestrator orch, StringWriter output) Create(MarkoutWriterOptions options)
+    private static (MarkoutWriter orch, StringWriter output) Create(MarkoutWriterOptions options)
     {
         var sw = new StringWriter();
         var terminal = new CapturingTerminal();
-        var orch = MarkoutOrchestrator.Create(sw, new AnsiWriter(terminal), options);
+        var orch = MarkoutWriter.Create(sw, new AnsiWriter(terminal), options);
         return (orch, sw);
     }
 

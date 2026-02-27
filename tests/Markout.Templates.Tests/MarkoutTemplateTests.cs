@@ -131,7 +131,7 @@ public class MarkoutTemplateTests
     public void Render_PlainTextWriter()
     {
         var template = MarkoutTemplate.Parse("# Title\n\nSome text.");
-        var orch = new MarkoutOrchestrator(new MarkdownFormatter());
+        var orch = new MarkoutWriter(new MarkdownFormatter());
         template.Render(orch);
         var result = orch.ToString();
 
@@ -277,7 +277,7 @@ public class MarkoutTemplateTests
     {
         var text = "| Name | Value |\n| ---- | ----- |\n| A | 1 |";
         var template = MarkoutTemplate.Parse(text);
-        var orch = new MarkoutOrchestrator(new MarkdownFormatter());
+        var orch = new MarkoutWriter(new MarkdownFormatter());
         template.Render(orch);
         var result = orch.ToString();
 
@@ -289,7 +289,7 @@ public class MarkoutTemplateTests
 
     private class TestFormattable : IMarkoutFormattable
     {
-        public void WriteTo(MarkoutOrchestrator writer)
+        public void WriteTo(MarkoutWriter writer)
         {
             writer.WriteFields([new("Key", "Value")]);
         }
@@ -299,7 +299,7 @@ public class MarkoutTemplateTests
 
     private class TestTableFormattable(string col1, string col2) : IMarkoutFormattable
     {
-        public void WriteTo(MarkoutOrchestrator writer)
+        public void WriteTo(MarkoutWriter writer)
         {
             writer.WriteTableStart("Name", "Status");
             writer.WriteTableRow(col1, col2);

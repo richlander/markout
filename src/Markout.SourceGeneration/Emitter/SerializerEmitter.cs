@@ -42,7 +42,7 @@ internal static class SerializerEmitter
         sb.AppendLine();
         sb.AppendLine($"    public override string BindingName => \"{bindingName}\";");
         sb.AppendLine();
-        sb.AppendLine($"    public override void Serialize(global::Markout.MarkoutOrchestrator writer, {type.FullTypeName} value)");
+        sb.AppendLine($"    public override void Serialize(global::Markout.MarkoutWriter writer, {type.FullTypeName} value)");
         sb.AppendLine("    {");
         if (!type.IsValueType)
         {
@@ -110,8 +110,8 @@ internal static class SerializerEmitter
         sb.AppendLine();
 
         // Emit partial method declarations for hooks
-        sb.AppendLine($"    partial void OnSerializing(global::Markout.MarkoutOrchestrator writer, {type.FullTypeName} value);");
-        sb.AppendLine($"    partial void OnSerialized(global::Markout.MarkoutOrchestrator writer, {type.FullTypeName} value);");
+        sb.AppendLine($"    partial void OnSerializing(global::Markout.MarkoutWriter writer, {type.FullTypeName} value);");
+        sb.AppendLine($"    partial void OnSerialized(global::Markout.MarkoutWriter writer, {type.FullTypeName} value);");
 
         // Emit per-section hooks (deduplicate by name for sections sharing the same heading)
         var emittedHooks = new HashSet<string>();
@@ -120,7 +120,7 @@ internal static class SerializerEmitter
             var hookName = sectionProp.SectionName ?? sectionProp.DisplayName;
             var safeName = new string(hookName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
             if (emittedHooks.Add(safeName))
-                sb.AppendLine($"    partial void OnBeforeSection{safeName}(global::Markout.MarkoutOrchestrator writer, {type.FullTypeName} value, ref bool skip);");
+                sb.AppendLine($"    partial void OnBeforeSection{safeName}(global::Markout.MarkoutWriter writer, {type.FullTypeName} value, ref bool skip);");
         }
 
         sb.AppendLine("}");

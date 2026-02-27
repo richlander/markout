@@ -19,7 +19,7 @@ public class OneLineFormatterTests
     public void WriteTable_SpacePaddedColumns()
     {
         var sw = new StringWriter();
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter());
         writer.WriteTable(
             ["Name", "Age"],
             [["Alice", "30"], ["Bob", "7"]]);
@@ -35,7 +35,7 @@ public class OneLineFormatterTests
     public void WriteTable_NoHeader()
     {
         var sw = new StringWriter();
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter(showHeader: false));
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter(showHeader: false));
         writer.WriteTable(
             ["Name", "Age"],
             [["Alice", "30"]]);
@@ -49,7 +49,7 @@ public class OneLineFormatterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter(), options);
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter(), options);
         writer.WriteTable(
             ["Name"],
             [["Alice"], ["Bob"], ["Carol"]]);
@@ -64,7 +64,7 @@ public class OneLineFormatterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter(), options);
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter(), options);
         writer.WriteTableStart("Name");
         writer.WriteTableRow("Alice");
         writer.WriteTableRow("Bob");
@@ -80,7 +80,7 @@ public class OneLineFormatterTests
     public void WriteListItem_RendersPlainText()
     {
         var sw = new StringWriter();
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter());
         writer.WriteListItem("hello");
         Assert.Equal("hello\n", sw.ToString().Replace("\r\n", "\n"));
     }
@@ -89,7 +89,7 @@ public class OneLineFormatterTests
     public void WriteHeading_Suppressed()
     {
         var sw = new StringWriter();
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter());
         writer.WriteHeading(1, "Title");
         Assert.Equal("", sw.ToString());
     }
@@ -98,7 +98,7 @@ public class OneLineFormatterTests
     public void WriteFields_BufferedAndRenderedAsTable()
     {
         var sw = new StringWriter();
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter());
         writer.WriteFields(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "11.0.0"));
@@ -115,7 +115,7 @@ public class OneLineFormatterTests
     public void WriteFieldsInline_RendersInline()
     {
         var sw = new StringWriter();
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter());
         writer.WriteFieldsInline(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "11.0.0"));
@@ -132,7 +132,7 @@ public class OneLineFormatterTests
     public void WriteFields_FlushedOnHeading()
     {
         var sw = new StringWriter();
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter());
         writer.WriteHeading(2, "Section 1", null);
         writer.WriteFields([new("Key1", "Value1")]);
         writer.WriteHeading(2, "Section 2", null);  // Should flush buffered fields
@@ -145,7 +145,7 @@ public class OneLineFormatterTests
     public void WriteParagraph_ReturnsFalse()
     {
         var sw = new StringWriter();
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter());
         var result = writer.WriteParagraph("hello");
         // OneLineFormatter doesn't implement IBlockFormatter
         Assert.False(result);

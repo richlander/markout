@@ -35,7 +35,7 @@ public class ShapeSupportTests
     [Fact]
     public void SupportedShape_StillRenders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteTableStart("Name");
         orch.WriteTableRow("Alice");
         orch.WriteTableEnd();
@@ -53,7 +53,7 @@ public class ShapeSupportTests
             // DiagramWriter doesn't support tables but state must be tracked
             // so WriteTableRow/End don't throw
             var sw = new StringWriter();
-            var orch = MarkoutOrchestrator.Create(sw, new DiagramWriter());
+            var orch = MarkoutWriter.Create(sw, new DiagramWriter());
             orch.WriteTableStart("Col");
             orch.WriteTableRow("val");
             orch.WriteTableEnd();
@@ -70,7 +70,7 @@ public class ShapeSupportTests
     public void MaxItems_OnBaseWriter()
     {
         var options = new MarkoutWriterOptions { MaxItems = 2 };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name");
         orch.WriteTableRow("Alice");
         orch.WriteTableRow("Bob");
@@ -87,7 +87,7 @@ public class ShapeSupportTests
     [Fact]
     public void MaxItems_NullMeansNoLimit()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteTableStart("Name");
         orch.WriteTableRow("Alice");
         orch.WriteTableRow("Bob");
@@ -103,7 +103,7 @@ public class ShapeSupportTests
     [Fact]
     public void SpacePaddedTable_OnBaseWriter()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteTable(
             ["Name", "City"],
             [["Alice", "Toronto"], ["Bob", "Vancouver"]]);
@@ -117,7 +117,7 @@ public class ShapeSupportTests
     [Fact]
     public void BarChart_OnBaseWriter()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteMetrics([
             new Metric("Alpha", 10),
             new Metric("Beta", 5),
@@ -133,7 +133,7 @@ public class ShapeSupportTests
     [Fact]
     public void BarChart_HalfBlock_ForFractions()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteMetrics([
             new Metric("Full", 10),
             new Metric("Half", 5),
@@ -148,7 +148,7 @@ public class ShapeSupportTests
     [Fact]
     public void BarChart_Empty_NoOutput()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteMetrics([]);
         Assert.Equal("", orch.ToString());
     }
@@ -156,7 +156,7 @@ public class ShapeSupportTests
     [Fact]
     public void VerticalBarChart_OnBaseWriter()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteVerticalMetrics([
             new Metric("A", 10),
             new Metric("B", 5),
@@ -172,7 +172,7 @@ public class ShapeSupportTests
     [Fact]
     public void VerticalBarChart_Empty_NoOutput()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteVerticalMetrics([]);
         Assert.Equal("", orch.ToString());
     }

@@ -9,10 +9,10 @@ namespace Markout.Templates;
 /// </summary>
 /// <remarks>
 /// Like the source generator, templates render through the
-/// <see cref="MarkoutOrchestrator"/> pipeline:
+/// <see cref="MarkoutWriter"/> pipeline:
 /// <code>
-/// Source Generator:  [MarkoutSerializable] Type → Generated TypeInfo → MarkoutOrchestrator
-/// Template Engine:   .md Template + Bindings  → MarkoutTemplate     → MarkoutOrchestrator
+/// Source Generator:  [MarkoutSerializable] Type → Generated TypeInfo → MarkoutWriter
+/// Template Engine:   .md Template + Bindings  → MarkoutTemplate     → MarkoutWriter
 /// </code>
 /// </remarks>
 public class MarkoutTemplate
@@ -160,7 +160,7 @@ public class MarkoutTemplate
     /// </summary>
     public string Render()
     {
-        var orch = new MarkoutOrchestrator(new MarkdownFormatter());
+        var orch = new MarkoutWriter(new MarkdownFormatter());
         Render(orch);
         return orch.ToString();
     }
@@ -171,15 +171,15 @@ public class MarkoutTemplate
     /// </summary>
     public string Render(MarkoutWriterOptions options)
     {
-        var orch = new MarkoutOrchestrator(new MarkdownFormatter(), options);
+        var orch = new MarkoutWriter(new MarkdownFormatter(), options);
         Render(orch);
         return orch.ToString();
     }
 
     /// <summary>
-    /// Renders the template into the specified <see cref="MarkoutOrchestrator"/>.
+    /// Renders the template into the specified <see cref="MarkoutWriter"/>.
     /// </summary>
-    public void Render(MarkoutOrchestrator writer)
+    public void Render(MarkoutWriter writer)
     {
         ArgumentNullException.ThrowIfNull(writer);
         int skipDepth = 0;
@@ -220,12 +220,12 @@ public class MarkoutTemplate
     /// </summary>
     public void Render(TextWriter output)
     {
-        var orch = new MarkoutOrchestrator(output, new MarkdownFormatter());
+        var orch = new MarkoutWriter(output, new MarkdownFormatter());
         Render(orch);
         orch.Flush();
     }
 
-    private void RenderNode(MarkoutOrchestrator writer, TemplateNode node)
+    private void RenderNode(MarkoutWriter writer, TemplateNode node)
     {
         switch (node)
         {

@@ -5,7 +5,7 @@ namespace Markout;
 /// <summary>
 /// Writes block-level content (callouts, quotations, rules, descriptions,
 /// paragraphs) to a TextWriter using a block formatter.
-/// Document state is managed by the caller or <see cref="MarkoutOrchestrator"/>.
+/// Document state is managed by the caller or <see cref="MarkoutWriter"/>.
 /// </summary>
 public class BlockWriter(TextWriter writer, IBlockFormatter formatter)
 {

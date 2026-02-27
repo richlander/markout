@@ -3,7 +3,7 @@ namespace Markout;
 /// <summary>
 /// Allows a type to control its own Markout serialization.
 /// Types implementing this interface can write structured Markdown content
-/// directly to a <see cref="MarkoutOrchestrator"/>.
+/// directly to a <see cref="MarkoutWriter"/>.
 /// </summary>
 public interface IMarkoutFormattable
 {
@@ -12,7 +12,7 @@ public interface IMarkoutFormattable
     /// Use this for block-level content (headings, fields, tables, lists).
     /// </summary>
     /// <param name="writer">The orchestrator to render to.</param>
-    void WriteTo(MarkoutOrchestrator writer);
+    void WriteTo(MarkoutWriter writer);
 
     /// <summary>
     /// Returns a single-line string representation for use in inline contexts

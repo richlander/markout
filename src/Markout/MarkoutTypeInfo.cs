@@ -21,7 +21,7 @@ public interface IMarkoutTypeInfo
     /// </summary>
     /// <param name="orchestrator">The orchestrator to serialize to.</param>
     /// <param name="value">The value to serialize (must be of the correct type).</param>
-    void Serialize(MarkoutOrchestrator orchestrator, object value);
+    void Serialize(MarkoutWriter orchestrator, object value);
 }
 
 /// <summary>
@@ -47,12 +47,12 @@ public abstract class MarkoutTypeInfo<T> : IMarkoutTypeInfo
     /// </summary>
     /// <param name="orchestrator">The orchestrator to serialize to.</param>
     /// <param name="value">The value to serialize.</param>
-    public abstract void Serialize(MarkoutOrchestrator orchestrator, T value);
+    public abstract void Serialize(MarkoutWriter orchestrator, T value);
 
     /// <summary>
     /// Serializes a value to the given orchestrator (non-generic implementation).
     /// </summary>
-    void IMarkoutTypeInfo.Serialize(MarkoutOrchestrator orchestrator, object value)
+    void IMarkoutTypeInfo.Serialize(MarkoutWriter orchestrator, object value)
     {
         Serialize(orchestrator, (T)value);
     }

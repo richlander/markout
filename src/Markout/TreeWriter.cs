@@ -2,7 +2,7 @@ namespace Markout;
 
 /// <summary>
 /// Writes tree structures to a TextWriter using box-drawing connectors.
-/// Document state is managed by the caller or <see cref="MarkoutOrchestrator"/>.
+/// Document state is managed by the caller or <see cref="MarkoutWriter"/>.
 /// </summary>
 public class TreeWriter(TextWriter writer, MarkoutWriterOptions? options = null)
 {

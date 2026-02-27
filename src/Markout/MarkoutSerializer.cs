@@ -133,7 +133,7 @@ public static class MarkoutSerializer
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
-        var orch = new MarkoutOrchestrator(new MarkdownFormatter());
+        var orch = new MarkoutWriter(new MarkdownFormatter());
         typeInfo.Serialize(orch, value);
         return orch.ToString();
     }
@@ -146,7 +146,7 @@ public static class MarkoutSerializer
         ArgumentNullException.ThrowIfNull(typeInfo);
         ArgumentNullException.ThrowIfNull(options);
 
-        var orch = new MarkoutOrchestrator(new MarkdownFormatter(), options);
+        var orch = new MarkoutWriter(new MarkdownFormatter(), options);
         typeInfo.Serialize(orch, value);
         return orch.ToString();
     }
@@ -158,7 +158,7 @@ public static class MarkoutSerializer
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
-        var orch = new MarkoutOrchestrator(output, new MarkdownFormatter());
+        var orch = new MarkoutWriter(output, new MarkdownFormatter());
         typeInfo.Serialize(orch, value);
         orch.Flush();
     }
@@ -171,7 +171,7 @@ public static class MarkoutSerializer
         ArgumentNullException.ThrowIfNull(typeInfo);
         ArgumentNullException.ThrowIfNull(options);
 
-        var orch = new MarkoutOrchestrator(output, new MarkdownFormatter(), options);
+        var orch = new MarkoutWriter(output, new MarkdownFormatter(), options);
         typeInfo.Serialize(orch, value);
         orch.Flush();
     }

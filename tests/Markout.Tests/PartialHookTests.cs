@@ -8,17 +8,17 @@ public partial class PackageWithSectionsMarkoutTypeInfo
     internal static bool OnSerializedCalled { get; set; }
     internal static bool SkipAssembliesSection { get; set; }
 
-    partial void OnSerializing(global::Markout.MarkoutOrchestrator writer, PackageWithSections value)
+    partial void OnSerializing(global::Markout.MarkoutWriter writer, PackageWithSections value)
     {
         OnSerializingCalled = true;
     }
 
-    partial void OnSerialized(global::Markout.MarkoutOrchestrator writer, PackageWithSections value)
+    partial void OnSerialized(global::Markout.MarkoutWriter writer, PackageWithSections value)
     {
         OnSerializedCalled = true;
     }
 
-    partial void OnBeforeSectionAssemblies(global::Markout.MarkoutOrchestrator writer, PackageWithSections value, ref bool skip)
+    partial void OnBeforeSectionAssemblies(global::Markout.MarkoutWriter writer, PackageWithSections value, ref bool skip)
     {
         skip = SkipAssembliesSection;
     }

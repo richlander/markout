@@ -6,7 +6,7 @@ namespace Markout;
 /// Writes tables to a TextWriter using a table formatter.
 /// Handles MaxItems truncation, column projection, and streaming
 /// (begin/row/end) pattern. Document state is managed by the caller
-/// or <see cref="MarkoutOrchestrator"/>.
+/// or <see cref="MarkoutWriter"/>.
 /// </summary>
 public class TableWriter
 {

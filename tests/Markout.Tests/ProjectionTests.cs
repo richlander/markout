@@ -17,7 +17,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name", "TFM"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name", "Version", "TFM", "Signed");
         orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0", "yes");
         orch.WriteTableEnd();
@@ -42,7 +42,7 @@ public class ProjectionTests
                 IncludeColumns = ["TFM", "Name"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name", "Version", "TFM");
         orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         orch.WriteTableEnd();
@@ -63,7 +63,7 @@ public class ProjectionTests
                 IncludeColumns = ["name", "tfm"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name", "Version", "TFM");
         orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         orch.WriteTableEnd();
@@ -83,7 +83,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name", "NonExistent"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name", "Version");
         orch.WriteTableRow("Foo.dll", "1.0.0");
         orch.WriteTableEnd();
@@ -105,7 +105,7 @@ public class ProjectionTests
                 ExcludeColumns = ["Version", "Signed"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name", "Version", "TFM", "Signed");
         orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0", "yes");
         orch.WriteTableEnd();
@@ -126,7 +126,7 @@ public class ProjectionTests
                 ExcludeColumns = ["Version"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name", "Version", "TFM");
         orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         orch.WriteTableEnd();
@@ -148,7 +148,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTable(
             ["Name", "Version", "TFM"],
             [["Foo.dll", "1.0.0", "net8.0"], ["Bar.dll", "2.0.0", "net9.0"]]);
@@ -172,7 +172,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name", "TFM"]
             }
         };
-        var writer = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
         writer.WriteTableStart("Name", "Version", "TFM");
         writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         writer.WriteTableEnd();
@@ -195,7 +195,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter(), options);
+        var writer = MarkoutWriter.Create(sw, new OneLineFormatter(), options);
         writer.WriteTableStart("Name", "Version", "TFM");
         writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         writer.WriteTableEnd();
@@ -218,7 +218,7 @@ public class ProjectionTests
                 IncludeFields = ["Name", "License"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFields(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "9.0.0"),
@@ -239,7 +239,7 @@ public class ProjectionTests
                 IncludeFields = ["Signed"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Signed", "yes"));
@@ -258,7 +258,7 @@ public class ProjectionTests
                 IncludeFields = ["Count"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Count", "42"));
@@ -277,7 +277,7 @@ public class ProjectionTests
                 IncludeFields = ["name"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
@@ -298,7 +298,7 @@ public class ProjectionTests
                 ExcludeFields = ["Version"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
@@ -321,7 +321,7 @@ public class ProjectionTests
                 IncludeFields = ["Name", "TFM"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
@@ -342,7 +342,7 @@ public class ProjectionTests
                 IncludeFields = ["TFM", "Name"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
@@ -363,7 +363,7 @@ public class ProjectionTests
                 ExcludeFields = ["Version"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
@@ -384,7 +384,7 @@ public class ProjectionTests
                 IncludeFields = ["NonExistent"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteFields([new("Name", "Foo")]);
         orch.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
@@ -406,7 +406,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteHeading(1, "Report");
         orch.WriteFields([new("TopLevel", "value")]);
         orch.WriteHeading(2, "Details");
@@ -454,7 +454,7 @@ public class ProjectionTests
     [Fact]
     public void NoProjection_TablePassesThrough()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteTableStart("Name", "Version");
         orch.WriteTableRow("Foo", "1.0.0");
         orch.WriteTableEnd();
@@ -468,7 +468,7 @@ public class ProjectionTests
     [Fact]
     public void NoProjection_FieldsPassThrough()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
         orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
@@ -490,7 +490,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name", "Version");
         orch.WriteTableRow("Foo", "1.0.0");
         orch.WriteTableRow("Bar", "2.0.0");
@@ -640,7 +640,7 @@ public class ProjectionTests
         {
             Projection = MarkoutProjection.WithColumns("Name")
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
         orch.WriteTableStart("Name", "Version");
         orch.WriteTableRow("Foo", "1.0.0");
         orch.WriteTableEnd();

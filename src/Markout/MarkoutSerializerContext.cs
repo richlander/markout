@@ -96,7 +96,7 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var orch = new MarkoutOrchestrator(new MarkdownFormatter(), options);
+        var orch = new MarkoutWriter(new MarkdownFormatter(), options);
         typeInfo.Serialize(orch, value);
         return orch.ToString();
     }
@@ -105,7 +105,7 @@ public abstract class MarkoutSerializerContext
     /// Serializes a value into an existing orchestrator.
     /// Use this to interleave serialized and imperative content.
     /// </summary>
-    public void Serialize<T>(T value, MarkoutOrchestrator orchestrator)
+    public void Serialize<T>(T value, MarkoutWriter orchestrator)
     {
         var typeInfo = GetTypeInfo<T>();
         if (typeInfo == null)
@@ -155,7 +155,7 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var orch = new MarkoutOrchestrator(output, formatter, options);
+        var orch = new MarkoutWriter(output, formatter, options);
         typeInfo.Serialize(orch, value);
         orch.Flush();
     }

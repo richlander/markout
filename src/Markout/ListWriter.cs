@@ -4,7 +4,7 @@ namespace Markout;
 
 /// <summary>
 /// Writes lists and arrays to a TextWriter using a list formatter.
-/// Document state is managed by the caller or <see cref="MarkoutOrchestrator"/>.
+/// Document state is managed by the caller or <see cref="MarkoutWriter"/>.
 /// </summary>
 public class ListWriter(TextWriter writer, IListFormatter formatter, MarkoutWriterOptions? options = null)
 {

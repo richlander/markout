@@ -4,7 +4,7 @@ namespace Markout;
 
 /// <summary>
 /// Writes metrics, breakdowns, and charts to a TextWriter using a metrics formatter.
-/// Document state is managed by the caller or <see cref="MarkoutOrchestrator"/>.
+/// Document state is managed by the caller or <see cref="MarkoutWriter"/>.
 /// </summary>
 public class MetricsWriter(TextWriter writer, IMetricsFormatter formatter, MarkoutWriterOptions? options = null)
 {

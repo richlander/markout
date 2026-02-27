@@ -30,7 +30,7 @@ Console.WriteLine(template.Render());
 
 // Render to plain text
 Console.WriteLine("=== Plain Text ===");
-var plainOrch = new MarkoutOrchestrator(Console.Out, new MarkdownFormatter());
+var plainOrch = new MarkoutWriter(Console.Out, new MarkdownFormatter());
 template.Render(plainOrch);
 Console.WriteLine();
 

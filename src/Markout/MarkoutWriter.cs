@@ -9,7 +9,7 @@ namespace Markout;
 /// Returns <c>bool</c> from all Write methods: <c>true</c> = rendered (or filtered),
 /// <c>false</c> = unsupported shape (nothing written).
 /// </summary>
-public class MarkoutOrchestrator
+public class MarkoutWriter
 {
     private readonly TextWriter _writer;
     private readonly IMarkoutFormatter _formatter;
@@ -40,7 +40,7 @@ public class MarkoutOrchestrator
     /// <summary>
     /// Creates an orchestrator that writes to the specified TextWriter.
     /// </summary>
-    public MarkoutOrchestrator(TextWriter writer, IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
+    public MarkoutWriter(TextWriter writer, IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
     {
         var opts = options ?? new MarkoutWriterOptions();
         if (opts.IncludeSections != null && opts.ExcludeSections != null)
@@ -54,7 +54,7 @@ public class MarkoutOrchestrator
     /// <summary>
     /// Creates an orchestrator that builds output in memory. Use ToString() to get the result.
     /// </summary>
-    public MarkoutOrchestrator(IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
+    public MarkoutWriter(IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
         : this(new StringWriter(), formatter, options)
     {
     }
@@ -1065,7 +1065,7 @@ public class MarkoutOrchestrator
     /// Creates a generic orchestrator that writes to the specified TextWriter.
     /// The generic type enables JIT devirtualization of capability checks.
     /// </summary>
-    public static MarkoutOrchestrator<TFormatter> Create<TFormatter>(
+    public static MarkoutWriter<TFormatter> Create<TFormatter>(
         TextWriter writer, TFormatter formatter, MarkoutWriterOptions? options = null)
         where TFormatter : IMarkoutFormatter
         => new(writer, formatter, options);
@@ -1073,7 +1073,7 @@ public class MarkoutOrchestrator
     /// <summary>
     /// Creates a generic orchestrator that builds output in memory. Use ToString() to get the result.
     /// </summary>
-    public static MarkoutOrchestrator<TFormatter> Create<TFormatter>(
+    public static MarkoutWriter<TFormatter> Create<TFormatter>(
         TFormatter formatter, MarkoutWriterOptions? options = null)
         where TFormatter : IMarkoutFormatter
         => new(formatter, options);
@@ -1084,12 +1084,12 @@ public class MarkoutOrchestrator
 /// JIT devirtualization of <c>_formatter is IHeadingFormatter</c> checks.
 /// </summary>
 /// <typeparam name="TFormatter">The concrete formatter type.</typeparam>
-public class MarkoutOrchestrator<TFormatter> : MarkoutOrchestrator where TFormatter : IMarkoutFormatter
+public class MarkoutWriter<TFormatter> : MarkoutWriter where TFormatter : IMarkoutFormatter
 {
     /// <summary>
     /// Creates an orchestrator that writes to the specified TextWriter.
     /// </summary>
-    public MarkoutOrchestrator(TextWriter writer, TFormatter formatter, MarkoutWriterOptions? options = null)
+    public MarkoutWriter(TextWriter writer, TFormatter formatter, MarkoutWriterOptions? options = null)
         : base(writer, formatter, options)
     {
     }
@@ -1097,7 +1097,7 @@ public class MarkoutOrchestrator<TFormatter> : MarkoutOrchestrator where TFormat
     /// <summary>
     /// Creates an orchestrator that builds output in memory. Use ToString() to get the result.
     /// </summary>
-    public MarkoutOrchestrator(TFormatter formatter, MarkoutWriterOptions? options = null)
+    public MarkoutWriter(TFormatter formatter, MarkoutWriterOptions? options = null)
         : base(formatter, options)
     {
     }

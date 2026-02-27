@@ -257,7 +257,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     StringWriter VerticalBars()
     {
         var (fmt, output) = CreateWriter();
-        var orch = MarkoutOrchestrator.Create(output, fmt, options);
+        var orch = MarkoutWriter.Create(output, fmt, options);
         var bars = shows
             .GroupBy(s => s.Location)
             .OrderByDescending(g => g.Count())
@@ -546,7 +546,7 @@ public class CanConReportView
 
 public partial class CanConReportViewMarkoutTypeInfo
 {
-    partial void OnSerialized(MarkoutOrchestrator writer, CanConReportView value)
+    partial void OnSerialized(MarkoutWriter writer, CanConReportView value)
     {
         if (value.Quote != null)
         {

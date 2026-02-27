@@ -5,7 +5,7 @@ namespace Markout;
 /// <summary>
 /// Writes headings to a TextWriter using a heading formatter.
 /// Handles level validation. Document state (blank lines, sections) is
-/// managed by the caller or <see cref="MarkoutOrchestrator"/>.
+/// managed by the caller or <see cref="MarkoutWriter"/>.
 /// </summary>
 public class HeadingWriter(TextWriter writer, IHeadingFormatter formatter)
 {

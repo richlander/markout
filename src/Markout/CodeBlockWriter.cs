@@ -5,7 +5,7 @@ namespace Markout;
 /// <summary>
 /// Writes code blocks to a TextWriter using a code block formatter.
 /// Tracks nesting state to prevent invalid overlapping code regions.
-/// Document state is managed by the caller or <see cref="MarkoutOrchestrator"/>.
+/// Document state is managed by the caller or <see cref="MarkoutWriter"/>.
 /// </summary>
 public class CodeBlockWriter(TextWriter writer, ICodeBlockFormatter formatter)
 {
