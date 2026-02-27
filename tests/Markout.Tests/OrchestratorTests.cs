@@ -206,7 +206,7 @@ public class OrchestratorTests
     [Fact]
     public void OneLineFormatter_WriteHeading_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter());
         var result = orch.WriteHeading(1, "Title");
         Assert.False(result);
     }
@@ -214,7 +214,7 @@ public class OrchestratorTests
     [Fact]
     public void OneLineFormatter_WriteTable_ReturnsTrue()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter());
         var result = orch.WriteTable(["Col"], [["Val"]]);
         Assert.True(result);
     }
@@ -222,7 +222,7 @@ public class OrchestratorTests
     [Fact]
     public void OneLineFormatter_WriteFields_ReturnsTrue()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter());
         var result = orch.WriteFields(new MarkoutField("K", "V"));
         Assert.True(result);
     }
@@ -230,7 +230,7 @@ public class OrchestratorTests
     [Fact]
     public void OneLineFormatter_WriteCallout_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter());
         var result = orch.WriteCallout(CalloutSeverity.Note, "msg");
         Assert.False(result);
     }
@@ -238,7 +238,7 @@ public class OrchestratorTests
     [Fact]
     public void OneLineFormatter_WriteCodeStart_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter());
         var result = orch.WriteCodeStart("csharp");
         Assert.False(result);
     }
@@ -246,7 +246,7 @@ public class OrchestratorTests
     [Fact]
     public void OneLineFormatter_WriteBreakdown_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter());
         var result = orch.WriteBreakdown([new Breakdown("X", [new Segment("A", 1)])]);
         Assert.False(result);
     }
@@ -254,7 +254,7 @@ public class OrchestratorTests
     [Fact]
     public void OneLineFormatter_WriteRule_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter());
         var result = orch.WriteRule();
         Assert.False(result);
     }

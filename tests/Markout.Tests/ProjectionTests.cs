@@ -196,7 +196,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var writer = new OneLineFormatter(sw, options);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter(), options);
         writer.WriteTableStart("Name", "Version", "TFM");
         writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         writer.WriteTableEnd();

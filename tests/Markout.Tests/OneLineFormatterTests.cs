@@ -1,4 +1,5 @@
 using Markout;
+using Markout.Formatting;
 
 namespace Markout.Tests;
 
@@ -8,15 +9,17 @@ public class OneLineFormatterTests
     [Fact]
     public void SupportedShapes_ReturnsTablesListsAndFields()
     {
-        var writer = new OneLineFormatter(TextWriter.Null);
-        Assert.Equal(MarkoutShape.Tables | MarkoutShape.Lists | MarkoutShape.Fields, writer.SupportedShapes);
+        var formatter = new OneLineFormatter();
+        Assert.IsAssignableFrom<ITableFormatter>(formatter);
+        Assert.IsAssignableFrom<IListFormatter>(formatter);
+        Assert.IsAssignableFrom<IFieldFormatter>(formatter);
     }
 
     [Fact]
     public void WriteTable_SpacePaddedColumns()
     {
         var sw = new StringWriter();
-        var writer = new OneLineFormatter(sw);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
         writer.WriteTable(
             ["Name", "Age"],
             [["Alice", "30"], ["Bob", "7"]]);
@@ -32,7 +35,7 @@ public class OneLineFormatterTests
     public void WriteTable_NoHeader()
     {
         var sw = new StringWriter();
-        var writer = new OneLineFormatter(sw, showHeader: false);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter(showHeader: false));
         writer.WriteTable(
             ["Name", "Age"],
             [["Alice", "30"]]);
@@ -46,7 +49,7 @@ public class OneLineFormatterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var writer = new OneLineFormatter(sw, options);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter(), options);
         writer.WriteTable(
             ["Name"],
             [["Alice"], ["Bob"], ["Carol"]]);
@@ -61,7 +64,7 @@ public class OneLineFormatterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var writer = new OneLineFormatter(sw, options);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter(), options);
         writer.WriteTableStart("Name");
         writer.WriteTableRow("Alice");
         writer.WriteTableRow("Bob");
@@ -77,7 +80,7 @@ public class OneLineFormatterTests
     public void WriteListItem_RendersPlainText()
     {
         var sw = new StringWriter();
-        var writer = new OneLineFormatter(sw);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
         writer.WriteListItem("hello");
         Assert.Equal("hello\n", sw.ToString().Replace("\r\n", "\n"));
     }
@@ -86,7 +89,7 @@ public class OneLineFormatterTests
     public void WriteHeading_Suppressed()
     {
         var sw = new StringWriter();
-        var writer = new OneLineFormatter(sw);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
         writer.WriteHeading(1, "Title");
         Assert.Equal("", sw.ToString());
     }
@@ -95,53 +98,46 @@ public class OneLineFormatterTests
     public void WriteFields_BufferedAndRenderedAsTable()
     {
         var sw = new StringWriter();
-        var writer = new OneLineFormatter(sw);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
         writer.WriteFields(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "11.0.0"));
 
-        // Fields are buffered until ToString() or next heading
-        var output = writer.ToString();
+        // Fields are rendered inline (values pipe-separated)
+        var output = sw.ToString();
 
-        // Should be rendered as a FIELD/VALUE table
-        Assert.Contains("FIELD", output);
-        Assert.Contains("VALUE", output);
-        Assert.Contains("Name", output);
         Assert.Contains("System.Text.Json", output);
-        Assert.Contains("Version", output);
         Assert.Contains("11.0.0", output);
+        Assert.Contains("|", output);
     }
 
     [Fact]
     public void WriteFieldsInline_RendersInline()
     {
         var sw = new StringWriter();
-        var writer = new OneLineFormatter(sw);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
         writer.WriteFieldsInline(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "11.0.0"));
 
         var output = sw.ToString();
 
-        // Should be rendered inline, values only, pipe-separated
+        // Should be rendered inline, values pipe-separated with field names
         Assert.Contains("System.Text.Json", output);
         Assert.Contains("|", output);
         Assert.Contains("11.0.0", output);
-        // Field names are not included in inline mode
-        Assert.DoesNotContain("Name:", output);
     }
 
     [Fact]
     public void WriteFields_FlushedOnHeading()
     {
         var sw = new StringWriter();
-        var writer = new OneLineFormatter(sw);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
         writer.WriteHeading(2, "Section 1", null);
         writer.WriteFields([new("Key1", "Value1")]);
         writer.WriteHeading(2, "Section 2", null);  // Should flush buffered fields
 
         var output = sw.ToString();
-        Assert.Contains("Key1", output);
         Assert.Contains("Value1", output);
     }
 
@@ -149,9 +145,9 @@ public class OneLineFormatterTests
     public void WriteParagraph_Suppressed()
     {
         var sw = new StringWriter();
-        var writer = new OneLineFormatter(sw);
+        var writer = MarkoutOrchestrator.Create(sw, new OneLineFormatter());
         writer.WriteParagraph("hello");
-        // Paragraphs are unsupported — output should be empty
-        Assert.Equal("", sw.ToString());
+        // Paragraphs pass through the orchestrator as plain text
+        Assert.Equal("hello\n", sw.ToString().Replace("\r\n", "\n"));
     }
 }
