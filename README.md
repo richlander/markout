@@ -136,8 +136,10 @@ MarkoutSerializer.Serialize(city, Console.Out, ReportContext.Default);
 ```markdown
 # Vancouver
 
-Province: British Columbia
-Population: 2632000
+| Field | Value |
+| ----- | ----- |
+| Province | British Columbia |
+| Population | 2632000 |
 
 ## Landmarks
 
@@ -167,7 +169,6 @@ public class RepoInfo
     [MarkoutDisplayFormat("{0:N0}")]
     public int Forks { get; set; }
 
-    [MarkoutPropertyName("Open Issues")]
     [MarkoutDisplayFormat("{0:N0}")]
     public int OpenIssues { get; set; }
 
@@ -206,12 +207,18 @@ dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format oneline  
 
 .NET is a cross-platform runtime for cloud, mobile, desktop, and IoT apps.
 
-Stars: 17,698 | Forks: 5,350 | Open Issues: 8,385 | Language: C# | License: MIT License
+| Field | Value |
+| ----- | ----- |
+| Stars | 17,703 |
+| Forks | 5,353 |
+| Open Issues | 8,371 |
+| Language | C# |
+| License | MIT License |
 
 ## Languages
 
 | Category | Count | % |
-| ----- | ----- | ----- |
+| -------- | ----- | - |
 | C# | 80 | 83 |
 | C++ | 9 | 9 |
 | C | 7 | 7 |
@@ -221,22 +228,29 @@ Stars: 17,698 | Forks: 5,350 | Open Issues: 8,385 | Language: C# | License: MIT 
 | Label | Value |
 | ----- | ----- |
 | vargaz | 11910 |
-| stephentoub | 10417 |
+| stephentoub | 10418 |
 | kumpera | 4074 |
-| jkotas | 3244 |
+| jkotas | 3245 |
 
 ## Releases
 
 | Tag | Name | Published |
-| ----- | ----- | ----- |
-| v10.0.3 | .NET 10.0.3 | 2026-02-10 |
-| v10.0.2 | .NET 10.0.2 | 2026-01-14 |
+| --- | ---- | --------- |
+| v8.0.24 | .NET 8.0.24 | 2026-02-10 |
 | v9.0.13 | v9.0.13 | 2026-02-10 |
+| v10.0.3 | .NET 10.0.3 | 2026-02-10 |
 ```
 
-**One-line output** — same model, `--oneline` flag, shows the Releases table only:
+**One-line output** — same model, `--oneline` flag:
 
 ```text
+FIELD        VALUE
+Stars        17,703
+Forks        5,353
+Open Issues  8,371
+Language     C#
+License      MIT License
+
 TAG      NAME         PUBLISHED
 v8.0.24  .NET 8.0.24  2026-02-10
 v9.0.13  v9.0.13      2026-02-10
