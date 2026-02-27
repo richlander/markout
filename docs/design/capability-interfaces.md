@@ -299,11 +299,13 @@ context.Serialize(value, orch);
 ## Migration path
 
 ### Phase 1 (done)
+
 Capability interfaces extracted. MarkdownFormatter and OneLineFormatter implement
 them as explicit interface impls. Base class dispatches via `this is IXxx`.
 All tests pass.
 
 ### Phase 2 (done)
+
 - `MarkoutOrchestrator<TFormatter>` introduced as standalone generic class
 - `IMarkoutFormatter` marker interface added
 - MarkdownFormatter and OneLineFormatter implement `IMarkoutFormatter`
@@ -314,6 +316,7 @@ All tests pass.
 - Existing MarkoutWriter path unchanged (source generator still targets it)
 
 ### Phase 3 (done)
+
 - Aggregate `IDocumentFormatter` interface (composes 6 core interfaces)
 - `IStreamingTableFormatter` with BeginTable/WriteRow/EndTable pattern
 - LINQ-style cascade dispatch in orchestrator (field → table → streaming fallback)
@@ -322,10 +325,12 @@ All tests pass.
 - 13 new orchestrator tests for cascade, streaming, aggregate, and UnicodeWriter
 
 ### Phase 4a (done)
+
 - Rename MarkdownWriter → MarkdownFormatter, OneLineWriter → OneLineFormatter
 - Updated all references in both markout and dotnet-inspect repos
 
 ### Phase 4b (done)
+
 - Update serializer to target orchestrator
 - Source generator emits orchestrator API
 - AnsiWriter + SpectreWriter implement IMarkoutFormatter (pure ANSI to TextWriter)
@@ -333,5 +338,6 @@ All tests pass.
 - OneLineFormatter parameterless constructor for orchestrator model
 
 ### Phase 4c (later)
+
 - Remove MarkoutWriter base class entirely
 - `SupportedShapes` flags enum removed (interfaces are the capability model)
