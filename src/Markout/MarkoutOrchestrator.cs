@@ -757,7 +757,7 @@ public class MarkoutOrchestrator
             _needsBlankLine = true;
         EnsureBlankLineIfNeeded();
 
-        mf.FormatBreakdown(_writer, items, maxBarWidth, uniformBarWidth);
+        mf.FormatBreakdown(_writer, items, maxBarWidth, uniformBarWidth, _options);
         _needsBlankLine = true;
         _hasContent = true;
         return true;
@@ -776,7 +776,7 @@ public class MarkoutOrchestrator
             return false;
 
         EnsureBlankLineIfNeeded();
-        mf.FormatMetrics(_writer, items, maxBarWidth);
+        mf.FormatMetrics(_writer, items, maxBarWidth, _options);
         _needsBlankLine = true;
         _hasContent = true;
         return true;
@@ -795,7 +795,7 @@ public class MarkoutOrchestrator
             return false;
 
         EnsureBlankLineIfNeeded();
-        mf.FormatVerticalMetrics(_writer, items, maxBarHeight, barWidth);
+        mf.FormatVerticalMetrics(_writer, items, maxBarHeight, barWidth, _options);
         _needsBlankLine = true;
         _hasContent = true;
         return true;

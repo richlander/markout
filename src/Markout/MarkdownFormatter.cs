@@ -296,7 +296,7 @@ public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
 
     // ── IMetricsFormatter ──
 
-    void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth)
+    void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth, MarkoutWriterOptions options)
     {
         // Single breakdown: simple Category | Count | % table
         // Multiple breakdowns: include Label column to distinguish them
@@ -313,7 +313,7 @@ public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
                 .Select(s => new[] { s.Category, s.Count.ToString(), $"{s.Count * 100 / total}" })
                 .ToList();
 
-            ((ITableFormatter)this).FormatTable(w, headers, rows, 0, Options);
+            ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);
         }
         else
         {
@@ -329,21 +329,21 @@ public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
                     rows.Add([item.Label, seg.Category, seg.Count.ToString(), $"{seg.Count * 100 / total}"]);
             }
 
-            ((ITableFormatter)this).FormatTable(w, headers, rows, 0, Options);
+            ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);
         }
     }
 
-    void IMetricsFormatter.FormatMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarWidth)
+    void IMetricsFormatter.FormatMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarWidth, MarkoutWriterOptions options)
     {
         // Render as a pipe table: Label | Value
         var headers = new[] { "Label", "Value" };
         var rows = items.Select(m => new[] { m.Label, FormatBarValue(m.Value) }).ToList();
-        ((ITableFormatter)this).FormatTable(w, headers, rows, 0, Options);
+        ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);
     }
 
-    void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth)
+    void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth, MarkoutWriterOptions options)
     {
         // Same as horizontal — vertical layout is a terminal concept
-        ((IMetricsFormatter)this).FormatMetrics(w, items, maxBarHeight);
+        ((IMetricsFormatter)this).FormatMetrics(w, items, maxBarHeight, options);
     }
 }

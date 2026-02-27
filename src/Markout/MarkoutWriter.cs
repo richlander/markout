@@ -1168,7 +1168,7 @@ public class MarkoutWriter
 
         if (this is IMetricsFormatter mf)
         {
-            mf.FormatBreakdown(_writer, items, maxBarWidth, uniformBarWidth);
+            mf.FormatBreakdown(_writer, items, maxBarWidth, uniformBarWidth, _options);
             _needsBlankLine = true;
             _hasContent = true;
             return;
@@ -1279,7 +1279,7 @@ public class MarkoutWriter
 
         if (this is IMetricsFormatter mf)
         {
-            mf.FormatMetrics(_writer, items, maxBarWidth);
+            mf.FormatMetrics(_writer, items, maxBarWidth, _options);
             _needsBlankLine = true;
             _hasContent = true;
             return;
@@ -1353,7 +1353,7 @@ public class MarkoutWriter
         EnsureBlankLineIfNeeded();
 
         if (this is IMetricsFormatter mf)
-            mf.FormatVerticalMetrics(_writer, items, maxBarHeight, barWidth);
+            mf.FormatVerticalMetrics(_writer, items, maxBarHeight, barWidth, _options);
         else
             WriteVerticalMetricsBody(items, maxBarHeight, barWidth);
 

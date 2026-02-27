@@ -10,15 +10,15 @@ public interface IMetricsFormatter
     /// <summary>
     /// Renders a breakdown chart showing proportional category composition.
     /// </summary>
-    void FormatBreakdown(TextWriter writer, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth);
+    void FormatBreakdown(TextWriter writer, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth, MarkoutWriterOptions options);
 
     /// <summary>
     /// Renders horizontal metric bars.
     /// </summary>
-    void FormatMetrics(TextWriter writer, IReadOnlyList<Metric> items, int maxBarWidth);
+    void FormatMetrics(TextWriter writer, IReadOnlyList<Metric> items, int maxBarWidth, MarkoutWriterOptions options);
 
     /// <summary>
     /// Renders vertical metric bars.
     /// </summary>
-    void FormatVerticalMetrics(TextWriter writer, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth);
+    void FormatVerticalMetrics(TextWriter writer, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth, MarkoutWriterOptions options);
 }

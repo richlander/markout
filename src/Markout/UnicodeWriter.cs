@@ -736,7 +736,7 @@ public class UnicodeWriter : MarkoutWriter, IMarkoutFormatter,
         w.WriteLine();
     }
 
-    void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth)
+    void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth, MarkoutWriterOptions options)
     {
         int availableWidth = maxBarWidth ?? (ConsoleWidth - 20);
         if (availableWidth < 10)
@@ -764,7 +764,7 @@ public class UnicodeWriter : MarkoutWriter, IMarkoutFormatter,
         }
     }
 
-    void IMetricsFormatter.FormatMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarWidth)
+    void IMetricsFormatter.FormatMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarWidth, MarkoutWriterOptions options)
     {
         double maxValue = items.Max(m => m.Value);
         if (maxValue <= 0)
@@ -785,7 +785,7 @@ public class UnicodeWriter : MarkoutWriter, IMarkoutFormatter,
         }
     }
 
-    void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth)
+    void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth, MarkoutWriterOptions options)
     {
         double maxValue = items.Max(m => m.Value);
         if (maxValue <= 0)

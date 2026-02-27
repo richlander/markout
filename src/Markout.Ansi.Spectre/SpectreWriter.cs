@@ -246,7 +246,7 @@ public class SpectreWriter : MarkoutWriter, IMarkoutFormatter,
         }
     }
 
-    void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth)
+    void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth, MarkoutWriterOptions options)
     {
         var categories = items.SelectMany(b => b.Segments).Select(s => s.Category).Distinct().ToList();
         var maxTotal = items.Max(b => b.Segments.Sum(s => s.Count));
@@ -290,7 +290,7 @@ public class SpectreWriter : MarkoutWriter, IMarkoutFormatter,
         w.WriteLine();
     }
 
-    void IMetricsFormatter.FormatMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarWidth)
+    void IMetricsFormatter.FormatMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarWidth, MarkoutWriterOptions options)
     {
         if (items.Count == 0) return;
         var maxValue = items.Max(m => m.Value);
@@ -319,9 +319,9 @@ public class SpectreWriter : MarkoutWriter, IMarkoutFormatter,
         }
     }
 
-    void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth)
+    void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth, MarkoutWriterOptions options)
     {
-        ((IMetricsFormatter)this).FormatMetrics(w, items, maxBarHeight);
+        ((IMetricsFormatter)this).FormatMetrics(w, items, maxBarHeight, options);
     }
 
     private void FormatRuleTo(TextWriter w, string title)
