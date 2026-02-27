@@ -8,7 +8,7 @@ public abstract class TemplateBinding
     /// <summary>
     /// Renders this binding as block-level content through the writer.
     /// </summary>
-    public abstract void Render(MarkoutWriter writer);
+    public abstract void Render(MarkoutOrchestrator writer);
 
     /// <summary>
     /// Returns an inline text representation for use within headings and paragraphs.
@@ -26,7 +26,7 @@ public abstract class TemplateBinding
 /// </summary>
 internal sealed class StringBinding(string? value) : TemplateBinding
 {
-    public override void Render(MarkoutWriter writer)
+    public override void Render(MarkoutOrchestrator writer)
     {
         if (value is not null)
             writer.WriteParagraph(value);
@@ -42,7 +42,7 @@ internal sealed class StringBinding(string? value) : TemplateBinding
 /// </summary>
 internal sealed class FormattableBinding(IMarkoutFormattable? value) : TemplateBinding
 {
-    public override void Render(MarkoutWriter writer)
+    public override void Render(MarkoutOrchestrator writer)
     {
         value?.WriteTo(writer);
     }
@@ -57,7 +57,7 @@ internal sealed class FormattableBinding(IMarkoutFormattable? value) : TemplateB
 /// </summary>
 internal sealed class TypeInfoBinding<T>(T value, MarkoutTypeInfo<T> typeInfo) : TemplateBinding
 {
-    public override void Render(MarkoutWriter writer)
+    public override void Render(MarkoutOrchestrator writer)
     {
         if (value is not null)
             typeInfo.Serialize(writer, value);
@@ -79,7 +79,7 @@ internal sealed class TypeInfoBinding<T>(T value, MarkoutTypeInfo<T> typeInfo) :
 /// </summary>
 internal sealed class ObjectBinding(object? value) : TemplateBinding
 {
-    public override void Render(MarkoutWriter writer)
+    public override void Render(MarkoutOrchestrator writer)
     {
         if (value is IMarkoutFormattable formattable)
         {

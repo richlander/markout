@@ -46,7 +46,7 @@ var view = new ActivityView
         GetDetail(e)))]
 };
 
-MarkoutSerializer.Serialize(view, new SpectreWriter(AnsiConsole.Console), ActivityContext.Default);
+MarkoutSerializer.Serialize(view, new MarkoutOrchestrator(Console.Out, new SpectreWriter(AnsiConsole.Console)), ActivityContext.Default);
 
 // --- Helpers ---
 

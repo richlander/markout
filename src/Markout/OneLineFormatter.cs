@@ -17,6 +17,12 @@ public class OneLineFormatter : MarkoutWriter, IMarkoutFormatter,
     private readonly List<MarkoutField> _fieldBuffer = new();
 
     /// <summary>
+    /// Creates a one-line formatter for use with an orchestrator.
+    /// </summary>
+    /// <param name="showHeader">Whether to display table headers. Default is true.</param>
+    public OneLineFormatter(bool showHeader = true) : this(TextWriter.Null, showHeader) { }
+
+    /// <summary>
     /// Creates a one-line writer targeting the specified TextWriter.
     /// </summary>
     /// <param name="writer">The underlying TextWriter.</param>

@@ -131,11 +131,10 @@ public class MarkoutTemplateTests
     public void Render_PlainTextWriter()
     {
         var template = MarkoutTemplate.Parse("# Title\n\nSome text.");
-        var writer = new MarkoutWriter();
-        template.Render(writer);
-        var result = writer.ToString();
+        var orch = new MarkoutOrchestrator(new MarkdownFormatter());
+        template.Render(orch);
+        var result = orch.ToString();
 
-        // Plain text writer uses different heading format
         Assert.Contains("Title", result);
         Assert.Contains("Some text.", result);
     }
@@ -278,11 +277,10 @@ public class MarkoutTemplateTests
     {
         var text = "| Name | Value |\n| ---- | ----- |\n| A | 1 |";
         var template = MarkoutTemplate.Parse(text);
-        var writer = new MarkoutWriter();
-        template.Render(writer);
-        var result = writer.ToString();
+        var orch = new MarkoutOrchestrator(new MarkdownFormatter());
+        template.Render(orch);
+        var result = orch.ToString();
 
-        // Plain text writer renders tables without pipes
         Assert.Contains("Name", result);
         Assert.Contains("A", result);
     }
@@ -291,7 +289,7 @@ public class MarkoutTemplateTests
 
     private class TestFormattable : IMarkoutFormattable
     {
-        public void WriteTo(MarkoutWriter writer)
+        public void WriteTo(MarkoutOrchestrator writer)
         {
             writer.WriteFields([new("Key", "Value")]);
         }
@@ -301,7 +299,7 @@ public class MarkoutTemplateTests
 
     private class TestTableFormattable(string col1, string col2) : IMarkoutFormattable
     {
-        public void WriteTo(MarkoutWriter writer)
+        public void WriteTo(MarkoutOrchestrator writer)
         {
             writer.WriteTableStart("Name", "Status");
             writer.WriteTableRow(col1, col2);
