@@ -9,7 +9,7 @@ namespace Markout;
 /// Fields are buffered and rendered as two-column tables at section boundaries.
 /// Field lists are rendered inline (values only, pipe-separated).
 /// </summary>
-public class OneLineWriter : MarkoutWriter, IMarkoutFormatter,
+public class OneLineFormatter : MarkoutWriter, IMarkoutFormatter,
     ITableFormatter, IFieldFormatter, IListFormatter
 {
     private const int ColumnGap = 2;
@@ -21,7 +21,7 @@ public class OneLineWriter : MarkoutWriter, IMarkoutFormatter,
     /// </summary>
     /// <param name="writer">The underlying TextWriter.</param>
     /// <param name="showHeader">Whether to display table headers. Default is true.</param>
-    public OneLineWriter(TextWriter writer, bool showHeader = true) : base(writer)
+    public OneLineFormatter(TextWriter writer, bool showHeader = true) : base(writer)
     {
         _showHeader = showHeader;
     }
@@ -29,7 +29,7 @@ public class OneLineWriter : MarkoutWriter, IMarkoutFormatter,
     /// <summary>
     /// Creates a one-line writer with the specified options.
     /// </summary>
-    public OneLineWriter(TextWriter writer, MarkoutWriterOptions options, bool showHeader = true) : base(writer, options)
+    public OneLineFormatter(TextWriter writer, MarkoutWriterOptions options, bool showHeader = true) : base(writer, options)
     {
         _showHeader = showHeader;
     }
@@ -90,7 +90,7 @@ public class OneLineWriter : MarkoutWriter, IMarkoutFormatter,
 
     void IFieldFormatter.FormatFields(TextWriter w, MarkoutField[] fields, bool bold)
     {
-        // OneLineWriter buffers fields — this is only called if the base WriteFields runs
+        // OneLineFormatter buffers fields — this is only called if the base WriteFields runs
         // (shouldn't happen since we override WriteFields), but provide a sensible default
         for (int i = 0; i < fields.Length; i++)
         {

@@ -47,11 +47,11 @@ var options = new MarkoutWriterOptions
     }
 };
 
-var writer = new MarkdownWriter(options);
+var writer = new MarkdownFormatter(options);
 // ... serialize any markout object ...
 ```
 
-Tables render only the Name and TFM columns. Scalar fields render only Version and License. Everything else is silently trimmed. The same projection works identically with `OneLineWriter`, `AnsiWriter`, `MarkoutWriter`, or any custom renderer.
+Tables render only the Name and TFM columns. Scalar fields render only Version and License. Everything else is silently trimmed. The same projection works identically with `OneLineFormatter`, `AnsiWriter`, `MarkoutWriter`, or any custom renderer.
 
 ### Column Selection and Reordering
 
@@ -159,8 +159,8 @@ Source Generator → emits calls → MarkoutWriter (base)
                                     ├── column projection (new)
                                     ├── field projection (new)
                                     └── dispatches to virtual methods
-                                            ├── MarkdownWriter
-                                            ├── OneLineWriter
+                                            ├── MarkdownFormatter
+                                            ├── OneLineFormatter
                                             ├── AnsiWriter
                                             └── ...
 ```

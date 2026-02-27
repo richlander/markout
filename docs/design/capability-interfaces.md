@@ -110,8 +110,8 @@ public interface IDocumentFormatter :
     IHeadingFormatter, IFieldFormatter, ITableFormatter,
     IListFormatter, ICodeBlockFormatter, IBlockFormatter { }
 
-// MarkdownWriter implements IDocumentFormatter + IMetricsFormatter
-// OneLineWriter implements ITableFormatter + IFieldFormatter + IListFormatter
+// MarkdownFormatter implements IDocumentFormatter + IMetricsFormatter
+// OneLineFormatter implements ITableFormatter + IFieldFormatter + IListFormatter
 ```
 
 Aggregates don't add methods — they're purely for convenience and constraint
@@ -299,14 +299,14 @@ context.Serialize(value, orch);
 ## Migration path
 
 ### Phase 1 (done)
-Capability interfaces extracted. MarkdownWriter and OneLineWriter implement
+Capability interfaces extracted. MarkdownFormatter and OneLineFormatter implement
 them as explicit interface impls. Base class dispatches via `this is IXxx`.
 All tests pass.
 
 ### Phase 2 (done)
 - `MarkoutOrchestrator<TFormatter>` introduced as standalone generic class
 - `IMarkoutFormatter` marker interface added
-- MarkdownWriter and OneLineWriter implement `IMarkoutFormatter`
+- MarkdownFormatter and OneLineFormatter implement `IMarkoutFormatter`
 - Write methods return `bool` (true = rendered/filtered, false = unsupported)
 - No stderr warnings — unsupported is a return value
 - Static factory `MarkoutOrchestrator.Create()` for type inference
@@ -321,8 +321,11 @@ All tests pass.
 - UnicodeWriter implements `IMarkoutFormatter` + all capability interfaces
 - 13 new orchestrator tests for cascade, streaming, aggregate, and UnicodeWriter
 
-### Phase 4 (later)
+### Phase 4a (done)
 - Rename MarkdownWriter → MarkdownFormatter, OneLineWriter → OneLineFormatter
+- Updated all references in both markout and dotnet-inspect repos
+
+### Phase 4b (later)
 - Update serializer to target orchestrator
 - Source generator emits orchestrator API
 - Remove MarkoutWriter base class entirely

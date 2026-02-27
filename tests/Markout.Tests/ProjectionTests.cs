@@ -161,10 +161,10 @@ public class ProjectionTests
         Assert.DoesNotContain("TFM", output);
     }
 
-    // --- Column projection with MarkdownWriter ---
+    // --- Column projection with MarkdownFormatter ---
 
     [Fact]
-    public void IncludeColumns_WorksWithMarkdownWriter()
+    public void IncludeColumns_WorksWithMarkdownFormatter()
     {
         var options = new MarkoutWriterOptions
         {
@@ -173,7 +173,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name", "TFM"]
             }
         };
-        var writer = new MarkdownWriter(options);
+        var writer = new MarkdownFormatter(options);
         writer.WriteTableStart("Name", "Version", "TFM");
         writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         writer.WriteTableEnd();
@@ -183,10 +183,10 @@ public class ProjectionTests
         Assert.DoesNotContain("Version", output);
     }
 
-    // --- Column projection with OneLineWriter ---
+    // --- Column projection with OneLineFormatter ---
 
     [Fact]
-    public void IncludeColumns_WorksWithOneLineWriter()
+    public void IncludeColumns_WorksWithOneLineFormatter()
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions
@@ -196,7 +196,7 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var writer = new OneLineWriter(sw, options);
+        var writer = new OneLineFormatter(sw, options);
         writer.WriteTableStart("Name", "Version", "TFM");
         writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         writer.WriteTableEnd();

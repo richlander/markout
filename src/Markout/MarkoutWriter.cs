@@ -7,7 +7,7 @@ namespace Markout;
 /// <summary>
 /// Base writer that defines the Markout shape vocabulary.
 /// Produces plain-text output by default. Subclass to create renderers
-/// for specific formats (e.g., <see cref="MarkdownWriter"/> for Markdown).
+/// for specific formats (e.g., <see cref="MarkdownFormatter"/> for Markdown).
 /// </summary>
 /// <example>
 ///   <code lang="cs" source="../../samples/Serialization/WriterUsage.cs" region="UseMarkoutWriter" title="Basic writer usage" />

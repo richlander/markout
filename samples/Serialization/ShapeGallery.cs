@@ -13,7 +13,7 @@ public static class ShapeGallery
     /// </summary>
     public static void WriteAllShapes()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
 
         // Identity — heading
         writer.WriteHeading(1, "Shape Gallery");
@@ -48,10 +48,10 @@ public static class ShapeGallery
         writer.WriteTable(
             ["Renderer", "Output", "Use Case"],
             [
-                ["MarkdownWriter", "Markdown", "Documentation, GitHub issues"],
+                ["MarkdownFormatter", "Markdown", "Documentation, GitHub issues"],
                 ["AnsiWriter", "ANSI terminal", "CLI tools with color"],
                 ["MarkoutWriter", "Plain text", "Log files, piping"],
-                ["OneLineWriter", "Columnar", "Compact summaries"],
+                ["OneLineFormatter", "Columnar", "Compact summaries"],
             ]);
 
         // Description

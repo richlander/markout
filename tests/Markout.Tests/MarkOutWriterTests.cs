@@ -7,7 +7,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_Level1_WritesCorrectMarkdown()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteHeading(1, "Package");
 
         Assert.Equal("# Package", writer.ToString());
@@ -16,7 +16,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_Level2_WritesCorrectMarkdown()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteHeading(2, "Dependencies");
 
         Assert.Equal("## Dependencies", writer.ToString());
@@ -25,7 +25,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteHeading_WithContext_WritesCorrectMarkdown()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteHeading(2, "Dependencies", "net6.0");
 
         Assert.Equal("## Dependencies (net6.0)", writer.ToString());
@@ -142,7 +142,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteTable_WritesMarkdownTable()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteTableStart("File", "Arch", "Signed");
         writer.WriteTableRow("Foo.dll", "AnyCPU", "yes");
         writer.WriteTableRow("Bar.dll", "x64", "no");
@@ -160,7 +160,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteTable_PrettyTables_PadsColumns()
     {
-        var writer = new MarkdownWriter(new MarkoutWriterOptions { PrettyTables = true });
+        var writer = new MarkdownFormatter(new MarkoutWriterOptions { PrettyTables = true });
         writer.WriteTableStart("File", "Arch", "Signed");
         writer.WriteTableRow("Foo.dll", "AnyCPU", "yes");
         writer.WriteTableRow("Bar.dll", "x64", "no");
@@ -178,7 +178,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteTable_Batch_PrettyTables_PadsColumns()
     {
-        var writer = new MarkdownWriter(new MarkoutWriterOptions { PrettyTables = true });
+        var writer = new MarkdownFormatter(new MarkoutWriterOptions { PrettyTables = true });
         writer.WriteTable(
             ["Name", "Born"],
             [["Alice", "1990"], ["Bob", "1985"]]);
@@ -195,7 +195,7 @@ public class MarkoutWriterTests
     [Fact]
     public void MultipleElements_AddsBlankLinesBetweenSections()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteHeading(1, "Package");
         writer.WriteFields(
             new("Name", "Test"),
@@ -220,7 +220,7 @@ public class MarkoutWriterTests
     [Fact]
     public void IncludeSections_FiltersToSpecifiedSections()
     {
-        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = ["First"] });
+        var writer = new MarkdownFormatter(new MarkoutWriterOptions { IncludeSections = ["First"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Intro");
@@ -238,7 +238,7 @@ public class MarkoutWriterTests
     [Fact]
     public void ExcludeSections_SkipsSpecifiedSections()
     {
-        var writer = new MarkdownWriter(new MarkoutWriterOptions { ExcludeSections = ["Second"] });
+        var writer = new MarkdownFormatter(new MarkoutWriterOptions { ExcludeSections = ["Second"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "First");    // included
@@ -255,7 +255,7 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_ContentBeforeFirstH2_AlwaysIncluded()
     {
-        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = ["Second"] });
+        var writer = new MarkdownFormatter(new MarkoutWriterOptions { IncludeSections = ["Second"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("This is before any H2");
@@ -271,7 +271,7 @@ public class MarkoutWriterTests
     [Fact]
     public void SectionFiltering_TableSpanningExcludedSection_NotWritten()
     {
-        var writer = new MarkdownWriter(new MarkoutWriterOptions { ExcludeSections = ["Data"] });
+        var writer = new MarkdownFormatter(new MarkoutWriterOptions { ExcludeSections = ["Data"] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteHeading(2, "Data");     // excluded
@@ -329,7 +329,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteFieldsInline_AfterHeading_AddsBlankLine()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteHeading(1, "Package 1.0.0");
         writer.WriteFieldsInline(
             new MarkoutField("Type", "Library"),
@@ -445,7 +445,7 @@ public class MarkoutWriterTests
     [Fact]
     public void IncludeSections_EmptySet_IncludesPreambleOnly()
     {
-        var writer = new MarkdownWriter(new MarkoutWriterOptions { IncludeSections = [] });
+        var writer = new MarkdownFormatter(new MarkoutWriterOptions { IncludeSections = [] });
 
         writer.WriteHeading(1, "Title");
         writer.WriteParagraph("Preamble text");
@@ -540,7 +540,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteDescriptions_Markdown_BoldsLabel()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteDescriptions([
             new Description("Insight", "What does the generic math hierarchy look like?"),
             new Description("Discovery", "What can JsonSerializer do?"),
@@ -556,7 +556,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteDescriptions_Markdown_WithDetail_IndentsDetail()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteDescriptions([
             new Description("Insight", "Hierarchy overview", "dotnet-inspect api System.Runtime"),
         ]);
@@ -581,7 +581,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteCallout_Markdown_WritesGitHubFlavor()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteCallout(CalloutSeverity.Warning, "3 known vulnerabilities found.");
 
         var expected = """
@@ -596,7 +596,7 @@ public class MarkoutWriterTests
     {
         foreach (var severity in Enum.GetValues<CalloutSeverity>())
         {
-            var writer = new MarkdownWriter();
+            var writer = new MarkdownFormatter();
             writer.WriteCallout(severity, "test");
             var output = writer.ToString();
             Assert.Contains($"> [!{severity.ToString().ToUpperInvariant()}]", output);
@@ -606,7 +606,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteCallout_Markdown_Caution_RendersCorrectly()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteCallout(CalloutSeverity.Caution, "This package has critical vulnerabilities.");
 
         var expected = """
@@ -619,7 +619,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteCallout_Markdown_Note_RendersCorrectly()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteCallout(CalloutSeverity.Note, "SourceLink is available.");
 
         var expected = """
@@ -657,7 +657,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteBreakdown_Markdown_RendersAsTable()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         var items = new List<Breakdown>
         {
             new("v9.0", [new("Critical", 2), new("High", 4)]),
@@ -723,7 +723,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteQuotation_Markdown_UsesAngleBracket()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteQuotation("A wise observation.");
 
         Assert.Contains("> A wise observation.", writer.ToString());
@@ -732,7 +732,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteQuotation_Markdown_MultiLine()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteQuotation("First line.\nSecond line.");
 
         var output = writer.ToString();
@@ -756,7 +756,7 @@ public class MarkoutWriterTests
     [Fact]
     public void WriteRule_Markdown_WritesTripleDash()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteRule();
 
         Assert.Contains("---", writer.ToString());

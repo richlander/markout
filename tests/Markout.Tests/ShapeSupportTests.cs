@@ -41,9 +41,9 @@ public class ShapeSupportTests
     }
 
     [Fact]
-    public void MarkdownWriter_SupportedShapes_IsAll()
+    public void MarkdownFormatter_SupportedShapes_IsAll()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         Assert.Equal(MarkoutShape.All, writer.SupportedShapes);
     }
 
@@ -266,9 +266,9 @@ public class ShapeSupportTests
     // ── Capability interface tests ──
 
     [Fact]
-    public void MarkdownWriter_ImplementsAllCapabilityInterfaces()
+    public void MarkdownFormatter_ImplementsAllCapabilityInterfaces()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         Assert.IsAssignableFrom<IHeadingFormatter>(writer);
         Assert.IsAssignableFrom<IFieldFormatter>(writer);
         Assert.IsAssignableFrom<ITableFormatter>(writer);
@@ -279,20 +279,20 @@ public class ShapeSupportTests
     }
 
     [Fact]
-    public void OneLineWriter_ImplementsSubsetOfInterfaces()
+    public void OneLineFormatter_ImplementsSubsetOfInterfaces()
     {
         var tw = new StringWriter();
-        var writer = new OneLineWriter(tw);
+        var writer = new OneLineFormatter(tw);
         Assert.IsAssignableFrom<ITableFormatter>(writer);
         Assert.IsAssignableFrom<IFieldFormatter>(writer);
         Assert.IsAssignableFrom<IListFormatter>(writer);
     }
 
     [Fact]
-    public void OneLineWriter_DoesNotImplementUnsupportedInterfaces()
+    public void OneLineFormatter_DoesNotImplementUnsupportedInterfaces()
     {
         var tw = new StringWriter();
-        var writer = new OneLineWriter(tw);
+        var writer = new OneLineFormatter(tw);
         Assert.False(writer is IHeadingFormatter);
         Assert.False(writer is ICodeBlockFormatter);
         Assert.False(writer is IBlockFormatter);

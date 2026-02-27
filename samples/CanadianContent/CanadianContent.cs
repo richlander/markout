@@ -62,9 +62,9 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
             "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),
             "spectre" => new SpectreWriter(AnsiConsole.Console, options),
             "plain" => new MarkoutWriter(sw, options),
-            "oneline" => new OneLineWriter(sw, options),
+            "oneline" => new OneLineFormatter(sw, options),
             "diagram" => new DiagramWriter(sw, options),
-            _ => new MarkdownWriter(sw, options),
+            _ => new MarkdownFormatter(sw, options),
         };
         return (w, sw);
     }

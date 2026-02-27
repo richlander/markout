@@ -222,9 +222,9 @@ Markout ships four renderers. The serializer writes through `MarkoutWriter` — 
 
 | Renderer | Output | Use case |
 |---|---|---|
-| **MarkdownWriter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
+| **MarkdownFormatter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
 | **MarkoutWriter** | Plain text, space-padded | Log files, piped output, terminals without ANSI |
-| **OneLineWriter** | Tables only, no headings | Compact summaries, grep-friendly output |
+| **OneLineFormatter** | Tables only, no headings | Compact summaries, grep-friendly output |
 | **DiagramWriter** | Trees and structural diagrams | Dependency graphs, file trees |
 
 Optional packages:
@@ -330,13 +330,13 @@ var options = new MarkoutWriterOptions
     IncludeSections = new HashSet<string> { "Summary", "Errors" },  // only these sections
     BoldFieldNames = true
 };
-var writer = new MarkdownWriter(Console.Out, options);
+var writer = new MarkdownFormatter(Console.Out, options);
 ```
 
 **Layer 3 — Renderer Subclass** (code): Override any shape for custom visual treatment.
 
 ```csharp
-public class MyWriter : MarkdownWriter
+public class MyWriter : MarkdownFormatter
 {
     protected override void WriteDescription(Description item)
     {
@@ -358,7 +358,7 @@ The package includes the source generator — no additional packages needed.
 
 - **[HelloMarkout](samples/HelloMarkout)** — Simplest possible example: a class, a context, one line of serialization
 - **[RecordDemo](samples/RecordDemo)** — Records as view models
-- **[GitHubRepo](samples/GitHubRepo)** — GitHub API → fields, breakdowns, metrics, and tables with Spectre/Markdown/OneLineWriter output
+- **[GitHubRepo](samples/GitHubRepo)** — GitHub API → fields, breakdowns, metrics, and tables with Spectre/Markdown/OneLineFormatter output
 - **[GitHubActivity](samples/GitHubActivity)** — User profile and recent events from the GitHub API
 - **[CanadianContent](samples/CanadianContent)** — Canadian actors and shows with tables, trees, metrics, and multiple renderers
 - **[LatestCves](samples/LatestCves)** — .NET security advisories with trees and severity breakdowns

@@ -3,12 +3,12 @@ using Markout;
 namespace Markout.Tests;
 
 [Collection("ConsoleError")]
-public class OneLineWriterTests
+public class OneLineFormatterTests
 {
     [Fact]
     public void SupportedShapes_ReturnsTablesListsAndFields()
     {
-        var writer = new OneLineWriter(TextWriter.Null);
+        var writer = new OneLineFormatter(TextWriter.Null);
         Assert.Equal(MarkoutShape.Tables | MarkoutShape.Lists | MarkoutShape.Fields, writer.SupportedShapes);
     }
 
@@ -16,7 +16,7 @@ public class OneLineWriterTests
     public void WriteTable_SpacePaddedColumns()
     {
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
+        var writer = new OneLineFormatter(sw);
         writer.WriteTable(
             ["Name", "Age"],
             [["Alice", "30"], ["Bob", "7"]]);
@@ -32,7 +32,7 @@ public class OneLineWriterTests
     public void WriteTable_NoHeader()
     {
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw, showHeader: false);
+        var writer = new OneLineFormatter(sw, showHeader: false);
         writer.WriteTable(
             ["Name", "Age"],
             [["Alice", "30"]]);
@@ -46,7 +46,7 @@ public class OneLineWriterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var writer = new OneLineWriter(sw, options);
+        var writer = new OneLineFormatter(sw, options);
         writer.WriteTable(
             ["Name"],
             [["Alice"], ["Bob"], ["Carol"]]);
@@ -61,7 +61,7 @@ public class OneLineWriterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var writer = new OneLineWriter(sw, options);
+        var writer = new OneLineFormatter(sw, options);
         writer.WriteTableStart("Name");
         writer.WriteTableRow("Alice");
         writer.WriteTableRow("Bob");
@@ -77,7 +77,7 @@ public class OneLineWriterTests
     public void WriteListItem_RendersPlainText()
     {
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
+        var writer = new OneLineFormatter(sw);
         writer.WriteListItem("hello");
         Assert.Equal("hello\n", sw.ToString().Replace("\r\n", "\n"));
     }
@@ -86,7 +86,7 @@ public class OneLineWriterTests
     public void WriteHeading_Suppressed()
     {
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
+        var writer = new OneLineFormatter(sw);
         writer.WriteHeading(1, "Title");
         Assert.Equal("", sw.ToString());
     }
@@ -95,7 +95,7 @@ public class OneLineWriterTests
     public void WriteFields_BufferedAndRenderedAsTable()
     {
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
+        var writer = new OneLineFormatter(sw);
         writer.WriteFields(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "11.0.0"));
@@ -116,7 +116,7 @@ public class OneLineWriterTests
     public void WriteFieldsInline_RendersInline()
     {
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
+        var writer = new OneLineFormatter(sw);
         writer.WriteFieldsInline(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "11.0.0"));
@@ -135,7 +135,7 @@ public class OneLineWriterTests
     public void WriteFields_FlushedOnHeading()
     {
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
+        var writer = new OneLineFormatter(sw);
         writer.WriteHeading(2, "Section 1", null);
         writer.WriteFields([new("Key1", "Value1")]);
         writer.WriteHeading(2, "Section 2", null);  // Should flush buffered fields
@@ -149,7 +149,7 @@ public class OneLineWriterTests
     public void WriteParagraph_Suppressed()
     {
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
+        var writer = new OneLineFormatter(sw);
         writer.WriteParagraph("hello");
         // Paragraphs are unsupported — output should be empty
         Assert.Equal("", sw.ToString());

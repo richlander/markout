@@ -37,7 +37,7 @@ public sealed class MarkoutSchemaInfo
     /// </summary>
     public void WriteTree(System.IO.TextWriter writer)
     {
-        var markout = new MarkdownWriter(writer);
+        var markout = new MarkdownFormatter(writer);
         
         writer.WriteLine($"{TypeName} (as document)");
         markout.WriteTree(CollectionsMarshal.AsSpan(ToTreeNodes(AsDocument)));

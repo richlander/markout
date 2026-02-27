@@ -60,8 +60,8 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
 
     MarkoutWriter writer = format switch
     {
-        "markdown" => new MarkdownWriter(Console.Out, options),
-        "oneline" => new OneLineWriter(Console.Out, new MarkoutWriterOptions
+        "markdown" => new MarkdownFormatter(Console.Out, options),
+        "oneline" => new OneLineFormatter(Console.Out, new MarkoutWriterOptions
         {
             IncludeDescription = false,
             IncludeSections = options.IncludeSections ?? new HashSet<string> { "Releases" }

@@ -5,21 +5,21 @@ namespace Markout.Tests;
 
 public class OrchestratorTests
 {
-    // ── MarkdownWriter formatter — all shapes render ──
+    // ── MarkdownFormatter formatter — all shapes render ──
 
     [Fact]
-    public void MarkdownWriter_WriteHeading_Renders()
+    public void MarkdownFormatter_WriteHeading_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteHeading(1, "Title");
         Assert.True(result);
         Assert.Equal("# Title", orch.ToString());
     }
 
     [Fact]
-    public void MarkdownWriter_WriteHeading_WithContext()
+    public void MarkdownFormatter_WriteHeading_WithContext()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteHeading(2, "Section", "v1.0");
         Assert.True(result);
         Assert.Equal("## Section (v1.0)", orch.ToString());
@@ -28,15 +28,15 @@ public class OrchestratorTests
     [Fact]
     public void WriteHeading_InvalidLevel_Throws()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         Assert.Throws<ArgumentOutOfRangeException>(() => orch.WriteHeading(0, "Bad"));
         Assert.Throws<ArgumentOutOfRangeException>(() => orch.WriteHeading(7, "Bad"));
     }
 
     [Fact]
-    public void MarkdownWriter_WriteFields_Renders()
+    public void MarkdownFormatter_WriteFields_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteFields(new MarkoutField("Name", "Alice"), new MarkoutField("Age", "30"));
         Assert.True(result);
         var output = orch.ToString();
@@ -45,18 +45,18 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteFields_Bold()
+    public void MarkdownFormatter_WriteFields_Bold()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), new MarkoutWriterOptions { BoldFieldNames = true });
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), new MarkoutWriterOptions { BoldFieldNames = true });
         orch.WriteFields(new MarkoutField("Name", "Alice"));
         var output = orch.ToString();
         Assert.Contains("**Name:** Alice", output);
     }
 
     [Fact]
-    public void MarkdownWriter_WriteTable_Renders()
+    public void MarkdownFormatter_WriteTable_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteTable(["Name", "Age"], [["Alice", "30"], ["Bob", "25"]]);
         Assert.True(result);
         var output = orch.ToString();
@@ -65,9 +65,9 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteCodeBlock_Renders()
+    public void MarkdownFormatter_WriteCodeBlock_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         Assert.True(orch.WriteCodeStart("csharp"));
         orch.WriteBlankLine(); // just to have some content
         Assert.True(orch.WriteCodeEnd());
@@ -77,9 +77,9 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteCallout_Renders()
+    public void MarkdownFormatter_WriteCallout_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteCallout(CalloutSeverity.Warning, "Watch out!");
         Assert.True(result);
         var output = orch.ToString();
@@ -88,18 +88,18 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteQuotation_Renders()
+    public void MarkdownFormatter_WriteQuotation_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteQuotation("To be or not to be");
         Assert.True(result);
         Assert.Contains("> To be or not to be", orch.ToString());
     }
 
     [Fact]
-    public void MarkdownWriter_WriteRule_Renders()
+    public void MarkdownFormatter_WriteRule_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteParagraph("Before");
         var result = orch.WriteRule();
         Assert.True(result);
@@ -107,9 +107,9 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteDescriptions_Renders()
+    public void MarkdownFormatter_WriteDescriptions_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteDescriptions([new Description("Term", "Definition")]);
         Assert.True(result);
         var output = orch.ToString();
@@ -118,9 +118,9 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteBreakdown_Renders()
+    public void MarkdownFormatter_WriteBreakdown_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var breakdown = new Breakdown("Test", [new Segment("Pass", 8), new Segment("Fail", 2)]);
         var result = orch.WriteBreakdown([breakdown]);
         Assert.True(result);
@@ -130,9 +130,9 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteMetrics_Renders()
+    public void MarkdownFormatter_WriteMetrics_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteMetrics([new Metric("CPU", 75), new Metric("Mem", 50)]);
         Assert.True(result);
         var output = orch.ToString();
@@ -141,18 +141,18 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteListItem_Renders()
+    public void MarkdownFormatter_WriteListItem_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteListItem("Item one");
         Assert.True(result);
         Assert.Contains("- Item one", orch.ToString());
     }
 
     [Fact]
-    public void MarkdownWriter_WriteList_Renders()
+    public void MarkdownFormatter_WriteList_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteList("A", "B", "C");
         Assert.True(result);
         var output = orch.ToString();
@@ -162,9 +162,9 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteArray_WithKey_Renders()
+    public void MarkdownFormatter_WriteArray_WithKey_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteArray("Items", "X", "Y");
         Assert.True(result);
         var output = orch.ToString();
@@ -173,18 +173,18 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteParagraph_Renders()
+    public void MarkdownFormatter_WriteParagraph_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteParagraph("Hello world");
         Assert.True(result);
         Assert.Equal("Hello world", orch.ToString());
     }
 
     [Fact]
-    public void MarkdownWriter_WriteTree_Renders()
+    public void MarkdownFormatter_WriteTree_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteTree(new TreeNode("Root", null, new TreeNode("Child")));
         Assert.True(result);
         var output = orch.ToString();
@@ -193,68 +193,68 @@ public class OrchestratorTests
     }
 
     [Fact]
-    public void MarkdownWriter_WriteTreeNode_Renders()
+    public void MarkdownFormatter_WriteTreeNode_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteTreeNode("node text", ">> ");
         Assert.True(result);
         Assert.Contains(">> node text", orch.ToString());
     }
 
-    // ── OneLineWriter formatter — subset renders ──
+    // ── OneLineFormatter formatter — subset renders ──
 
     [Fact]
-    public void OneLineWriter_WriteHeading_ReturnsFalse()
+    public void OneLineFormatter_WriteHeading_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
         var result = orch.WriteHeading(1, "Title");
         Assert.False(result);
     }
 
     [Fact]
-    public void OneLineWriter_WriteTable_ReturnsTrue()
+    public void OneLineFormatter_WriteTable_ReturnsTrue()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
         var result = orch.WriteTable(["Col"], [["Val"]]);
         Assert.True(result);
     }
 
     [Fact]
-    public void OneLineWriter_WriteFields_ReturnsTrue()
+    public void OneLineFormatter_WriteFields_ReturnsTrue()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
         var result = orch.WriteFields(new MarkoutField("K", "V"));
         Assert.True(result);
     }
 
     [Fact]
-    public void OneLineWriter_WriteCallout_ReturnsFalse()
+    public void OneLineFormatter_WriteCallout_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
         var result = orch.WriteCallout(CalloutSeverity.Note, "msg");
         Assert.False(result);
     }
 
     [Fact]
-    public void OneLineWriter_WriteCodeStart_ReturnsFalse()
+    public void OneLineFormatter_WriteCodeStart_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
         var result = orch.WriteCodeStart("csharp");
         Assert.False(result);
     }
 
     [Fact]
-    public void OneLineWriter_WriteBreakdown_ReturnsFalse()
+    public void OneLineFormatter_WriteBreakdown_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
         var result = orch.WriteBreakdown([new Breakdown("X", [new Segment("A", 1)])]);
         Assert.False(result);
     }
 
     [Fact]
-    public void OneLineWriter_WriteRule_ReturnsFalse()
+    public void OneLineFormatter_WriteRule_ReturnsFalse()
     {
-        var orch = MarkoutOrchestrator.Create(new OneLineWriter(TextWriter.Null));
+        var orch = MarkoutOrchestrator.Create(new OneLineFormatter(TextWriter.Null));
         var result = orch.WriteRule();
         Assert.False(result);
     }
@@ -265,7 +265,7 @@ public class OrchestratorTests
     public void IncludeSections_FiltersContent()
     {
         var options = new MarkoutWriterOptions { IncludeSections = ["Visible"] };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
 
         orch.WriteHeading(1, "Title");
         orch.WriteHeading(2, "Visible");
@@ -284,7 +284,7 @@ public class OrchestratorTests
     public void ExcludeSections_FiltersContent()
     {
         var options = new MarkoutWriterOptions { ExcludeSections = ["Hidden"] };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
 
         orch.WriteHeading(2, "Visible");
         orch.WriteParagraph("Included");
@@ -305,14 +305,14 @@ public class OrchestratorTests
             ExcludeSections = ["B"]
         };
         Assert.Throws<InvalidOperationException>(() =>
-            MarkoutOrchestrator.Create(new MarkdownWriter(), options));
+            MarkoutOrchestrator.Create(new MarkdownFormatter(), options));
     }
 
     [Fact]
     public void EmptyIncludeSections_PreambleOnly()
     {
         var options = new MarkoutWriterOptions { IncludeSections = [] };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
 
         orch.WriteHeading(1, "Title");
         orch.WriteParagraph("Preamble");
@@ -333,7 +333,7 @@ public class OrchestratorTests
         {
             Projection = MarkoutProjection.WithFields("Name")
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
         orch.WriteFields(new MarkoutField("Name", "Alice"), new MarkoutField("Age", "30"));
 
         var output = orch.ToString();
@@ -348,7 +348,7 @@ public class OrchestratorTests
         {
             Projection = MarkoutProjection.WithoutFields("Age")
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
         orch.WriteFields(new MarkoutField("Name", "Alice"), new MarkoutField("Age", "30"));
 
         var output = orch.ToString();
@@ -363,7 +363,7 @@ public class OrchestratorTests
         {
             Projection = MarkoutProjection.WithColumns("Name")
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
         orch.WriteTable(["Name", "Age"], [["Alice", "30"]]);
 
         var output = orch.ToString();
@@ -390,12 +390,12 @@ public class OrchestratorTests
     [Fact]
     public void FieldCascade_FullFormatter_RendersFieldsNatively()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
 
         orch.WriteFields(new MarkoutField("A", "1"));
 
         var output = orch.ToString();
-        // MarkdownWriter implements IFieldFormatter, so fields render as key: value, not as a table
+        // MarkdownFormatter implements IFieldFormatter, so fields render as key: value, not as a table
         Assert.Contains("A:", output);
         Assert.DoesNotContain("| Field |", output);
     }
@@ -465,7 +465,7 @@ public class OrchestratorTests
     public void MaxItems_LimitsTableRows()
     {
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
 
         orch.WriteTable(["Name"], [["Alice"], ["Bob"], ["Carol"]]);
 
@@ -479,7 +479,7 @@ public class OrchestratorTests
     public void MaxItems_StreamingTable()
     {
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
 
         orch.WriteTableStart("Name");
         orch.WriteTableRow("Alice");
@@ -502,7 +502,7 @@ public class OrchestratorTests
         {
             Projection = MarkoutProjection.WithSections("Data")
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
 
         // Only "Data" section should appear in output
         orch.WriteSectionStart(2, "Data");
@@ -523,7 +523,7 @@ public class OrchestratorTests
             Projection = MarkoutProjection.WithSections("Data"),
             ExcludeSections = ["Other"]
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
 
         orch.WriteSectionStart(2, "Data");
         // No content written — heading should not appear
@@ -533,16 +533,16 @@ public class OrchestratorTests
         Assert.Equal("", output);
     }
 
-    // ── Output parity with MarkdownWriter ──
+    // ── Output parity with MarkdownFormatter ──
 
     [Fact]
     public void OutputParity_Heading()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteHeading(1, "Title");
         var expected = writer.ToString();
 
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteHeading(1, "Title");
         var actual = orch.ToString();
 
@@ -552,11 +552,11 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_Fields()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteFields(new MarkoutField("A", "1"), new MarkoutField("B", "2"));
         var expected = writer.ToString();
 
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteFields(new MarkoutField("A", "1"), new MarkoutField("B", "2"));
         var actual = orch.ToString();
 
@@ -566,11 +566,11 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_Table()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteTable(["Name", "Age"], [["Alice", "30"]]);
         var expected = writer.ToString();
 
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteTable(["Name", "Age"], [["Alice", "30"]]);
         var actual = orch.ToString();
 
@@ -580,12 +580,12 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_HeadingThenFields()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteHeading(1, "Title");
         writer.WriteFields(new MarkoutField("K", "V"));
         var expected = writer.ToString();
 
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteHeading(1, "Title");
         orch.WriteFields(new MarkoutField("K", "V"));
         var actual = orch.ToString();
@@ -596,12 +596,12 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_HeadingThenTable()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteHeading(2, "Data");
         writer.WriteTable(["X"], [["1"]]);
         var expected = writer.ToString();
 
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteHeading(2, "Data");
         orch.WriteTable(["X"], [["1"]]);
         var actual = orch.ToString();
@@ -612,11 +612,11 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_ListItems()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteList("A", "B");
         var expected = writer.ToString();
 
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteList("A", "B");
         var actual = orch.ToString();
 
@@ -626,12 +626,12 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_CodeBlock()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteCodeStart("json");
         writer.WriteCodeEnd();
         var expected = writer.ToString();
 
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteCodeStart("json");
         orch.WriteCodeEnd();
         var actual = orch.ToString();
@@ -642,11 +642,11 @@ public class OrchestratorTests
     [Fact]
     public void OutputParity_Callout()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         writer.WriteCallout(CalloutSeverity.Note, "Info");
         var expected = writer.ToString();
 
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteCallout(CalloutSeverity.Note, "Info");
         var actual = orch.ToString();
 
@@ -658,7 +658,7 @@ public class OrchestratorTests
     [Fact]
     public void ToString_TrimsTrailingWhitespace()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteParagraph("Text");
         orch.WriteBlankLine();
 
@@ -669,7 +669,7 @@ public class OrchestratorTests
     [Fact]
     public void ToString_RendersFieldOutput()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
 
         orch.WriteFields(new MarkoutField("Key", "Val"));
 
@@ -684,7 +684,7 @@ public class OrchestratorTests
     public void Create_WithTextWriter_TypeInference()
     {
         var sw = new StringWriter();
-        var orch = MarkoutOrchestrator.Create(sw, new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(sw, new MarkdownFormatter());
         orch.WriteHeading(1, "Test");
         Assert.Contains("# Test", sw.ToString());
     }
@@ -692,7 +692,7 @@ public class OrchestratorTests
     [Fact]
     public void Create_InMemory_TypeInference()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteParagraph("Hello");
         Assert.Equal("Hello", orch.ToString());
     }
@@ -700,7 +700,7 @@ public class OrchestratorTests
     [Fact]
     public void ExplicitGeneric_Works()
     {
-        var orch = new MarkoutOrchestrator<MarkdownWriter>(new MarkdownWriter());
+        var orch = new MarkoutOrchestrator<MarkdownFormatter>(new MarkdownFormatter());
         orch.WriteHeading(1, "Explicit");
         Assert.Contains("# Explicit", orch.ToString());
     }
@@ -710,7 +710,7 @@ public class OrchestratorTests
     [Fact]
     public void StreamingTable_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteTableStart("Name", "Value");
         orch.WriteTableRow("A", "1");
         orch.WriteTableRow("B", "2");
@@ -733,21 +733,21 @@ public class OrchestratorTests
     [Fact]
     public void WriteTableRow_WithoutStart_Throws()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         Assert.Throws<InvalidOperationException>(() => orch.WriteTableRow("value"));
     }
 
     [Fact]
     public void WriteCodeEnd_WithoutStart_Throws()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         Assert.Throws<InvalidOperationException>(() => orch.WriteCodeEnd());
     }
 
     [Fact]
     public void WriteCodeStart_Nested_Throws()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         orch.WriteCodeStart();
         Assert.Throws<InvalidOperationException>(() => orch.WriteCodeStart());
     }
@@ -784,7 +784,7 @@ public class OrchestratorTests
     [Fact]
     public void WriteFieldsTable_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteFieldsTable(new MarkoutField("Name", "Alice"));
         Assert.True(result);
         var output = orch.ToString();
@@ -810,7 +810,7 @@ public class OrchestratorTests
         {
             Projection = MarkoutProjection.WithColumns("Name")
         };
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter(), options);
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
 
         orch.WriteTableStart("Name", "Age");
         orch.WriteTableRow("Alice", "30");
@@ -826,7 +826,7 @@ public class OrchestratorTests
     [Fact]
     public void WriteVerticalMetrics_Renders()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
         var result = orch.WriteVerticalMetrics([new Metric("A", 10), new Metric("B", 5)]);
         Assert.True(result);
         var output = orch.ToString();
@@ -847,7 +847,7 @@ public class OrchestratorTests
     public void Flush_WritesOutputToStream()
     {
         var sw = new StringWriter();
-        var orch = MarkoutOrchestrator.Create(sw, new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(sw, new MarkdownFormatter());
 
         orch.WriteFields(new MarkoutField("K", "V"));
         orch.Flush();
@@ -917,7 +917,7 @@ public class OrchestratorTests
     [Fact]
     public void BatchTable_WithIList_UsesBatchFormatter()
     {
-        var orch = MarkoutOrchestrator.Create(new MarkdownWriter());
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
 
         // IList<string[]> should take the batch path
         orch.WriteTable(["Name"], new List<string[]> { new[] { "Alice" } });
@@ -930,17 +930,17 @@ public class OrchestratorTests
     // ── IDocumentFormatter aggregate ──
 
     [Fact]
-    public void DocumentFormatter_MarkdownWriter_ImplementsAggregate()
+    public void DocumentFormatter_MarkdownFormatter_ImplementsAggregate()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         Assert.IsAssignableFrom<IDocumentFormatter>(writer);
     }
 
     [Fact]
     public void DocumentFormatter_WorksAsOrchestratorConstraint()
     {
-        // Verify MarkdownWriter can be used via IDocumentFormatter
-        var writer = new MarkdownWriter();
+        // Verify MarkdownFormatter can be used via IDocumentFormatter
+        var writer = new MarkdownFormatter();
         IDocumentFormatter df = writer;
 
         var sw = new StringWriter();

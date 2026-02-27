@@ -13,7 +13,7 @@ public static class WriterUsage
     public static void UseMarkoutWriter()
     {
         #region UseMarkoutWriter
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
 
         writer.WriteHeading(1, "Product Report");
 
@@ -44,7 +44,7 @@ public static class WriterUsage
     public static void WriteTable()
     {
         #region WriteTable
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
 
         writer.WriteHeading(1, "Inventory");
 
@@ -73,7 +73,7 @@ public static class WriterUsage
     public static void WriteTree()
     {
         #region WriteTree
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
 
         writer.WriteHeading(1, "Organization");
 

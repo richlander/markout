@@ -120,7 +120,7 @@ public static class MarkoutSerializer
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         typeInfo.Serialize(writer, value);
         return writer.ToString();
     }
@@ -138,7 +138,7 @@ public static class MarkoutSerializer
         ArgumentNullException.ThrowIfNull(typeInfo);
         ArgumentNullException.ThrowIfNull(options);
 
-        var writer = new MarkdownWriter(options);
+        var writer = new MarkdownFormatter(options);
         typeInfo.Serialize(writer, value);
         return writer.ToString();
     }
@@ -154,7 +154,7 @@ public static class MarkoutSerializer
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
-        var writer = new MarkdownWriter(output);
+        var writer = new MarkdownFormatter(output);
         typeInfo.Serialize(writer, value);
         writer.Flush();
     }
@@ -172,7 +172,7 @@ public static class MarkoutSerializer
         ArgumentNullException.ThrowIfNull(typeInfo);
         ArgumentNullException.ThrowIfNull(options);
 
-        var writer = new MarkdownWriter(output, options);
+        var writer = new MarkdownFormatter(output, options);
         typeInfo.Serialize(writer, value);
         writer.Flush();
     }

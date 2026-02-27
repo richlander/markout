@@ -156,22 +156,22 @@ public class MarkoutTemplate
     }
 
     /// <summary>
-    /// Renders the template using a <see cref="MarkdownWriter"/> and returns the result as a string.
+    /// Renders the template using a <see cref="MarkdownFormatter"/> and returns the result as a string.
     /// </summary>
     public string Render()
     {
-        var writer = new MarkdownWriter();
+        var writer = new MarkdownFormatter();
         Render(writer);
         return writer.ToString();
     }
 
     /// <summary>
-    /// Renders the template using a <see cref="MarkdownWriter"/> with the specified options
+    /// Renders the template using a <see cref="MarkdownFormatter"/> with the specified options
     /// and returns the result as a string.
     /// </summary>
     public string Render(MarkoutWriterOptions options)
     {
-        var writer = new MarkdownWriter(options);
+        var writer = new MarkdownFormatter(options);
         Render(writer);
         return writer.ToString();
     }
@@ -216,11 +216,11 @@ public class MarkoutTemplate
 
     /// <summary>
     /// Renders the template into the specified <see cref="TextWriter"/>
-    /// using a <see cref="MarkdownWriter"/>.
+    /// using a <see cref="MarkdownFormatter"/>.
     /// </summary>
     public void Render(TextWriter output)
     {
-        var writer = new MarkdownWriter(output);
+        var writer = new MarkdownFormatter(output);
         Render(writer);
         writer.Flush();
     }

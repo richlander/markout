@@ -8,7 +8,7 @@ namespace Markout;
 /// Produces # headings, **bold** field names, | pipe tables |, - bullet lists,
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
-public class MarkdownWriter : MarkoutWriter, IMarkoutFormatter,
+public class MarkdownFormatter : MarkoutWriter, IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter
 {
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
@@ -17,7 +17,7 @@ public class MarkdownWriter : MarkoutWriter, IMarkoutFormatter,
     /// Creates a writer that builds Markdown output in memory with default options.
     /// Use ToString() to get the result.
     /// </summary>
-    public MarkdownWriter() : base()
+    public MarkdownFormatter() : base()
     {
     }
 
@@ -25,35 +25,35 @@ public class MarkdownWriter : MarkoutWriter, IMarkoutFormatter,
     /// Creates a writer that builds Markdown output in memory with the specified options.
     /// Use ToString() to get the result.
     /// </summary>
-    public MarkdownWriter(MarkoutWriterOptions options) : base(options)
+    public MarkdownFormatter(MarkoutWriterOptions options) : base(options)
     {
     }
 
     /// <summary>
     /// Creates a writer that writes Markdown to the specified TextWriter with default options.
     /// </summary>
-    public MarkdownWriter(TextWriter writer) : base(writer)
+    public MarkdownFormatter(TextWriter writer) : base(writer)
     {
     }
 
     /// <summary>
     /// Creates a writer that writes Markdown to the specified TextWriter with the specified options.
     /// </summary>
-    public MarkdownWriter(TextWriter writer, MarkoutWriterOptions options) : base(writer, options)
+    public MarkdownFormatter(TextWriter writer, MarkoutWriterOptions options) : base(writer, options)
     {
     }
 
     /// <summary>
     /// Creates a writer that writes Markdown to the specified Stream with default options.
     /// </summary>
-    public MarkdownWriter(Stream stream) : base(stream)
+    public MarkdownFormatter(Stream stream) : base(stream)
     {
     }
 
     /// <summary>
     /// Creates a writer that writes Markdown to the specified Stream with the specified options.
     /// </summary>
-    public MarkdownWriter(Stream stream, MarkoutWriterOptions options) : base(stream, options)
+    public MarkdownFormatter(Stream stream, MarkoutWriterOptions options) : base(stream, options)
     {
     }
 
