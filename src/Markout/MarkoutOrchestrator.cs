@@ -1102,3 +1102,5 @@ public class MarkoutOrchestrator<TFormatter> : MarkoutOrchestrator where TFormat
     {
     }
 }
+
+internal readonly record struct PendingSectionHeading(int Level, string Text, string? Context);

@@ -39,16 +39,33 @@ public static class MarkoutSerializer
     }
 
     /// <summary>
-    /// Serializes a value into an existing orchestrator using the specified context.
+    /// Serializes a value using the specified formatter, writing to the specified TextWriter.
     /// </summary>
     /// <typeparam name="T">The type to serialize.</typeparam>
     /// <param name="value">The value to serialize.</param>
-    /// <param name="orchestrator">The orchestrator to serialize into.</param>
+    /// <param name="output">The TextWriter to write to.</param>
+    /// <param name="formatter">The formatter to use for rendering.</param>
     /// <param name="context">The serializer context containing type metadata.</param>
-    public static void Serialize<T>(T value, MarkoutOrchestrator orchestrator, MarkoutSerializerContext context)
+    public static void Serialize<T>(T value, TextWriter output, Formatting.IMarkoutFormatter formatter, MarkoutSerializerContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        context.Serialize(value, orchestrator);
+        context.Serialize(value, output, formatter);
+    }
+
+    /// <summary>
+    /// Serializes a value using the specified formatter and options, writing to the specified TextWriter.
+    /// </summary>
+    /// <typeparam name="T">The type to serialize.</typeparam>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="output">The TextWriter to write to.</param>
+    /// <param name="formatter">The formatter to use for rendering.</param>
+    /// <param name="context">The serializer context containing type metadata.</param>
+    /// <param name="options">The writer options for controlling output formatting.</param>
+    public static void Serialize<T>(T value, TextWriter output, Formatting.IMarkoutFormatter formatter, MarkoutSerializerContext context, MarkoutWriterOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(options);
+        context.Serialize(value, output, formatter, options);
     }
 
     /// <summary>

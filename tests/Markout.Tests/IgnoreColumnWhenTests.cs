@@ -360,8 +360,7 @@ public class IgnoreColumnWhenTests
         };
 
         var sw = new StringWriter();
-        var orch = new MarkoutOrchestrator(sw, new OneLineFormatter());
-        MarkoutSerializer.Serialize(view, orch, IgnoreColumnWhenTestContext.Default);
+        MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
         var output = sw.ToString();
 
         // OneLineFormatter renders table rows as pipe-separated lines
@@ -386,8 +385,7 @@ public class IgnoreColumnWhenTests
         };
 
         var sw = new StringWriter();
-        var orch = new MarkoutOrchestrator(sw, new OneLineFormatter());
-        MarkoutSerializer.Serialize(view, orch, IgnoreColumnWhenTestContext.Default);
+        MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
         var output = sw.ToString();
 
         // Pattern is NOT uniform → shown
@@ -414,8 +412,7 @@ public class IgnoreColumnWhenTests
             };
 
             var sw = new StringWriter();
-            var orch = new MarkoutOrchestrator(sw, new OneLineFormatter());
-            MarkoutSerializer.Serialize(view, orch, IgnoreColumnWhenTestContext.Default);
+            MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
 
             // No warnings - OneLineFormatter supports Fields
             Assert.Equal("", errWriter.ToString());

@@ -7,6 +7,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Markout;
 using Markout.Ansi.Spectre;
+using Markout.Formatting;
 using Spectre.Console;
 
 var repoArg = new Argument<string>("repo") { DefaultValueFactory = _ => "dotnet/runtime", Description = "GitHub repository (owner/repo)" };
@@ -58,18 +59,22 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         ? new MarkoutWriterOptions { IncludeSections = new HashSet<string> { section } }
         : new MarkoutWriterOptions();
 
-    MarkoutWriter writer = format switch
+    IMarkoutFormatter formatter = format switch
     {
-        "markdown" => new MarkdownFormatter(Console.Out, options),
-        "oneline" => new OneLineFormatter(Console.Out, new MarkoutWriterOptions
+        "markdown" => new MarkdownFormatter(),
+        "oneline" => new OneLineFormatter(),
+        _ => new SpectreWriter(AnsiConsole.Console),
+    };
+
+    var onelineOptions = format == "oneline"
+        ? new MarkoutWriterOptions
         {
             IncludeDescription = false,
             IncludeSections = options.IncludeSections ?? new HashSet<string> { "Releases" }
-        }),
-        _ => new SpectreWriter(AnsiConsole.Console, options),
-    };
+        }
+        : options;
 
-    bool useMetrics = writer.SupportedShapes.HasFlag(MarkoutShape.Metrics);
+    bool useMetrics = formatter is IMetricsFormatter;
 
     // Project to view model — shape selection depends on writer
     var totalBytes = languages.Values.Sum();
@@ -134,7 +139,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
             }).ToList()
     };
 
-    MarkoutSerializer.Serialize(view, writer, RepoContext.Default);
+    MarkoutSerializer.Serialize(view, Console.Out, formatter, RepoContext.Default, onelineOptions);
 }
 
 static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";

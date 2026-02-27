@@ -1,4 +1,5 @@
 using Markout;
+using Markout.Formatting;
 
 namespace Markout.Tests;
 
@@ -9,7 +10,6 @@ public class ProjectionTests
     [Fact]
     public void IncludeColumns_FiltersTableToSpecifiedColumns()
     {
-        var sw = new StringWriter();
         var options = new MarkoutWriterOptions
         {
             Projection = new MarkoutProjection
@@ -17,11 +17,11 @@ public class ProjectionTests
                 IncludeColumns = ["Name", "TFM"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTableStart("Name", "Version", "TFM", "Signed");
-        writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0", "yes");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTableStart("Name", "Version", "TFM", "Signed");
+        orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0", "yes");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         Assert.Contains("Name", output);
         Assert.Contains("TFM", output);
         Assert.Contains("Foo.dll", output);
@@ -35,7 +35,6 @@ public class ProjectionTests
     [Fact]
     public void IncludeColumns_ReordersColumnsToMatchSpecifiedOrder()
     {
-        var sw = new StringWriter();
         var options = new MarkoutWriterOptions
         {
             Projection = new MarkoutProjection
@@ -43,11 +42,11 @@ public class ProjectionTests
                 IncludeColumns = ["TFM", "Name"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTableStart("Name", "Version", "TFM");
-        writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTableStart("Name", "Version", "TFM");
+        orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         // TFM should appear before Name
         int tfmIndex = output.IndexOf("TFM");
         int nameIndex = output.IndexOf("Name");
@@ -64,11 +63,11 @@ public class ProjectionTests
                 IncludeColumns = ["name", "tfm"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTableStart("Name", "Version", "TFM");
-        writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTableStart("Name", "Version", "TFM");
+        orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         Assert.Contains("Name", output);
         Assert.Contains("TFM", output);
         Assert.DoesNotContain("Version", output);
@@ -84,11 +83,11 @@ public class ProjectionTests
                 IncludeColumns = ["Name", "NonExistent"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTableStart("Name", "Version");
-        writer.WriteTableRow("Foo.dll", "1.0.0");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo.dll", "1.0.0");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         Assert.Contains("Name", output);
         Assert.Contains("Foo.dll", output);
         Assert.DoesNotContain("Version", output);
@@ -106,11 +105,11 @@ public class ProjectionTests
                 ExcludeColumns = ["Version", "Signed"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTableStart("Name", "Version", "TFM", "Signed");
-        writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0", "yes");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTableStart("Name", "Version", "TFM", "Signed");
+        orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0", "yes");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         Assert.Contains("Name", output);
         Assert.Contains("TFM", output);
         Assert.DoesNotContain("Version", output);
@@ -127,11 +126,11 @@ public class ProjectionTests
                 ExcludeColumns = ["Version"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTableStart("Name", "Version", "TFM");
-        writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTableStart("Name", "Version", "TFM");
+        orch.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         int nameIndex = output.IndexOf("Name");
         int tfmIndex = output.IndexOf("TFM");
         Assert.True(nameIndex < tfmIndex, "Name should appear before TFM (original order)");
@@ -149,11 +148,11 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTable(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTable(
             ["Name", "Version", "TFM"],
             [["Foo.dll", "1.0.0", "net8.0"], ["Bar.dll", "2.0.0", "net9.0"]]);
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Name", output);
         Assert.Contains("Foo.dll", output);
         Assert.Contains("Bar.dll", output);
@@ -219,12 +218,12 @@ public class ProjectionTests
                 IncludeFields = ["Name", "License"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFields(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFields(
             new MarkoutField("Name", "System.Text.Json"),
             new MarkoutField("Version", "9.0.0"),
             new MarkoutField("License", "MIT"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Name: System.Text.Json", output);
         Assert.Contains("License: MIT", output);
         Assert.DoesNotContain("Version", output);
@@ -240,11 +239,11 @@ public class ProjectionTests
                 IncludeFields = ["Signed"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFields(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Signed", "yes"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Signed: yes", output);
         Assert.DoesNotContain("Name", output);
     }
@@ -259,11 +258,11 @@ public class ProjectionTests
                 IncludeFields = ["Count"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFields(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Count", "42"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Count: 42", output);
         Assert.DoesNotContain("Name", output);
     }
@@ -278,11 +277,11 @@ public class ProjectionTests
                 IncludeFields = ["name"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFields(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Name: Foo", output);
         Assert.DoesNotContain("Version", output);
     }
@@ -299,12 +298,12 @@ public class ProjectionTests
                 ExcludeFields = ["Version"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFields(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("License", "MIT"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Name: Foo", output);
         Assert.Contains("License: MIT", output);
         Assert.DoesNotContain("Version", output);
@@ -322,12 +321,12 @@ public class ProjectionTests
                 IncludeFields = ["Name", "TFM"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFieldsInline(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Name: Foo", output);
         Assert.Contains("TFM: net8.0", output);
         Assert.DoesNotContain("Version", output);
@@ -343,12 +342,12 @@ public class ProjectionTests
                 IncludeFields = ["TFM", "Name"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFieldsInline(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         int tfmIndex = output.IndexOf("TFM");
         int nameIndex = output.IndexOf("Name");
         Assert.True(tfmIndex < nameIndex, "TFM should appear before Name in field list");
@@ -364,12 +363,12 @@ public class ProjectionTests
                 ExcludeFields = ["Version"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFieldsInline(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"),
             new MarkoutField("TFM", "net8.0"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Name: Foo", output);
         Assert.Contains("TFM: net8.0", output);
         Assert.DoesNotContain("Version", output);
@@ -385,12 +384,12 @@ public class ProjectionTests
                 IncludeFields = ["NonExistent"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteFields([new("Name", "Foo")]);
-        writer.WriteFieldsInline(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteFields([new("Name", "Foo")]);
+        orch.WriteFieldsInline(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Equal("", output);
     }
 
@@ -407,18 +406,18 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteHeading(1, "Report");
-        writer.WriteFields([new("TopLevel", "value")]);
-        writer.WriteHeading(2, "Details");
-        writer.WriteTableStart("Name", "Version");
-        writer.WriteTableRow("Foo", "1.0.0");
-        writer.WriteTableEnd();
-        writer.WriteHeading(2, "Other");
-        writer.WriteTableStart("Name", "Version");
-        writer.WriteTableRow("Bar", "2.0.0");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteHeading(1, "Report");
+        orch.WriteFields([new("TopLevel", "value")]);
+        orch.WriteHeading(2, "Details");
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo", "1.0.0");
+        orch.WriteTableEnd();
+        orch.WriteHeading(2, "Other");
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Bar", "2.0.0");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         // Details section included, Other excluded
         Assert.Contains("Foo", output);
         Assert.DoesNotContain("Bar", output);
@@ -455,11 +454,11 @@ public class ProjectionTests
     [Fact]
     public void NoProjection_TablePassesThrough()
     {
-        var writer = new MarkoutWriter();
-        writer.WriteTableStart("Name", "Version");
-        writer.WriteTableRow("Foo", "1.0.0");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo", "1.0.0");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         Assert.Contains("Name", output);
         Assert.Contains("Version", output);
         Assert.Contains("Foo", output);
@@ -469,11 +468,11 @@ public class ProjectionTests
     [Fact]
     public void NoProjection_FieldsPassThrough()
     {
-        var writer = new MarkoutWriter();
-        writer.WriteFields(
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter());
+        orch.WriteFields(
             new MarkoutField("Name", "Foo"),
             new MarkoutField("Version", "1.0.0"));
-        var output = writer.ToString();
+        var output = orch.ToString();
         Assert.Contains("Name: Foo", output);
         Assert.Contains("Version: 1.0.0", output);
     }
@@ -491,13 +490,13 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTableStart("Name", "Version");
-        writer.WriteTableRow("Foo", "1.0.0");
-        writer.WriteTableRow("Bar", "2.0.0");
-        writer.WriteTableRow("Baz", "3.0.0");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo", "1.0.0");
+        orch.WriteTableRow("Bar", "2.0.0");
+        orch.WriteTableRow("Baz", "3.0.0");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         Assert.Contains("Foo", output);
         Assert.DoesNotContain("Bar", output);
         Assert.Contains("... and 2 more", output);
@@ -641,11 +640,11 @@ public class ProjectionTests
         {
             Projection = MarkoutProjection.WithColumns("Name")
         };
-        var writer = new MarkoutWriter(options);
-        writer.WriteTableStart("Name", "Version");
-        writer.WriteTableRow("Foo", "1.0.0");
-        writer.WriteTableEnd();
-        var output = writer.ToString();
+        var orch = MarkoutOrchestrator.Create(new MarkdownFormatter(), options);
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo", "1.0.0");
+        orch.WriteTableEnd();
+        var output = orch.ToString();
         Assert.Contains("Name", output);
         Assert.Contains("Foo", output);
         Assert.DoesNotContain("Version", output);

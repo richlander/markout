@@ -43,8 +43,7 @@ public class IgnoreFieldsTests
         };
 
         var sw = new StringWriter();
-        var orch = new MarkoutOrchestrator(sw, new OneLineFormatter());
-        MarkoutSerializer.Serialize(view, orch, IgnoreFieldsTestContext.Default);
+        MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreFieldsTestContext.Default);
 
         var output = sw.ToString();
         // OneLineFormatter renders fields as a FIELD/VALUE table

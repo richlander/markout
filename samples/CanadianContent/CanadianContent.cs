@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using Markout;
 using Markout.Ansi;
 using Markout.Ansi.Spectre;
+using Markout.Formatting;
 using Microsoft.Extensions.Terminal;
 using Spectre.Console;
 using TreeNode = Markout.TreeNode;
@@ -54,19 +55,19 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         .ToDictionary(c => c.CityName, c => c.Country);
     var options = new MarkoutWriterOptions { MaxItems = maxItems, IncludeSections = includeSections, PrettyTables = prettyTables };
 
-    (MarkoutWriter writer, StringWriter output) CreateWriter()
+    (IMarkoutFormatter formatter, StringWriter output) CreateWriter()
     {
         var sw = new StringWriter();
-        MarkoutWriter w = format switch
+        var terminal = new AnsiTerminal(new SystemConsole());
+        IMarkoutFormatter f = format switch
         {
-            "ansi" => new AnsiWriter(new AnsiTerminal(new SystemConsole()), options),
-            "spectre" => new SpectreWriter(AnsiConsole.Console, options),
-            "plain" => new MarkoutWriter(sw, options),
-            "oneline" => new OneLineFormatter(sw, options),
-            "diagram" => new DiagramWriter(sw, options),
-            _ => new MarkdownFormatter(sw, options),
+            "ansi" => new AnsiWriter(terminal),
+            "spectre" => new SpectreWriter(AnsiConsole.Console),
+            "oneline" => new OneLineFormatter(),
+            "diagram" => new DiagramWriter(),
+            _ => new MarkdownFormatter(),
         };
-        return (w, sw);
+        return (f, sw);
     }
 
     StringWriter? result = query switch
@@ -100,7 +101,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
 
     StringWriter Summary()
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         if (format == "oneline" && includeSections == null)
         {
             Console.Error.WriteLine("oneline format requires a section flag with summary: --actors, --shows, or --cities");
@@ -138,13 +139,13 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                     };
                 }).ToList()
         };
-        MarkoutSerializer.Serialize(overview, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(overview, output, fmt, CanConContext.Default, options);
         return output;
     }
 
     StringWriter ActorsByName(string nameFilter)
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         var filtered = actors
             .Where(a => a.Name.StartsWith(nameFilter, StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -160,13 +161,13 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                 KnownFor = string.Join(", ", a.Shows.Take(3))
             }).ToList()
         };
-        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
         return output;
     }
 
     StringWriter ShowDetail(string titleFragment)
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         var show = shows.First(s => s.Title.Contains(titleFragment, StringComparison.OrdinalIgnoreCase));
         var castActors = actors.Where(a => show.CanadianActors.Contains(a.Name)).ToList();
         var view = new ShowDetailView
@@ -183,13 +184,13 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                 Citizenship = string.Join(", ", a.Citizenship)
             }).ToList()
         };
-        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
         return output;
     }
 
     StringWriter ShowsByLocation(string city)
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         var filtered = shows.Where(s => s.Location.Contains(city, StringComparison.OrdinalIgnoreCase)).ToList();
         var view = new LocationSearchResult
         {
@@ -202,13 +203,13 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                 FilmingLocation = s.Location
             }).ToList()
         };
-        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
         return output;
     }
 
     StringWriter Filmography(string lastName)
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         var actor = actors.First(a => a.Name.Contains(lastName, StringComparison.OrdinalIgnoreCase));
         var actorShows = shows.Where(s => s.CanadianActors.Contains(actor.Name)).ToList();
         var view = new ActorFilmography
@@ -225,13 +226,13 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                 FilmingLocation = s.Location
             }).ToList()
         };
-        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
         return output;
     }
 
     StringWriter FilmographyTrees()
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         var view = new FilmographyTreeView
         {
             Title = "Canadian Content — Filmography Trees",
@@ -249,26 +250,27 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                 .Where(n => n is not null)
                 .ToList()!
         };
-        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
         return output;
     }
 
     StringWriter VerticalBars()
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
+        var orch = MarkoutOrchestrator.Create(output, fmt, options);
         var bars = shows
             .GroupBy(s => s.Location)
             .OrderByDescending(g => g.Count())
             .Select(g => new Metric(g.Key, g.Count()))
             .ToList();
-        writer.WriteHeading(1, "Shows per Filming Location");
-        writer.WriteVerticalMetrics(bars);
+        orch.WriteHeading(1, "Shows per Filming Location");
+        orch.WriteVerticalMetrics(bars);
         return output;
     }
 
     StringWriter HorizontalBars()
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         var view = new ShowsByLocationChart
         {
             Title = "Shows per Filming Location",
@@ -278,13 +280,13 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                 .Select(g => new Metric(g.Key, g.Count()))
                 .ToList()
         };
-        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
         return output;
     }
 
     StringWriter GenreBreakdown()
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         var view = new GenreBreakdownView
         {
             Title = "Canadian Content — Genre Breakdown",
@@ -294,13 +296,13 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                 .Select(g => new Segment(g.Key, g.Count()))
                 .ToArray())]
         };
-        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
         return output;
     }
 
     StringWriter Report()
     {
-        var (writer, output) = CreateWriter();
+        var (fmt, output) = CreateWriter();
         var topActors = actors.Take(3).ToList();
         var view = new CanConReportView
         {
@@ -333,7 +335,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
             }).ToList(),
             Quote = "The world needs more Canada.\n— Bono, 2003"
         };
-        MarkoutSerializer.Serialize(view, writer, CanConContext.Default);
+        MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
         return output;
     }
 }
@@ -544,7 +546,7 @@ public class CanConReportView
 
 public partial class CanConReportViewMarkoutTypeInfo
 {
-    partial void OnSerialized(MarkoutWriter writer, CanConReportView value)
+    partial void OnSerialized(MarkoutOrchestrator writer, CanConReportView value)
     {
         if (value.Quote != null)
         {
