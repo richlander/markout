@@ -30,9 +30,9 @@ Console.WriteLine(template.Render());
 
 // Render to plain text
 Console.WriteLine("=== Plain Text ===");
-var plainWriter = new MarkoutWriter();
-template.Render(plainWriter);
-Console.WriteLine(plainWriter.ToString());
+var plainOrch = new MarkoutWriter(Console.Out, new MarkdownFormatter());
+template.Render(plainOrch);
+Console.WriteLine();
 
 // --- Data types with both JSON and Markout attributes ---
 

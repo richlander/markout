@@ -205,7 +205,7 @@ public class MarkoutProjection
     /// Returns null if no column projection is needed.
     /// Each entry maps projected position → original position.
     /// </summary>
-    internal int[]? ComputeColumnMap(string[] headers)
+    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers)
     {
         if (_includeColumns != null)
         {
@@ -252,7 +252,7 @@ public class MarkoutProjection
     /// <summary>
     /// Projects headers through a column map.
     /// </summary>
-    internal static string[] ProjectHeaders(string[] headers, int[] columnMap)
+    internal static string[] ProjectHeaders(ReadOnlySpan<string> headers, int[] columnMap)
     {
         var result = new string[columnMap.Length];
         for (int i = 0; i < columnMap.Length; i++)
@@ -263,7 +263,7 @@ public class MarkoutProjection
     /// <summary>
     /// Projects a row through a column map.
     /// </summary>
-    internal static string[] ProjectRow(string[] row, int[] columnMap)
+    internal static string[] ProjectRow(ReadOnlySpan<string> row, int[] columnMap)
     {
         var result = new string[columnMap.Length];
         for (int i = 0; i < columnMap.Length; i++)

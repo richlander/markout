@@ -86,10 +86,6 @@ public abstract class MarkoutSerializerContext
     /// <summary>
     /// Serializes a value using the specified options.
     /// </summary>
-    /// <typeparam name="T">The type to serialize.</typeparam>
-    /// <param name="value">The value to serialize.</param>
-    /// <param name="options">The writer options for controlling output formatting.</param>
-    /// <returns>The Markdown string representation.</returns>
     public string Serialize<T>(T value, MarkoutWriterOptions options)
     {
         var typeInfo = GetTypeInfo<T>();
@@ -100,18 +96,15 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MarkdownWriter(options);
-        typeInfo.Serialize(writer, value);
-        return writer.ToString();
+        var orch = new MarkoutWriter(new MarkdownFormatter(), options);
+        typeInfo.Serialize(orch, value);
+        return orch.ToString();
     }
 
     /// <summary>
-    /// Serializes a value into an existing MarkoutWriter.
-    /// Use this to interleave serialized and imperative content in a single writer.
+    /// Serializes a value into an existing writer.
+    /// Use this to interleave serialized and imperative content.
     /// </summary>
-    /// <typeparam name="T">The type to serialize.</typeparam>
-    /// <param name="value">The value to serialize.</param>
-    /// <param name="writer">The writer to serialize into.</param>
     public void Serialize<T>(T value, MarkoutWriter writer)
     {
         var typeInfo = GetTypeInfo<T>();
@@ -128,9 +121,6 @@ public abstract class MarkoutSerializerContext
     /// <summary>
     /// Serializes a value to the specified TextWriter.
     /// </summary>
-    /// <typeparam name="T">The type to serialize.</typeparam>
-    /// <param name="value">The value to serialize.</param>
-    /// <param name="output">The TextWriter to write to.</param>
     public void Serialize<T>(T value, TextWriter output)
     {
         Serialize(value, output, Options);
@@ -139,11 +129,23 @@ public abstract class MarkoutSerializerContext
     /// <summary>
     /// Serializes a value to the specified TextWriter with options.
     /// </summary>
-    /// <typeparam name="T">The type to serialize.</typeparam>
-    /// <param name="value">The value to serialize.</param>
-    /// <param name="output">The TextWriter to write to.</param>
-    /// <param name="options">The writer options for controlling output formatting.</param>
     public void Serialize<T>(T value, TextWriter output, MarkoutWriterOptions options)
+    {
+        Serialize(value, output, new MarkdownFormatter(), options);
+    }
+
+    /// <summary>
+    /// Serializes a value to the specified TextWriter using the given formatter.
+    /// </summary>
+    public void Serialize<T>(T value, TextWriter output, Formatting.IMarkoutFormatter formatter)
+    {
+        Serialize(value, output, formatter, Options);
+    }
+
+    /// <summary>
+    /// Serializes a value to the specified TextWriter using the given formatter and options.
+    /// </summary>
+    public void Serialize<T>(T value, TextWriter output, Formatting.IMarkoutFormatter formatter, MarkoutWriterOptions options)
     {
         var typeInfo = GetTypeInfo<T>();
         if (typeInfo == null)
@@ -153,8 +155,8 @@ public abstract class MarkoutSerializerContext
                 $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
         }
 
-        var writer = new MarkdownWriter(output, options);
-        typeInfo.Serialize(writer, value);
-        writer.Flush();
+        var orch = new MarkoutWriter(output, formatter, options);
+        typeInfo.Serialize(orch, value);
+        orch.Flush();
     }
 }

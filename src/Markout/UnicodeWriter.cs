@@ -1,28 +1,17 @@
+using Markout.Formatting;
+
 namespace Markout;
 
 /// <summary>
-/// A MarkoutWriter that renders output using Unicode box-drawing and block characters.
+/// Formatter that renders output using Unicode box-drawing and block characters.
 /// Provides a rich text presentation similar to Spectre but without dependencies or color.
 /// Uses ─│├└╭╮╰╯ for borders, █▆▄▂ for bars, and other Unicode decorations.
 /// </summary>
-public class UnicodeWriter : MarkoutWriter
+public class UnicodeWriter : IMarkoutFormatter,
+    IDocumentFormatter, IMetricsFormatter
 {
     private const int ColumnGap = 2;
     private int _consoleWidth = 80;
-
-    /// <summary>
-    /// Creates a Unicode writer targeting the specified TextWriter.
-    /// </summary>
-    public UnicodeWriter(TextWriter writer) : base(writer)
-    {
-    }
-
-    /// <summary>
-    /// Creates a Unicode writer with the specified options.
-    /// </summary>
-    public UnicodeWriter(TextWriter writer, MarkoutWriterOptions options) : base(writer, options)
-    {
-    }
 
     /// <summary>
     /// Gets or sets the console width for layout calculations. Default is 80.
@@ -48,329 +37,133 @@ public class UnicodeWriter : MarkoutWriter
     /// </summary>
     public bool UseBoxBorders { get; set; } = false;
 
-    /// <inheritdoc/>
-    public override MarkoutShape SupportedShapes => MarkoutShape.All;
+    // ── Explicit interface implementations (for orchestrator dispatch) ──
 
-    // ── Headings ──
-
-    /// <inheritdoc/>
-    public override void WriteHeading(int level, string text, string? context)
+    void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
     {
-        if (level < 1 || level > 6)
-            throw new ArgumentOutOfRangeException(nameof(level), "Heading level must be between 1 and 6.");
-
-        UpdateSectionState(level, text);
-
-        if (SectionExcluded)
-            return;
-
-        if (HasContent)
-            Writer.WriteLine();
-
         var fullText = string.IsNullOrEmpty(context) ? text : $"{text} ({context})";
 
         if (level == 1)
         {
-            // H1: ─── Title ───
-            WriteRule(fullText);
+            string padded = $" {fullText} ";
+            int remaining = ConsoleWidth - padded.Length;
+            if (remaining <= 0)
+            {
+                w.Write(fullText);
+            }
+            else
+            {
+                int left = remaining / 2;
+                int right = remaining - left;
+                w.Write(new string(RuleCharacter, left));
+                w.Write(padded);
+                w.Write(new string(RuleCharacter, right));
+            }
         }
         else
         {
-            // H2+: Simple bold text (no color)
-            Writer.WriteLine(fullText);
+            w.Write(fullText);
         }
-
-        NeedsBlankLine = true;
-        HasContent = true;
     }
 
-    private void WriteRule(string title)
+    void IFieldFormatter.FormatFieldName(TextWriter w, string key, bool bold)
     {
-        string padded = $" {title} ";
-        int remaining = ConsoleWidth - padded.Length;
+        w.Write(key);
+        w.Write(": ");
+    }
 
-        if (remaining <= 0)
+    void IFieldFormatter.FormatFields(TextWriter w, MarkoutField[] fields, bool bold)
+    {
+        for (int i = 0; i < fields.Length; i++)
         {
-            Writer.WriteLine(title);
-            return;
+            ((IFieldFormatter)this).FormatFieldName(w, fields[i].Key, bold);
+            w.WriteLine(fields[i].Value);
         }
-
-        int left = remaining / 2;
-        int right = remaining - left;
-
-        Writer.Write(new string(RuleCharacter, left));
-        Writer.Write(padded);
-        Writer.Write(new string(RuleCharacter, right));
-        Writer.WriteLine();
     }
 
-    // ── Fields ──
-
-    protected override void WriteFieldName(string key)
+    void ITableFormatter.FormatTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
     {
-        Writer.Write(key);
-        Writer.Write(": ");
-    }
-
-    // ── Code ──
-
-    /// <inheritdoc/>
-    public override void WriteCodeStart(string? language = null)
-    {
-        if (InCode)
-            throw new InvalidOperationException("Cannot nest code regions. End the current code region before starting a new one.");
-
-        InCode = true;
-
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteCodeEnd()
-    {
-        if (!InCode)
-            throw new InvalidOperationException("Cannot end a code region without starting one first.");
-
-        InCode = false;
-
-        if (SectionExcluded)
-            return;
-
-        NeedsBlankLine = true;
-    }
-
-    // ── Tables ──
-
-    /// <inheritdoc/>
-    protected override void FlushStreamingTable(string[] headers, IList<string[]> rows, int skippedRows)
-    {
-        WriteTable(headers, rows);
-        if (skippedRows > 0)
-            Writer.WriteLine($"\n... and {skippedRows} more");
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
-    {
-        if (SectionExcluded)
-            return;
-
-        var headerArray = headers as string[] ?? headers.ToArray();
-        var rowList = rows as IList<string[]> ?? rows.ToList();
-
-        // Apply MaxItems
-        var maxItems = Options.MaxItems;
-        var visibleRows = maxItems.HasValue && rowList.Count > maxItems.Value
-            ? rowList.Take(maxItems.Value).ToList()
-            : rowList;
-        var skipped = rowList.Count - visibleRows.Count;
-
-        // Calculate column widths
-        var widths = new int[headerArray.Length];
-        for (int i = 0; i < headerArray.Length; i++)
-            widths[i] = headerArray[i].Length;
-        foreach (var row in visibleRows)
+        var widths = new int[headers.Length];
+        for (int i = 0; i < headers.Length; i++)
+            widths[i] = headers[i].Length;
+        foreach (var row in rows)
         {
             for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
                 widths[i] = Math.Max(widths[i], row[i].Length);
         }
 
-        EnsureBlankLineIfNeeded();
-
         // Headers (uppercase)
-        for (int i = 0; i < headerArray.Length; i++)
+        for (int i = 0; i < headers.Length; i++)
         {
-            var text = headerArray[i].ToUpperInvariant();
-            if (i < headerArray.Length - 1)
-                Writer.Write(text.PadRight(widths[i] + ColumnGap));
+            var text = headers[i].ToUpperInvariant();
+            if (i < headers.Length - 1)
+                w.Write(text.PadRight(widths[i] + ColumnGap));
             else
-                Writer.Write(text);
+                w.Write(text);
         }
-        Writer.WriteLine();
+        w.WriteLine();
 
-        // Separator with box-drawing characters
-        for (int i = 0; i < headerArray.Length; i++)
+        // Separator
+        for (int i = 0; i < headers.Length; i++)
         {
-            if (i < headerArray.Length - 1)
-                Writer.Write(new string(RuleCharacter, widths[i]).PadRight(widths[i] + ColumnGap));
+            if (i < headers.Length - 1)
+                w.Write(new string(RuleCharacter, widths[i]).PadRight(widths[i] + ColumnGap));
             else
-                Writer.Write(new string(RuleCharacter, widths[i]));
+                w.Write(new string(RuleCharacter, widths[i]));
         }
-        Writer.WriteLine();
+        w.WriteLine();
 
         // Rows
-        foreach (var row in visibleRows)
+        foreach (var row in rows)
         {
             for (int i = 0; i < row.Length; i++)
             {
                 if (i < row.Length - 1)
-                    Writer.Write(row[i].PadRight(widths[i] + ColumnGap));
+                    w.Write(row[i].PadRight(widths[i] + ColumnGap));
                 else
-                    Writer.Write(row[i]);
+                    w.Write(row[i]);
             }
-            Writer.WriteLine();
+            w.WriteLine();
         }
 
-        if (skipped > 0)
-            Writer.WriteLine($"\n... and {skipped} more");
-
-        NeedsBlankLine = true;
-        HasContent = true;
+        if (skippedRows > 0)
+        {
+            w.WriteLine();
+            w.Write("... and ");
+            w.Write(skippedRows);
+            w.WriteLine(" more");
+        }
     }
 
-    // ── Arrays and lists ──
-
-    /// <inheritdoc/>
-    public override void WriteArray(string key, params ReadOnlySpan<string> items)
+    void IListFormatter.FormatListItem(TextWriter w, string text)
     {
-        if (SectionExcluded)
-            return;
+        w.Write("• ");
+        w.WriteLine(text);
+    }
 
-        if (HasContent)
-            NeedsBlankLine = true;
-        EnsureBlankLineIfNeeded();
-
-        Writer.Write(key);
-        Writer.WriteLine(":");
-
+    void IListFormatter.FormatArray(TextWriter w, string key, ReadOnlySpan<string> items, bool bold)
+    {
+        w.Write(key);
+        w.WriteLine(":");
         foreach (var item in items)
         {
-            Writer.Write("  • ");
-            Writer.WriteLine(item);
-        }
-
-        HasContent = true;
-    }
-
-    /// <inheritdoc/>
-    public override void WriteListItem(string text)
-    {
-        if (SectionExcluded)
-            return;
-
-        Writer.Write("• ");
-        Writer.WriteLine(text);
-        HasContent = true;
-    }
-
-    // ── Fields inline (pipe-separated) ──
-
-    /// <inheritdoc/>
-    public override void WriteFieldsInline(params ReadOnlySpan<MarkoutField> fields)
-    {
-        if (SectionExcluded || fields.Length == 0)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
-        int maxKeyWidth = 0;
-        foreach (var field in fields)
-            if (field.Key.Length > maxKeyWidth)
-                maxKeyWidth = field.Key.Length;
-
-        foreach (var field in fields)
-        {
-            Writer.Write(field.Key.PadRight(maxKeyWidth));
-            Writer.Write(" │ ");
-            Writer.WriteLine(field.Value);
-        }
-
-        NeedsBlankLine = true;
-        HasContent = true;
-    }
-
-    // ── Trees ──
-
-    /// <inheritdoc/>
-    public override void WriteTree(params ReadOnlySpan<TreeNode> nodes)
-    {
-        if (SectionExcluded || nodes.Length == 0)
-            return;
-
-        EnsureBlankLineIfNeeded();
-        for (int i = 0; i < nodes.Length; i++)
-        {
-            bool isLast = i == nodes.Length - 1;
-            WriteTreeNode(nodes[i], "", isLast);
-        }
-        NeedsBlankLine = true;
-    }
-
-    private void WriteTreeNodes(IReadOnlyList<TreeNode> nodes, string prefix)
-    {
-        for (int i = 0; i < nodes.Count; i++)
-        {
-            var node = nodes[i];
-            bool isLast = i == nodes.Count - 1;
-            WriteTreeNode(node, prefix, isLast);
+            w.Write("  • ");
+            w.WriteLine(item);
         }
     }
 
-    private void WriteTreeNode(TreeNode node, string prefix, bool isLast)
+    void ICodeBlockFormatter.FormatCodeStart(TextWriter w, string? language)
     {
-        // Write the connector and text
-        Writer.Write(prefix);
-        Writer.Write(isLast ? "└─ " : "├─ ");
-        Writer.Write(node.Text);
-
-        if (!string.IsNullOrEmpty(node.Badge) && IncludeBadges)
-        {
-            Writer.Write(" [");
-            Writer.Write(node.Badge);
-            Writer.Write("]");
-        }
-
-        Writer.WriteLine();
-        HasContent = true;
-
-        // Recurse for children
-        if (node.Children != null && node.Children.Any())
-        {
-            var childPrefix = prefix + (isLast ? "   " : "│  ");
-            WriteTreeNodes(node.Children, childPrefix);
-        }
+        // Unicode writer uses no fencing — just a blank visual separator
     }
 
-    // ── Labeled lists ──
-
-    /// <inheritdoc/>
-    public override void WriteDescriptions(IReadOnlyList<Description> items)
+    void ICodeBlockFormatter.FormatCodeEnd(TextWriter w)
     {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
-        foreach (var item in items)
-        {
-            Writer.Write("• ");
-            Writer.Write(item.Term);
-            if (!string.IsNullOrEmpty(item.Text))
-            {
-                Writer.Write(" — ");
-                Writer.Write(item.Text);
-            }
-            Writer.WriteLine();
-        }
-
-        NeedsBlankLine = true;
-        HasContent = true;
+        // Unicode writer uses no fencing
     }
 
-    // ── Callouts ──
-
-    /// <inheritdoc/>
-    public override void WriteCallout(CalloutSeverity severity, string message)
+    void IBlockFormatter.FormatCallout(TextWriter w, CalloutSeverity severity, string message)
     {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
         string prefix = severity switch
         {
             CalloutSeverity.Note => "ℹ ",
@@ -380,71 +173,82 @@ public class UnicodeWriter : MarkoutWriter
             CalloutSeverity.Caution => "✖ ",
             _ => "• "
         };
-
-        Writer.Write(prefix);
-        Writer.WriteLine(message);
-
-        NeedsBlankLine = true;
-        HasContent = true;
+        w.Write(prefix);
+        w.WriteLine(message);
     }
 
-    // ── Quotation ──
-
-    /// <inheritdoc/>
-    public override void WriteQuotation(string text)
+    void IBlockFormatter.FormatParagraph(TextWriter w, string text)
     {
-        if (SectionExcluded)
-            return;
+        w.WriteLine(text);
+    }
 
-        EnsureBlankLineIfNeeded();
-
-        Writer.Write("│ ");
+    void IBlockFormatter.FormatQuotation(TextWriter w, string text)
+    {
+        w.Write("│ ");
         var lines = text.Split('\n');
         for (int i = 0; i < lines.Length; i++)
         {
             if (i > 0)
             {
-                Writer.WriteLine();
-                Writer.Write("│ ");
+                w.WriteLine();
+                w.Write("│ ");
             }
-            Writer.Write(lines[i].TrimEnd('\r'));
+            w.Write(lines[i].TrimEnd('\r'));
         }
-        Writer.WriteLine();
-
-        NeedsBlankLine = true;
-        HasContent = true;
+        w.WriteLine();
     }
 
-    // ── Rule ──
-
-    /// <inheritdoc/>
-    public override void WriteRule()
+    void IBlockFormatter.FormatRule(TextWriter w)
     {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
         int width = Math.Min(ConsoleWidth, 80);
-        Writer.WriteLine(new string(RuleCharacter, width));
-
-        NeedsBlankLine = true;
-        HasContent = true;
+        w.WriteLine(new string(RuleCharacter, width));
     }
 
-    // ── Breakdowns ──
-
-    /// <inheritdoc/>
-    public override void WriteBreakdown(IReadOnlyList<Breakdown> items, int? maxBarWidth = null, bool uniformBarWidth = true)
+    void IBlockFormatter.FormatDescription(TextWriter w, Description item)
     {
-        if (SectionExcluded)
-            return;
+        w.Write("• ");
+        w.Write(item.Term);
+        if (!string.IsNullOrEmpty(item.Text))
+        {
+            w.Write(" — ");
+            w.Write(item.Text);
+        }
+        w.WriteLine();
+    }
 
-        EnsureBlankLineIfNeeded();
+    void ITreeFormatter.FormatTree(TextWriter w, ReadOnlySpan<TreeNode> nodes, MarkoutWriterOptions options)
+    {
+        for (int i = 0; i < nodes.Length; i++)
+            FormatTreeNodeRecursive(w, nodes[i], "", i == nodes.Length - 1, options);
+    }
 
-        if (items == null || items.Count == 0)
-            return;
+    void ITreeFormatter.FormatTreeNode(TextWriter w, string text, string prefix)
+    {
+        w.Write(prefix);
+        w.WriteLine(text);
+    }
 
+    private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    {
+        w.Write(prefix);
+        w.Write(isLast ? "└─ " : "├─ ");
+        if (node.Badge != null && options.IncludeBadges)
+        {
+            w.Write(node.Badge);
+            w.Write(' ');
+        }
+        w.WriteLine(node.Text);
+
+        if (node.Children is { Count: > 0 })
+        {
+            var childPrefix = prefix + (isLast ? "   " : "│  ");
+            for (int i = 0; i < node.Children.Count; i++)
+                FormatTreeNodeRecursive(w, node.Children[i], childPrefix, i == node.Children.Count - 1, options);
+        }
+    }
+
+    void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth, MarkoutWriterOptions options)
+    {
         int availableWidth = maxBarWidth ?? (ConsoleWidth - 20);
         if (availableWidth < 10)
             availableWidth = 10;
@@ -455,8 +259,8 @@ public class UnicodeWriter : MarkoutWriter
             if (total <= 0)
                 continue;
 
-            Writer.Write(item.Label.PadRight(15));
-            Writer.Write(" ");
+            w.Write(item.Label.PadRight(15));
+            w.Write(" ");
 
             foreach (var segment in item.Segments)
             {
@@ -464,29 +268,15 @@ public class UnicodeWriter : MarkoutWriter
                 int width = (int)Math.Round(fraction * availableWidth);
                 if (width == 0 && fraction > 0)
                     width = 1;
-                Writer.Write(new string(BarCharacter, width));
+                w.Write(new string(BarCharacter, width));
             }
 
-            Writer.WriteLine();
+            w.WriteLine();
         }
-
-        NeedsBlankLine = true;
-        HasContent = true;
     }
 
-    // ── Bar charts ──
-
-    /// <inheritdoc/>
-    public override void WriteMetrics(IReadOnlyList<Metric> items, int maxBarWidth = 30)
+    void IMetricsFormatter.FormatMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarWidth, MarkoutWriterOptions options)
     {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
-        if (items == null || items.Count == 0)
-            return;
-
         double maxValue = items.Max(m => m.Value);
         if (maxValue <= 0)
             return;
@@ -498,37 +288,22 @@ public class UnicodeWriter : MarkoutWriter
             double fraction = item.Value / maxValue;
             int width = (int)Math.Round(fraction * maxBarWidth);
 
-            Writer.Write(item.Label.PadRight(maxLabelWidth));
-            Writer.Write(" ");
-            Writer.Write(new string(BarCharacter, width));
-            Writer.Write(" ");
-            Writer.WriteLine(item.Value.ToString());
+            w.Write(item.Label.PadRight(maxLabelWidth));
+            w.Write(" ");
+            w.Write(new string(BarCharacter, width));
+            w.Write(" ");
+            w.WriteLine(item.Value.ToString());
         }
-
-        NeedsBlankLine = true;
-        HasContent = true;
     }
 
-    // ── Vertical bar charts ──
-
-    /// <inheritdoc/>
-    public override void WriteVerticalMetrics(IReadOnlyList<Metric> items, int maxBarHeight = 10, int? barWidth = null)
+    void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth, MarkoutWriterOptions options)
     {
-        if (SectionExcluded)
-            return;
-
-        EnsureBlankLineIfNeeded();
-
-        if (items == null || items.Count == 0)
-            return;
-
         double maxValue = items.Max(m => m.Value);
         if (maxValue <= 0)
             return;
 
         int colWidth = barWidth ?? 8;
 
-        // Draw bars from top to bottom
         for (int row = maxBarHeight; row > 0; row--)
         {
             foreach (var item in items)
@@ -537,24 +312,20 @@ public class UnicodeWriter : MarkoutWriter
                 int height = (int)Math.Round(fraction * maxBarHeight);
 
                 if (height >= row)
-                    Writer.Write(new string(BarCharacter, colWidth - 1).PadRight(colWidth));
+                    w.Write(new string(BarCharacter, colWidth - 1).PadRight(colWidth));
                 else
-                    Writer.Write(new string(' ', colWidth));
+                    w.Write(new string(' ', colWidth));
             }
-            Writer.WriteLine();
+            w.WriteLine();
         }
 
-        // Draw labels
         foreach (var item in items)
         {
             string label = item.Label;
             if (label.Length > colWidth - 1)
                 label = label.Substring(0, colWidth - 1);
-            Writer.Write(label.PadRight(colWidth));
+            w.Write(label.PadRight(colWidth));
         }
-        Writer.WriteLine();
-
-        NeedsBlankLine = true;
-        HasContent = true;
+        w.WriteLine();
     }
 }

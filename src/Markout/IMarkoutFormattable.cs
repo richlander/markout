@@ -11,7 +11,7 @@ public interface IMarkoutFormattable
     /// Writes a structured Markdown representation of this object to the writer.
     /// Use this for block-level content (headings, fields, tables, lists).
     /// </summary>
-    /// <param name="writer">The writer to render to.</param>
+    /// <param name="writer">The orchestrator to render to.</param>
     void WriteTo(MarkoutWriter writer);
 
     /// <summary>

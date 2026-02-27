@@ -33,7 +33,7 @@ public partial class IgnoreFieldsTestContext : MarkoutSerializerContext
 public class IgnoreFieldsTests
 {
     [Fact]
-    public void Serialize_OneLineWriter_RendersFieldsAsTable()
+    public void Serialize_OneLineFormatter_RendersFieldsAsTable()
     {
         var view = new ViewWithFields
         {
@@ -43,16 +43,15 @@ public class IgnoreFieldsTests
         };
 
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
-        MarkoutSerializer.Serialize(view, writer, IgnoreFieldsTestContext.Default);
+        MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreFieldsTestContext.Default);
 
         var output = sw.ToString();
-        // OneLineWriter renders fields as a FIELD/VALUE table
+        // OneLineFormatter renders fields as a FIELD/VALUE table
         Assert.Contains("A", output);
     }
 
     [Fact]
-    public void Serialize_MarkdownWriter_RendersFields()
+    public void Serialize_MarkdownFormatter_RendersFields()
     {
         var view = new ViewWithFields
         {

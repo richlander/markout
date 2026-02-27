@@ -156,24 +156,24 @@ public class MarkoutTemplate
     }
 
     /// <summary>
-    /// Renders the template using a <see cref="MarkdownWriter"/> and returns the result as a string.
+    /// Renders the template using a <see cref="MarkdownFormatter"/> and returns the result as a string.
     /// </summary>
     public string Render()
     {
-        var writer = new MarkdownWriter();
-        Render(writer);
-        return writer.ToString();
+        var orch = new MarkoutWriter(new MarkdownFormatter());
+        Render(orch);
+        return orch.ToString();
     }
 
     /// <summary>
-    /// Renders the template using a <see cref="MarkdownWriter"/> with the specified options
+    /// Renders the template using a <see cref="MarkdownFormatter"/> with the specified options
     /// and returns the result as a string.
     /// </summary>
     public string Render(MarkoutWriterOptions options)
     {
-        var writer = new MarkdownWriter(options);
-        Render(writer);
-        return writer.ToString();
+        var orch = new MarkoutWriter(new MarkdownFormatter(), options);
+        Render(orch);
+        return orch.ToString();
     }
 
     /// <summary>
@@ -216,13 +216,13 @@ public class MarkoutTemplate
 
     /// <summary>
     /// Renders the template into the specified <see cref="TextWriter"/>
-    /// using a <see cref="MarkdownWriter"/>.
+    /// using a <see cref="MarkdownFormatter"/>.
     /// </summary>
     public void Render(TextWriter output)
     {
-        var writer = new MarkdownWriter(output);
-        Render(writer);
-        writer.Flush();
+        var orch = new MarkoutWriter(output, new MarkdownFormatter());
+        Render(orch);
+        orch.Flush();
     }
 
     private void RenderNode(MarkoutWriter writer, TemplateNode node)

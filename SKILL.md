@@ -156,7 +156,7 @@ public CodeSection? SourceCode { get; set; }
 MarkoutSerializer.Serialize(view, Console.Out, context);
 
 // Markdown with writer instance
-MarkoutSerializer.Serialize(view, new MarkdownWriter(Console.Out), context);
+MarkoutSerializer.Serialize(view, new MarkdownFormatter(Console.Out), context);
 
 // Spectre terminal — colored, interactive
 using Markout.Ansi.Spectre;
@@ -164,7 +164,7 @@ using Spectre.Console;
 MarkoutSerializer.Serialize(view, new SpectreWriter(AnsiConsole.Console), context);
 
 // One-line — compact table, grep-friendly
-MarkoutSerializer.Serialize(view, new OneLineWriter(Console.Out), context);
+MarkoutSerializer.Serialize(view, new OneLineFormatter(Console.Out), context);
 
 // One-line with section filter — show only one table
 var options = new MarkoutWriterOptions
@@ -172,7 +172,7 @@ var options = new MarkoutWriterOptions
     IncludeDescription = false,
     IncludeSections = new HashSet<string> { "Results" }
 };
-MarkoutSerializer.Serialize(view, new OneLineWriter(Console.Out, options), context);
+MarkoutSerializer.Serialize(view, new OneLineFormatter(Console.Out, options), context);
 
 // Plain text — log files, piped output
 MarkoutSerializer.Serialize(view, new MarkoutWriter(Console.Out), context);

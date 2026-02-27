@@ -106,8 +106,7 @@ var view = new LatestCvesView
         : null,
     Releases = tree
 };
-var writer = new SpectreWriter(AnsiConsole.Console);
-MarkoutSerializer.Serialize(view, writer, LatestCvesContext.Default);
+MarkoutSerializer.Serialize(view, Console.Out, new SpectreWriter(AnsiConsole.Console), LatestCvesContext.Default);
 
 // --- View Model ---
 

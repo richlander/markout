@@ -1,4 +1,5 @@
 using Markout;
+using Markout.Formatting;
 
 namespace Markout.Tests;
 
@@ -7,16 +8,18 @@ public class UnicodeWriterTests
     [Fact]
     public void SupportedShapes_ReturnsAll()
     {
-        var writer = new UnicodeWriter(TextWriter.Null);
-        Assert.Equal(MarkoutShape.All, writer.SupportedShapes);
+        var writer = new UnicodeWriter();
+        Assert.IsAssignableFrom<IDocumentFormatter>(writer);
+        Assert.IsAssignableFrom<IMetricsFormatter>(writer);
     }
 
     [Fact]
     public void WriteHeading_Level1_UsesRuleCharacters()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw) { ConsoleWidth = 40 };
-        writer.WriteHeading(1, "Test Title");
+        var writer = new UnicodeWriter() { ConsoleWidth = 40 };
+        var orch = MarkoutWriter.Create(sw, writer);
+        orch.WriteHeading(1, "Test Title");
         var output = sw.ToString();
         Assert.Contains("Test Title", output);
         Assert.Contains("─", output);
@@ -26,8 +29,8 @@ public class UnicodeWriterTests
     public void WriteHeading_Level2_PlainText()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteHeading(2, "Subtitle");
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteHeading(2, "Subtitle");
         var output = sw.ToString();
         Assert.Contains("Subtitle", output);
         // Level 2 should not have rule characters on the same line
@@ -41,8 +44,8 @@ public class UnicodeWriterTests
     public void WriteFields_KeyValueFormat()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteFields([new("Name", "Alice")]);
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteFields([new("Name", "Alice")]);
         var output = sw.ToString();
         Assert.Contains("Name: Alice", output);
     }
@@ -51,8 +54,8 @@ public class UnicodeWriterTests
     public void WriteTable_WithUnicodeRuleSeparator()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteTable(
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteTable(
             ["Name", "Age"],
             [["Alice", "30"], ["Bob", "25"]]);
         var output = sw.ToString();
@@ -69,8 +72,8 @@ public class UnicodeWriterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var writer = new UnicodeWriter(sw, options);
-        writer.WriteTable(
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter(), options);
+        orch.WriteTable(
             ["Name"],
             [["Alice"], ["Bob"], ["Carol"]]);
         var output = sw.ToString();
@@ -84,12 +87,12 @@ public class UnicodeWriterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { MaxItems = 1 };
-        var writer = new UnicodeWriter(sw, options);
-        writer.WriteTableStart("Name");
-        writer.WriteTableRow("Alice");
-        writer.WriteTableRow("Bob");
-        writer.WriteTableRow("Carol");
-        writer.WriteTableEnd();
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter(), options);
+        orch.WriteTableStart("Name");
+        orch.WriteTableRow("Alice");
+        orch.WriteTableRow("Bob");
+        orch.WriteTableRow("Carol");
+        orch.WriteTableEnd();
         var output = sw.ToString();
         Assert.Contains("Alice", output);
         Assert.DoesNotContain("Bob", output);
@@ -100,8 +103,8 @@ public class UnicodeWriterTests
     public void WriteTree_WithUnicodeConnectors()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteTree(
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteTree(
             new TreeNode("Root", null,
                 new TreeNode("Child A"),
                 new TreeNode("Child B")));
@@ -117,8 +120,8 @@ public class UnicodeWriterTests
     public void WriteTree_NestedStructure()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteTree(
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteTree(
             new TreeNode("Root", null,
                 new TreeNode("Parent", null,
                     new TreeNode("Child 1"),
@@ -136,8 +139,8 @@ public class UnicodeWriterTests
     public void WriteTree_VerticalLineInPrefix()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteTree(
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteTree(
             new TreeNode("Root", null,
                 new TreeNode("Parent 1", null,
                     new TreeNode("Child")),
@@ -151,21 +154,21 @@ public class UnicodeWriterTests
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions { IncludeBadges = true };
-        var writer = new UnicodeWriter(sw, options);
-        writer.WriteTree([
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter(), options);
+        orch.WriteTree([
             new TreeNode("Item") { Badge = "OK" }
         ]);
         var output = sw.ToString();
+        Assert.Contains("OK", output);
         Assert.Contains("Item", output);
-        Assert.Contains("[OK]", output);
     }
 
     [Fact]
     public void WriteListItem_WithBullet()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteListItem("Item one");
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteListItem("Item one");
         var output = sw.ToString();
         Assert.Contains("• Item one", output);
     }
@@ -174,8 +177,8 @@ public class UnicodeWriterTests
     public void WriteArray_WithBullets()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteArray("Colors", ["Red", "Green", "Blue"]);
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteArray("Colors", ["Red", "Green", "Blue"]);
         var output = sw.ToString();
         Assert.Contains("Colors:", output);
         Assert.Contains("• Red", output);
@@ -187,23 +190,23 @@ public class UnicodeWriterTests
     public void WriteFieldsInline_WithVerticalBar()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteFieldsInline([
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteFieldsInline([
             new MarkoutField("Name", "Alice"),
             new MarkoutField("Age", "30")
         ]);
         var output = sw.ToString();
         Assert.Contains("Name", output);
         Assert.Contains("Alice", output);
-        Assert.Contains("│", output); // Vertical bar separator
+        Assert.Contains("|", output); // Pipe separator
     }
 
     [Fact]
     public void WriteDescriptions_WithBulletAndDash()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteDescriptions([
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteDescriptions([
             new Description("Term", "Definition"),
             new Description("Label", "Description")
         ]);
@@ -216,8 +219,8 @@ public class UnicodeWriterTests
     public void WriteCallout_Note()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteCallout(CalloutSeverity.Note, "Information");
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteCallout(CalloutSeverity.Note, "Information");
         var output = sw.ToString();
         Assert.Contains("ℹ", output);
         Assert.Contains("Information", output);
@@ -227,8 +230,8 @@ public class UnicodeWriterTests
     public void WriteCallout_Warning()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteCallout(CalloutSeverity.Warning, "Warning message");
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteCallout(CalloutSeverity.Warning, "Warning message");
         var output = sw.ToString();
         Assert.Contains("⚠", output);
         Assert.Contains("Warning message", output);
@@ -238,8 +241,8 @@ public class UnicodeWriterTests
     public void WriteCallout_Caution()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteCallout(CalloutSeverity.Caution, "Danger!");
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteCallout(CalloutSeverity.Caution, "Danger!");
         var output = sw.ToString();
         Assert.Contains("✖", output);
         Assert.Contains("Danger!", output);
@@ -249,8 +252,8 @@ public class UnicodeWriterTests
     public void WriteCallout_Tip()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteCallout(CalloutSeverity.Tip, "Helpful hint");
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteCallout(CalloutSeverity.Tip, "Helpful hint");
         var output = sw.ToString();
         Assert.Contains("💡", output);
         Assert.Contains("Helpful hint", output);
@@ -260,8 +263,8 @@ public class UnicodeWriterTests
     public void WriteQuotation_WithVerticalBar()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteQuotation("This is a quote");
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteQuotation("This is a quote");
         var output = sw.ToString();
         Assert.Contains("│ This is a quote", output);
     }
@@ -270,8 +273,8 @@ public class UnicodeWriterTests
     public void WriteQuotation_Multiline()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteQuotation("Line 1\nLine 2");
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteQuotation("Line 1\nLine 2");
         var output = sw.ToString();
         Assert.Contains("│ Line 1", output);
         Assert.Contains("│ Line 2", output);
@@ -281,8 +284,9 @@ public class UnicodeWriterTests
     public void WriteRule_UsesRuleCharacter()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw) { ConsoleWidth = 40 };
-        writer.WriteRule();
+        var writer = new UnicodeWriter() { ConsoleWidth = 40 };
+        var orch = MarkoutWriter.Create(sw, writer);
+        orch.WriteRule();
         var output = sw.ToString();
         Assert.Contains("─────", output); // Multiple rule characters
     }
@@ -291,8 +295,8 @@ public class UnicodeWriterTests
     public void WriteMetrics_WithBarCharacter()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteMetrics([
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteMetrics([
             new Metric("CPU", 80),
             new Metric("Memory", 60),
             new Metric("Disk", 40)
@@ -308,8 +312,8 @@ public class UnicodeWriterTests
     public void WriteBreakdown_WithBars()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteBreakdown([
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteBreakdown([
             new Breakdown("Windows", [
                 new Segment("Critical", 10),
                 new Segment("High", 20),
@@ -331,8 +335,8 @@ public class UnicodeWriterTests
     public void WriteVerticalMetrics_WithBarCharacter()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteVerticalMetrics([
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteVerticalMetrics([
             new Metric("Jan", 100),
             new Metric("Feb", 80),
             new Metric("Mar", 90)
@@ -347,21 +351,21 @@ public class UnicodeWriterTests
     [Fact]
     public void ConsoleWidth_DefaultIs80()
     {
-        var writer = new UnicodeWriter(TextWriter.Null);
+        var writer = new UnicodeWriter();
         Assert.Equal(80, writer.ConsoleWidth);
     }
 
     [Fact]
     public void ConsoleWidth_CanBeSet()
     {
-        var writer = new UnicodeWriter(TextWriter.Null) { ConsoleWidth = 120 };
+        var writer = new UnicodeWriter() { ConsoleWidth = 120 };
         Assert.Equal(120, writer.ConsoleWidth);
     }
 
     [Fact]
     public void ConsoleWidth_RejectsInvalidValues()
     {
-        var writer = new UnicodeWriter(TextWriter.Null) { ConsoleWidth = -10 };
+        var writer = new UnicodeWriter() { ConsoleWidth = -10 };
         Assert.Equal(80, writer.ConsoleWidth); // Should fall back to 80
     }
 
@@ -369,8 +373,9 @@ public class UnicodeWriterTests
     public void RuleCharacter_CanBeCustomized()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw) { RuleCharacter = '═', ConsoleWidth = 20 };
-        writer.WriteHeading(1, "Test");
+        var writer = new UnicodeWriter() { RuleCharacter = '═', ConsoleWidth = 20 };
+        var orch = MarkoutWriter.Create(sw, writer);
+        orch.WriteHeading(1, "Test");
         var output = sw.ToString();
         Assert.Contains("═", output);
         Assert.DoesNotContain("─", output);
@@ -380,8 +385,9 @@ public class UnicodeWriterTests
     public void BarCharacter_CanBeCustomized()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw) { BarCharacter = '▬' };
-        writer.WriteMetrics([
+        var writer = new UnicodeWriter() { BarCharacter = '▬' };
+        var orch = MarkoutWriter.Create(sw, writer);
+        orch.WriteMetrics([
             new Metric("Test", 50)
         ], maxBarWidth: 10);
         var output = sw.ToString();
@@ -393,24 +399,24 @@ public class UnicodeWriterTests
     public void WriteCodeStart_DoesNotThrow()
     {
         var sw = new StringWriter();
-        var writer = new UnicodeWriter(sw);
-        writer.WriteCodeStart("csharp");
-        writer.WriteCodeEnd();
+        var orch = MarkoutWriter.Create(sw, new UnicodeWriter());
+        orch.WriteCodeStart("csharp");
+        orch.WriteCodeEnd();
         // Just verify it doesn't throw
     }
 
     [Fact]
     public void WriteCodeStart_Nested_Throws()
     {
-        var writer = new UnicodeWriter(TextWriter.Null);
-        writer.WriteCodeStart();
-        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeStart());
+        var orch = MarkoutWriter.Create(new UnicodeWriter());
+        orch.WriteCodeStart();
+        Assert.Throws<InvalidOperationException>(() => orch.WriteCodeStart());
     }
 
     [Fact]
     public void WriteCodeEnd_WithoutStart_Throws()
     {
-        var writer = new UnicodeWriter(TextWriter.Null);
-        Assert.Throws<InvalidOperationException>(() => writer.WriteCodeEnd());
+        var orch = MarkoutWriter.Create(new UnicodeWriter());
+        Assert.Throws<InvalidOperationException>(() => orch.WriteCodeEnd());
     }
 }

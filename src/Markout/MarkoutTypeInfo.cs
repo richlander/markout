@@ -17,11 +17,11 @@ public interface IMarkoutTypeInfo
     string BindingName { get; }
 
     /// <summary>
-    /// Serializes a value to the given MarkoutWriter.
+    /// Serializes a value to the given orchestrator.
     /// </summary>
-    /// <param name="writer">The writer to serialize to.</param>
+    /// <param name="orchestrator">The orchestrator to serialize to.</param>
     /// <param name="value">The value to serialize (must be of the correct type).</param>
-    void Serialize(MarkoutWriter writer, object value);
+    void Serialize(MarkoutWriter orchestrator, object value);
 }
 
 /// <summary>
@@ -43,17 +43,17 @@ public abstract class MarkoutTypeInfo<T> : IMarkoutTypeInfo
     public abstract string BindingName { get; }
 
     /// <summary>
-    /// Serializes a value to the given MarkoutWriter.
+    /// Serializes a value to the given orchestrator.
     /// </summary>
-    /// <param name="writer">The writer to serialize to.</param>
+    /// <param name="orchestrator">The orchestrator to serialize to.</param>
     /// <param name="value">The value to serialize.</param>
-    public abstract void Serialize(MarkoutWriter writer, T value);
+    public abstract void Serialize(MarkoutWriter orchestrator, T value);
 
     /// <summary>
-    /// Serializes a value to the given MarkoutWriter (non-generic implementation).
+    /// Serializes a value to the given orchestrator (non-generic implementation).
     /// </summary>
-    void IMarkoutTypeInfo.Serialize(MarkoutWriter writer, object value)
+    void IMarkoutTypeInfo.Serialize(MarkoutWriter orchestrator, object value)
     {
-        Serialize(writer, (T)value);
+        Serialize(orchestrator, (T)value);
     }
 }

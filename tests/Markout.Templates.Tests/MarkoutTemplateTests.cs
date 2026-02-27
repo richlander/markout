@@ -131,11 +131,10 @@ public class MarkoutTemplateTests
     public void Render_PlainTextWriter()
     {
         var template = MarkoutTemplate.Parse("# Title\n\nSome text.");
-        var writer = new MarkoutWriter();
-        template.Render(writer);
-        var result = writer.ToString();
+        var orch = new MarkoutWriter(new MarkdownFormatter());
+        template.Render(orch);
+        var result = orch.ToString();
 
-        // Plain text writer uses different heading format
         Assert.Contains("Title", result);
         Assert.Contains("Some text.", result);
     }
@@ -278,11 +277,10 @@ public class MarkoutTemplateTests
     {
         var text = "| Name | Value |\n| ---- | ----- |\n| A | 1 |";
         var template = MarkoutTemplate.Parse(text);
-        var writer = new MarkoutWriter();
-        template.Render(writer);
-        var result = writer.ToString();
+        var orch = new MarkoutWriter(new MarkdownFormatter());
+        template.Render(orch);
+        var result = orch.ToString();
 
-        // Plain text writer renders tables without pipes
         Assert.Contains("Name", result);
         Assert.Contains("A", result);
     }

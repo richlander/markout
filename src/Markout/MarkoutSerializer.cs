@@ -39,16 +39,33 @@ public static class MarkoutSerializer
     }
 
     /// <summary>
-    /// Serializes a value into an existing MarkoutWriter using the specified context.
+    /// Serializes a value using the specified formatter, writing to the specified TextWriter.
     /// </summary>
     /// <typeparam name="T">The type to serialize.</typeparam>
     /// <param name="value">The value to serialize.</param>
-    /// <param name="writer">The writer to serialize into.</param>
+    /// <param name="output">The TextWriter to write to.</param>
+    /// <param name="formatter">The formatter to use for rendering.</param>
     /// <param name="context">The serializer context containing type metadata.</param>
-    public static void Serialize<T>(T value, MarkoutWriter writer, MarkoutSerializerContext context)
+    public static void Serialize<T>(T value, TextWriter output, Formatting.IMarkoutFormatter formatter, MarkoutSerializerContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        context.Serialize(value, writer);
+        context.Serialize(value, output, formatter);
+    }
+
+    /// <summary>
+    /// Serializes a value using the specified formatter and options, writing to the specified TextWriter.
+    /// </summary>
+    /// <typeparam name="T">The type to serialize.</typeparam>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="output">The TextWriter to write to.</param>
+    /// <param name="formatter">The formatter to use for rendering.</param>
+    /// <param name="context">The serializer context containing type metadata.</param>
+    /// <param name="options">The writer options for controlling output formatting.</param>
+    public static void Serialize<T>(T value, TextWriter output, Formatting.IMarkoutFormatter formatter, MarkoutSerializerContext context, MarkoutWriterOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(options);
+        context.Serialize(value, output, formatter, options);
     }
 
     /// <summary>
@@ -112,68 +129,50 @@ public static class MarkoutSerializer
     /// <summary>
     /// Serializes a value to Markout format using the specified type info.
     /// </summary>
-    /// <typeparam name="T">The type to serialize.</typeparam>
-    /// <param name="value">The value to serialize.</param>
-    /// <param name="typeInfo">The type info containing serialization logic.</param>
-    /// <returns>The Markdown string representation.</returns>
     public static string Serialize<T>(T value, MarkoutTypeInfo<T> typeInfo)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
-        var writer = new MarkdownWriter();
-        typeInfo.Serialize(writer, value);
-        return writer.ToString();
+        var orch = new MarkoutWriter(new MarkdownFormatter());
+        typeInfo.Serialize(orch, value);
+        return orch.ToString();
     }
 
     /// <summary>
     /// Serializes a value to Markout format using the specified type info and options.
     /// </summary>
-    /// <typeparam name="T">The type to serialize.</typeparam>
-    /// <param name="value">The value to serialize.</param>
-    /// <param name="typeInfo">The type info containing serialization logic.</param>
-    /// <param name="options">The writer options for controlling output formatting.</param>
-    /// <returns>The Markdown string representation.</returns>
     public static string Serialize<T>(T value, MarkoutTypeInfo<T> typeInfo, MarkoutWriterOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
         ArgumentNullException.ThrowIfNull(options);
 
-        var writer = new MarkdownWriter(options);
-        typeInfo.Serialize(writer, value);
-        return writer.ToString();
+        var orch = new MarkoutWriter(new MarkdownFormatter(), options);
+        typeInfo.Serialize(orch, value);
+        return orch.ToString();
     }
 
     /// <summary>
     /// Serializes a value to Markout format, writing to the specified TextWriter.
     /// </summary>
-    /// <typeparam name="T">The type to serialize.</typeparam>
-    /// <param name="value">The value to serialize.</param>
-    /// <param name="output">The TextWriter to write to.</param>
-    /// <param name="typeInfo">The type info containing serialization logic.</param>
     public static void Serialize<T>(T value, TextWriter output, MarkoutTypeInfo<T> typeInfo)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
-        var writer = new MarkdownWriter(output);
-        typeInfo.Serialize(writer, value);
-        writer.Flush();
+        var orch = new MarkoutWriter(output, new MarkdownFormatter());
+        typeInfo.Serialize(orch, value);
+        orch.Flush();
     }
 
     /// <summary>
     /// Serializes a value to Markout format, writing to the specified TextWriter with options.
     /// </summary>
-    /// <typeparam name="T">The type to serialize.</typeparam>
-    /// <param name="value">The value to serialize.</param>
-    /// <param name="output">The TextWriter to write to.</param>
-    /// <param name="typeInfo">The type info containing serialization logic.</param>
-    /// <param name="options">The writer options for controlling output formatting.</param>
     public static void Serialize<T>(T value, TextWriter output, MarkoutTypeInfo<T> typeInfo, MarkoutWriterOptions options)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
         ArgumentNullException.ThrowIfNull(options);
 
-        var writer = new MarkdownWriter(output, options);
-        typeInfo.Serialize(writer, value);
-        writer.Flush();
+        var orch = new MarkoutWriter(output, new MarkdownFormatter(), options);
+        typeInfo.Serialize(orch, value);
+        orch.Flush();
     }
 }

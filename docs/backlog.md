@@ -90,7 +90,7 @@ With `[MarkoutColumnWhen]`, this becomes a single list.
 
 Add an `HtmlBreak` value to `FieldLayout` that renders each field on its own line using an explicit HTML `<br>` tag instead of trailing double-space.
 
-- `Vertical` — trailing `  ` (markdown hard line break, current default for MarkdownWriter)
+- `Vertical` — trailing `  ` (markdown hard line break, current default for MarkdownFormatter)
 - `HtmlBreak` — trailing `<br>` (explicit HTML tag for maximum compatibility)
 
 ## ~~DefinitionItem — definition lists~~ → Use Description

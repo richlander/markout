@@ -82,7 +82,7 @@ public class GroupByWithIgnoreColumnWhenView
         => rows?.Select(r => r.Pattern).Distinct().Count() <= 1;
 }
 
-// --- OneLineWriter + IgnoreColumnWhen integration ---
+// --- OneLineFormatter + IgnoreColumnWhen integration ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class OneLineIgnoreColumnWhenView
@@ -343,10 +343,10 @@ public class IgnoreColumnWhenTests
         Assert.Contains("Bar", mdf);
     }
 
-    // --- OneLineWriter + IgnoreColumnWhen + IgnoreFields integration ---
+    // --- OneLineFormatter + IgnoreColumnWhen + IgnoreFields integration ---
 
     [Fact]
-    public void OneLineWriter_WithIgnoreColumnWhen_HidesUniformColumn()
+    public void OneLineFormatter_WithIgnoreColumnWhen_HidesUniformColumn()
     {
         var view = new OneLineIgnoreColumnWhenView
         {
@@ -360,11 +360,10 @@ public class IgnoreColumnWhenTests
         };
 
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
-        MarkoutSerializer.Serialize(view, writer, IgnoreColumnWhenTestContext.Default);
+        MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
         var output = sw.ToString();
 
-        // OneLineWriter renders table rows as pipe-separated lines
+        // OneLineFormatter renders table rows as pipe-separated lines
         Assert.Contains("Class", output);
         Assert.Contains("Struct", output);
         // Pattern is uniform → hidden
@@ -372,7 +371,7 @@ public class IgnoreColumnWhenTests
     }
 
     [Fact]
-    public void OneLineWriter_WithIgnoreColumnWhen_ShowsNonUniformColumn()
+    public void OneLineFormatter_WithIgnoreColumnWhen_ShowsNonUniformColumn()
     {
         var view = new OneLineIgnoreColumnWhenView
         {
@@ -386,8 +385,7 @@ public class IgnoreColumnWhenTests
         };
 
         var sw = new StringWriter();
-        var writer = new OneLineWriter(sw);
-        MarkoutSerializer.Serialize(view, writer, IgnoreColumnWhenTestContext.Default);
+        MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
         var output = sw.ToString();
 
         // Pattern is NOT uniform → shown
@@ -396,7 +394,7 @@ public class IgnoreColumnWhenTests
     }
 
     [Fact]
-    public void OneLineWriter_WithIgnoreFields_NoFieldWarning()
+    public void OneLineFormatter_WithIgnoreFields_NoFieldWarning()
     {
         var errWriter = new StringWriter();
         var origErr = Console.Error;
@@ -414,10 +412,9 @@ public class IgnoreColumnWhenTests
             };
 
             var sw = new StringWriter();
-            var writer = new OneLineWriter(sw);
-            MarkoutSerializer.Serialize(view, writer, IgnoreColumnWhenTestContext.Default);
+            MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
 
-            // No warnings - OneLineWriter supports Fields
+            // No warnings - OneLineFormatter supports Fields
             Assert.Equal("", errWriter.ToString());
             Assert.Contains("Class", sw.ToString());
         }
