@@ -1,15 +1,10 @@
-// Streaming zero-allocation .NET SDK download links — through Markout
+// Standard string-based .NET SDK download links — through Markout
 //
-// Data flow: HTTP stream → Utf8JsonReader.ValueSpan → MarkoutWriter.WriteUtf8() → Stream → stdout
+// Same output as the byte-streaming version, but uses the standard
+// MarkoutWriter string API: WriteTableRow(ReadOnlySpan<string>).
+// Every cell value goes through GetString() and string.Concat().
 //
-// The per-row hot loop has zero allocations:
-//   - Utf8JsonReader.ValueSpan → ReadOnlySpan<byte> into the read buffer (no copy, no string)
-//   - ValueSpan bytes memcpy'd to staging buffer (no allocation)
-//   - MarkoutWriter.BeginTableRow/Cell/WriteUtf8/EndCell/EndRow write directly to Stream
-//   - MarkdownFormatter.IUtf8StreamingTableFormatter writes pipe/space bytes to Stream
-//
-// String-based methods (WriteHeading, WriteFieldsInline) are used for per-section
-// headings and metadata — not in the hot loop, so string allocation is acceptable.
+// This is the baseline for allocation comparison via dotnet-trace.
 
 using System.Buffers;
 using System.Text.Json;
@@ -18,25 +13,19 @@ using Markout;
 const string IndexUrl = "https://github.com/dotnet/core/raw/refs/heads/main/release-notes/releases-index.json";
 
 using var http = new HttpClient();
-var output = Console.OpenStandardOutput();
-
-// MarkoutWriter constructed with Stream — enables both string and byte paths
 var formatter = new MarkdownFormatter();
 var options = new MarkoutWriterOptions { BoldFieldNames = true };
-var writer = new MarkoutWriter(output, formatter, options);
+var writer = new MarkoutWriter(Console.Out, formatter, options);
 
-// ── Phase 1: Small index file — JsonDocument is fine (~4KB, once) ──
+// ── Phase 1: Small index file ──
 
 using var indexStream = await http.GetStreamAsync(IndexUrl);
 using var indexDoc = await JsonDocument.ParseAsync(indexStream);
 
 writer.WriteHeading(1, ".NET SDK Downloads");
 
-// Read buffer for streaming JSON (rented once, reused across all channels)
 var readBuf = ArrayPool<byte>.Shared.Rent(16 * 1024);
-
-// Staging buffer for per-row cell values (rented once, reused across all rows)
-var staging = ArrayPool<byte>.Shared.Rent(1024);
+var row = new string[2];
 
 long allocBefore = GC.GetTotalAllocatedBytes(precise: true);
 int totalRows = 0;
@@ -53,43 +42,37 @@ try
         var releaseType = channel.TryGetProperty("release-type", out var rt)
             ? rt.GetString()?.ToUpperInvariant() : null;
 
-        // String-based heading — fine, once per section
         var context = releaseType != null ? $"{releaseType}, {supportPhase}" : supportPhase;
         writer.WriteHeading(2, $".NET {version}", context);
 
-        // ── Phase 2: Stream large releases.json with Utf8JsonReader ──
         using var releaseStream = await http.GetStreamAsync(releasesUrl);
-        totalRows += await StreamSdkFiles(releaseStream, readBuf, staging, writer, renderAllocArr);
+        totalRows += await StreamSdkFiles(releaseStream, readBuf, writer, row, renderAllocArr);
     }
-
-    output.Flush();
 }
 finally
 {
     ArrayPool<byte>.Shared.Return(readBuf);
-    ArrayPool<byte>.Shared.Return(staging);
 }
 
 renderAlloc = renderAllocArr[0];
 long allocAfter = GC.GetTotalAllocatedBytes(precise: true);
 long totalAlloc = allocAfter - allocBefore;
 Console.Error.WriteLine();
-Console.Error.WriteLine($"[SdkDownloads — byte-streaming]");
+Console.Error.WriteLine($"[SdkDownloadsString — standard string API]");
 Console.Error.WriteLine($"  Rows:          {totalRows}");
 Console.Error.WriteLine($"  Total alloc:   {totalAlloc:N0} bytes ({totalAlloc / 1024.0:N1} KB)");
 Console.Error.WriteLine($"  Render alloc:  {renderAlloc:N0} bytes ({renderAlloc / 1024.0:N1} KB)");
 Console.Error.WriteLine($"  Per row:       {(totalRows > 0 ? renderAlloc / totalRows : 0):N0} bytes");
 
 /// <summary>
-/// Streams releases.json, extracting SDK files from releases[0].sdk.files.
-/// The hot loop writes table rows through MarkoutWriter's byte-based API — zero allocation.
+/// Same streaming JSON reader, but uses GetString() + WriteTableRow(ReadOnlySpan&lt;string&gt;).
 /// </summary>
-static async Task<int> StreamSdkFiles(Stream stream, byte[] readBuf, byte[] staging, MarkoutWriter writer, long[] renderAlloc)
+static async Task<int> StreamSdkFiles(Stream stream, byte[] readBuf, MarkoutWriter writer, string[] row, long[] renderAlloc)
 {
     int dataLen = 0;
     int rowCount = 0;
     var readerState = new JsonReaderState();
-    var nav = new JsonNavigator();
+    var nav = new StringJsonNavigator();
     bool tableStarted = false;
 
     while (true)
@@ -102,39 +85,24 @@ static async Task<int> StreamSdkFiles(Stream stream, byte[] readBuf, byte[] stag
 
         while (reader.Read())
         {
-            nav.ProcessToken(ref reader, staging);
+            nav.ProcessToken(ref reader);
 
             if (nav.HasFile)
             {
                 if (!tableStarted)
                 {
-                    // String-based fields — once per section, not hot path
                     writer.WriteFieldsInline(
                         new MarkoutField("SDK", nav.SdkVersion ?? ""),
                         new MarkoutField("Released", nav.ReleaseDate ?? ""));
 
-                    // String-based headers — once per table
                     writer.WriteTableStart("Platform", "Download");
                     tableStarted = true;
                 }
 
-                // ── HOT PATH: zero allocations through Markout ──
                 long before = GC.GetTotalAllocatedBytes(precise: true);
-                writer.BeginTableRow();
-
-                // Cell 1: platform RID — single span
-                writer.WriteTableCellUtf8(staging.AsSpan(nav.RidOffset, nav.RidLength));
-
-                // Cell 2: markdown link — multi-part, no staging assembly needed
-                writer.BeginTableCell();
-                writer.WriteUtf8("["u8);
-                writer.WriteUtf8(staging.AsSpan(nav.NameOffset, nav.NameLength));
-                writer.WriteUtf8("]("u8);
-                writer.WriteUtf8(staging.AsSpan(nav.UrlOffset, nav.UrlLength));
-                writer.WriteUtf8(")"u8);
-                writer.EndTableCell();
-
-                writer.EndTableRow();
+                row[0] = nav.FileRid!;
+                row[1] = string.Concat("[", nav.FileName!, "](", nav.FileUrl!, ")");
+                writer.WriteTableRow(row);
                 renderAlloc[0] += GC.GetTotalAllocatedBytes(precise: true) - before;
                 rowCount++;
                 nav.ConsumeFile();
@@ -162,36 +130,28 @@ static async Task<int> StreamSdkFiles(Stream stream, byte[] readBuf, byte[] stag
 }
 
 /// <summary>
-/// State machine navigating releases.json to extract releases[0].sdk.files.
-/// Per-row values (rid, name, url) are staged as raw UTF-8 bytes via ValueSpan.
-/// Metadata (sdk version, release date) use GetString() — once per channel, not hot path.
+/// Same navigator but stores strings via GetString() — the standard approach.
 /// </summary>
-struct JsonNavigator
+struct StringJsonNavigator
 {
     private int _depth;
     private Phase _phase;
     private FieldKind _currentField;
-    private int _stagingPos;
 
     public string? SdkVersion { get; private set; }
     public string? ReleaseDate { get; private set; }
-
-    public int RidOffset { get; private set; }
-    public int RidLength { get; private set; }
-    public int NameOffset { get; private set; }
-    public int NameLength { get; private set; }
-    public int UrlOffset { get; private set; }
-    public int UrlLength { get; private set; }
-
+    public string? FileRid { get; private set; }
+    public string? FileName { get; private set; }
+    public string? FileUrl { get; private set; }
     public bool HasFile { get; private set; }
     public bool Done { get; private set; }
 
-    public void ConsumeFile() { HasFile = false; }
+    public void ConsumeFile() { HasFile = false; FileRid = null; FileName = null; FileUrl = null; }
 
     enum Phase { SeekingReleases, InReleasesArray, InFirstRelease, InSdk, InFilesArray, InFileObject }
     enum FieldKind { None, ReleaseDate, SdkVersion, Rid, Name, Url }
 
-    public void ProcessToken(ref Utf8JsonReader reader, byte[] staging)
+    public void ProcessToken(ref Utf8JsonReader reader)
     {
         var tt = reader.TokenType;
 
@@ -235,7 +195,7 @@ struct JsonNavigator
 
             case Phase.InFilesArray:
                 if (tt == JsonTokenType.StartObject)
-                { _phase = Phase.InFileObject; _stagingPos = 0; _depth = 0; }
+                { _phase = Phase.InFileObject; FileRid = null; FileName = null; FileUrl = null; _depth = 0; }
                 else if (tt == JsonTokenType.EndArray) Done = true;
                 break;
 
@@ -249,28 +209,12 @@ struct JsonNavigator
                 }
                 else if (tt == JsonTokenType.String && _currentField != FieldKind.None)
                 {
-                    // CORE ZERO-ALLOC: ValueSpan → staging buffer memcpy. No GetString().
-                    var span = reader.ValueSpan;
+                    // STRING ALLOCATION: GetString() materializes UTF-8 span as managed string
                     switch (_currentField)
                     {
-                        case FieldKind.Rid:
-                            RidOffset = _stagingPos;
-                            span.CopyTo(staging.AsSpan(_stagingPos));
-                            RidLength = span.Length;
-                            _stagingPos += span.Length;
-                            break;
-                        case FieldKind.Name:
-                            NameOffset = _stagingPos;
-                            span.CopyTo(staging.AsSpan(_stagingPos));
-                            NameLength = span.Length;
-                            _stagingPos += span.Length;
-                            break;
-                        case FieldKind.Url:
-                            UrlOffset = _stagingPos;
-                            span.CopyTo(staging.AsSpan(_stagingPos));
-                            UrlLength = span.Length;
-                            _stagingPos += span.Length;
-                            break;
+                        case FieldKind.Rid: FileRid = reader.GetString(); break;
+                        case FieldKind.Name: FileName = reader.GetString(); break;
+                        case FieldKind.Url: FileUrl = reader.GetString(); break;
                     }
                     _currentField = FieldKind.None;
                 }
@@ -279,7 +223,7 @@ struct JsonNavigator
                 {
                     if (_depth == 0)
                     {
-                        if (RidLength > 0 && NameLength > 0 && UrlLength > 0) HasFile = true;
+                        if (FileRid != null && FileName != null && FileUrl != null) HasFile = true;
                         _phase = Phase.InFilesArray;
                     }
                     else _depth--;
