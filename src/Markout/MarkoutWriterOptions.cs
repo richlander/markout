@@ -15,6 +15,7 @@ public class MarkoutWriterOptions
     private HashSet<string>? _excludeSections;
     private MarkoutProjection? _projection;
     private MarkoutShape _suppressedShapes;
+    private bool _bufferFieldsAsTable;
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -150,6 +151,21 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _suppressedShapes = value;
+        }
+    }
+
+    /// <summary>
+    /// When true, the orchestrator buffers fields from WriteFields/WriteFieldsBulleted/WriteFieldsNumbered
+    /// and flushes them as a two-column table at section boundaries.
+    /// Only used by <see cref="MarkoutOrchestrator{TFormatter}"/>. Default is false.
+    /// </summary>
+    public bool BufferFieldsAsTable
+    {
+        get => _bufferFieldsAsTable;
+        set
+        {
+            ThrowIfReadOnly();
+            _bufferFieldsAsTable = value;
         }
     }
 

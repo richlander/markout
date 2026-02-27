@@ -9,7 +9,7 @@ namespace Markout;
 /// Fields are buffered and rendered as two-column tables at section boundaries.
 /// Field lists are rendered inline (values only, pipe-separated).
 /// </summary>
-public class OneLineWriter : MarkoutWriter,
+public class OneLineWriter : MarkoutWriter, IMarkoutFormatter,
     ITableFormatter, IFieldFormatter, IListFormatter
 {
     private const int ColumnGap = 2;

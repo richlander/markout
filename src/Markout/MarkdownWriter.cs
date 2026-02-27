@@ -8,7 +8,7 @@ namespace Markout;
 /// Produces # headings, **bold** field names, | pipe tables |, - bullet lists,
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
-public class MarkdownWriter : MarkoutWriter,
+public class MarkdownWriter : MarkoutWriter, IMarkoutFormatter,
     IHeadingFormatter, IFieldFormatter, ITableFormatter, IListFormatter,
     ICodeBlockFormatter, IBlockFormatter, IMetricsFormatter
 {
