@@ -45,6 +45,10 @@ public class MarkoutWriter
         _writer = writer;
         _formatter = formatter;
         _options = opts;
+
+        // When filtering to specific sections, suppress unsectioned content by default.
+        // Content before the first H2 only renders when no section filter is active.
+        _sectionExcluded = opts.IncludeSections is { Count: > 0 };
     }
 
     /// <summary>
