@@ -148,6 +148,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? SectionColumnName { get; }
     public string? SectionShowWhenProperty { get; }
     public string? SectionGroupByProperty { get; }
+    public bool SectionHeadless { get; }
     public IReadOnlyList<(string MethodName, string ColumnName)>? SectionIgnoreColumnWhen { get; }
     public string? ElementTypeName { get; }
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
@@ -192,6 +193,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? sectionColumnName = null,
         string? sectionShowWhenProperty = null,
         string? sectionGroupByProperty = null,
+        bool sectionHeadless = false,
         IReadOnlyList<(string MethodName, string ColumnName)>? sectionIgnoreColumnWhen = null,
         string? elementTypeName = null,
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
@@ -235,6 +237,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionColumnName = sectionColumnName;
         SectionShowWhenProperty = sectionShowWhenProperty;
         SectionGroupByProperty = sectionGroupByProperty;
+        SectionHeadless = sectionHeadless;
         SectionIgnoreColumnWhen = sectionIgnoreColumnWhen;
         ElementTypeName = elementTypeName;
         ElementProperties = elementProperties;
@@ -283,6 +286,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionColumnName == other.SectionColumnName &&
                SectionShowWhenProperty == other.SectionShowWhenProperty &&
                SectionGroupByProperty == other.SectionGroupByProperty &&
+               SectionHeadless == other.SectionHeadless &&
                IgnoreColumnWhenEqual(SectionIgnoreColumnWhen, other.SectionIgnoreColumnWhen) &&
                ElementTypeName == other.ElementTypeName &&
                ElementHasNestedContent == other.ElementHasNestedContent &&
@@ -333,6 +337,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionColumnName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionGroupByProperty?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ SectionHeadless.GetHashCode();
             hash = hash * 397 ^ (SectionIgnoreColumnWhen?.Count ?? 0);
             hash = hash * 397 ^ (ValueFormatterTypeName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (ShowWhenProperty?.GetHashCode() ?? 0);

@@ -45,10 +45,6 @@ public class MarkoutWriter
         _writer = writer;
         _formatter = formatter;
         _options = opts;
-
-        // When filtering to specific sections, suppress unsectioned content by default.
-        // Content before the first H2 only renders when no section filter is active.
-        _sectionExcluded = opts.IncludeSections is { Count: > 0 };
     }
 
     /// <summary>
@@ -121,11 +117,14 @@ public class MarkoutWriter
     /// when projection is active.
     /// </summary>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support headings.</returns>
-    public bool WriteSectionStart(int level, string text, string? context = null)
+    public bool WriteSectionStart(int level, string text, string? context = null, bool headless = false)
     {
         UpdateSectionState(level, text);
 
         if (_sectionExcluded)
+            return true;
+
+        if (headless)
             return true;
 
         if (_formatter is not IHeadingFormatter)

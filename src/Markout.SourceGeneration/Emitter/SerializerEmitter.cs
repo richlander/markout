@@ -482,13 +482,15 @@ internal static class SerializerEmitter
         string sectionName,
         string? rootTypeName = null)
     {
+        var headlessArg = prop.SectionHeadless ? ", headless: true" : "";
 
         if (prop.Kind == PropertyKind.FieldCollection)
         {
+            var writeMethod = prop.SectionHeadless ? "WriteFieldsInline" : "WriteFieldsTable";
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
-            sb.AppendLine($"{indent}    writer.WriteFieldsTable(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+            sb.AppendLine($"{indent}    writer.{writeMethod}(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
         }
@@ -507,7 +509,7 @@ internal static class SerializerEmitter
             }
             else
             {
-                sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+                sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
 
                 if (prop.SectionGroupByProperty != null)
                 {
@@ -548,7 +550,7 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({EmitHelpers.GetCollectionCountCheck(prop, propAccess)})");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             if (prop.MaxItems != null)
             {
                 var innerIndent = indent + "    ";
@@ -567,7 +569,7 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             if (prop.MaxItems != null)
             {
                 var innerIndent = indent + "    ";
@@ -586,7 +588,7 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             sb.AppendLine($"{indent}    writer.WriteMetrics({propAccess});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -595,7 +597,7 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             sb.AppendLine($"{indent}    writer.WriteDescriptions({propAccess});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -604,7 +606,7 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -613,7 +615,7 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             sb.AppendLine($"{indent}    writer.WriteCodeStart({propAccess}.Language);");
             sb.AppendLine($"{indent}    writer.WriteParagraph({propAccess}.Content);");
             sb.AppendLine($"{indent}    writer.WriteCodeEnd();");
@@ -624,7 +626,7 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({propAccess} != null)");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             EmitPropertySerializations(sb, prop.ElementProperties, propAccess, indentLevel + 1, effectiveSectionLevel + 1, nestingDepth + 1, autoFields: prop.ElementAutoFields, fieldLayout: prop.ElementFieldLayout);
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -633,7 +635,7 @@ internal static class SerializerEmitter
         {
             sb.AppendLine($"{indent}if ({propAccess} != null)");
             sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             sb.AppendLine($"{indent}    ((global::Markout.IMarkoutFormattable){propAccess}).WriteTo(writer);");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
@@ -641,7 +643,7 @@ internal static class SerializerEmitter
         else
         {
             // For other types, just write the heading unconditionally
-            sb.AppendLine($"{indent}writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\");");
+            sb.AppendLine($"{indent}writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             sb.AppendLine($"{indent}writer.WriteSectionEnd();");
         }
     }
