@@ -53,4 +53,11 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// The group-by property is excluded from per-item rendering (it becomes the heading).
     /// </summary>
     public string? GroupBy { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the section heading is suppressed.
+    /// When true, the section is addressable and filterable via <see cref="MarkoutWriterOptions.IncludeSections"/>
+    /// but no heading (e.g., ##) is emitted. Use for preamble content that should be a named section.
+    /// </summary>
+    public bool Headless { get; set; }
 }

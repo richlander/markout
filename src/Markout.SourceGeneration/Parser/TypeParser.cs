@@ -233,6 +233,7 @@ internal static class TypeParser
         string? sectionColumnName = null;
         string? sectionShowWhenProperty = null;
         string? sectionGroupByProperty = null;
+        bool sectionHeadless = false;
         List<(string MethodName, string ColumnName)>? sectionIgnoreColumnWhen = null;
 
         if (isSection)
@@ -259,6 +260,8 @@ internal static class TypeParser
                         sectionShowWhenProperty = swp;
                     else if (named.Key == "GroupBy" && named.Value.Value is string gb)
                         sectionGroupByProperty = gb;
+                    else if (named.Key == "Headless" && named.Value.Value is bool hl)
+                        sectionHeadless = hl;
                 }
             }
         }
@@ -469,6 +472,7 @@ internal static class TypeParser
             sectionColumnName,
             sectionShowWhenProperty,
             sectionGroupByProperty,
+            sectionHeadless,
             sectionIgnoreColumnWhen,
             elementTypeName,
             elementProperties,
