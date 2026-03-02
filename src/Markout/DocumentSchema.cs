@@ -126,6 +126,11 @@ public sealed class DocumentSchema
             {
                 resolved.Add(name);
             }
+            else if (name.Contains('*') || name.Contains('?'))
+            {
+                // Glob patterns are resolved at render time by Markout
+                resolved.Add(name);
+            }
             else
             {
                 unresolved.Add(name);

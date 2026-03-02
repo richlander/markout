@@ -853,12 +853,13 @@ public class MarkoutWriter
             var result = new List<MarkoutField>(projection.IncludeFields.Count);
             foreach (var name in projection.IncludeFields)
             {
+                bool isGlob = name.Contains('*') || name.Contains('?');
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    if (string.Equals(name, fields[i].Key, projection.Comparison))
+                    if (projection.MatchesName(name, fields[i].Key))
                     {
                         result.Add(fields[i]);
-                        break;
+                        if (!isGlob) break;
                     }
                 }
             }
