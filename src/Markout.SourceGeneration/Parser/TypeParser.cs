@@ -100,6 +100,7 @@ internal static class TypeParser
         int? autoFieldsCount = null,
         FieldLayoutKind? fieldLayout = null,
         NamingPolicyKind? namingPolicy = null,
+        DocumentLayoutKind? layout = null,
         bool suppressTableWarnings = false)
     {
         // If titleProperty/descriptionProperty not passed, try to get them from the type's [MarkoutSerializable] attribute
@@ -125,6 +126,8 @@ internal static class TypeParser
                         fieldLayout ??= (FieldLayoutKind)fl;
                     else if (named.Key == "NamingPolicy" && named.Value.Value is int np)
                         namingPolicy ??= (NamingPolicyKind)np;
+                    else if (named.Key == "Layout" && named.Value.Value is int lay)
+                        layout ??= (DocumentLayoutKind)lay;
                 }
             }
         }
@@ -141,6 +144,8 @@ internal static class TypeParser
         fieldLayout ??= FieldLayoutKind.Table;
         // Default naming policy
         namingPolicy ??= NamingPolicyKind.PascalCaseWords;
+        // Default layout
+        layout ??= DocumentLayoutKind.Document;
 
         // Check for type-level [MarkoutSkipNull]
         bool skipNullByDefault = typeSymbol.GetAttributes()
@@ -208,6 +213,7 @@ internal static class TypeParser
             autoFieldsCount.Value,
             fieldLayout.Value,
             namingPolicy.Value,
+            layout.Value,
             skipNullByDefault,
             filteredDiagnostics);
     }

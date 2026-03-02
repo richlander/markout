@@ -53,4 +53,12 @@ public sealed class MarkoutSerializableAttribute : Attribute
     /// Default is PascalCaseWords (split PascalCase into separate words).
     /// </summary>
     public NamingPolicy NamingPolicy { get; set; } = NamingPolicy.PascalCaseWords;
+
+    /// <summary>
+    /// Gets or sets the overall document layout.
+    /// When set to <see cref="DocumentLayout.Tree"/>, the title renders as a plain-text root node
+    /// and TreeNode list properties render as children. No headings, fields, or sections are emitted.
+    /// Default is <see cref="DocumentLayout.Document"/>.
+    /// </summary>
+    public DocumentLayout Layout { get; set; } = DocumentLayout.Document;
 }
