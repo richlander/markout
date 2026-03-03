@@ -17,7 +17,6 @@ public class MarkoutProjection
     private HashSet<string>? _excludeColumns;
     private IReadOnlyList<string>? _includeFields;
     private HashSet<string>? _excludeFields;
-    private IReadOnlyList<string>? _includeSections;
     private StringComparison _comparison = StringComparison.OrdinalIgnoreCase;
 
     // ── Factory Methods ──
@@ -45,24 +44,6 @@ public class MarkoutProjection
     /// </summary>
     public static MarkoutProjection WithoutFields(params ReadOnlySpan<string> fields)
         => new() { ExcludeFields = [..fields] };
-
-    /// <summary>
-    /// Creates a projection that includes the specified sections
-    /// (overriding section exclusion from writer options).
-    /// </summary>
-    public static MarkoutProjection WithSections(params ReadOnlySpan<string> sections)
-        => new() { IncludeSections = sections.ToArray() };
-
-    /// <summary>
-    /// If set, sections whose name matches are included even if excluded by
-    /// <see cref="MarkoutWriterOptions.IncludeSections"/>/<see cref="MarkoutWriterOptions.ExcludeSections"/>.
-    /// Content within projection-included sections is rendered without field/column filtering.
-    /// </summary>
-    public IReadOnlyList<string>? IncludeSections
-    {
-        get => _includeSections;
-        set => _includeSections = value;
-    }
 
     /// <summary>
     /// If set, only table columns whose header text matches are rendered, in the specified order.
@@ -139,7 +120,7 @@ public class MarkoutProjection
         {
             foreach (var col in _includeColumns)
             {
-                if (string.Equals(col, header, _comparison))
+                if (MatchesName(col, header))
                     return true;
             }
             return false;
@@ -149,7 +130,7 @@ public class MarkoutProjection
         {
             foreach (var col in _excludeColumns)
             {
-                if (string.Equals(col, header, _comparison))
+                if (MatchesName(col, header))
                     return false;
             }
         }
@@ -166,7 +147,7 @@ public class MarkoutProjection
         {
             foreach (var field in _includeFields)
             {
-                if (string.Equals(field, key, _comparison))
+                if (MatchesName(field, key))
                     return true;
             }
             return false;
@@ -176,28 +157,12 @@ public class MarkoutProjection
         {
             foreach (var field in _excludeFields)
             {
-                if (string.Equals(field, key, _comparison))
+                if (MatchesName(field, key))
                     return false;
             }
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Returns true if the given section name is included by this projection.
-    /// </summary>
-    internal bool IsSectionIncluded(string sectionName)
-    {
-        if (_includeSections == null)
-            return false;
-
-        foreach (var s in _includeSections)
-        {
-            if (string.Equals(s, sectionName, _comparison))
-                return true;
-        }
-        return false;
     }
 
     /// <summary>
@@ -213,12 +178,13 @@ public class MarkoutProjection
             var map = new List<int>(_includeColumns.Count);
             foreach (var col in _includeColumns)
             {
+                bool isGlob = col.Contains('*') || col.Contains('?');
                 for (int i = 0; i < headers.Length; i++)
                 {
-                    if (string.Equals(col, headers[i], _comparison))
+                    if (MatchesName(col, headers[i]))
                     {
                         map.Add(i);
-                        break;
+                        if (!isGlob) break;
                     }
                 }
             }
@@ -234,7 +200,7 @@ public class MarkoutProjection
                 bool excluded = false;
                 foreach (var col in _excludeColumns)
                 {
-                    if (string.Equals(col, headers[i], _comparison))
+                    if (MatchesName(col, headers[i]))
                     {
                         excluded = true;
                         break;
@@ -273,4 +239,48 @@ public class MarkoutProjection
         }
         return result;
     }
+
+    /// <summary>
+    /// Matches a pattern against a name. Supports exact match and glob patterns (* and ?).
+    /// </summary>
+    internal bool MatchesName(string pattern, string name)
+    {
+        if (!pattern.Contains('*') && !pattern.Contains('?'))
+            return string.Equals(pattern, name, _comparison);
+
+        return GlobMatch(pattern, name, _comparison == StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool GlobMatch(string pattern, string text, bool ignoreCase)
+    {
+        int pi = 0, ti = 0, starPi = -1, starTi = -1;
+        while (ti < text.Length)
+        {
+            if (pi < pattern.Length && pattern[pi] == '?')
+            {
+                pi++; ti++;
+            }
+            else if (pi < pattern.Length && pattern[pi] == '*')
+            {
+                starPi = pi++; starTi = ti;
+            }
+            else if (pi < pattern.Length && CharEquals(pattern[pi], text[ti], ignoreCase))
+            {
+                pi++; ti++;
+            }
+            else if (starPi >= 0)
+            {
+                pi = starPi + 1; ti = ++starTi;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        while (pi < pattern.Length && pattern[pi] == '*') pi++;
+        return pi == pattern.Length;
+    }
+
+    private static bool CharEquals(char a, char b, bool ignoreCase)
+        => ignoreCase ? char.ToUpperInvariant(a) == char.ToUpperInvariant(b) : a == b;
 }

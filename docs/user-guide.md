@@ -840,12 +840,6 @@ var options = new MarkoutWriterOptions
 {
     IncludeSections = ["Overview", "Reviews"]
 };
-
-// Render all sections except these
-var options = new MarkoutWriterOptions
-{
-    ExcludeSections = ["Specifications"]
-};
 ```
 
 > From the [SectionFiltering](../samples/Serialization/SectionFiltering.cs) sample.
@@ -865,7 +859,7 @@ Or pass options to the context constructor:
 ```csharp
 var context = new SampleContext(new MarkoutWriterOptions
 {
-    ExcludeSections = ["Specifications"],
+    IncludeSections = ["Overview", "Reviews"],
     BoldFieldNames = true
 });
 

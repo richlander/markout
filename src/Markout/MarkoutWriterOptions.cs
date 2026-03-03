@@ -12,7 +12,6 @@ public class MarkoutWriterOptions
     private bool _prettyTables;
     private int? _maxItems;
     private HashSet<string>? _includeSections;
-    private HashSet<string>? _excludeSections;
     private MarkoutProjection? _projection;
     private MarkoutShape _suppressedShapes;
 
@@ -107,19 +106,6 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _includeSections = value;
-        }
-    }
-
-    /// <summary>
-    /// If set, sections whose heading text matches are excluded from output.
-    /// </summary>
-    public HashSet<string>? ExcludeSections
-    {
-        get => _excludeSections;
-        set
-        {
-            ThrowIfReadOnly();
-            _excludeSections = value;
         }
     }
 

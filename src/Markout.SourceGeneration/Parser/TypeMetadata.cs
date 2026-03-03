@@ -38,6 +38,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
     public int AutoFieldsCount { get; }
     public FieldLayoutKind FieldLayout { get; }
     public NamingPolicyKind NamingPolicy { get; }
+    public DocumentLayoutKind Layout { get; }
     public bool SkipNullByDefault { get; }
     public IReadOnlyList<DiagnosticInfo> Diagnostics { get; }
 
@@ -54,6 +55,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         int autoFieldsCount = 0,
         FieldLayoutKind fieldLayout = FieldLayoutKind.Table,
         NamingPolicyKind namingPolicy = NamingPolicyKind.PascalCaseWords,
+        DocumentLayoutKind layout = DocumentLayoutKind.Document,
         bool skipNullByDefault = false,
         IReadOnlyList<DiagnosticInfo>? diagnostics = null)
     {
@@ -69,6 +71,7 @@ internal sealed class TypeMetadata : IEquatable<TypeMetadata>
         AutoFieldsCount = autoFieldsCount;
         FieldLayout = fieldLayout;
         NamingPolicy = namingPolicy;
+        Layout = layout;
         SkipNullByDefault = skipNullByDefault;
         Diagnostics = diagnostics ?? Array.Empty<DiagnosticInfo>();
     }
@@ -400,6 +403,15 @@ internal enum NamingPolicyKind
 {
     PascalCaseWords = 0,
     Verbatim = 1
+}
+
+/// <summary>
+/// Internal representation of DocumentLayout. Values mirror the runtime Markout.DocumentLayout enum.
+/// </summary>
+internal enum DocumentLayoutKind
+{
+    Document = 0,
+    Tree = 1
 }
 
 /// <summary>

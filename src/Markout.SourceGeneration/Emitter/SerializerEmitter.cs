@@ -52,6 +52,36 @@ internal static class SerializerEmitter
 
         sb.AppendLine("        OnSerializing(writer, value);");
 
+        // Tree layout: title as plain-text root node, then tree properties only
+        if (type.Layout == DocumentLayoutKind.Tree)
+        {
+            if (!string.IsNullOrEmpty(type.TitleProperty))
+            {
+                var titleProp = type.Properties.FirstOrDefault(p => p.Name == type.TitleProperty);
+                if (titleProp != null)
+                {
+                    sb.AppendLine($"        if (value.{titleProp.Name} != null)");
+                    sb.AppendLine($"            writer.WriteTreeNode(value.{titleProp.Name});");
+                    sb.AppendLine();
+                }
+            }
+
+            // Emit only tree properties
+            foreach (var prop in type.Properties)
+            {
+                if (prop.IsIgnored || prop.Kind != PropertyKind.Tree) continue;
+                var propAccess = $"value.{prop.Name}";
+                sb.AppendLine($"        if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"            writer.WriteTree(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("        OnSerialized(writer, value);");
+            sb.AppendLine("    }");
+        }
+        else
+        {
+
         // Emit title (H1) if TitleProperty is set — opens document section
         var hasTitle = false;
         if (!string.IsNullOrEmpty(type.TitleProperty))
@@ -107,8 +137,9 @@ internal static class SerializerEmitter
         if (hasTitle)
             sb.AppendLine("        writer.WriteSectionEnd();");
         sb.AppendLine("    }");
-        sb.AppendLine();
 
+        } // end else (Document layout)
+        sb.AppendLine();
         // Emit partial method declarations for hooks
         sb.AppendLine($"    partial void OnSerializing(global::Markout.MarkoutWriter writer, {type.FullTypeName} value);");
         sb.AppendLine($"    partial void OnSerialized(global::Markout.MarkoutWriter writer, {type.FullTypeName} value);");

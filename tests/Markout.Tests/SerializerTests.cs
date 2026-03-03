@@ -182,7 +182,7 @@ public class SerializerTests
     }
 
     [Fact]
-    public void Serialize_WithExcludeSections_SkipsSpecifiedSections()
+    public void Serialize_WithIncludeSections_SkipsUnspecifiedSections()
     {
         var package = new PackageWithSections
         {
@@ -198,7 +198,7 @@ public class SerializerTests
             }
         };
 
-        var context = new SectionTestContext(new MarkoutWriterOptions { ExcludeSections = ["Dependencies"] });
+        var context = new SectionTestContext(new MarkoutWriterOptions { IncludeSections = ["Assemblies"] });
         var mdf = context.Serialize(package);
 
         // Dependencies section should be excluded
@@ -1359,7 +1359,7 @@ public class SerializerTests
     }
 
     [Fact]
-    public void Serialize_ScalarSection_ExcludeAllSections_FieldCollectionStillRenders()
+    public void Serialize_ScalarSection_IncludeNone_FieldCollectionStillRenders()
     {
         var view = new FieldCollectionBeforeSections
         {
@@ -1368,10 +1368,10 @@ public class SerializerTests
             Downloads = 500,
             Stars = 10
         };
-        var context = new ScalarSectionTestContext(new MarkoutWriterOptions { ExcludeSections = ["Stats"] });
+        var context = new ScalarSectionTestContext(new MarkoutWriterOptions { IncludeSections = [] });
         var mdf = context.Serialize(view);
 
-        // Non-section field collection should render even when all sections are excluded
+        // Non-section field collection should render even when no sections are included
         Assert.Contains("Version: 1.0", mdf);
         Assert.Contains("Type: Library", mdf);
         // Section should be excluded
@@ -1380,7 +1380,7 @@ public class SerializerTests
     }
 
     [Fact]
-    public void Serialize_ScalarSection_ExcludeScalarSection_OtherSectionsRender()
+    public void Serialize_ScalarSection_IncludeOnlyDependencies_ScalarSectionExcluded()
     {
         var view = new MixedSection
         {
@@ -1389,7 +1389,7 @@ public class SerializerTests
             Stars = 10,
             Dependencies = [new SimpleDep { Id = "Dep1", Version = "1.0" }]
         };
-        var context = new ScalarSectionTestContext(new MarkoutWriterOptions { ExcludeSections = ["Stats"] });
+        var context = new ScalarSectionTestContext(new MarkoutWriterOptions { IncludeSections = ["Dependencies"] });
         var mdf = context.Serialize(view);
 
         // Scalar section should be excluded

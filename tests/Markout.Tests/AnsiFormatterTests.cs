@@ -232,7 +232,7 @@ public class AnsiFormatterTests
     [Fact]
     public void SectionExcluded_SuppressesOutput()
     {
-        var (orch, sw) = Create(new MarkoutWriterOptions { ExcludeSections = ["Hidden"] });
+        var (orch, sw) = Create(new MarkoutWriterOptions { IncludeSections = [] });
         orch.WriteHeading(2, "Hidden");
         orch.WriteFields([new("Key", "Value")]);
 

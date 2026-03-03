@@ -1237,13 +1237,11 @@ The package command actively uses section filtering for verbosity control:
 ```csharp
 var context = new MarkoutContext(new MarkoutWriterOptions
 {
-    IncludeSections = options.IncludeSections,
-    ExcludeSections = GetExcludeSections(options),
-    IncludeDescription = options.Verbosity != Verbosity.Quiet
+    IncludeSections = options.IncludeSections
 });
 ```
 
-Verbosity maps to section exclusions:
+Verbosity maps to section inclusions via the pipeline:
 - **Quiet**: Title + compact line only
 - **Minimal**: Title + description + compact line
 - **Normal**: Metadata section only

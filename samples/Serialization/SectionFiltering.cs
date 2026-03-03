@@ -44,33 +44,6 @@ public static class SectionFiltering
     }
 
     /// <summary>
-    /// Shows how to exclude specific sections from output.
-    /// </summary>
-    public static void ExcludeSpecificSections()
-    {
-        #region ExcludeSpecificSections
-        var writer = new MarkoutWriter(new MarkdownFormatter(), new MarkoutWriterOptions
-        {
-            // Exclude the Specifications section
-            ExcludeSections = ["Specifications"]
-        });
-
-        writer.WriteHeading(1, "Product Details");
-
-        writer.WriteHeading(2, "Overview");        // included
-        writer.WriteFields([new("Name", "Widget Pro")]);
-
-        writer.WriteHeading(2, "Specifications");  // excluded
-        writer.WriteFields([new("Weight", "1.5 kg")]);
-
-        writer.WriteHeading(2, "Reviews");         // included
-        writer.WriteFields([new("Rating", "4.5 stars")]);
-
-        Console.WriteLine(writer.ToString());
-        #endregion
-    }
-
-    /// <summary>
     /// Shows section filtering via MarkoutSerializerContext.
     /// </summary>
     public static void FilterViaContext()
@@ -78,7 +51,7 @@ public static class SectionFiltering
         #region FilterViaContext
         var context = new SampleContext(new MarkoutWriterOptions
         {
-            ExcludeSections = ["Specifications"],  // Skip Specifications section
+            IncludeSections = ["Overview", "Reviews"],  // Only include these sections
             BoldFieldNames = true                       // Enable bold field names
         });
 

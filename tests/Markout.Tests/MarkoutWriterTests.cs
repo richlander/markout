@@ -281,34 +281,6 @@ public class MarkoutWriterTests
     }
 
     [Fact]
-    public void ExcludeSections_FiltersContent()
-    {
-        var options = new MarkoutWriterOptions { ExcludeSections = ["Hidden"] };
-        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
-
-        orch.WriteHeading(2, "Visible");
-        orch.WriteParagraph("Included");
-        orch.WriteHeading(2, "Hidden");
-        orch.WriteParagraph("Excluded");
-
-        var output = orch.ToString();
-        Assert.Contains("Included", output);
-        Assert.DoesNotContain("Excluded", output);
-    }
-
-    [Fact]
-    public void BothIncludeAndExcludeSections_Throws()
-    {
-        var options = new MarkoutWriterOptions
-        {
-            IncludeSections = ["A"],
-            ExcludeSections = ["B"]
-        };
-        Assert.Throws<InvalidOperationException>(() =>
-            MarkoutWriter.Create(new MarkdownFormatter(), options));
-    }
-
-    [Fact]
     public void EmptyIncludeSections_PreambleOnly()
     {
         var options = new MarkoutWriterOptions { IncludeSections = [] };
@@ -500,7 +472,8 @@ public class MarkoutWriterTests
     {
         var options = new MarkoutWriterOptions
         {
-            Projection = MarkoutProjection.WithSections("Data")
+            IncludeSections = ["Data"],
+            Projection = new MarkoutProjection()
         };
         var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
 
@@ -520,8 +493,8 @@ public class MarkoutWriterTests
     {
         var options = new MarkoutWriterOptions
         {
-            Projection = MarkoutProjection.WithSections("Data"),
-            ExcludeSections = ["Other"]
+            IncludeSections = ["Data"],
+            Projection = new MarkoutProjection()
         };
         var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
 
