@@ -30,7 +30,7 @@ Three roles, separated:
 The thing the serializer (and hand-written callers) talk to. Owns:
 
 - Shape vocabulary (WriteHeading, WriteFields, WriteTable, etc.)
-- Section tracking and filtering (IncludeSections/ExcludeSections)
+- Section tracking and filtering (IncludeSections)
 - Blank line and spacing management
 - State (HasContent, NeedsBlankLine, InCode, InTable)
 - Streaming table buffering (WriteTableStart/Row/End)

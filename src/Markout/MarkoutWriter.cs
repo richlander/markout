@@ -24,7 +24,6 @@ public class MarkoutWriter
     // Section tracking
     private string? _currentSectionName;
     private bool _sectionExcluded;
-    private bool _projectionSectionActive;
 
     // Table delegation
     private TableWriter? _tableWriter;
@@ -39,8 +38,6 @@ public class MarkoutWriter
     public MarkoutWriter(TextWriter writer, IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
     {
         var opts = options ?? new MarkoutWriterOptions();
-        if (opts.IncludeSections != null && opts.ExcludeSections != null)
-            throw new InvalidOperationException("Cannot set both IncludeSections and ExcludeSections. Use one or the other.");
 
         _writer = writer;
         _formatter = formatter;
@@ -453,7 +450,7 @@ public class MarkoutWriter
         var headerArray = headers as string[] ?? headers.ToArray();
 
         // Apply column projection
-        var columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headerArray);
+        var columnMap = _options.Projection?.ComputeColumnMap(headerArray);
         if (columnMap != null)
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
 
@@ -496,7 +493,7 @@ public class MarkoutWriter
         if (headers.Length == 0)
             throw new ArgumentException("At least one header is required.", nameof(headers));
 
-        _columnMap = _projectionSectionActive ? null : _options.Projection?.ComputeColumnMap(headers);
+        _columnMap = _options.Projection?.ComputeColumnMap(headers);
 
         EnsureBlankLineIfNeeded();
         _tableWriter = CreateTableWriter();
@@ -822,8 +819,6 @@ public class MarkoutWriter
         {
             _currentSectionName = text;
             _sectionExcluded = !IsSectionIncluded();
-            _projectionSectionActive = !_sectionExcluded
-                && _options.Projection?.IsSectionIncluded(text) == true;
         }
     }
 
@@ -832,12 +827,7 @@ public class MarkoutWriter
         if (_currentSectionName == null)
             return true;
 
-        if (_options.Projection?.IsSectionIncluded(_currentSectionName) == true)
-            return true;
-
         if (_options.IncludeSections != null && !_options.IncludeSections.Contains(_currentSectionName))
-            return false;
-        if (_options.ExcludeSections?.Contains(_currentSectionName) == true)
             return false;
         return true;
     }
@@ -845,7 +835,7 @@ public class MarkoutWriter
     private MarkoutField[] ProjectFields(ReadOnlySpan<MarkoutField> fields)
     {
         var projection = _options.Projection;
-        if (projection == null || _projectionSectionActive)
+        if (projection == null)
             return fields.ToArray();
 
         if (projection.IncludeFields != null)

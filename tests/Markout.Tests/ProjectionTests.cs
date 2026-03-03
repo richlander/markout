@@ -627,13 +627,6 @@ public class ProjectionTests
     }
 
     [Fact]
-    public void WithSections_CreatesProjectionWithIncludeSections()
-    {
-        var projection = MarkoutProjection.WithSections("Details", "API Surface");
-        Assert.Equal(["Details", "API Surface"], projection.IncludeSections);
-    }
-
-    [Fact]
     public void FactoryMethod_WorksWithWriterOptions()
     {
         var options = new MarkoutWriterOptions
