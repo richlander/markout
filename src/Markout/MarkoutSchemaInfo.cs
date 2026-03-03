@@ -145,6 +145,122 @@ public sealed class MarkoutSchemaInfo
         return rendering[start..end];
     }
 
+    /// <summary>
+    /// Converts the source-generated schema into a <see cref="DocumentSchema"/>
+    /// suitable for discovery, projection validation, and diagnostics.
+    /// </summary>
+    /// <remarks>
+    /// This is a lossy reduction: section headings, content types, and item names are
+    /// preserved, but dynamic content (field tables, code blocks) produces sections
+    /// with no queryable items.
+    /// </remarks>
+    public DocumentSchema ToDocumentSchema()
+    {
+        var sectionOrder = new List<string>();
+        var sectionData = new Dictionary<string, (string? ItemKind, List<string> Items)>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var prop in AsDocument)
+        {
+            var sectionName = ExtractSectionName(prop.Rendering);
+            if (sectionName == null) continue;
+
+            var contentType = ExtractContentType(prop.Rendering);
+            var (itemKind, items) = MapContentToItems(contentType, prop);
+
+            if (!sectionData.TryGetValue(sectionName, out var existing))
+            {
+                sectionData[sectionName] = (itemKind, items);
+                sectionOrder.Add(sectionName);
+            }
+            else
+            {
+                // Merge: union of items, upgrade kind if previously section-only
+                foreach (var item in items)
+                {
+                    if (!existing.Items.Contains(item, StringComparer.OrdinalIgnoreCase))
+                        existing.Items.Add(item);
+                }
+                if (existing.ItemKind == null && itemKind != null)
+                    sectionData[sectionName] = (itemKind, existing.Items);
+            }
+        }
+
+        var schema = new DocumentSchema();
+        foreach (var name in sectionOrder)
+        {
+            var (itemKind, items) = sectionData[name];
+            if (itemKind != null && items.Count > 0)
+                schema.Add(name, itemKind, items.ToArray());
+            else
+                schema.AddSection(name);
+        }
+        return schema;
+    }
+
+    private static string? ExtractContentType(string rendering)
+    {
+        // Extract the parenthetical suffix from: H2 Section "Name" (table)
+        int lastOpen = rendering.LastIndexOf('(');
+        int lastClose = rendering.LastIndexOf(')');
+        if (lastOpen < 0 || lastClose <= lastOpen) return null;
+        return rendering[(lastOpen + 1)..lastClose];
+    }
+
+    private static (string? ItemKind, List<string> Items) MapContentToItems(
+        string? contentType, MarkoutPropertySchema prop)
+    {
+        return contentType switch
+        {
+            "table" => ("column", CollectChildColumns(prop)),
+            "subsections" => ("column", CollectChildColumns(prop)),
+            "field" => ("field", [prop.DisplayName]),
+            "fields" => ("field", CollectChildFields(prop)),
+            "tree" => ("tree", CollectChildColumns(prop)),
+            // Content types with no queryable items
+            "field table" or "code block" or "bar chart"
+                or "labeled list" or "distribution" => (null, []),
+            // No parenthetical (e.g. bullet list in section) — no static items
+            _ => (null, []),
+        };
+    }
+
+    private static List<string> CollectChildColumns(MarkoutPropertySchema prop)
+    {
+        var names = new List<string>();
+        foreach (var child in prop.Children)
+        {
+            if (child.Rendering.StartsWith("Column", StringComparison.Ordinal)
+                && !names.Contains(child.DisplayName, StringComparer.OrdinalIgnoreCase))
+                names.Add(child.DisplayName);
+        }
+        return names;
+    }
+
+    private static List<string> CollectChildFields(MarkoutPropertySchema prop)
+    {
+        var names = new List<string>();
+        CollectChildFieldsRecursive(prop.Children, names);
+        return names;
+    }
+
+    private static void CollectChildFieldsRecursive(
+        IReadOnlyList<MarkoutPropertySchema> children, List<string> names)
+    {
+        foreach (var child in children)
+        {
+            if (child.Rendering.StartsWith("Field", StringComparison.Ordinal))
+            {
+                if (!names.Contains(child.DisplayName, StringComparer.OrdinalIgnoreCase))
+                    names.Add(child.DisplayName);
+            }
+            else if (child.Rendering == "Fields")
+            {
+                CollectChildFieldsRecursive(child.Children, names);
+            }
+        }
+    }
+
     private bool HasDifferences()
     {
         if (AsDocument.Count != AsTableItem.Count) return true;
