@@ -591,6 +591,208 @@ public class ProjectionTests
         Assert.Equal(["Name", "Version", "Target"], columns);
     }
 
+    // --- ToDocumentSchema tests ---
+
+    [Fact]
+    public void ToDocumentSchema_TableSections_ProducesColumns()
+    {
+        var schema = SectionTestContext.PackageWithSectionsSchema;
+        var doc = schema.ToDocumentSchema();
+
+        Assert.Equal(["Dependencies", "Assemblies"], doc.SectionNames);
+
+        var deps = doc.GetSection("Dependencies");
+        Assert.NotNull(deps);
+        Assert.Equal("column", deps.ItemKind);
+        Assert.Equal(["Id", "Version"], deps.Items.Select(i => i.Name).ToArray());
+
+        var asms = doc.GetSection("Assemblies");
+        Assert.NotNull(asms);
+        Assert.Equal("column", asms.ItemKind);
+        Assert.Equal(["Name", "Arch"], asms.Items.Select(i => i.Name).ToArray());
+    }
+
+    [Fact]
+    public void ToDocumentSchema_ScalarFieldSections_ProducesFields()
+    {
+        var schema = ScalarSectionTestContext.Default.GetSchemaInfo<MixedSection>()!;
+        var doc = schema.ToDocumentSchema();
+
+        Assert.Equal(["Stats", "Dependencies"], doc.SectionNames);
+
+        var stats = doc.GetSection("Stats");
+        Assert.NotNull(stats);
+        Assert.Equal("field", stats.ItemKind);
+        Assert.Contains("Downloads", stats.Items.Select(i => i.Name));
+        Assert.Contains("Stars", stats.Items.Select(i => i.Name));
+
+        var deps = doc.GetSection("Dependencies");
+        Assert.NotNull(deps);
+        Assert.Equal("column", deps.ItemKind);
+    }
+
+    [Fact]
+    public void ToDocumentSchema_MergesDuplicateSections()
+    {
+        // Two properties sharing "Items" section with different columns
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "MergeTest",
+            AsDocument = [
+                new() { Name = "ItemsA", DisplayName = "Items", Rendering = "H2 Section \"Items\" (table)", Children = [
+                    new() { Name = "Name", DisplayName = "Name", Rendering = "Column" },
+                    new() { Name = "Version", DisplayName = "Version", Rendering = "Column" },
+                ] },
+                new() { Name = "ItemsB", DisplayName = "Items", Rendering = "H2 Section \"Items\" (table)", Children = [
+                    new() { Name = "Name", DisplayName = "Name", Rendering = "Column" },
+                    new() { Name = "Arch", DisplayName = "Arch", Rendering = "Column" },
+                ] },
+            ],
+        };
+        var doc = schema.ToDocumentSchema();
+
+        Assert.Single(doc.SectionNames);
+        var items = doc.GetSection("Items")!;
+        Assert.Equal("column", items.ItemKind);
+        Assert.Equal(["Name", "Version", "Arch"], items.Items.Select(i => i.Name).ToArray());
+    }
+
+    [Fact]
+    public void ToDocumentSchema_FieldSection_SingleScalar()
+    {
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "SingleField",
+            AsDocument = [
+                new() { Name = "Url", DisplayName = "URL", Rendering = "H2 Section \"Remote Source\" (field)" },
+            ],
+        };
+        var doc = schema.ToDocumentSchema();
+
+        var section = doc.GetSection("Remote Source")!;
+        Assert.Equal("field", section.ItemKind);
+        Assert.Equal(["URL"], section.Items.Select(i => i.Name).ToArray());
+    }
+
+    [Fact]
+    public void ToDocumentSchema_NestedFields_CollectsChildFields()
+    {
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "Nested",
+            AsDocument = [
+                new() { Name = "Info", DisplayName = "Info", Rendering = "H2 Section \"Library Info\" (fields)", Children = [
+                    new() { Name = "Name", DisplayName = "Name", Rendering = "Field" },
+                    new() { Name = "Version", DisplayName = "Version", Rendering = "Field" },
+                    new() { Name = "IsSigned", DisplayName = "Signed", Rendering = "Field (yes/no)" },
+                ] },
+            ],
+        };
+        var doc = schema.ToDocumentSchema();
+
+        var section = doc.GetSection("Library Info")!;
+        Assert.Equal("field", section.ItemKind);
+        Assert.Equal(["Name", "Version", "Signed"], section.Items.Select(i => i.Name).ToArray());
+    }
+
+    [Fact]
+    public void ToDocumentSchema_TreeSection_CollectsColumns()
+    {
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "TreeTest",
+            AsDocument = [
+                new() { Name = "Deps", DisplayName = "Deps", Rendering = "H2 Section \"Dependencies\" (tree)", Children = [
+                    new() { Name = "Name", DisplayName = "Name", Rendering = "Column" },
+                ] },
+            ],
+        };
+        var doc = schema.ToDocumentSchema();
+
+        var section = doc.GetSection("Dependencies")!;
+        Assert.Equal("tree", section.ItemKind);
+        Assert.Equal(["Name"], section.Items.Select(i => i.Name).ToArray());
+    }
+
+    [Fact]
+    public void ToDocumentSchema_CodeBlockSection_SectionOnly()
+    {
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "CodeTest",
+            AsDocument = [
+                new() { Name = "IL", DisplayName = "IL", Rendering = "H2 Section \"IL\" (code block)" },
+            ],
+        };
+        var doc = schema.ToDocumentSchema();
+
+        Assert.Equal(["IL"], doc.SectionNames);
+        var section = doc.GetSection("IL")!;
+        Assert.Equal("section", section.ItemKind);
+        Assert.Empty(section.Items);
+    }
+
+    [Fact]
+    public void ToDocumentSchema_FieldTableSection_SectionOnly()
+    {
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "FieldTableTest",
+            AsDocument = [
+                new() { Name = "Summary", DisplayName = "Summary", Rendering = "H2 Section \"Summary\" (field table)" },
+            ],
+        };
+        var doc = schema.ToDocumentSchema();
+
+        Assert.Equal(["Summary"], doc.SectionNames);
+        var section = doc.GetSection("Summary")!;
+        Assert.Equal("section", section.ItemKind);
+        Assert.Empty(section.Items);
+    }
+
+    [Fact]
+    public void ToDocumentSchema_SkipsNonSectionProperties()
+    {
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "MixedProps",
+            AsDocument = [
+                new() { Name = "Name", DisplayName = "Name", Rendering = "Field" },
+                new() { Name = "Version", DisplayName = "Version", Rendering = "Field" },
+                new() { Name = "Deps", DisplayName = "Deps", Rendering = "H2 Section \"Dependencies\" (table)", Children = [
+                    new() { Name = "Id", DisplayName = "Id", Rendering = "Column" },
+                ] },
+            ],
+        };
+        var doc = schema.ToDocumentSchema();
+
+        // Only the section should appear, not the scalar fields
+        Assert.Equal(["Dependencies"], doc.SectionNames);
+    }
+
+    [Fact]
+    public void ToDocumentSchema_MergesFieldAndCodeBlock()
+    {
+        // A section with both scalar fields and a code block property
+        var schema = new MarkoutSchemaInfo
+        {
+            TypeName = "MixedKinds",
+            AsDocument = [
+                new() { Name = "Sig", DisplayName = "Signature", Rendering = "H2 Section \"Constructors\" (code block)" },
+                new() { Name = "Table", DisplayName = "Table", Rendering = "H2 Section \"Constructors\" (table)", Children = [
+                    new() { Name = "Name", DisplayName = "Name", Rendering = "Column" },
+                ] },
+            ],
+        };
+        var doc = schema.ToDocumentSchema();
+
+        Assert.Single(doc.SectionNames);
+        var section = doc.GetSection("Constructors")!;
+        // Code block came first (no items), table merged in with items → upgraded
+        Assert.Equal("column", section.ItemKind);
+        Assert.Equal(["Name"], section.Items.Select(i => i.Name).ToArray());
+    }
+
     // --- Factory method tests ---
 
     [Fact]
