@@ -49,6 +49,7 @@ public static class MarkoutSerializer
     public static void Serialize<T>(T value, TextWriter output, Formatting.IMarkoutFormatter formatter, MarkoutSerializerContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(formatter);
         context.Serialize(value, output, formatter);
     }
 
@@ -64,6 +65,7 @@ public static class MarkoutSerializer
     public static void Serialize<T>(T value, TextWriter output, Formatting.IMarkoutFormatter formatter, MarkoutSerializerContext context, MarkoutWriterOptions options)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(formatter);
         ArgumentNullException.ThrowIfNull(options);
         context.Serialize(value, output, formatter, options);
     }

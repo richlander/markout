@@ -165,6 +165,8 @@ public class MarkdownFormatter : IMarkoutFormatter,
 
     void IStreamingTableFormatter.BeginTable(TextWriter w, ReadOnlySpan<string> headers, MarkoutWriterOptions options)
     {
+        _streamingWidths = null; // Reset state in case previous table had an error
+
         if (options.PrettyTables)
         {
             _streamingWidths = new int[headers.Length];
@@ -391,7 +393,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             var headers = new[] { "Category", "Count", "%" };
             var rows = item.Segments
                 .Where(s => s.Count > 0)
-                .Select(s => new[] { s.Category, s.Count.ToString(), $"{s.Count * 100 / total}" })
+                .Select(s => new[] { s.Category, s.Count.ToString(), $"{s.Count * 100.0 / total:F0}" })
                 .ToList();
 
             ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);
@@ -407,7 +409,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
                 if (total == 0) total = 1;
 
                 foreach (var seg in item.Segments.Where(s => s.Count > 0))
-                    rows.Add([item.Label, seg.Category, seg.Count.ToString(), $"{seg.Count * 100 / total}"]);
+                    rows.Add([item.Label, seg.Category, seg.Count.ToString(), $"{seg.Count * 100.0 / total:F0}"]);
             }
 
             ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);

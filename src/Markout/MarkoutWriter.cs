@@ -9,6 +9,9 @@ namespace Markout;
 /// Returns <c>bool</c> from all Write methods: <c>true</c> = rendered (or filtered),
 /// <c>false</c> = unsupported shape (nothing written).
 /// </summary>
+/// <remarks>
+/// This class is not thread-safe. Use separate instances for concurrent operations.
+/// </remarks>
 public class MarkoutWriter
 {
     private readonly TextWriter _writer;
