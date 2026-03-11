@@ -59,7 +59,7 @@ internal static class FieldEmitter
     {
         var indent = new string(' ', indentLevel * 4);
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
-            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
+            || EmitHelpers.IsJoinedArray(p)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
         var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
@@ -94,7 +94,7 @@ internal static class FieldEmitter
                     sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
                     sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
-                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+                else if (EmitHelpers.IsJoinedArray(prop))
                 {
                     var countProp = prop.IsArray ? "Length" : "Count";
                     sb.AppendLine($"{fieldIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
@@ -170,7 +170,7 @@ internal static class FieldEmitter
     {
         var indent = new string(' ', indentLevel * 4);
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
-            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
+            || EmitHelpers.IsJoinedArray(p)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
         var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
@@ -205,7 +205,7 @@ internal static class FieldEmitter
                     sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
                     sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
-                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+                else if (EmitHelpers.IsJoinedArray(prop))
                 {
                     var countProp = prop.IsArray ? "Length" : "Count";
                     sb.AppendLine($"{fieldIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
@@ -281,7 +281,7 @@ internal static class FieldEmitter
     {
         var indent = new string(' ', indentLevel * 4);
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
-            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
+            || EmitHelpers.IsJoinedArray(p)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
         var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
@@ -316,7 +316,7 @@ internal static class FieldEmitter
                     sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
                     sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
-                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+                else if (EmitHelpers.IsJoinedArray(prop))
                 {
                     var countProp = prop.IsArray ? "Length" : "Count";
                     sb.AppendLine($"{fieldIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
@@ -392,7 +392,7 @@ internal static class FieldEmitter
     {
         var indent = new string(' ', indentLevel * 4);
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
-            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
+            || EmitHelpers.IsJoinedArray(p)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
         var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
@@ -425,7 +425,7 @@ internal static class FieldEmitter
                     sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
                     sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
-                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+                else if (EmitHelpers.IsJoinedArray(prop))
                 {
                     var countProp = prop.IsArray ? "Length" : "Count";
                     sb.AppendLine($"{fieldIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");
@@ -500,7 +500,7 @@ internal static class FieldEmitter
     {
         var indent = new string(' ', indentLevel * 4);
         bool useBuilder = scalarProps.Any(p => p.IsNullableValueType || p.Kind == PropertyKind.String
-            || (p.Kind == PropertyKind.StringArray && p.JoinSeparator != null)
+            || EmitHelpers.IsJoinedArray(p)
             || p.SkipWhenDefault || p.SkipWhenNull || p.ShowWhenProperty != null);
         var fieldsVar = nestingDepth == 0 ? "__fields" : $"__fields{nestingDepth}";
 
@@ -533,7 +533,7 @@ internal static class FieldEmitter
                     sb.AppendLine($"{fieldIndent}if (!string.IsNullOrEmpty({propAccess}))");
                     sb.AppendLine($"{fieldIndent}    {fieldsVar}.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));");
                 }
-                else if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+                else if (EmitHelpers.IsJoinedArray(prop))
                 {
                     var countProp = prop.IsArray ? "Length" : "Count";
                     sb.AppendLine($"{fieldIndent}if ({propAccess} != null && {propAccess}.{countProp} > 0)");

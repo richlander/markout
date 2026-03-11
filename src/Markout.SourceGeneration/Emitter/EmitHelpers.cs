@@ -20,10 +20,12 @@ internal static class EmitHelpers
             return WrapWithDisplayFormat(prop, expr);
         }
 
-        // Joined string array: render as string.Join(separator, collection)
-        if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+        // Joined array: render as string.Join(separator, collection) or LINQ Select for complex types
+        if (IsJoinedArray(prop))
         {
-            return $"string.Join(\"{EscapeString(prop.JoinSeparator)}\", {propAccess})";
+            if (prop.Kind == PropertyKind.StringArray)
+                return $"string.Join(\"{EscapeString(prop.JoinSeparator!)}\", {propAccess})";
+            return GetComplexJoinExpression(prop, propAccess);
         }
 
         if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
@@ -150,10 +152,12 @@ internal static class EmitHelpers
             return WrapWithTableOrDisplayFormat(prop, inner);
         }
 
-        // Joined string array in table cell
-        if (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null)
+        // Joined array in table cell
+        if (IsJoinedArray(prop))
         {
-            return $"{propAccess} != null ? string.Join(\"{EscapeString(prop.JoinSeparator)}\", {propAccess}) : \"\"";
+            if (prop.Kind == PropertyKind.StringArray)
+                return $"{propAccess} != null ? string.Join(\"{EscapeString(prop.JoinSeparator!)}\", {propAccess}) : \"\"";
+            return $"{propAccess} != null ? {GetComplexJoinExpression(prop, propAccess)} : \"\"";
         }
 
         if (prop.Kind == PropertyKind.Boolean && prop.BoolTrueValue != null && prop.BoolFalseValue != null)
@@ -289,6 +293,47 @@ internal static class EmitHelpers
 
         sb.AppendLine($"{indent}if ({remainVar} > 0)");
         sb.AppendLine($"{indent}    writer.WriteParagraph(string.Format(\"{EscapeString(ellipsis)}\", {remainVar}));");
+    }
+
+    /// <summary>
+    /// Builds a string.Join expression for a complex array with [MarkoutJoin].
+    /// Each element is formatted by concatenating its visible scalar properties.
+    /// </summary>
+    public static string GetComplexJoinExpression(PropertyMetadata prop, string propAccess)
+    {
+        var separator = EscapeString(prop.JoinSeparator!);
+        var elemProps = prop.ElementProperties?
+            .Where(p => !p.IsIgnored && IsScalarKind(p.Kind))
+            .ToList();
+
+        if (elemProps == null || elemProps.Count == 0)
+            return $"string.Join(\"{separator}\", global::System.Linq.Enumerable.Select({propAccess}, __e => __e.ToString() ?? \"\"))";
+
+        if (elemProps.Count == 1)
+            return $"string.Join(\"{separator}\", global::System.Linq.Enumerable.Select({propAccess}, __e => {GetElementPropertyValue(elemProps[0])}))";
+
+        var parts = string.Join(" + \" \" + ", elemProps.Select(p => GetElementPropertyValue(p)));
+        return $"string.Join(\"{separator}\", global::System.Linq.Enumerable.Select({propAccess}, __e => {parts}))";
+    }
+
+    private static string GetElementPropertyValue(PropertyMetadata prop)
+    {
+        return prop.Kind switch
+        {
+            PropertyKind.String => $"(__e.{prop.Name} ?? \"\")",
+            PropertyKind.Boolean => $"(__e.{prop.Name} ? \"yes\" : \"no\")",
+            PropertyKind.Enum => $"__e.{prop.Name}.ToString()",
+            _ => $"__e.{prop.Name}.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+        };
+    }
+
+    /// <summary>
+    /// Returns true if the property is an array with [MarkoutJoin], making it render as a scalar field.
+    /// </summary>
+    public static bool IsJoinedArray(PropertyMetadata prop)
+    {
+        return prop.JoinSeparator != null &&
+               (prop.Kind == PropertyKind.StringArray || prop.Kind == PropertyKind.ComplexArray);
     }
 
     public static bool IsScalarKind(PropertyKind kind)

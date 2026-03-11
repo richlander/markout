@@ -445,8 +445,8 @@ internal static class TypeParser
         var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault(), visitedTypes);
 
         // Determine if property is unsupported in table context
-        // Joined string arrays are treated as scalars, so they're fine in tables
-        bool isJoinedArray = kind == PropertyKind.StringArray && joinSeparator != null;
+        // Joined arrays (string or complex) are treated as scalars, so they're fine in tables
+        bool isJoinedArray = joinSeparator != null && (kind == PropertyKind.StringArray || kind == PropertyKind.ComplexArray);
         bool isUnsupportedInTable = !isIgnored && !isSection && !isUnwrapped && !IsScalarKind(kind) && !isJoinedArray && kind != PropertyKind.Formattable;
 
         // Emit warning for unsupported properties without [MarkoutIgnoreInTable]
@@ -706,7 +706,8 @@ internal static class TypeParser
         if (props == null) return false;
         return props.Any(p => !p.IsIgnored &&
             (p.IsSection || p.Kind == PropertyKind.Callout ||
-             p.Kind == PropertyKind.NestedObject || p.Kind == PropertyKind.ComplexArray ||
+             p.Kind == PropertyKind.NestedObject ||
+             (p.Kind == PropertyKind.ComplexArray && p.JoinSeparator == null) ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
              p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
