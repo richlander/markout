@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Markout;
 
@@ -15,6 +16,10 @@ namespace Markout;
 /// <seealso href="../../samples/Serialization/SectionFiltering.cs">Section filtering via context</seealso>
 public abstract class MarkoutSerializerContext
 {
+    private const string TypeNotRegisteredMessage = 
+        "Type '{0}' is not registered in this serializer context. " +
+        "Add [MarkoutContext(typeof({1}))] to your context class.";
+
     private MarkoutWriterOptions _options;
 
     /// <summary>
@@ -72,6 +77,13 @@ public abstract class MarkoutSerializerContext
     /// <returns>An enumerable of all registered type infos.</returns>
     public abstract IEnumerable<IMarkoutTypeInfo> GetRegisteredTypes();
 
+    [System.Diagnostics.CodeAnalysis.DoesNotReturn]
+    private static void ThrowTypeNotRegistered<T>()
+    {
+        throw new InvalidOperationException(
+            string.Format(TypeNotRegisteredMessage, typeof(T).FullName, typeof(T).Name));
+    }
+
     /// <summary>
     /// Serializes a value using this context.
     /// </summary>
@@ -90,11 +102,7 @@ public abstract class MarkoutSerializerContext
     {
         var typeInfo = GetTypeInfo<T>();
         if (typeInfo == null)
-        {
-            throw new InvalidOperationException(
-                $"Type '{typeof(T).FullName}' is not registered in this serializer context. " +
-                $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
-        }
+            ThrowTypeNotRegistered<T>();
 
         var orch = new MarkoutWriter(new MarkdownFormatter(), options);
         typeInfo.Serialize(orch, value);
@@ -109,11 +117,7 @@ public abstract class MarkoutSerializerContext
     {
         var typeInfo = GetTypeInfo<T>();
         if (typeInfo == null)
-        {
-            throw new InvalidOperationException(
-                $"Type '{typeof(T).FullName}' is not registered in this serializer context. " +
-                $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
-        }
+            ThrowTypeNotRegistered<T>();
 
         typeInfo.Serialize(writer, value);
     }
@@ -149,11 +153,7 @@ public abstract class MarkoutSerializerContext
     {
         var typeInfo = GetTypeInfo<T>();
         if (typeInfo == null)
-        {
-            throw new InvalidOperationException(
-                $"Type '{typeof(T).FullName}' is not registered in this serializer context. " +
-                $"Add [MarkoutContext(typeof({typeof(T).Name}))] to your context class.");
-        }
+            ThrowTypeNotRegistered<T>();
 
         var orch = new MarkoutWriter(output, formatter, options);
         typeInfo.Serialize(orch, value);

@@ -310,7 +310,7 @@ internal static class SerializerEmitter
             if (!autoFields && !prop.IsSection && prop.Kind != PropertyKind.FieldCollection)
                 continue;
 
-            bool isScalarKind = EmitHelpers.IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null);
+            bool isScalarKind = EmitHelpers.IsScalarKind(prop.Kind) || EmitHelpers.IsJoinedArray(prop);
 
             if (isScalarKind && !prop.IsSection)
             {
@@ -926,7 +926,7 @@ internal static class SerializerEmitter
                 return "Ignored";
             
             // In table context, only scalars (and joined arrays) work
-            if (EmitHelpers.IsScalarKind(prop.Kind) || (prop.Kind == PropertyKind.StringArray && prop.JoinSeparator != null))
+            if (EmitHelpers.IsScalarKind(prop.Kind) || EmitHelpers.IsJoinedArray(prop))
                 return "Column" + (prop.Name != prop.DisplayName ? $" \"{prop.DisplayName}\"" : "");
             
             // Unsupported patterns are skipped
@@ -977,9 +977,9 @@ internal static class SerializerEmitter
             PropertyKind.DateTime or PropertyKind.DateTimeOffset => "Field (ISO 8601)",
             PropertyKind.Enum => "Field (enum)",
             PropertyKind.StringArray => prop.JoinSeparator != null ? "Field (joined)" : "Bullet list",
-            PropertyKind.ComplexArray => prop.ElementHasNestedContent 
-                ? "Subsections" 
-                : "Table",
+            PropertyKind.ComplexArray => prop.JoinSeparator != null
+                ? "Field (joined)"
+                : prop.ElementHasNestedContent ? "Subsections" : "Table",
             PropertyKind.FieldCollection => "Field list",
             PropertyKind.NestedObject => "Fields",
             PropertyKind.Formattable => "Custom (IMarkoutFormattable)",
