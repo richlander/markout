@@ -18,22 +18,42 @@ jobs:
       code: ${{ steps.filter.outputs.code }}
       docs: ${{ steps.filter.outputs.docs }}
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: dorny/paths-filter@v3
-        id: filter
+      - uses: actions/checkout@v5
         with:
-          filters: |
-            code:
-              - 'src/**'
-              - 'tests/**'
-              - 'samples/**'
-              - '*.props'
-              - '*.sln'
-              - '.github/workflows/**'
-            docs:
-              - '**/*.md'
-              - 'docs/**'
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=${{ github.event.pull_request.base.sha }}
+          else
+            BASE=${{ github.event.before }}
+          fi
+
+          if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "docs=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE"..HEAD)
+
+          code=false
+          docs=false
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            case "$file" in
+              src/*|tests/*|samples/*|*.props|*.sln|.github/workflows/*) code=true ;;
+            esac
+            case "$file" in
+              *.md|docs/*) docs=true ;;
+            esac
+          done <<< "$CHANGED"
+
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "docs=$docs" >> "$GITHUB_OUTPUT"
 
   # Lint markdown files
   markdownlint:
@@ -41,27 +61,29 @@ jobs:
     if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Run markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@v19
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
-          globs: '**/*.md'
+          node-version: '24'
+
+      - name: Run markdownlint
+        run: npx markdownlint-cli2 '**/*.md'
 
   build:
     needs: [changes, markdownlint]
     if: always() && needs.changes.outputs.code == 'true' && needs.markdownlint.result != 'failure'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
@@ -86,7 +108,7 @@ jobs:
         run: dotnet pack -c Release -p:ExcludeAnsi=true --no-build
 
       - name: Upload packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: packages
           path: artifacts/package/release/*.nupkg

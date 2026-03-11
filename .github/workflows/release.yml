@@ -21,7 +21,7 @@ jobs:
     environment: nuget-publish
     steps:
       - name: Download packages from CI run
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: packages
           path: packages
@@ -32,10 +32,12 @@ jobs:
         run: ls -la packages/
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
+      # NOTE: NuGet/login@v1 still uses node16 — no node24 version available yet.
+      # Monitor https://github.com/NuGet/login for updates.
       - name: NuGet login (OIDC → temp API key)
         id: login
         uses: NuGet/login@v1
