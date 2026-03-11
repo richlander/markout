@@ -292,12 +292,13 @@ new CodeSection("csharp", "public class Foo { }")                 // verbatim co
 
 ## Renderers
 
-Markout ships four formatters. The serializer writes through `MarkoutWriter` (the orchestrator) — swap the formatter, change the output.
+Markout ships five formatters. The serializer writes through `MarkoutWriter` (the orchestrator) — swap the formatter, change the output.
 
 | Formatter | Output | Use case |
 |---|---|---|
 | **MarkdownFormatter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
-| **UnicodeFormatter** | Plain text, space-padded | Log files, piped output, terminals without ANSI |
+| **PlainTextFormatter** | Plain text without markup | Minimal output, no syntax characters |
+| **UnicodeFormatter** | Box-drawing characters | Rich tables with borders, no color |
 | **OneLineFormatter** | Tables only, no headings | Compact summaries, grep-friendly output |
 | **DiagramFormatter** | Trees and structural diagrams | Dependency graphs, file trees |
 
