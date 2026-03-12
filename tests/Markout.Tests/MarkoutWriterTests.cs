@@ -651,6 +651,60 @@ public class MarkoutWriterTests
         Assert.Contains("Val", output);
     }
 
+    // ── WriteLinkDefinitions ──
+
+    [Fact]
+    public void WriteLinkDefinitions_RendersDefinitions()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteLinkDefinitions("[0]: https://example.com", "[1]: https://other.com");
+        Assert.Equal("[0]: https://example.com\n[1]: https://other.com", orch.ToString());
+    }
+
+    [Fact]
+    public void WriteLinkDefinitions_BlankLineAfterTable()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteTable(["Name"], [["Alice"]]);
+        orch.WriteLinkDefinitions("[0]: https://example.com");
+
+        var output = orch.ToString();
+        Assert.Contains("| Alice |\n\n[0]:", output);
+    }
+
+    [Fact]
+    public void WriteLinkDefinitions_BlankLineBeforeHeading()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteLinkDefinitions("[0]: https://example.com");
+        orch.WriteHeading(2, "Next");
+
+        var output = orch.ToString();
+        Assert.Contains("[0]: https://example.com\n\n## Next", output);
+    }
+
+    [Fact]
+    public void WriteLinkDefinitions_EmptySpan_NoOutput()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteParagraph("Text");
+        orch.WriteLinkDefinitions();
+        Assert.Equal("Text", orch.ToString());
+    }
+
+    [Fact]
+    public void WriteLinkDefinitions_BetweenTableAndHeading()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteTable(["Col"], [["Val"]]);
+        orch.WriteLinkDefinitions("[0]: https://example.com", "[1]: https://other.com");
+        orch.WriteHeading(2, "Section");
+
+        var output = orch.ToString();
+        // Blank line after table, contiguous definitions, blank line before heading
+        Assert.Contains("| Val |\n\n[0]: https://example.com\n[1]: https://other.com\n\n## Section", output);
+    }
+
     // ── Static factory ──
 
     [Fact]
