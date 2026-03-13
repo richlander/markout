@@ -816,6 +816,59 @@ public class MarkoutWriterTests
         Assert.Equal(batchWriter.ToString(), streamWriter.ToString());
     }
 
+    [Fact]
+    public void PrettyTable_AutoTune_ExpandsAffordableBimodalColumns()
+    {
+        // Simulates the Out of Support table pattern:
+        // OS column has a clear second mode (long names) that's affordable to expand
+        // "Link" column has a second mode (long URLs) that's too expensive to expand
+        var options = new MarkoutWriterOptions
+        {
+            PrettyTables = true,
+            TableOptions = new TableFormatterOptions() { AutoTune = true }
+        };
+
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        writer.WriteTable(
+            ["OS", "Ver", "Link"],
+            [
+                ["Alpine", "3.19", "2025-01-01"],
+                ["Alpine", "3.18", "2024-05-01"],
+                ["Fedora", "42", "2025-12-15"],
+                ["Fedora", "41", "2025-05-13"],
+                ["iOS", "18", "2025-09-15"],
+                ["iOS", "17", "2024-11-19"],
+                ["macOS", "15", "2025-09-15"],
+                ["tvOS", "18", "2025-09-15"],
+                ["tvOS", "17", "2024-09-16"],
+                ["tvOS", "16", "2023-09-18"],
+                ["Ubuntu", "24.04", "2029-05-31"],
+                ["Ubuntu", "22.04", "2027-04-01"],
+                // Second mode: long OS names (affordable expansion)
+                ["openSUSE Leap", "15.5", "2024-12-31"],
+                ["SUSE Linux Enterprise", "15.6", "2025-12-31"],
+                // Second mode: long links (too expensive to expand)
+                ["Windows", "10 22H2", "[2025-10-14](https://learn.microsoft.com/windows/release-health/release-information)"],
+                ["Windows Server", "2012", "[2023-10-10](https://learn.microsoft.com/lifecycle/products/windows-server-2012)"],
+            ]);
+
+        var result = writer.ToString();
+        var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // Header should show expanded OS column (fits "SUSE Linux Enterprise" = 21 chars)
+        Assert.StartsWith("| OS                    |", lines[0]);
+
+        // Short OS names should be padded to the expanded width
+        Assert.StartsWith("| Alpine                |", lines[2]);
+
+        // Long OS names should fit without overflow
+        Assert.StartsWith("| SUSE Linux Enterprise |", lines[15]);
+
+        // Link column should NOT expand (too expensive) — long links overflow
+        // The "Link" header column should stay narrow (statistical width)
+        Assert.Contains("| Link          |", lines[0]);
+    }
+
     // ── Static factory ──
 
     [Fact]

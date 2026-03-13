@@ -202,8 +202,82 @@ public static class ColumnWidthCalculator
             currentPercentile += percentileIncrement;
         }
 
+        // Modal expansion: detect bimodal columns and expand affordable ones
+        var expanded = TryModalExpansion(headers, rows, baseline);
+        if (expanded is not null)
+            return expanded;
+
         // Fallback: return baseline statistical widths
         return baseline;
+    }
+
+    /// <summary>
+    /// Detects bimodal column distributions and expands affordable second modes.
+    /// </summary>
+    /// <remarks>
+    /// After hill-climbing fails to find perfect alignment, this method analyzes
+    /// each column for bimodality by looking for gaps in the sorted cell lengths.
+    /// If a column has a clear second mode (≥2 values above a gap ≥3) and the
+    /// expansion cost is affordable (≤25 chars absolute, ≤3× current width),
+    /// the column is widened to accommodate both modes.
+    /// </remarks>
+    private static int[]? TryModalExpansion(string[] headers, IReadOnlyList<string[]> rows, int[] baseline)
+    {
+        const int minGapSize = 3;
+        const int minClusterSize = 2;
+        const int maxAbsoluteExpansion = 25;
+        const double maxRelativeFactor = 3.0;
+
+        int columnCount = headers.Length;
+        var expanded = new int[columnCount];
+        bool anyExpanded = false;
+
+        for (int col = 0; col < columnCount; col++)
+        {
+            expanded[col] = baseline[col];
+
+            // Collect raw cell lengths for this column
+            var lengths = new List<int>(1 + rows.Count) { headers[col].Length };
+            for (int r = 0; r < rows.Count; r++)
+                lengths.Add(col < rows[r].Length ? rows[r][col].Length : 0);
+
+            lengths.Sort();
+
+            // Find the largest gap where the lower value is at or below the baseline width
+            int bestGap = 0;
+            int bestGapIndex = -1;
+            for (int i = 1; i < lengths.Count; i++)
+            {
+                int gap = lengths[i] - lengths[i - 1];
+                if (gap > bestGap && lengths[i - 1] <= baseline[col])
+                {
+                    bestGap = gap;
+                    bestGapIndex = i;
+                }
+            }
+
+            if (bestGap < minGapSize || bestGapIndex < 0)
+                continue;
+
+            // Count values in the second mode (above the gap)
+            int mode2Count = lengths.Count - bestGapIndex;
+            if (mode2Count < minClusterSize)
+                continue;
+
+            int mode2Max = lengths[^1];
+            int expansion = mode2Max - baseline[col];
+            if (expansion <= 0)
+                continue;
+
+            // Affordability: absolute cap AND relative cap
+            if (expansion <= maxAbsoluteExpansion && mode2Max <= maxRelativeFactor * baseline[col])
+            {
+                expanded[col] = mode2Max;
+                anyExpanded = true;
+            }
+        }
+
+        return anyExpanded ? expanded : null;
     }
 
     /// <summary>
