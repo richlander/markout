@@ -156,10 +156,17 @@ public class MarkdownFormatter : IMarkoutFormatter,
         // Compute default end positions for accumulated position tracking
         var defaultEnd = ComputeDefaultEndPositions(widths);
 
+        // Second pass: treat overflow rows as a separate table, cluster their
+        // trailing pipe positions using the same P/T statistical algorithm
+        var trailingExtra = tableOptions is not null
+            ? ComputeTrailingClusters(headers.Length, rows, defaultEnd)
+            : null;
+
         // Data rows — accumulated position tracking ensures overflow in one cell
         // reduces padding in subsequent cells, matching the original algorithm
-        foreach (var row in rows)
+        for (int r = 0; r < rows.Count; r++)
         {
+            var row = rows[r];
             w.Write('|');
             var rowEnd = new int[headers.Length];
 
@@ -171,6 +178,10 @@ public class MarkdownFormatter : IMarkoutFormatter,
                 int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
                 int space = defaultEnd[i] - rowStart - CellPadding;
                 int padWidth = Math.Max(value.Length, space);
+
+                // Last column: apply trailing cluster alignment
+                if (trailingExtra is not null && i == headers.Length - 1)
+                    padWidth += trailingExtra[r];
 
                 w.Write(value.PadRight(padWidth));
                 w.Write(" |");
@@ -195,6 +206,80 @@ public class MarkdownFormatter : IMarkoutFormatter,
             defaultEnd[i] = start + widths[i] + CellPadding;
         }
         return defaultEnd;
+    }
+
+    /// <summary>
+    /// Treats overflow rows as a "second table" and recursively applies the same
+    /// P/T statistical algorithm to cluster their trailing pipe positions.
+    /// Each recursion peels off one mode — the remaining outliers become the next tier.
+    /// </summary>
+    private static int[] ComputeTrailingClusters(
+        int colCount, IList<string[]> rows, int[] defaultEnd)
+    {
+        const double Percentile = 0.5;
+        const double Tolerance = 1.05;
+        const int ShadowThreshold = 12;
+
+        int headerEnd = defaultEnd[^1];
+        var extra = new int[rows.Count];
+
+        // Pre-compute each row's natural trailing position
+        var naturalEnd = new int[rows.Count];
+        for (int r = 0; r < rows.Count; r++)
+        {
+            var row = rows[r];
+            var rowEnd = new int[colCount];
+            for (int i = 0; i < colCount; i++)
+            {
+                var value = i < row.Length ? FormatHelper.EscapeTableCell(row[i]) : "";
+                int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
+                int space = defaultEnd[i] - rowStart - CellPadding;
+                int padWidth = Math.Max(value.Length, space);
+                rowEnd[i] = rowStart + padWidth + CellPadding;
+            }
+            naturalEnd[r] = rowEnd[^1];
+        }
+
+        // Collect overflow rows — this is the "second table"
+        var overflow = new List<(int position, int index)>();
+        for (int r = 0; r < rows.Count; r++)
+        {
+            if (naturalEnd[r] > headerEnd)
+                overflow.Add((naturalEnd[r], r));
+        }
+
+        if (overflow.Count >= 2)
+            ClusterRecursive(overflow, extra, headerEnd, Percentile, Tolerance, ShadowThreshold);
+
+        return extra;
+    }
+
+    /// <summary>
+    /// Recursively clusters overflow positions using the same P/T formula
+    /// as column width calculation. Each call finds one cluster target;
+    /// positions above the target form input for the next recursion.
+    /// </summary>
+    private static void ClusterRecursive(
+        List<(int position, int index)> items, int[] extra, int floor,
+        double percentile, double tolerance, int shadowThreshold)
+    {
+        if (items.Count < 2) return;
+
+        var sortedPositions = items.OrderBy(x => x.position).Select(x => x.position).ToList();
+        int target = ColumnWidthCalculator.ComputeStatisticalTarget(
+            sortedPositions, floor, percentile, tolerance, shadowThreshold);
+
+        var remaining = new List<(int position, int index)>();
+        foreach (var (pos, idx) in items)
+        {
+            if (pos <= target)
+                extra[idx] = target - pos;
+            else
+                remaining.Add((pos, idx));
+        }
+
+        if (remaining.Count >= 2)
+            ClusterRecursive(remaining, extra, target, percentile, tolerance, shadowThreshold);
     }
 
     // ── IStreamingTableFormatter ──

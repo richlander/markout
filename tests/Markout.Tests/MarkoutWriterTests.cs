@@ -869,6 +869,58 @@ public class MarkoutWriterTests
         Assert.Contains("| Link          |", lines[0]);
     }
 
+    [Fact]
+    public void PrettyTable_AutoTune_ClustersTrailingPipes()
+    {
+        // Overflow rows should have trailing pipes clustered into tiers
+        // rather than each row having a unique trailing position
+        var options = new MarkoutWriterOptions
+        {
+            PrettyTables = true,
+            TableOptions = new TableFormatterOptions() { AutoTune = true }
+        };
+
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        writer.WriteTable(
+            ["OS", "Version", "End of Life"],
+            [
+                // Short rows — align with header
+                ["tvOS", "18", "2025-09-15"],
+                ["tvOS", "17", "2024-09-16"],
+                ["tvOS", "16", "2023-09-18"],
+                ["Fedora", "41", "2025-12-15"],
+                ["Fedora", "40", "2025-05-13"],
+                ["iOS", "17", "2024-11-19"],
+                ["macOS", "13", "2025-09-15"],
+                ["Ubuntu", "24.10", "2025-07-10"],
+                ["openSUSE Leap", "15.5", "2024-12-31"],
+                ["SUSE Linux Enterprise", "15.6", "2025-12-31"],
+                // Overflow rows at various natural lengths — should cluster
+                ["Android", "12.1", "[2025-03-03](https://developer.android.com/about/versions/12/12L)"],
+                ["Windows Server", "2012", "[2023-10-10](https://learn.microsoft.com/lifecycle/products/windows-server-2012)"],
+                ["Windows Server Core", "2012", "[2023-10-10](https://learn.microsoft.com/lifecycle/products/windows-server-2012)"],
+                ["Windows", "11 23H2 (W)", "[2025-11-11](https://learn.microsoft.com/windows/release-health/windows11-release-information)"],
+                ["Windows", "11 22H2 (E)", "[2025-10-14](https://learn.microsoft.com/windows/release-health/windows11-release-information)"],
+                ["iOS", "16", "[2025-03-31](https://developer.apple.com/documentation/ios-ipados-release-notes/ios-16-release-notes)"],
+                ["iPadOS", "16", "[2025-03-31](https://developer.apple.com/documentation/ios-ipados-release-notes/ipados-16-release-notes)"],
+            ]);
+
+        var result = writer.ToString();
+        var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // Count distinct line lengths — should be few tiers, not many unique values
+        var lengths = lines.Select(l => l.Length).Distinct().OrderBy(x => x).ToList();
+
+        // Without clustering we'd have 6+ unique lengths (55, ~88, ~108, ~122, ~136, ~146)
+        // With clustering we expect ≤ 4 (header-aligned + 1-2 overflow tiers + separator)
+        Assert.True(lengths.Count <= 4,
+            $"Expected ≤ 4 distinct line lengths but got {lengths.Count}: [{string.Join(", ", lengths)}]");
+
+        // All overflow rows should end with " |" (properly closed)
+        foreach (var line in lines)
+            Assert.EndsWith(" |", line);
+    }
+
     // ── Static factory ──
 
     [Fact]

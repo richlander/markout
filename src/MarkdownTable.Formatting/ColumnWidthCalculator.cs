@@ -319,4 +319,45 @@ public static class ColumnWidthCalculator
         }
         return length;
     }
+
+    /// <summary>
+    /// Core P/T statistical target calculation on sorted values.
+    /// Same algorithm used for column widths — reusable for trailing pipe clustering.
+    /// </summary>
+    /// <param name="sortedValues">Values sorted ascending.</param>
+    /// <param name="minimum">Floor value (e.g., header width or previous cluster target).</param>
+    /// <param name="percentile">Percentile for baseline (0.0–1.0).</param>
+    /// <param name="tolerance">Multiplier on percentile value to capture nearby values.</param>
+    /// <param name="shadowThreshold">Below this, all values are kept as-is.</param>
+    /// <returns>Statistical target that covers the main mode of values.</returns>
+    public static int ComputeStatisticalTarget(
+        List<int> sortedValues, int minimum,
+        double percentile, double tolerance, int shadowThreshold)
+    {
+        if (sortedValues.Count == 0) return minimum;
+
+        int shadowValue = Math.Max(minimum, shadowThreshold);
+        int maxValue = sortedValues[^1];
+
+        if (maxValue <= shadowValue)
+            return maxValue;
+
+        int pIndex = Math.Min(
+            (int)(sortedValues.Count * percentile),
+            sortedValues.Count - 1);
+        int B = sortedValues[pIndex];
+        int toleranceLimit = (int)(B * tolerance);
+
+        int C = 0;
+        for (int i = sortedValues.Count - 1; i >= 0; i--)
+        {
+            if (sortedValues[i] <= toleranceLimit)
+            {
+                C = sortedValues[i];
+                break;
+            }
+        }
+
+        return Math.Max(minimum, Math.Max(B, C));
+    }
 }
