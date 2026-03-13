@@ -376,7 +376,7 @@ public class MarkoutWriter
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support lists.</returns>
     public bool WriteList(params ReadOnlySpan<string> items)
     {
-        if (_sectionExcluded)
+        if (items.Length == 0 || _sectionExcluded)
             return true;
 
         if (_formatter is not IListFormatter lf)
@@ -386,6 +386,7 @@ public class MarkoutWriter
         foreach (var item in items)
             lf.FormatListItem(_writer, item);
 
+        _needsBlankLine = true;
         _hasContent = true;
         return true;
     }
@@ -779,6 +780,26 @@ public class MarkoutWriter
         tf.FormatTree(_writer, nodes, _options);
         _hasContent = true;
         return true;
+    }
+
+    // ── Link definitions ──
+
+    /// <summary>
+    /// Writes a block of reference-style link definitions (e.g. <c>[0]: https://example.com</c>).
+    /// Ensures a blank line before the block and sets state so a blank line is inserted before subsequent content.
+    /// </summary>
+    public void WriteLinkDefinitions(params ReadOnlySpan<string> definitions)
+    {
+        if (definitions.Length == 0 || _sectionExcluded)
+            return;
+
+        EnsureBlankLineIfNeeded();
+
+        foreach (var def in definitions)
+            _writer.WriteLine(def);
+
+        _needsBlankLine = true;
+        _hasContent = true;
     }
 
     // ── Infrastructure ──

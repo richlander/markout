@@ -1,5 +1,6 @@
 using Markout;
 using Markout.Formatting;
+using MarkdownTable.Formatting;
 
 namespace Markout.Tests;
 
@@ -649,6 +650,170 @@ public class MarkoutWriterTests
         var output = orch.ToString();
         Assert.Contains("Key", output);
         Assert.Contains("Val", output);
+    }
+
+    // ── WriteLinkDefinitions ──
+
+    [Fact]
+    public void WriteLinkDefinitions_RendersDefinitions()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteLinkDefinitions("[0]: https://example.com", "[1]: https://other.com");
+        Assert.Equal("[0]: https://example.com\n[1]: https://other.com", orch.ToString());
+    }
+
+    [Fact]
+    public void WriteLinkDefinitions_BlankLineAfterTable()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteTable(["Name"], [["Alice"]]);
+        orch.WriteLinkDefinitions("[0]: https://example.com");
+
+        var output = orch.ToString();
+        Assert.Contains("| Alice |\n\n[0]:", output);
+    }
+
+    [Fact]
+    public void WriteLinkDefinitions_BlankLineBeforeHeading()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteLinkDefinitions("[0]: https://example.com");
+        orch.WriteHeading(2, "Next");
+
+        var output = orch.ToString();
+        Assert.Contains("[0]: https://example.com\n\n## Next", output);
+    }
+
+    [Fact]
+    public void WriteLinkDefinitions_EmptySpan_NoOutput()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteParagraph("Text");
+        orch.WriteLinkDefinitions();
+        Assert.Equal("Text", orch.ToString());
+    }
+
+    [Fact]
+    public void WriteLinkDefinitions_BetweenTableAndHeading()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteTable(["Col"], [["Val"]]);
+        orch.WriteLinkDefinitions("[0]: https://example.com", "[1]: https://other.com");
+        orch.WriteHeading(2, "Section");
+
+        var output = orch.ToString();
+        // Blank line after table, contiguous definitions, blank line before heading
+        Assert.Contains("| Val |\n\n[0]: https://example.com\n[1]: https://other.com\n\n## Section", output);
+    }
+
+    // ── TableOptions (statistical width calculation) ──
+
+    [Fact]
+    public void PrettyTable_WithTableOptions_CapsOutlierColumnWidth()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            PrettyTables = true,
+            TableOptions = new TableFormatterOptions()
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart("OS", "Versions", "Arch");
+        writer.WriteTableRow("Alpine", "3.21, 3.20", "x64, Arm64");
+        writer.WriteTableRow("Ubuntu", "24.04", "x64, Arm64");
+        writer.WriteTableRow("Windows", "11 26H1, 11 25H2, 11 24H2 (IoT), 11 24H2 (E), 11 24H2, 11 23H2 (E), 10 21H2 (E), 10 21H2 (IoT), 10 1809 (E), 10 1607 (E)", "x64, Arm64");
+        writer.WriteTableRow("Debian", "12", "x64, Arm64");
+        writer.WriteTableEnd();
+
+        var output = writer.ToString();
+        var lines = output.Split('\n');
+
+        // Header separator should NOT be as wide as the Windows outlier row
+        var separatorLine = lines[1];
+        // Without statistical widths, the separator would be ~140+ chars (matching Windows row)
+        // With statistical widths, it should be much shorter
+        Assert.True(separatorLine.Length < 80, $"Separator line too wide ({separatorLine.Length} chars): {separatorLine}");
+
+        // The Windows row should overflow (wider than separator)
+        var windowsRow = lines.First(l => l.Contains("Windows"));
+        Assert.True(windowsRow.Length > separatorLine.Length, "Windows row should overflow the calculated width");
+    }
+
+    [Fact]
+    public void PrettyTable_WithoutTableOptions_UsesMaxWidth()
+    {
+        var options = new MarkoutWriterOptions { PrettyTables = true };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(
+            ["OS", "Versions", "Arch"],
+            [["Alpine", "3.21, 3.20", "x64"],
+             ["Windows", "11 26H1, 11 25H2, 11 24H2 (IoT), 11 24H2 (E)", "x64"]]);
+
+        var output = writer.ToString();
+        var lines = output.Split('\n');
+
+        // All rows should be the same width (max-width padding)
+        var pipeLines = lines.Where(l => l.StartsWith('|')).ToList();
+        Assert.True(pipeLines.All(l => l.Length == pipeLines[0].Length),
+            "All rows should have equal width with simple max-width");
+    }
+
+    [Fact]
+    public void PrettyTable_Batch_WithTableOptions_CapsOutlierWidth()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            PrettyTables = true,
+            TableOptions = new TableFormatterOptions()
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        var headers = new[] { "Name", "Description" };
+        var rows = new List<string[]>
+        {
+            new[] { "Short", "Brief" },
+            new[] { "Also short", "Brief" },
+            new[] { "Outlier", "This is a very long description that should be treated as an outlier and not stretch the entire column width for all other rows in the table" }
+        };
+
+        writer.WriteTable(headers, rows);
+
+        var output = writer.ToString();
+        var lines = output.Split('\n');
+
+        var separatorLine = lines[1];
+        var outlierRow = lines.First(l => l.Contains("Outlier"));
+        Assert.True(outlierRow.Length > separatorLine.Length,
+            "Outlier row should overflow the statistical column width");
+    }
+
+    [Fact]
+    public void StreamingTable_WithTableOptions_BuffersForBatchRender()
+    {
+        // When TableOptions is set, streaming tables should buffer and render
+        // through the batch path (same result as WriteTable)
+        var options = new MarkoutWriterOptions
+        {
+            PrettyTables = true,
+            TableOptions = new TableFormatterOptions()
+        };
+
+        // Streaming path
+        var streamWriter = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        streamWriter.WriteTableStart("A", "B");
+        streamWriter.WriteTableRow("short", "x");
+        streamWriter.WriteTableRow("also short", "y");
+        streamWriter.WriteTableRow("outlier value that is much longer than the others", "z");
+        streamWriter.WriteTableEnd();
+
+        // Batch path
+        var batchWriter = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        batchWriter.WriteTable(
+            ["A", "B"],
+            [["short", "x"], ["also short", "y"], ["outlier value that is much longer than the others", "z"]]);
+
+        Assert.Equal(batchWriter.ToString(), streamWriter.ToString());
     }
 
     // ── Static factory ──
