@@ -12,6 +12,7 @@ namespace Markout;
 public class MarkdownFormatter : IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter
 {
+    private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
 
     // ── IHeadingFormatter ──
@@ -152,29 +153,29 @@ public class MarkdownFormatter : IMarkoutFormatter,
         }
         w.WriteLine();
 
-        // Data rows
+        // Compute default end positions for accumulated position tracking
+        var defaultEnd = ComputeDefaultEndPositions(widths);
+
+        // Data rows — accumulated position tracking ensures overflow in one cell
+        // reduces padding in subsequent cells, matching the original algorithm
         foreach (var row in rows)
         {
             w.Write('|');
-            bool overflowed = false;
+            var rowEnd = new int[headers.Length];
+
             for (int i = 0; i < headers.Length; i++)
             {
                 w.Write(' ');
                 var value = i < row.Length ? FormatHelper.EscapeTableCell(row[i]) : "";
 
-                if (!overflowed)
-                {
-                    w.Write(value.PadRight(widths[i]));
-                    if (value.Length > widths[i])
-                        overflowed = true;
-                }
-                else
-                {
-                    // After overflow, padding serves no alignment purpose
-                    w.Write(value);
-                }
+                int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
+                int space = defaultEnd[i] - rowStart - CellPadding;
+                int padWidth = Math.Max(value.Length, space);
 
+                w.Write(value.PadRight(padWidth));
                 w.Write(" |");
+
+                rowEnd[i] = rowStart + padWidth + CellPadding;
             }
             w.WriteLine();
         }
@@ -183,19 +184,35 @@ public class MarkdownFormatter : IMarkoutFormatter,
             w.WriteLine($"\n... and {skippedRows} more");
     }
 
+    // ── Shared helpers ──
+
+    private static int[] ComputeDefaultEndPositions(int[] widths)
+    {
+        var defaultEnd = new int[widths.Length];
+        for (int i = 0; i < widths.Length; i++)
+        {
+            int start = i == 0 ? 0 : defaultEnd[i - 1] + 1;
+            defaultEnd[i] = start + widths[i] + CellPadding;
+        }
+        return defaultEnd;
+    }
+
     // ── IStreamingTableFormatter ──
 
     private int[]? _streamingWidths;
+    private int[]? _streamingDefaultEnd;
 
     void IStreamingTableFormatter.BeginTable(TextWriter w, ReadOnlySpan<string> headers, MarkoutWriterOptions options)
     {
         _streamingWidths = null; // Reset state in case previous table had an error
+        _streamingDefaultEnd = null;
 
         if (options.PrettyTables)
         {
             _streamingWidths = new int[headers.Length];
             for (int i = 0; i < headers.Length; i++)
                 _streamingWidths[i] = headers[i].Length;
+            _streamingDefaultEnd = ComputeDefaultEndPositions(_streamingWidths);
 
             w.Write('|');
             for (int i = 0; i < headers.Length; i++)
@@ -245,24 +262,20 @@ public class MarkdownFormatter : IMarkoutFormatter,
         w.Write('|');
         if (_streamingWidths != null)
         {
-            bool overflowed = false;
+            var rowEnd = new int[_streamingWidths.Length];
             for (int i = 0; i < _streamingWidths.Length; i++)
             {
                 w.Write(' ');
                 var value = i < values.Length ? FormatHelper.EscapeTableCell(values[i]) : "";
 
-                if (!overflowed)
-                {
-                    w.Write(value.PadRight(_streamingWidths[i]));
-                    if (value.Length > _streamingWidths[i])
-                        overflowed = true;
-                }
-                else
-                {
-                    w.Write(value);
-                }
+                int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
+                int space = _streamingDefaultEnd![i] - rowStart - CellPadding;
+                int padWidth = Math.Max(value.Length, space);
 
+                w.Write(value.PadRight(padWidth));
                 w.Write(" |");
+
+                rowEnd[i] = rowStart + padWidth + CellPadding;
             }
         }
         else
@@ -280,6 +293,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
     void IStreamingTableFormatter.EndTable(TextWriter w, int skippedRows)
     {
         _streamingWidths = null;
+        _streamingDefaultEnd = null;
         if (skippedRows > 0)
             w.WriteLine($"\n... and {skippedRows} more");
     }
