@@ -156,11 +156,24 @@ public class MarkdownFormatter : IMarkoutFormatter,
         foreach (var row in rows)
         {
             w.Write('|');
+            bool overflowed = false;
             for (int i = 0; i < headers.Length; i++)
             {
                 w.Write(' ');
                 var value = i < row.Length ? FormatHelper.EscapeTableCell(row[i]) : "";
-                w.Write(value.PadRight(widths[i]));
+
+                if (!overflowed)
+                {
+                    w.Write(value.PadRight(widths[i]));
+                    if (value.Length > widths[i])
+                        overflowed = true;
+                }
+                else
+                {
+                    // After overflow, padding serves no alignment purpose
+                    w.Write(value);
+                }
+
                 w.Write(" |");
             }
             w.WriteLine();
@@ -232,11 +245,23 @@ public class MarkdownFormatter : IMarkoutFormatter,
         w.Write('|');
         if (_streamingWidths != null)
         {
+            bool overflowed = false;
             for (int i = 0; i < _streamingWidths.Length; i++)
             {
                 w.Write(' ');
                 var value = i < values.Length ? FormatHelper.EscapeTableCell(values[i]) : "";
-                w.Write(value.PadRight(_streamingWidths[i]));
+
+                if (!overflowed)
+                {
+                    w.Write(value.PadRight(_streamingWidths[i]));
+                    if (value.Length > _streamingWidths[i])
+                        overflowed = true;
+                }
+                else
+                {
+                    w.Write(value);
+                }
+
                 w.Write(" |");
             }
         }
