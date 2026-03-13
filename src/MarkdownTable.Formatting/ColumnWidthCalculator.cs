@@ -164,6 +164,13 @@ public static class ColumnWidthCalculator
     /// Hill-climbing auto-tune: iteratively adjusts percentile and tolerance
     /// to achieve perfect trailing-edge alignment.
     /// </summary>
+    /// <remarks>
+    /// Computes a baseline with default statistical parameters, then hill-climbs
+    /// from there. Rejects candidates that expand the table width beyond
+    /// the outlier threshold relative to baseline — this prevents outlier rows
+    /// from inflating the entire table to full-width.
+    /// Falls back to baseline statistical widths when no perfect alignment is found.
+    /// </remarks>
     private static int[] CalculateAutoTuned(string[] headers, IReadOnlyList<string[]> rows,
         TableFormatterOptions options)
     {
@@ -171,7 +178,12 @@ public static class ColumnWidthCalculator
         const double toleranceIncrement = 0.2;
         const double percentileIncrement = 0.2;
         const int maxAttempts = 4;
-        const double outlierThreshold = 0.25;
+        const double outlierThreshold = 0.50;
+
+        // Compute baseline with default statistical parameters
+        var baseline = CalculateWithParameters(headers, rows,
+            options.Percentile, options.Tolerance, options.ShadowThreshold, options.MaxColumnWidth);
+        int baselineRowLength = CalculateRowLength(headers, baseline);
 
         double currentPercentile = options.Percentile;
 
@@ -183,38 +195,39 @@ public static class ColumnWidthCalculator
                 var widths = CalculateWithParameters(headers, rows,
                     currentPercentile, currentTolerance, options.ShadowThreshold, options.MaxColumnWidth);
 
-                if (HasPerfectAlignment(headers, rows, widths, outlierThreshold))
+                if (HasPerfectAlignment(headers, rows, widths, outlierThreshold, baselineRowLength))
                     return widths;
             }
 
             currentPercentile += percentileIncrement;
         }
 
-        // Fallback: last attempted parameters
-        double fallbackTolerance = options.Tolerance + ((toleranceBumpsPerPercentile - 1) * toleranceIncrement);
-        return CalculateWithParameters(headers, rows,
-            currentPercentile - percentileIncrement, fallbackTolerance,
-            options.ShadowThreshold, options.MaxColumnWidth);
+        // Fallback: return baseline statistical widths
+        return baseline;
     }
 
+    /// <summary>
+    /// Checks whether the target widths achieve perfect trailing-edge alignment
+    /// without impractical table expansion.
+    /// </summary>
+    /// <remarks>
+    /// Compares the candidate table width against the baseline statistical width.
+    /// If expanding beyond the outlier threshold, the alignment is rejected —
+    /// this prevents a single outlier row from inflating the entire table.
+    /// </remarks>
     private static bool HasPerfectAlignment(string[] headers, IReadOnlyList<string[]> rows,
-        int[] targetWidths, double outlierThreshold)
+        int[] targetWidths, double outlierThreshold, int baselineRowLength)
     {
         int headerRowLength = CalculateRowLength(headers, targetWidths);
+
+        // Reject if expansion from baseline exceeds threshold
+        if (headerRowLength > baselineRowLength * (1.0 + outlierThreshold))
+            return false;
 
         for (int r = 0; r < rows.Count; r++)
         {
             int rowLength = CalculateRowLength(rows[r], targetWidths);
             if (rowLength != headerRowLength)
-                return false;
-        }
-
-        // Check for impractical outliers
-        double outlierLimit = headerRowLength * (1.0 + outlierThreshold);
-        for (int r = 0; r < rows.Count; r++)
-        {
-            int naturalLength = CalculateNaturalRowLength(rows[r]);
-            if (naturalLength >= outlierLimit)
                 return false;
         }
 
@@ -229,16 +242,6 @@ public static class ColumnWidthCalculator
             int contentWidth = col < row.Length ? row[col].Length : 0;
             int cellWidth = Math.Max(contentWidth, targetWidths[col]) + CellPadding;
             length += cellWidth + 1; // +1 for trailing pipe
-        }
-        return length;
-    }
-
-    private static int CalculateNaturalRowLength(string[] row)
-    {
-        int length = 1; // leading pipe
-        for (int col = 0; col < row.Length; col++)
-        {
-            length += row[col].Length + CellPadding + 1; // content + padding + pipe
         }
         return length;
     }
