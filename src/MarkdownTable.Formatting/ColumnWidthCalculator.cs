@@ -164,6 +164,13 @@ public static class ColumnWidthCalculator
     /// Hill-climbing auto-tune: iteratively adjusts percentile and tolerance
     /// to achieve perfect trailing-edge alignment.
     /// </summary>
+    /// <remarks>
+    /// Computes a baseline with default statistical parameters, then hill-climbs
+    /// from there. Rejects candidates that expand the table width beyond
+    /// the outlier threshold relative to baseline — this prevents outlier rows
+    /// from inflating the entire table to full-width.
+    /// Falls back to baseline statistical widths when no perfect alignment is found.
+    /// </remarks>
     private static int[] CalculateAutoTuned(string[] headers, IReadOnlyList<string[]> rows,
         TableFormatterOptions options)
     {
@@ -171,7 +178,12 @@ public static class ColumnWidthCalculator
         const double toleranceIncrement = 0.2;
         const double percentileIncrement = 0.2;
         const int maxAttempts = 4;
-        const double outlierThreshold = 0.25;
+        const double outlierThreshold = 0.50;
+
+        // Compute baseline with default statistical parameters
+        var baseline = CalculateWithParameters(headers, rows,
+            options.Percentile, options.Tolerance, options.ShadowThreshold, options.MaxColumnWidth);
+        int baselineRowLength = CalculateRowLength(headers, baseline);
 
         double currentPercentile = options.Percentile;
 
@@ -183,38 +195,113 @@ public static class ColumnWidthCalculator
                 var widths = CalculateWithParameters(headers, rows,
                     currentPercentile, currentTolerance, options.ShadowThreshold, options.MaxColumnWidth);
 
-                if (HasPerfectAlignment(headers, rows, widths, outlierThreshold))
+                if (HasPerfectAlignment(headers, rows, widths, outlierThreshold, baselineRowLength))
                     return widths;
             }
 
             currentPercentile += percentileIncrement;
         }
 
-        // Fallback: last attempted parameters
-        double fallbackTolerance = options.Tolerance + ((toleranceBumpsPerPercentile - 1) * toleranceIncrement);
-        return CalculateWithParameters(headers, rows,
-            currentPercentile - percentileIncrement, fallbackTolerance,
-            options.ShadowThreshold, options.MaxColumnWidth);
+        // Modal expansion: detect bimodal columns and expand affordable ones
+        var expanded = TryModalExpansion(headers, rows, baseline);
+        if (expanded is not null)
+            return expanded;
+
+        // Fallback: return baseline statistical widths
+        return baseline;
     }
 
+    /// <summary>
+    /// Detects bimodal column distributions and expands affordable second modes.
+    /// </summary>
+    /// <remarks>
+    /// After hill-climbing fails to find perfect alignment, this method analyzes
+    /// each column for bimodality by looking for gaps in the sorted cell lengths.
+    /// If a column has a clear second mode (≥2 values above a gap ≥3) and the
+    /// expansion cost is affordable (≤25 chars absolute, ≤3× current width),
+    /// the column is widened to accommodate both modes.
+    /// </remarks>
+    private static int[]? TryModalExpansion(string[] headers, IReadOnlyList<string[]> rows, int[] baseline)
+    {
+        const int minGapSize = 3;
+        const int minClusterSize = 2;
+        const int maxAbsoluteExpansion = 25;
+        const double maxRelativeFactor = 3.0;
+
+        int columnCount = headers.Length;
+        var expanded = new int[columnCount];
+        bool anyExpanded = false;
+
+        for (int col = 0; col < columnCount; col++)
+        {
+            expanded[col] = baseline[col];
+
+            // Collect raw cell lengths for this column
+            var lengths = new List<int>(1 + rows.Count) { headers[col].Length };
+            for (int r = 0; r < rows.Count; r++)
+                lengths.Add(col < rows[r].Length ? rows[r][col].Length : 0);
+
+            lengths.Sort();
+
+            // Find the largest gap where the lower value is at or below the baseline width
+            int bestGap = 0;
+            int bestGapIndex = -1;
+            for (int i = 1; i < lengths.Count; i++)
+            {
+                int gap = lengths[i] - lengths[i - 1];
+                if (gap > bestGap && lengths[i - 1] <= baseline[col])
+                {
+                    bestGap = gap;
+                    bestGapIndex = i;
+                }
+            }
+
+            if (bestGap < minGapSize || bestGapIndex < 0)
+                continue;
+
+            // Count values in the second mode (above the gap)
+            int mode2Count = lengths.Count - bestGapIndex;
+            if (mode2Count < minClusterSize)
+                continue;
+
+            int mode2Max = lengths[^1];
+            int expansion = mode2Max - baseline[col];
+            if (expansion <= 0)
+                continue;
+
+            // Affordability: absolute cap AND relative cap
+            if (expansion <= maxAbsoluteExpansion && mode2Max <= maxRelativeFactor * baseline[col])
+            {
+                expanded[col] = mode2Max;
+                anyExpanded = true;
+            }
+        }
+
+        return anyExpanded ? expanded : null;
+    }
+
+    /// <summary>
+    /// Checks whether the target widths achieve perfect trailing-edge alignment
+    /// without impractical table expansion.
+    /// </summary>
+    /// <remarks>
+    /// Compares the candidate table width against the baseline statistical width.
+    /// If expanding beyond the outlier threshold, the alignment is rejected —
+    /// this prevents a single outlier row from inflating the entire table.
+    /// </remarks>
     private static bool HasPerfectAlignment(string[] headers, IReadOnlyList<string[]> rows,
-        int[] targetWidths, double outlierThreshold)
+        int[] targetWidths, double outlierThreshold, int baselineRowLength)
     {
         int headerRowLength = CalculateRowLength(headers, targetWidths);
+
+        // Reject if expansion from baseline exceeds threshold
+        if (headerRowLength > baselineRowLength * (1.0 + outlierThreshold))
+            return false;
 
         for (int r = 0; r < rows.Count; r++)
         {
             int rowLength = CalculateRowLength(rows[r], targetWidths);
             if (rowLength != headerRowLength)
-                return false;
-        }
-
-        // Check for impractical outliers
-        double outlierLimit = headerRowLength * (1.0 + outlierThreshold);
-        for (int r = 0; r < rows.Count; r++)
-        {
-            int naturalLength = CalculateNaturalRowLength(rows[r]);
-            if (naturalLength >= outlierLimit)
                 return false;
         }
 
@@ -233,13 +320,44 @@ public static class ColumnWidthCalculator
         return length;
     }
 
-    private static int CalculateNaturalRowLength(string[] row)
+    /// <summary>
+    /// Core P/T statistical target calculation on sorted values.
+    /// Same algorithm used for column widths — reusable for trailing pipe clustering.
+    /// </summary>
+    /// <param name="sortedValues">Values sorted ascending.</param>
+    /// <param name="minimum">Floor value (e.g., header width or previous cluster target).</param>
+    /// <param name="percentile">Percentile for baseline (0.0–1.0).</param>
+    /// <param name="tolerance">Multiplier on percentile value to capture nearby values.</param>
+    /// <param name="shadowThreshold">Below this, all values are kept as-is.</param>
+    /// <returns>Statistical target that covers the main mode of values.</returns>
+    public static int ComputeStatisticalTarget(
+        List<int> sortedValues, int minimum,
+        double percentile, double tolerance, int shadowThreshold)
     {
-        int length = 1; // leading pipe
-        for (int col = 0; col < row.Length; col++)
+        if (sortedValues.Count == 0) return minimum;
+
+        int shadowValue = Math.Max(minimum, shadowThreshold);
+        int maxValue = sortedValues[^1];
+
+        if (maxValue <= shadowValue)
+            return maxValue;
+
+        int pIndex = Math.Min(
+            (int)(sortedValues.Count * percentile),
+            sortedValues.Count - 1);
+        int B = sortedValues[pIndex];
+        int toleranceLimit = (int)(B * tolerance);
+
+        int C = 0;
+        for (int i = sortedValues.Count - 1; i >= 0; i--)
         {
-            length += row[col].Length + CellPadding + 1; // content + padding + pipe
+            if (sortedValues[i] <= toleranceLimit)
+            {
+                C = sortedValues[i];
+                break;
+            }
         }
-        return length;
+
+        return Math.Max(minimum, Math.Max(B, C));
     }
 }
