@@ -8,8 +8,12 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.10.0</Version>
+    <Version>0.10.1</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarkdownTable.Formatting\MarkdownTable.Formatting.csproj" />
+  </ItemGroup>
 
   <!-- Include source generator in this package -->
   <ItemGroup>

@@ -1,3 +1,5 @@
+using MarkdownTable.Formatting;
+
 namespace Markout;
 
 /// <summary>
@@ -14,6 +16,7 @@ public class MarkoutWriterOptions
     private HashSet<string>? _includeSections;
     private MarkoutProjection? _projection;
     private MarkoutShape _suppressedShapes;
+    private TableFormatterOptions? _tableOptions;
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -136,6 +139,21 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _suppressedShapes = value;
+        }
+    }
+
+    /// <summary>
+    /// Statistical table formatting options. When set with <see cref="PrettyTables"/>,
+    /// column widths are calculated using percentile-based analysis instead of
+    /// simple max-width, preventing outlier rows from stretching the entire table.
+    /// </summary>
+    public TableFormatterOptions? TableOptions
+    {
+        get => _tableOptions;
+        set
+        {
+            ThrowIfReadOnly();
+            _tableOptions = value;
         }
     }
 

@@ -86,7 +86,9 @@ public class TableWriter
 
         _streamingHeaders = headers.ToArray();
 
-        if (_streamingFormatter != null)
+        // Force buffering when TableOptions is set — statistical width
+        // calculation requires all rows before rendering.
+        if (_streamingFormatter != null && _options.TableOptions == null)
         {
             _streamingDirect = true;
             _streamingFormatter.BeginTable(_writer, headers, _options);

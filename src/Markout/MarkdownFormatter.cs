@@ -1,5 +1,6 @@
 using System.Text;
 using Markout.Formatting;
+using MarkdownTable.Formatting;
 
 namespace Markout;
 
@@ -61,7 +62,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
     void ITableFormatter.FormatTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
     {
         if (options.PrettyTables)
-            WritePrettyPipeTable(w, headers, rows, skippedRows);
+            WritePrettyPipeTable(w, headers, rows, skippedRows, options.TableOptions);
         else
             WriteCompactPipeTable(w, headers, rows, skippedRows);
     }
@@ -106,18 +107,28 @@ public class MarkdownFormatter : IMarkoutFormatter,
             w.WriteLine($"\n... and {skippedRows} more");
     }
 
-    private static void WritePrettyPipeTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows)
+    private static void WritePrettyPipeTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, TableFormatterOptions? tableOptions = null)
     {
         // Calculate column widths
-        var widths = new int[headers.Length];
-        for (int i = 0; i < headers.Length; i++)
-            widths[i] = headers[i].Length;
-        foreach (var row in rows)
+        int[] widths;
+        if (tableOptions is not null)
         {
-            for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+            // Statistical width calculation — prevents outlier rows from stretching the table
+            widths = ColumnWidthCalculator.Calculate(headers.ToArray(), (IReadOnlyList<string[]>)rows, tableOptions);
+        }
+        else
+        {
+            // Simple max-width calculation
+            widths = new int[headers.Length];
+            for (int i = 0; i < headers.Length; i++)
+                widths[i] = headers[i].Length;
+            foreach (var row in rows)
             {
-                var escaped = FormatHelper.EscapeTableCell(row[i]);
-                widths[i] = Math.Max(widths[i], escaped.Length);
+                for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
+                {
+                    var escaped = FormatHelper.EscapeTableCell(row[i]);
+                    widths[i] = Math.Max(widths[i], escaped.Length);
+                }
             }
         }
 
