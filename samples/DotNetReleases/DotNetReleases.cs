@@ -13,7 +13,7 @@ var index = JsonSerializer.Deserialize(json, ReleasesJsonContext.Default.Release
 var releases = index.Embedded?.Releases ?? [];
 var unsupported = releases.Where(r => !r.Supported).ToList();
 
-var view = new Releases
+var view = new ReleasesView
 {
     Title = index.Title ?? ".NET Releases",
     LatestMajor = index.LatestMajor,
@@ -40,7 +40,7 @@ MarkoutSerializer.Serialize(view, Console.Out, ReleasesContext.Default);
 // --- View Models ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
-public class Releases
+public class ReleasesView
 {
     public string Title { get; set; } = "";
 
@@ -73,7 +73,7 @@ public class ReleaseRow
     public bool Supported { get; set; }
 }
 
-[MarkoutContext(typeof(Releases))]
+[MarkoutContext(typeof(ReleasesView))]
 [MarkoutContext(typeof(ReleaseRow))]
 public partial class ReleasesContext : MarkoutSerializerContext { }
 
