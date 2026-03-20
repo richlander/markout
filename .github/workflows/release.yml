@@ -18,7 +18,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'publish'
-    environment: nuget-publish
+    environment: nuget
     steps:
       - name: Download packages from CI run
         uses: actions/download-artifact@v8
