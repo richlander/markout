@@ -243,9 +243,9 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
                         .Where(s => s.CanadianActors.Contains(actor.Name))
                         .ToList();
                     if (actorShows.Count == 0) return null;
-                    return new TreeNode(actor.Name,
+                    return new TreeNode(actor.Name, null,
                         actorShows.GroupBy(s => s.Location).OrderBy(g => g.Key)
-                            .Select(g => new TreeNode(g.Key, g.Select(s => $"{s.Title} ({s.Years})"))));
+                            .Select(g => new TreeNode(g.Key, null, g.Select(s => new TreeNode($"{s.Title} ({s.Years})")).ToArray())).ToArray());
                 })
                 .Where(n => n is not null)
                 .ToList()!
@@ -329,9 +329,9 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
             FilmographyTree = topActors.Select(actor =>
             {
                 var actorShows = shows.Where(s => s.CanadianActors.Contains(actor.Name)).ToList();
-                return new TreeNode(actor.Name,
+                return new TreeNode(actor.Name, null,
                     actorShows.GroupBy(s => s.Location).Select(g =>
-                        new TreeNode(g.Key, g.Select(s => s.Title))));
+                        new TreeNode(g.Key, null, g.Select(s => new TreeNode(s.Title)).ToArray())).ToArray());
             }).ToList(),
             Quote = "The world needs more Canada.\n— Bono, 2003"
         };

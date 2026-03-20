@@ -83,7 +83,7 @@ foreach (var (version, vi) in versionData.OrderByDescending(v => decimal.TryPars
     if (cves.Count == 0)
         cves.Add(new TreeNode("None"));
 
-    tree.Add(new TreeNode($"{version} (last updated: {date})", cves));
+    tree.Add(new TreeNode($"{version} (last updated: {date})", null, [..cves]));
 }
 
 // Count severity distribution
