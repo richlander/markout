@@ -2,7 +2,7 @@
 
 **Markup adds instructions to content. Markout removes structure from data.**
 
-Markout is a source-generated .NET serializer that projects objects into human-readable documents instead of data formats like JSON. You annotate your models with attributes that describe data relationships — identity, enumeration, tabulation, measurement, hierarchy — and the source generator emits code that writes through an abstract renderer. The same object graph produces Markdown tables, ANSI terminal output with colored bars, plain text with aligned columns, or one-line summaries, without the developer making visual decisions.
+Markout is a source-generated .NET serializer that projects objects into structured, human-readable documents. You annotate your models with attributes that describe data relationships — identity, enumeration, tabulation, measurement, hierarchy — and the source generator emits code that writes through an abstract renderer. The same object graph produces Markdown tables, ANSI terminal output with colored bars, plain text with aligned columns, or one-line summaries, without the developer making visual decisions.
 
 ## Quick Start
 
@@ -438,6 +438,16 @@ The package includes the source generator — no additional packages needed.
 - **[DotNetReleases](samples/DotNetReleases)** — .NET release information from GitHub
 - **[Serialization](samples/Serialization)** — Shape gallery, section filtering, and writer API examples
 - **[TemplateDemo](samples/TemplateDemo)** — Document template with inline tables, conditional sections, and multi-format rendering
+
+## Formats and Agents
+
+Agents and LLMs are skilled at two things: using tools and reading text. No single text format is best in all cases — a tool that can produce results in multiple formats is more useful to an agent than one locked to a single output.
+
+JSON and Markout are peer options. JSON carries data between systems — APIs, config, round-trip serialization. Markout carries data to readers — humans and agents consuming structured documents. A tool like [dotnet-inspect](https://github.com/richlander/dotnet-inspect) gathers data from NuGet packages, assemblies, and APIs, projects it into Markout models, and offers both `--json` and Markout output. The same section metadata, schema discovery, and projection features enable control and customization upstream of either format generation.
+
+Tools that produce a lot of text need standard controls to segment it. Verbosity levels are useful but blunt — they control *how much* without letting you say *which parts*. Markout's section selection (`-s Dependencies`) and column/field projection (`--columns Name,Version`) are sharper instruments, offering the kind of targeted trimming that [Go templates](https://pkg.go.dev/text/template) provide in other ecosystems, but without requiring users to learn a template language. You say what data to keep; the renderer decides how to present it.
+
+Tools built on a shared output scheme improve together. When eval sessions reveal that a heading level, table layout, or field ordering works better for agents, a new Markout version carries that improvement to every tool that uses it.
 
 ## For Coding Agents
 
