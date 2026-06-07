@@ -110,7 +110,8 @@ internal static class CollectionEmitter
                 : $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
             var headerNameStr = $"\"{EmitHelpers.EscapeString(p.Name)}\"";
 
-            if (dynamicLookup.TryGetValue(p.Name, out var condVar))
+            var dynamicKey = dynamicLookup.ContainsKey(p.Name) ? p.Name : p.DisplayName;
+            if (dynamicLookup.TryGetValue(dynamicKey, out var condVar))
             {
                 sb.AppendLine($"{indent}if (!{condVar})");
                 sb.AppendLine($"{indent}{{");
@@ -148,7 +149,8 @@ internal static class CollectionEmitter
                 value = EmitHelpers.GetTableCellValue(elemProp, itemVar);
             }
 
-            if (dynamicLookup.TryGetValue(elemProp.Name, out var condVar))
+            var dynamicKey = dynamicLookup.ContainsKey(elemProp.Name) ? elemProp.Name : elemProp.DisplayName;
+            if (dynamicLookup.TryGetValue(dynamicKey, out var condVar))
                 sb.AppendLine($"{indent}    if (!{condVar}) __row.Add({value});");
             else
                 sb.AppendLine($"{indent}    __row.Add({value});");
@@ -284,7 +286,8 @@ internal static class CollectionEmitter
                 {
                     var headerStr = $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
                     var headerNameStr = $"\"{EmitHelpers.EscapeString(p.Name)}\"";
-                    if (dynamicLookup.TryGetValue(p.Name, out var condVar))
+                    var dynamicKey = dynamicLookup.ContainsKey(p.Name) ? p.Name : p.DisplayName;
+                    if (dynamicLookup.TryGetValue(dynamicKey, out var condVar))
                     {
                         sb.AppendLine($"{indent}    if (!{condVar})");
                         sb.AppendLine($"{indent}    {{");
@@ -305,7 +308,8 @@ internal static class CollectionEmitter
                 foreach (var p in visibleProps)
                 {
                     var value = EmitHelpers.GetTableCellValue(p, "__item");
-                    if (dynamicLookup.TryGetValue(p.Name, out var condVar))
+                    var dynamicKey = dynamicLookup.ContainsKey(p.Name) ? p.Name : p.DisplayName;
+                    if (dynamicLookup.TryGetValue(dynamicKey, out var condVar))
                         sb.AppendLine($"{indent}        if (!{condVar}) __grpRow.Add({value});");
                     else
                         sb.AppendLine($"{indent}        __grpRow.Add({value});");
