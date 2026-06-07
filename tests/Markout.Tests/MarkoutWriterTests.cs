@@ -66,6 +66,43 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void MarkdownFormatter_WriteTable_AppliesHeaderFormatter()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            FormatTableHeader = header => $"{header.Name}:{header.DisplayName}:{header.Index}"
+        });
+
+        var result = orch.WriteTable(
+            ["Display Name", "Age"],
+            ["Name", "Age"],
+            [["Alice", "30"]]);
+
+        Assert.True(result);
+        var output = orch.ToString();
+        Assert.Contains("| Name:Display Name:0 | Age:Age:1 |", output);
+    }
+
+    [Fact]
+    public void MarkdownFormatter_WriteTableStart_AppliesHeaderFormatterAfterProjection()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["Age"] },
+            FormatTableHeader = header => $"{header.Name}:{header.DisplayName}:{header.Index}"
+        });
+
+        Assert.True(orch.WriteTableStart(["Display Name", "Age"], ["Name", "Age"]));
+        orch.WriteTableRow("Alice", "30");
+        orch.WriteTableEnd();
+
+        var output = orch.ToString();
+        Assert.DoesNotContain("Display Name", output);
+        Assert.Contains("| Age:Age:0 |", output);
+        Assert.Contains("| 30 |", output);
+    }
+
+    [Fact]
     public void MarkdownFormatter_WriteCodeBlock_Renders()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());

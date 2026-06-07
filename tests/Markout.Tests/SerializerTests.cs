@@ -44,6 +44,26 @@ public partial class TestMarkoutContext : MarkoutSerializerContext
 }
 
 [MarkoutSerializable]
+public class HeaderCallbackContainer
+{
+    [MarkoutIgnoreInTable]
+    public List<HeaderCallbackRow>? Rows { get; set; }
+}
+
+[MarkoutSerializable]
+public class HeaderCallbackRow
+{
+    [MarkoutPropertyName("Return Type")]
+    public string? ReturnType { get; set; }
+    public string? Sim { get; set; }
+}
+
+[MarkoutContext(typeof(HeaderCallbackContainer))]
+public partial class HeaderCallbackContext : MarkoutSerializerContext
+{
+}
+
+[MarkoutSerializable]
 public class BoldRecord
 {
     public string? Label { get; set; }
@@ -131,6 +151,27 @@ public class SerializerTests
         Assert.Contains("| File |", mdf);
         Assert.Contains("| Foo.dll |", mdf);
         Assert.Contains("| Bar.dll |", mdf);
+    }
+
+    [Fact]
+    public void Serialize_TableHeaderFormatter_ReceivesGeneratedPropertyNamesAndDisplayNames()
+    {
+        var data = new HeaderCallbackContainer
+        {
+            Rows =
+            [
+                new() { ReturnType = "string", Sim = "0.50" }
+            ]
+        };
+        var context = new HeaderCallbackContext(new MarkoutWriterOptions
+        {
+            FormatTableHeader = header => $"{header.Name}:{header.DisplayName}:{header.Index}"
+        });
+
+        var mdf = context.Serialize(data);
+
+        Assert.Contains("| ReturnType:Return Type:0 | Sim:Sim:1 |", mdf);
+        Assert.Contains("| string | 0.50 |", mdf);
     }
 
     [Fact]

@@ -44,7 +44,9 @@ internal static class CollectionEmitter
                 return $"\"{EmitHelpers.EscapeString(prop.SectionColumnName)}\"";
             return $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
         }));
-        sb.AppendLine($"{indent}writer.WriteTableStart({headers});");
+        var headerNames = string.Join(", ", visibleProps.Select(p =>
+            $"\"{EmitHelpers.EscapeString(p.Name)}\""));
+        sb.AppendLine($"{indent}writer.WriteTableStart(new string[] {{ {headers} }}, new string[] {{ {headerNames} }});");
 
         // Instantiate formatter if configured
         if (prop.SectionFormatterTypeName != null)
@@ -100,18 +102,29 @@ internal static class CollectionEmitter
 
         // Build headers dynamically
         sb.AppendLine($"{indent}var __headers = new global::System.Collections.Generic.List<string>();");
+        sb.AppendLine($"{indent}var __headerNames = new global::System.Collections.Generic.List<string>();");
         foreach (var p in visibleProps)
         {
             var headerStr = p.Name == prop.SectionFormatProperty && prop.SectionColumnName != null
                 ? $"\"{EmitHelpers.EscapeString(prop.SectionColumnName)}\""
                 : $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
+            var headerNameStr = $"\"{EmitHelpers.EscapeString(p.Name)}\"";
 
             if (dynamicLookup.TryGetValue(p.Name, out var condVar))
-                sb.AppendLine($"{indent}if (!{condVar}) __headers.Add({headerStr});");
+            {
+                sb.AppendLine($"{indent}if (!{condVar})");
+                sb.AppendLine($"{indent}{{");
+                sb.AppendLine($"{indent}    __headers.Add({headerStr});");
+                sb.AppendLine($"{indent}    __headerNames.Add({headerNameStr});");
+                sb.AppendLine($"{indent}}}");
+            }
             else
+            {
                 sb.AppendLine($"{indent}__headers.Add({headerStr});");
+                sb.AppendLine($"{indent}__headerNames.Add({headerNameStr});");
+            }
         }
-        sb.AppendLine($"{indent}writer.WriteTableStart(__headers.ToArray());");
+        sb.AppendLine($"{indent}writer.WriteTableStart(__headers.ToArray(), __headerNames.ToArray());");
 
         // Instantiate formatter if configured
         if (prop.SectionFormatterTypeName != null)
@@ -266,15 +279,26 @@ internal static class CollectionEmitter
                 var dynamicLookup = dynamicIgnoreColumns.ToDictionary(d => d.ColumnName, d => d.ConditionVar);
 
                 sb.AppendLine($"{indent}    var __grpHeaders = new global::System.Collections.Generic.List<string>();");
+                sb.AppendLine($"{indent}    var __grpHeaderNames = new global::System.Collections.Generic.List<string>();");
                 foreach (var p in visibleProps)
                 {
                     var headerStr = $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
+                    var headerNameStr = $"\"{EmitHelpers.EscapeString(p.Name)}\"";
                     if (dynamicLookup.TryGetValue(p.Name, out var condVar))
-                        sb.AppendLine($"{indent}    if (!{condVar}) __grpHeaders.Add({headerStr});");
+                    {
+                        sb.AppendLine($"{indent}    if (!{condVar})");
+                        sb.AppendLine($"{indent}    {{");
+                        sb.AppendLine($"{indent}        __grpHeaders.Add({headerStr});");
+                        sb.AppendLine($"{indent}        __grpHeaderNames.Add({headerNameStr});");
+                        sb.AppendLine($"{indent}    }}");
+                    }
                     else
+                    {
                         sb.AppendLine($"{indent}    __grpHeaders.Add({headerStr});");
+                        sb.AppendLine($"{indent}    __grpHeaderNames.Add({headerNameStr});");
+                    }
                 }
-                sb.AppendLine($"{indent}    writer.WriteTableStart(__grpHeaders.ToArray());");
+                sb.AppendLine($"{indent}    writer.WriteTableStart(__grpHeaders.ToArray(), __grpHeaderNames.ToArray());");
                 sb.AppendLine($"{indent}    foreach (var __item in __grp)");
                 sb.AppendLine($"{indent}    {{");
                 sb.AppendLine($"{indent}        var __grpRow = new global::System.Collections.Generic.List<string>();");
@@ -295,7 +319,9 @@ internal static class CollectionEmitter
                 // Multiple properties → table per group
                 var headers = string.Join(", ", visibleProps.Select(p =>
                     $"\"{EmitHelpers.EscapeString(p.DisplayName)}\""));
-                sb.AppendLine($"{indent}    writer.WriteTableStart({headers});");
+                var headerNames = string.Join(", ", visibleProps.Select(p =>
+                    $"\"{EmitHelpers.EscapeString(p.Name)}\""));
+                sb.AppendLine($"{indent}    writer.WriteTableStart(new string[] {{ {headers} }}, new string[] {{ {headerNames} }});");
                 sb.AppendLine($"{indent}    foreach (var __item in __grp)");
                 sb.AppendLine($"{indent}    {{");
 
