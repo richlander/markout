@@ -160,6 +160,51 @@ public class ProjectionTests
         Assert.DoesNotContain("TFM", output);
     }
 
+    [Fact]
+    public void IncludeColumns_MatchesStableHeaderNames()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection
+            {
+                IncludeColumns = ["ReturnType"]
+            }
+        };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Kind", "Return Type", "Detail"],
+            ["Kind", "ReturnType", "Detail"],
+            [["method", "void", "15"]]);
+
+        var output = sw.ToString();
+        Assert.Contains("Return Type", output);
+        Assert.Contains("void", output);
+        Assert.DoesNotContain("Kind", output);
+        Assert.DoesNotContain("Detail", output);
+    }
+
+    [Fact]
+    public void IncludeColumns_MatchesSnakeCaseStableHeaderNames()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Tsv,
+            Projection = new MarkoutProjection
+            {
+                IncludeColumns = ["return_type"]
+            }
+        };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Kind", "Return Type", "Detail"],
+            ["Kind", "ReturnType", "Detail"],
+            [["method", "void", "15"]]);
+
+        Assert.Equal("return_type\nvoid\n", sw.ToString().ReplaceLineEndings("\n"));
+    }
+
     // --- Column projection with MarkdownFormatter ---
 
     [Fact]

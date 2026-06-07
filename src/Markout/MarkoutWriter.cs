@@ -467,7 +467,9 @@ public class MarkoutWriter
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
         // Apply column projection
-        var columnMap = _options.Projection?.ComputeColumnMap(headerArray);
+        var columnMap = headerNameArray == null
+            ? _options.Projection?.ComputeColumnMap(headerArray)
+            : _options.Projection?.ComputeColumnMap(headerArray, headerNameArray);
         if (columnMap != null)
         {
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
@@ -529,7 +531,9 @@ public class MarkoutWriter
         if (headerNames.Length > 0 && headerNames.Length != headers.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        _columnMap = _options.Projection?.ComputeColumnMap(headers);
+        _columnMap = headerNames.Length > 0
+            ? _options.Projection?.ComputeColumnMap(headers, headerNames)
+            : _options.Projection?.ComputeColumnMap(headers);
         string[]? projectedHeaderNames = null;
         if (headerNames.Length > 0)
         {
