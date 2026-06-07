@@ -76,7 +76,7 @@ public abstract class MarkoutWriter
 |--------|---------|------------------|
 | **MarkoutWriter** | Plain text baseline | All |
 | **MarkdownFormatter** | GitHub-flavored markdown | All |
-| **OneLineFormatter** | Compact columnar (docker-style) | Tables, Lists, Fields |
+| **TableFormatter** | Compact table or TSV output | Tables, Lists, Fields |
 | **UnicodeFormatter** | Box-drawing characters | All |
 | **AnsiFormatter** | Terminal with color | All |
 | **DiagramFormatter** | Visualization specialist | Headings, Trees, Metrics |
@@ -89,7 +89,7 @@ When a writer encounters an unsupported shape:
 2. If unsupported but in `SuppressedShapes`, skip silently
 3. Otherwise, emit a warning to stderr (once per shape) and skip
 
-Writers may implement **shape adaptation** - rendering one shape's data using another shape's format. For example, `OneLineFormatter` can render `Fields` as a table.
+Writers may implement **shape adaptation** - rendering one shape's data using another shape's format. For example, `TableFormatter` can render `Fields` as compact tabular output.
 
 ## FieldLayout Enum
 
@@ -123,15 +123,15 @@ Writer-Specific Rendering
 Output (markdown, plain text, ANSI, etc.)
 ```
 
-## OneLineFormatter Behavior
+## TableFormatter Behavior
 
-`OneLineFormatter` produces compact columnar output suitable for CLI tools. It supports:
+`TableFormatter` produces compact table output suitable for CLI tools. It supports:
 
-- **Tables** - Rendered with space-padded columns, uppercase headers
+- **Tables** - Rendered with space-padded columns or normalized TSV via `MarkoutTableMode`
 - **Lists** - Rendered as plain lines
 - **Fields** - Rendered as a two-column table (via shape adaptation)
 
-When `WriteField()` or `WriteFields()` is called, `OneLineFormatter` buffers the fields and renders them as a table when the section ends.
+When `WriteField()` or `WriteFields()` is called, `TableFormatter` adapts field-compatible data to compact tabular output.
 
 ## Projection System
 

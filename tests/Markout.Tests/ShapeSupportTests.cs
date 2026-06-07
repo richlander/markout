@@ -193,18 +193,18 @@ public class ShapeSupportTests
     }
 
     [Fact]
-    public void OneLineFormatter_ImplementsSubsetOfInterfaces()
+    public void TableFormatter_ImplementsSubsetOfInterfaces()
     {
-        var writer = new OneLineFormatter();
+        var writer = new TableFormatter();
         Assert.IsAssignableFrom<ITableFormatter>(writer);
         Assert.IsAssignableFrom<IFieldFormatter>(writer);
         Assert.IsAssignableFrom<IListFormatter>(writer);
     }
 
     [Fact]
-    public void OneLineFormatter_DoesNotImplementUnsupportedInterfaces()
+    public void TableFormatter_DoesNotImplementUnsupportedInterfaces()
     {
-        var writer = new OneLineFormatter();
+        var writer = new TableFormatter();
         Assert.False(writer is IHeadingFormatter);
         Assert.False(writer is ICodeBlockFormatter);
         Assert.False(writer is IBlockFormatter);

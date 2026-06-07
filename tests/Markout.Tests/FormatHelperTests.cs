@@ -61,4 +61,20 @@ public class FormatHelperTests
         Assert.Equal("line1 line2", FormatHelper.Truncate("line1\nline2", 20));
         Assert.Equal("line1 line2", FormatHelper.Truncate("line1\r\nline2", 20));
     }
+
+    [Fact]
+    public void EscapeTableCell_NormalizesPipesToEntity()
+    {
+        Assert.Equal("left&#124;right", FormatHelper.EscapeTableCell("left|right"));
+    }
+
+    [Theory]
+    [InlineData("ReturnType", "return_type")]
+    [InlineData("Return Type", "return_type")]
+    [InlineData("HTTP2Status", "http2_status")]
+    [InlineData("Sim", "sim")]
+    public void ToSnakeCase_FormatsStableNames(string value, string expected)
+    {
+        Assert.Equal(expected, FormatHelper.ToSnakeCase(value));
+    }
 }

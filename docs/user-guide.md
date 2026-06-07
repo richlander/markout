@@ -16,6 +16,7 @@ Markout is a source-generated .NET library that serializes objects to clean, rea
 - [Links](#links)
 - [Custom Value Formatters](#custom-value-formatters)
 - [Writer Options](#writer-options)
+- [Table and TSV Output](#table-and-tsv-output)
 - [Low-Level Writer API](#low-level-writer-api)
 - [Attribute Reference](#attribute-reference)
 
@@ -864,6 +865,41 @@ var context = new SampleContext(new MarkoutWriterOptions
 });
 
 string markdown = MarkoutSerializer.Serialize(product, context);
+```
+
+## Table and TSV Output
+
+`TableFormatter` renders the same table projection in two compact forms:
+
+- `MarkoutTableMode.Pretty` (default) uses display labels and aligns columns with spaces.
+- `MarkoutTableMode.Tsv` emits normalized tab-separated rows with stable snake_case headers derived from source property names.
+
+```csharp
+// Pretty compact table
+MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), context);
+
+// TSV with stable headers
+var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv };
+MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), context, options);
+```
+
+Header style is configurable. `Auto` uses display names for pretty tables and stable names for TSV.
+
+```csharp
+var options = new MarkoutWriterOptions
+{
+    TableMode = MarkoutTableMode.Tsv,
+    TableHeaderStyle = MarkoutTableHeaderStyle.DisplayName
+};
+```
+
+For custom policies, use `FormatTableHeader`. The callback receives both the stable source name and the display name.
+
+```csharp
+var options = new MarkoutWriterOptions
+{
+    FormatTableHeader = header => $"{header.Index}:{header.Name}"
+};
 ```
 
 ## Low-Level Writer API

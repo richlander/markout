@@ -127,10 +127,22 @@ public class TableWriter
             var name = i < headerNames.Length && !string.IsNullOrEmpty(headerNames[i])
                 ? headerNames[i]
                 : displayName;
-            rendered[i] = _options.FormatTableHeader?.Invoke(new MarkoutTableHeader(name, displayName, i))
-                ?? displayName;
+            var header = new MarkoutTableHeader(name, displayName, i);
+            rendered[i] = _options.FormatTableHeader?.Invoke(header)
+                ?? FormatHeader(header);
         }
         return rendered;
+    }
+
+    private string FormatHeader(MarkoutTableHeader header)
+    {
+        return _options.TableHeaderStyle switch
+        {
+            MarkoutTableHeaderStyle.DisplayName => header.DisplayName,
+            MarkoutTableHeaderStyle.StableName => FormatHelper.ToSnakeCase(header.Name),
+            _ when _options.TableMode == MarkoutTableMode.Tsv => FormatHelper.ToSnakeCase(header.Name),
+            _ => header.DisplayName
+        };
     }
 
     /// <summary>

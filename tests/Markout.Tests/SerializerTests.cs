@@ -549,7 +549,7 @@ public class SerializerTests
         var mdf = MarkoutSerializer.Serialize(project, JoinTestContext.Default);
 
         Assert.Contains("| Tags | api, web, tools |", mdf);
-        Assert.Contains("| Frameworks | net8.0 \\| net9.0 |", mdf);
+        Assert.Contains("| Frameworks | net8.0 &#124; net9.0 |", mdf);
         Assert.DoesNotContain("- api", mdf); // Should NOT be a bullet list
     }
 

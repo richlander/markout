@@ -1,6 +1,6 @@
 # Markout — Coding Agent Integration Guide
 
-Markout is a .NET source-generated serializer that turns objects into readable documents (Markdown, ANSI terminal, plain text). Use it whenever a CLI tool needs structured, human-readable output instead of raw `Console.WriteLine`.
+Markout is a .NET source-generated serializer that turns objects into readable documents and compact tabular output (Markdown, ANSI terminal, plain text, pretty tables, TSV). Use it whenever a CLI tool needs structured output instead of raw `Console.WriteLine`.
 
 ## Installation
 
@@ -163,20 +163,27 @@ using Markout.Ansi.Spectre;
 using Spectre.Console;
 MarkoutSerializer.Serialize(report, Console.Out, new SpectreFormatter(AnsiConsole.Console), context);
 
-// One-line — compact table, grep-friendly
-MarkoutSerializer.Serialize(report, Console.Out, new OneLineFormatter(), context);
+// Table — compact, pretty rows
+MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), context);
 
-// One-line with section filter — show only one table
+// TSV — normalized rows with stable snake_case headers
 var options = new MarkoutWriterOptions
 {
+    TableMode = MarkoutTableMode.Tsv,
     IncludeDescription = false,
     IncludeSections = new HashSet<string> { "Results" }
 };
-MarkoutSerializer.Serialize(report, Console.Out, new OneLineFormatter(), context, options);
+MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), context, options);
 
 // Plain text — log files, piped output
 MarkoutSerializer.Serialize(report, Console.Out, new UnicodeFormatter(), context);
 ```
+
+Format promises:
+
+- Markdown table cell values normalize pipe characters to `&#124;`; they do not emit escaped pipes (`\|`).
+- `TableFormatter` with `MarkoutTableMode.Tsv` uses stable snake_case headers by default and never emits embedded tabs or newlines in table cells.
+- `TableFormatter` with `MarkoutTableMode.Pretty` renders the same projection as TSV, with each column starting at a uniform position across rows.
 
 ## Common Recipe: JSON API to Report
 

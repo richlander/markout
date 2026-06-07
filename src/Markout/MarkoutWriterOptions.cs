@@ -18,6 +18,8 @@ public class MarkoutWriterOptions
     private MarkoutShape _suppressedShapes;
     private TableFormatterOptions? _tableOptions;
     private Func<MarkoutTableHeader, string>? _formatTableHeader;
+    private MarkoutTableMode _tableMode;
+    private MarkoutTableHeaderStyle _tableHeaderStyle;
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -169,6 +171,33 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _formatTableHeader = value;
+        }
+    }
+
+    /// <summary>
+    /// Rendering mode for <see cref="TableFormatter"/>. Default is pretty, space-padded columns.
+    /// </summary>
+    public MarkoutTableMode TableMode
+    {
+        get => _tableMode;
+        set
+        {
+            ThrowIfReadOnly();
+            _tableMode = value;
+        }
+    }
+
+    /// <summary>
+    /// Header naming style for table formatters. Auto uses stable names for TSV
+    /// and display labels for pretty tables.
+    /// </summary>
+    public MarkoutTableHeaderStyle TableHeaderStyle
+    {
+        get => _tableHeaderStyle;
+        set
+        {
+            ThrowIfReadOnly();
+            _tableHeaderStyle = value;
         }
     }
 

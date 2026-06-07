@@ -182,10 +182,10 @@ public class ProjectionTests
         Assert.DoesNotContain("Version", output);
     }
 
-    // --- Column projection with OneLineFormatter ---
+    // --- Column projection with TableFormatter ---
 
     [Fact]
-    public void IncludeColumns_WorksWithOneLineFormatter()
+    public void IncludeColumns_WorksWithTableFormatter()
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions
@@ -195,14 +195,14 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var writer = MarkoutWriter.Create(sw, new OneLineFormatter(), options);
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
         writer.WriteTableStart("Name", "Version", "TFM");
         writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         writer.WriteTableEnd();
         var output = sw.ToString();
-        Assert.Contains("NAME", output);
+        Assert.Contains("Name", output);
         Assert.Contains("Foo.dll", output);
-        Assert.DoesNotContain("VERSION", output);
+        Assert.DoesNotContain("Version", output);
         Assert.DoesNotContain("TFM", output);
     }
 

@@ -51,7 +51,7 @@ public static class ShapeGallery
                 ["MarkdownFormatter", "Markdown", "Documentation, GitHub issues"],
                 ["AnsiFormatter", "ANSI terminal", "CLI tools with color"],
                 ["MarkoutWriter", "Plain text", "Log files, piping"],
-                ["OneLineFormatter", "Columnar", "Compact summaries"],
+                ["TableFormatter", "Pretty/TSV table", "Compact summaries and shell-friendly rows"],
             ]);
 
         // Description

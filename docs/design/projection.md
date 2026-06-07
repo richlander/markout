@@ -51,7 +51,7 @@ var writer = new MarkdownFormatter(options);
 // ... serialize any markout object ...
 ```
 
-Tables render only the Name and TFM columns. Scalar fields render only Version and License. Everything else is silently trimmed. The same projection works identically with `OneLineFormatter`, `AnsiFormatter`, `MarkoutWriter`, or any custom renderer.
+Tables render only the Name and TFM columns. Scalar fields render only Version and License. Everything else is silently trimmed. The same projection works identically with `TableFormatter`, `AnsiFormatter`, `MarkoutWriter`, or any custom renderer.
 
 ### Column Selection and Reordering
 
@@ -160,7 +160,7 @@ Source Generator → emits calls → MarkoutWriter (base)
                                     ├── field projection (new)
                                     └── dispatches to virtual methods
                                             ├── MarkdownFormatter
-                                            ├── OneLineFormatter
+                                            ├── TableFormatter
                                             ├── AnsiFormatter
                                             └── ...
 ```
@@ -203,9 +203,9 @@ Use `--columns` and `--fields` to trim output to exactly what you need:
 - **`--fields Name,License`** — show only these scalar fields
 - **`-s Dependencies --columns Name`** — combine with section filtering
 
-Prefer `--columns` over `--oneline` for token-efficient scanning.
+Prefer `--columns` with table or TSV output for token-efficient scanning.
 Prefer `--fields` over `-v:q` when you need specific values, not less detail.
-Both options work with any output format (markdown, oneline, JSON).
+Both options work with any output format (Markdown, table/TSV, JSON).
 ```
 
 ### Why This Matters for Agents
@@ -216,4 +216,4 @@ Both options work with any output format (markdown, oneline, JSON).
 
 3. **Composable queries.** Section filtering picks the block, column filtering picks the data within it. An agent can progressively narrow: first `-s Dependencies` to find the right section, then `--columns Name` to extract just the names.
 
-4. **Format-independent.** The same projection produces trimmed Markdown (for rendering), trimmed oneline (for grep), or trimmed plain text (for piping). An agent doesn't need different strategies per output format.
+4. **Format-independent.** The same projection produces trimmed Markdown (for rendering), trimmed table/TSV output (for grep/cut/awk), or trimmed plain text (for piping). An agent doesn't need different strategies per output format.

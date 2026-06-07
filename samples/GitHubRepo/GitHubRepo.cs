@@ -12,7 +12,7 @@ using Spectre.Console;
 
 var repoArg = new Argument<string>("repo") { DefaultValueFactory = _ => "dotnet/runtime", Description = "GitHub repository (owner/repo)" };
 var formatOption = new Option<string>("--format", "-f") { DefaultValueFactory = _ => "spectre", Description = "Output format" };
-formatOption.AcceptOnlyFromAmong("spectre", "markdown", "oneline");
+formatOption.AcceptOnlyFromAmong("spectre", "markdown", "table", "tsv");
 var sectionOption = new Option<string?>("--section", "-s") { Description = "Section to display" };
 
 var rootCommand = new RootCommand("GitHub repository report — fields, charts, metrics, and tables via Markout")
@@ -58,17 +58,20 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     var options = section is not null
         ? new MarkoutWriterOptions { IncludeSections = new HashSet<string> { section } }
         : new MarkoutWriterOptions();
+    if (format == "tsv")
+        options.TableMode = MarkoutTableMode.Tsv;
 
     IMarkoutFormatter formatter = format switch
     {
         "markdown" => new MarkdownFormatter(),
-        "oneline" => new OneLineFormatter(),
+        "table" or "tsv" => new TableFormatter(),
         _ => new SpectreFormatter(AnsiConsole.Console),
     };
 
-    var onelineOptions = format == "oneline"
+    var tableOptions = format is "table" or "tsv"
         ? new MarkoutWriterOptions
         {
+            TableMode = format == "tsv" ? MarkoutTableMode.Tsv : MarkoutTableMode.Pretty,
             IncludeDescription = false,
             IncludeSections = options.IncludeSections ?? new HashSet<string> { "Releases" }
         }
@@ -139,7 +142,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
             }).ToList()
     };
 
-    MarkoutSerializer.Serialize(view, Console.Out, formatter, RepoContext.Default, onelineOptions);
+    MarkoutSerializer.Serialize(view, Console.Out, formatter, RepoContext.Default, tableOptions);
 }
 
 static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
