@@ -140,7 +140,7 @@ public class TableWriter
         {
             MarkoutTableHeaderStyle.DisplayName => header.DisplayName,
             MarkoutTableHeaderStyle.StableName => header.Key,
-            _ when _options.TableMode == MarkoutTableMode.Tsv => header.Key,
+            _ when _options.TableMode is MarkoutTableMode.Tsv or MarkoutTableMode.Jsonl => header.Key,
             _ => header.DisplayName
         };
     }

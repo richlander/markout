@@ -1,4 +1,7 @@
 using Markout.Formatting;
+using System.Buffers;
+using System.Text;
+using System.Text.Json;
 
 namespace Markout;
 
@@ -18,10 +21,18 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
 
     void ITableFormatter.FormatTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
     {
-        if (options.TableMode == MarkoutTableMode.Tsv)
-            WriteTsvTable(w, headers, rows, skippedRows);
-        else
-            WritePrettyTable(w, headers, rows, skippedRows);
+        switch (options.TableMode)
+        {
+            case MarkoutTableMode.Tsv:
+                WriteTsvTable(w, headers, rows, skippedRows);
+                break;
+            case MarkoutTableMode.Jsonl:
+                WriteJsonlTable(w, headers, rows);
+                break;
+            default:
+                WritePrettyTable(w, headers, rows, skippedRows);
+                break;
+        }
     }
 
     void IFieldFormatter.FormatFieldName(TextWriter w, string key, bool bold)
@@ -87,6 +98,26 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
 
         if (skippedRows > 0)
             w.WriteLine($"\n... and {skippedRows} more");
+    }
+
+    private static void WriteJsonlTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows)
+    {
+        foreach (var row in rows)
+        {
+            var buffer = new ArrayBufferWriter<byte>();
+            using var json = new Utf8JsonWriter(buffer);
+            json.WriteStartObject();
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var value = i < row.Length ? row[i] : "";
+                json.WriteString(headers[i] ?? "", value ?? "");
+            }
+            json.WriteEndObject();
+            json.Flush();
+
+            w.Write(Encoding.UTF8.GetString(buffer.WrittenSpan));
+            w.WriteLine();
+        }
     }
 
     private static void WriteTsvRow(TextWriter w, ReadOnlySpan<string> values)

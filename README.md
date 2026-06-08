@@ -199,6 +199,7 @@ dotnet run samples/GitHubRepo/GitHubRepo.cs                                     
 dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format markdown # Markdown
 dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format table    # Compact table
 dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format tsv      # Stable TSV rows
+dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format jsonl    # Stable JSONL rows
 ```
 
 **Markdown output** for `dotnet/runtime`:
@@ -258,6 +259,14 @@ v9.0.13  v9.0.13      2026-02-10
 v10.0.3  .NET 10.0.3  2026-02-10
 ```
 
+**JSONL output** — same table projection, `--format jsonl`:
+
+```jsonl
+{"tag":"v8.0.24","name":".NET 8.0.24","published":"2026-02-10"}
+{"tag":"v9.0.13","name":"v9.0.13","published":"2026-02-10"}
+{"tag":"v10.0.3","name":".NET 10.0.3","published":"2026-02-10"}
+```
+
 The pattern is always the same: deserialize your API data, project to a model, serialize. Markout handles the rest.
 
 ## Shape Library
@@ -300,7 +309,7 @@ Markout ships five formatters. The serializer writes through `MarkoutWriter` (th
 | **MarkdownFormatter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
 | **PlainTextFormatter** | Plain text without markup | Minimal output, no syntax characters |
 | **UnicodeFormatter** | Box-drawing characters | Rich tables with borders, no color |
-| **TableFormatter** | Tables, lists, fields | Compact summaries, pretty tables, TSV rows |
+| **TableFormatter** | Tables, lists, fields | Compact summaries, pretty tables, TSV/JSONL rows |
 | **DiagramFormatter** | Trees and structural diagrams | Dependency graphs, file trees |
 
 Optional packages:
@@ -316,6 +325,7 @@ Formatters declare which shapes they support by implementing capability interfac
 
 - Markdown table cell values normalize pipe characters to `&#124;`; they do not emit escaped pipes (`\|`).
 - `TableFormatter` with `MarkoutTableMode.Tsv` uses stable snake_case headers by default and never emits embedded tabs or newlines in table cells.
+- `TableFormatter` with `MarkoutTableMode.Jsonl` uses stable snake_case property names by default and emits one JSON object per table row.
 - `TableFormatter` with `MarkoutTableMode.Pretty` renders the same projection as TSV, with each column starting at a uniform position across rows.
 
 ## Templates
@@ -438,7 +448,7 @@ The package includes the source generator — no additional packages needed.
 
 - **[HelloMarkout](samples/HelloMarkout)** — Simplest possible example: a class, a context, one line of serialization
 - **[RecordDemo](samples/RecordDemo)** — Records as data models
-- **[GitHubRepo](samples/GitHubRepo)** — GitHub API → fields, breakdowns, metrics, and tables with Spectre, Markdown, table, and TSV output
+- **[GitHubRepo](samples/GitHubRepo)** — GitHub API → fields, breakdowns, metrics, and tables with Spectre, Markdown, table, TSV, and JSONL output
 - **[GitHubActivity](samples/GitHubActivity)** — User profile and recent events from the GitHub API
 - **[CanadianContent](samples/CanadianContent)** — Canadian actors and shows with tables, trees, metrics, and multiple renderers
 - **[LatestCves](samples/LatestCves)** — .NET security advisories with trees and severity breakdowns

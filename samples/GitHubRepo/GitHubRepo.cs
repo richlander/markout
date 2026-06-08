@@ -12,7 +12,7 @@ using Spectre.Console;
 
 var repoArg = new Argument<string>("repo") { DefaultValueFactory = _ => "dotnet/runtime", Description = "GitHub repository (owner/repo)" };
 var formatOption = new Option<string>("--format", "-f") { DefaultValueFactory = _ => "spectre", Description = "Output format" };
-formatOption.AcceptOnlyFromAmong("spectre", "markdown", "table", "tsv");
+formatOption.AcceptOnlyFromAmong("spectre", "markdown", "table", "tsv", "jsonl");
 var sectionOption = new Option<string?>("--section", "-s") { Description = "Section to display" };
 
 var rootCommand = new RootCommand("GitHub repository report — fields, charts, metrics, and tables via Markout")
@@ -58,20 +58,29 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     var options = section is not null
         ? new MarkoutWriterOptions { IncludeSections = new HashSet<string> { section } }
         : new MarkoutWriterOptions();
-    if (format == "tsv")
-        options.TableMode = MarkoutTableMode.Tsv;
+    options.TableMode = format switch
+    {
+        "tsv" => MarkoutTableMode.Tsv,
+        "jsonl" => MarkoutTableMode.Jsonl,
+        _ => options.TableMode
+    };
 
     IMarkoutFormatter formatter = format switch
     {
         "markdown" => new MarkdownFormatter(),
-        "table" or "tsv" => new TableFormatter(),
+        "table" or "tsv" or "jsonl" => new TableFormatter(),
         _ => new SpectreFormatter(AnsiConsole.Console),
     };
 
-    var tableOptions = format is "table" or "tsv"
+    var tableOptions = format is "table" or "tsv" or "jsonl"
         ? new MarkoutWriterOptions
         {
-            TableMode = format == "tsv" ? MarkoutTableMode.Tsv : MarkoutTableMode.Pretty,
+            TableMode = format switch
+            {
+                "tsv" => MarkoutTableMode.Tsv,
+                "jsonl" => MarkoutTableMode.Jsonl,
+                _ => MarkoutTableMode.Pretty
+            },
             IncludeDescription = false,
             IncludeSections = options.IncludeSections ?? new HashSet<string> { "Releases" }
         }

@@ -12,7 +12,7 @@ using Spectre.Console;
 using TreeNode = Markout.TreeNode;
 
 var formatOption = new Option<string>("--format", "-f") { DefaultValueFactory = _ => "markdown", Description = "Output format" };
-formatOption.AcceptOnlyFromAmong("markdown", "ansi", "spectre", "plain", "table", "tsv", "diagram");
+formatOption.AcceptOnlyFromAmong("markdown", "ansi", "spectre", "plain", "table", "tsv", "jsonl", "diagram");
 
 var maxItemsOption = new Option<int?>("-n") { Description = "Limit table rows" };
 var prettyOption = new Option<bool>("--pretty") { Description = "Pad table columns for aligned output" };
@@ -58,7 +58,12 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         MaxItems = maxItems,
         IncludeSections = includeSections,
         PrettyTables = prettyTables,
-        TableMode = format == "tsv" ? MarkoutTableMode.Tsv : MarkoutTableMode.Pretty
+        TableMode = format switch
+        {
+            "tsv" => MarkoutTableMode.Tsv,
+            "jsonl" => MarkoutTableMode.Jsonl,
+            _ => MarkoutTableMode.Pretty
+        }
     };
 
     (IMarkoutFormatter formatter, StringWriter output) CreateWriter()
@@ -69,7 +74,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         {
             "ansi" => new AnsiFormatter(terminal),
             "spectre" => new SpectreFormatter(AnsiConsole.Console),
-            "table" or "tsv" => new TableFormatter(),
+            "table" or "tsv" or "jsonl" => new TableFormatter(),
             "diagram" => new DiagramFormatter(),
             _ => new MarkdownFormatter(),
         };
@@ -108,9 +113,9 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     StringWriter Summary()
     {
         var (fmt, output) = CreateWriter();
-        if (format is "table" or "tsv" && includeSections == null)
+        if (format is "table" or "tsv" or "jsonl" && includeSections == null)
         {
-            Console.Error.WriteLine("table/TSV format requires a section flag with summary: --actors, --shows, or --cities");
+            Console.Error.WriteLine("table/TSV/JSONL format requires a section flag with summary: --actors, --shows, or --cities");
             return output;
         }
         var overview = new CanConOverview
