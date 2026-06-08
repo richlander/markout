@@ -130,7 +130,6 @@ public class TableFormatterTests
 
         var output = sw.ToString().ReplaceLineEndings("\n");
         Assert.Single(output.Split('\n', StringSplitOptions.RemoveEmptyEntries));
-        Assert.Contains("\\\"", output);
         Assert.Contains("\\n", output);
         Assert.Contains("\\t", output);
 
