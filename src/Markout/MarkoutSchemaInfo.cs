@@ -157,7 +157,7 @@ public sealed class MarkoutSchemaInfo
     public DocumentSchema ToDocumentSchema()
     {
         var sectionOrder = new List<string>();
-        var sectionData = new Dictionary<string, (string? ItemKind, List<string> Items)>(
+        var sectionData = new Dictionary<string, (string? ItemKind, List<SchemaItem> Items)>(
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var prop in AsDocument)
@@ -178,7 +178,9 @@ public sealed class MarkoutSchemaInfo
                 // Merge: union of items, upgrade kind if previously section-only
                 foreach (var item in items)
                 {
-                    if (!existing.Items.Contains(item, StringComparer.OrdinalIgnoreCase))
+                    if (!existing.Items.Any(i =>
+                            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(i.StableName, item.StableName, StringComparison.OrdinalIgnoreCase)))
                         existing.Items.Add(item);
                 }
                 if (existing.ItemKind == null && itemKind != null)
@@ -191,7 +193,7 @@ public sealed class MarkoutSchemaInfo
         {
             var (itemKind, items) = sectionData[name];
             if (itemKind != null && items.Count > 0)
-                schema.Add(name, itemKind, items.ToArray());
+                schema.Add(name, itemKind, [.. items]);
             else
                 schema.AddSection(name);
         }
@@ -207,14 +209,14 @@ public sealed class MarkoutSchemaInfo
         return rendering[(lastOpen + 1)..lastClose];
     }
 
-    private static (string? ItemKind, List<string> Items) MapContentToItems(
+    private static (string? ItemKind, List<SchemaItem> Items) MapContentToItems(
         string? contentType, MarkoutPropertySchema prop)
     {
         return contentType switch
         {
             "table" => ("column", CollectChildColumns(prop)),
             "subsections" => ("column", CollectChildColumns(prop)),
-            "field" => ("field", [prop.DisplayName]),
+            "field" => ("field", [new SchemaItem(prop.DisplayName, "field", prop.Name)]),
             "fields" => ("field", CollectChildFields(prop)),
             "tree" => ("tree", CollectChildColumns(prop)),
             // Content types with no queryable items
@@ -225,38 +227,46 @@ public sealed class MarkoutSchemaInfo
         };
     }
 
-    private static List<string> CollectChildColumns(MarkoutPropertySchema prop)
+    private static List<SchemaItem> CollectChildColumns(MarkoutPropertySchema prop)
     {
-        var names = new List<string>();
+        var items = new List<SchemaItem>();
         foreach (var child in prop.Children)
         {
             if (child.Rendering.StartsWith("Column", StringComparison.Ordinal)
-                && !names.Contains(child.DisplayName, StringComparer.OrdinalIgnoreCase))
-                names.Add(child.DisplayName);
+                && !items.Any(i =>
+                    string.Equals(i.Name, child.DisplayName, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(i.StableName, child.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                items.Add(new SchemaItem(child.DisplayName, "column", child.Name));
+            }
         }
-        return names;
+        return items;
     }
 
-    private static List<string> CollectChildFields(MarkoutPropertySchema prop)
+    private static List<SchemaItem> CollectChildFields(MarkoutPropertySchema prop)
     {
-        var names = new List<string>();
-        CollectChildFieldsRecursive(prop.Children, names);
-        return names;
+        var items = new List<SchemaItem>();
+        CollectChildFieldsRecursive(prop.Children, items);
+        return items;
     }
 
     private static void CollectChildFieldsRecursive(
-        IReadOnlyList<MarkoutPropertySchema> children, List<string> names)
+        IReadOnlyList<MarkoutPropertySchema> children, List<SchemaItem> items)
     {
         foreach (var child in children)
         {
             if (child.Rendering.StartsWith("Field", StringComparison.Ordinal))
             {
-                if (!names.Contains(child.DisplayName, StringComparer.OrdinalIgnoreCase))
-                    names.Add(child.DisplayName);
+                if (!items.Any(i =>
+                    string.Equals(i.Name, child.DisplayName, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(i.StableName, child.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    items.Add(new SchemaItem(child.DisplayName, "field", child.Name));
+                }
             }
             else if (child.Rendering == "Fields")
             {
-                CollectChildFieldsRecursive(child.Children, names);
+                CollectChildFieldsRecursive(child.Children, items);
             }
         }
     }

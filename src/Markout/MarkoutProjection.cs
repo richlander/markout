@@ -166,40 +166,44 @@ public class MarkoutProjection
     }
 
     /// <summary>
-    /// Computes a column index map for projecting table columns.
-    /// Returns null if no column projection is needed.
-    /// Each entry maps projected position → original position.
+    /// Resolves the column projection against display headers.
     /// </summary>
-    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers)
-        => ComputeColumnMap(headers, default);
+    public ColumnProjectionResolution ResolveColumns(ReadOnlySpan<string> headers)
+        => ResolveColumns(headers, default);
 
     /// <summary>
-    /// Computes a column index map for projecting table columns.
+    /// Resolves the column projection against display headers and stable header names.
     /// Matches display headers, stable header names, and snake_case stable names.
     /// </summary>
-    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
+    public ColumnProjectionResolution ResolveColumns(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
         if (_includeColumns != null)
         {
             // Include: output columns in the order specified by IncludeColumns
             var map = new List<int>(_includeColumns.Count);
+            var unmatched = new List<string>();
             foreach (var col in _includeColumns)
             {
+                bool matched = false;
                 bool isGlob = col.Contains('*') || col.Contains('?');
                 for (int i = 0; i < headers.Length; i++)
                 {
                     if (MatchesColumn(col, headers, headerNames, i))
                     {
+                        matched = true;
                         map.Add(i);
                         if (!isGlob) break;
                     }
                 }
-            }
-            if (map.Count == 0)
-                throw new InvalidOperationException(
-                    $"No columns matched projection: {string.Join(", ", _includeColumns)}");
 
-            return map.ToArray();
+                if (!matched)
+                    unmatched.Add(col);
+            }
+
+            if (map.Count == 0)
+                return ColumnProjectionResolution.NoMatches(_includeColumns);
+
+            return ColumnProjectionResolution.Matched(map, _includeColumns, unmatched);
         }
 
         if (_excludeColumns != null)
@@ -220,10 +224,51 @@ public class MarkoutProjection
                 if (!excluded)
                     map.Add(i);
             }
-            return map.Count < headers.Length ? map.ToArray() : null;
+            return map.Count < headers.Length
+                ? ColumnProjectionResolution.Matched(map)
+                : ColumnProjectionResolution.NoProjection();
         }
 
-        return null;
+        return ColumnProjectionResolution.NoProjection();
+    }
+
+    /// <summary>
+    /// Attempts to resolve the column projection against display headers.
+    /// </summary>
+    public bool TryResolveColumns(ReadOnlySpan<string> headers, out ColumnProjectionResolution resolution)
+        => TryResolveColumns(headers, default, out resolution);
+
+    /// <summary>
+    /// Attempts to resolve the column projection against display headers and stable header names.
+    /// </summary>
+    public bool TryResolveColumns(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames, out ColumnProjectionResolution resolution)
+    {
+        resolution = ResolveColumns(headers, headerNames);
+        return resolution.Kind != ColumnProjectionResolutionKind.NoMatches;
+    }
+
+    /// <summary>
+    /// Computes a column index map for projecting table columns.
+    /// Returns null if no column projection is needed.
+    /// Each entry maps projected position → original position.
+    /// </summary>
+    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers)
+        => ComputeColumnMap(headers, default);
+
+    /// <summary>
+    /// Computes a column index map for projecting table columns.
+    /// Matches display headers, stable header names, and snake_case stable names.
+    /// </summary>
+    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
+    {
+        var resolution = ResolveColumns(headers, headerNames);
+        return resolution.Kind switch
+        {
+            ColumnProjectionResolutionKind.NoProjection => null,
+            ColumnProjectionResolutionKind.Matched => [.. resolution.ColumnMap],
+            _ => throw new InvalidOperationException(
+                $"No columns matched projection: {string.Join(", ", resolution.RequestedColumns)}")
+        };
     }
 
     private bool MatchesColumn(string pattern, ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames, int index)
