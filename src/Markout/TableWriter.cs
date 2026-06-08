@@ -139,8 +139,8 @@ public class TableWriter
         return _options.TableHeaderStyle switch
         {
             MarkoutTableHeaderStyle.DisplayName => header.DisplayName,
-            MarkoutTableHeaderStyle.StableName => FormatHelper.ToSnakeCase(header.Name),
-            _ when _options.TableMode == MarkoutTableMode.Tsv => FormatHelper.ToSnakeCase(header.Name),
+            MarkoutTableHeaderStyle.StableName => header.Key,
+            _ when _options.TableMode == MarkoutTableMode.Tsv => header.Key,
             _ => header.DisplayName
         };
     }

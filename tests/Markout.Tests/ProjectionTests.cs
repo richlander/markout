@@ -114,6 +114,47 @@ public class ProjectionTests
         Assert.Contains("No columns matched projection: NonExistent", ex.Message);
     }
 
+    [Fact]
+    public void TryResolveColumns_AllUnmatched_ReturnsNoMatches()
+    {
+        var projection = MarkoutProjection.WithColumns("NonExistent");
+
+        var success = projection.TryResolveColumns(["Name", "Return Type"], ["Name", "ReturnType"], out var resolution);
+
+        Assert.False(success);
+        Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
+        Assert.Empty(resolution.ColumnMap);
+        Assert.Equal(["NonExistent"], resolution.UnmatchedColumns);
+    }
+
+    [Fact]
+    public void TryResolveColumns_MixedUnmatched_ReturnsMatchedWithUnmatchedColumns()
+    {
+        var projection = MarkoutProjection.WithColumns("return_type", "NonExistent");
+
+        var success = projection.TryResolveColumns(["Name", "Return Type"], ["Name", "ReturnType"], out var resolution);
+
+        Assert.True(success);
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([1], resolution.ColumnMap);
+        Assert.Equal(["NonExistent"], resolution.UnmatchedColumns);
+    }
+
+    [Fact]
+    public void DocumentSchema_ValidateProjection_AcceptsStableAndSnakeCaseNames()
+    {
+        var schema = new DocumentSchema()
+            .Add("Methods", "column",
+                new SchemaItem("Name", "column", "Name"),
+                new SchemaItem("Return Type", "column", "ReturnType"));
+
+        var validation = schema.ValidateProjection("Methods", ["return_type", "ReturnType"]);
+
+        Assert.True(validation.IsValid);
+        Assert.Equal(["return_type", "ReturnType"], validation.Resolved);
+        Assert.Empty(validation.Unresolved);
+    }
+
     // --- Column projection: ExcludeColumns ---
 
     [Fact]

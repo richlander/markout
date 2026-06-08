@@ -3,7 +3,27 @@ namespace Markout;
 /// <summary>
 /// A name-kind pair representing a discoverable schema element.
 /// </summary>
-public readonly record struct SchemaItem(string Name, string Kind);
+public readonly record struct SchemaItem(string Name, string Kind)
+{
+    /// <summary>
+    /// Creates a schema item with a stable source name.
+    /// </summary>
+    public SchemaItem(string name, string kind, string stableName)
+        : this(name, kind)
+    {
+        StableName = stableName;
+    }
+
+    /// <summary>
+    /// Stable source name for the item, usually the source property/member name.
+    /// </summary>
+    public string StableName { get; init; } = Name;
+
+    /// <summary>
+    /// Canonical machine-facing key for the item.
+    /// </summary>
+    public string Key => Formatting.FormatHelper.ToSnakeCase(StableName);
+}
 
 /// <summary>
 /// Describes a section's schema: its items and their kind.
@@ -11,13 +31,19 @@ public readonly record struct SchemaItem(string Name, string Kind);
 public sealed class SectionSchema
 {
     public SectionSchema(string name, string itemKind, string[] itemNames)
+        : this(name, itemKind, itemNames.Select(n => new SchemaItem(n, itemKind)).ToArray())
+    {
+    }
+
+    public SectionSchema(string name, string itemKind, SchemaItem[] items)
     {
         Name = name;
         ItemKind = itemKind;
-        Items = itemNames.Select(n => new SchemaItem(n, itemKind)).ToArray();
+        Items = items.Select(i => i with { Kind = itemKind }).ToArray();
     }
 
     public string Name { get; }
+    public string Key => Formatting.FormatHelper.ToSnakeCase(Name);
     public string ItemKind { get; }
     public SchemaItem[] Items { get; }
 }
@@ -49,12 +75,24 @@ public sealed class DocumentSchema
     }
 
     /// <summary>
+    /// Registers a section with typed items and stable item names.
+    /// </summary>
+    public DocumentSchema Add(string sectionName, string itemKind, params SchemaItem[] items)
+    {
+        var schema = new SectionSchema(sectionName, itemKind, items);
+        _sections[sectionName] = schema;
+        if (!_sectionOrder.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
+            _sectionOrder.Add(sectionName);
+        return this;
+    }
+
+    /// <summary>
     /// Registers a section with no explicit items (e.g., a headless summary section).
     /// </summary>
     public DocumentSchema AddSection(string sectionName)
     {
         if (!_sections.ContainsKey(sectionName))
-            _sections[sectionName] = new SectionSchema(sectionName, "section", []);
+            _sections[sectionName] = new SectionSchema(sectionName, "section", Array.Empty<SchemaItem>());
         if (!_sectionOrder.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
             _sectionOrder.Add(sectionName);
         return this;
@@ -113,37 +151,32 @@ public sealed class DocumentSchema
         if (section == null)
             return new ProjectionValidation([], requestedNames, new Dictionary<string, string[]>());
 
-        var knownNames = new HashSet<string>(
-            section.Items.Select(i => i.Name), StringComparer.OrdinalIgnoreCase);
+        var headers = section.Items.Select(i => i.Name).ToArray();
+        var headerNames = section.Items.Select(i => i.StableName).ToArray();
+        var projection = MarkoutProjection.WithColumns(requestedNames);
+        projection.TryResolveColumns(headers, headerNames, out var resolution);
 
-        var resolved = new List<string>();
-        var unresolved = new List<string>();
+        var unresolved = resolution.UnmatchedColumns.ToArray();
+        var resolved = requestedNames
+            .Where(n => !unresolved.Contains(n, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
         var suggestions = new Dictionary<string, string[]>();
 
-        foreach (var name in requestedNames)
+        foreach (var name in unresolved)
         {
-            if (knownNames.Contains(name))
-            {
-                resolved.Add(name);
-            }
-            else if (name.Contains('*') || name.Contains('?'))
-            {
-                // Glob patterns are resolved at render time by Markout
-                resolved.Add(name);
-            }
-            else
-            {
-                unresolved.Add(name);
-                var prefixMatches = section.Items
-                    .Where(i => i.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase))
-                    .Select(i => i.Name)
-                    .ToArray();
-                if (prefixMatches.Length > 0)
-                    suggestions[name] = prefixMatches;
-            }
+            var prefixMatches = section.Items
+                .Where(i =>
+                    i.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase)
+                    || i.StableName.StartsWith(name, StringComparison.OrdinalIgnoreCase)
+                    || i.Key.StartsWith(name, StringComparison.OrdinalIgnoreCase))
+                .Select(i => i.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (prefixMatches.Length > 0)
+                suggestions[name] = prefixMatches;
         }
 
-        return new ProjectionValidation([.. resolved], [.. unresolved], suggestions);
+        return new ProjectionValidation(resolved, unresolved, suggestions);
     }
 
     // ── Post-render diagnostics ──
