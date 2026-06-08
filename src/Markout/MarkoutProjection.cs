@@ -195,7 +195,11 @@ public class MarkoutProjection
                     }
                 }
             }
-            return map.Count > 0 ? map.ToArray() : null;
+            if (map.Count == 0)
+                throw new InvalidOperationException(
+                    $"No columns matched projection: {string.Join(", ", _includeColumns)}");
+
+            return map.ToArray();
         }
 
         if (_excludeColumns != null)

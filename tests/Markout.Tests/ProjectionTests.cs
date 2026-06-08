@@ -74,7 +74,7 @@ public class ProjectionTests
     }
 
     [Fact]
-    public void IncludeColumns_UnmatchedColumnsIgnored()
+    public void IncludeColumns_MixedUnmatchedColumnsIgnored()
     {
         var options = new MarkoutWriterOptions
         {
@@ -91,6 +91,27 @@ public class ProjectionTests
         Assert.Contains("Name", output);
         Assert.Contains("Foo.dll", output);
         Assert.DoesNotContain("Version", output);
+    }
+
+    [Fact]
+    public void IncludeColumns_AllUnmatchedColumns_Throws()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection
+            {
+                IncludeColumns = ["NonExistent"]
+            }
+        };
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+        {
+            orch.WriteTableStart("Name", "Version");
+            orch.WriteTableRow("Foo.dll", "1.0.0");
+            orch.WriteTableEnd();
+        });
+        Assert.Contains("No columns matched projection: NonExistent", ex.Message);
     }
 
     // --- Column projection: ExcludeColumns ---
