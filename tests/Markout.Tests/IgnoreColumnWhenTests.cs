@@ -82,6 +82,25 @@ public class GroupByWithIgnoreColumnWhen
         => rows?.Select(r => r.Pattern).Distinct().Count() <= 1;
 }
 
+public class ReturnTypeRow
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutPropertyName("Return Type")]
+    public string ReturnType { get; set; } = "";
+}
+
+[MarkoutSerializable(AutoFields = false)]
+public class DisplayNameIgnoreColumnWhen
+{
+    [MarkoutSection(Name = "Methods")]
+    [MarkoutIgnoreColumnWhen(nameof(ReturnTypeIsUniform), "Return Type")]
+    public List<ReturnTypeRow>? Methods { get; set; }
+
+    public static bool ReturnTypeIsUniform(List<ReturnTypeRow>? rows)
+        => rows?.Select(r => r.ReturnType).Distinct().Count() <= 1;
+}
+
 // --- TableFormatter + IgnoreColumnWhen integration ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
@@ -104,6 +123,8 @@ public class OneLineIgnoreColumnWhen
 [MarkoutContext(typeof(MixedIgnore))]
 [MarkoutContext(typeof(GroupByWithIgnoreColumnWhen))]
 [MarkoutContext(typeof(GroupedFindRow))]
+[MarkoutContext(typeof(DisplayNameIgnoreColumnWhen))]
+[MarkoutContext(typeof(ReturnTypeRow))]
 [MarkoutContext(typeof(OneLineIgnoreColumnWhen))]
 public partial class IgnoreColumnWhenTestContext : MarkoutSerializerContext
 {
@@ -341,6 +362,26 @@ public class IgnoreColumnWhenTests
         Assert.Contains("Pattern", mdf);
         Assert.Contains("Foo", mdf);
         Assert.Contains("Bar", mdf);
+    }
+
+    [Fact]
+    public void DisplayNameIgnoreColumnWhen_WithSpaces_GeneratesValidCodeAndHidesColumn()
+    {
+        var view = new DisplayNameIgnoreColumnWhen
+        {
+            Methods =
+            [
+                new() { Name = "A", ReturnType = "void" },
+                new() { Name = "B", ReturnType = "void" }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, IgnoreColumnWhenTestContext.Default);
+
+        Assert.Contains("| Name |", mdf);
+        Assert.DoesNotContain("Return Type", mdf);
+        Assert.Contains("| A |", mdf);
+        Assert.Contains("| B |", mdf);
     }
 
     // --- TableFormatter + IgnoreColumnWhen + IgnoreFields integration ---

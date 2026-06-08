@@ -138,6 +138,18 @@ public class TableFormatterTests
     }
 
     [Fact]
+    public void WriteArray_RendersLabelBeforeItems()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter());
+        writer.WriteArray("Frameworks", ["net8.0", "net10.0"]);
+
+        Assert.Equal(
+            "Frameworks:\nnet8.0\nnet10.0\n",
+            sw.ToString().ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
     public void WriteHeading_Suppressed()
     {
         var sw = new StringWriter();

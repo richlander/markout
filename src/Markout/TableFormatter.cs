@@ -48,6 +48,9 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
 
     void IListFormatter.FormatArray(TextWriter w, string key, ReadOnlySpan<string> items, bool bold)
     {
+        w.Write(FormatHelper.NormalizeTableCell(key));
+        w.WriteLine(":");
+
         foreach (var item in items)
             w.WriteLine(FormatHelper.NormalizeTableCell(item));
     }
