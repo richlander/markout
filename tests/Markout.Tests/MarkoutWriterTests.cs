@@ -66,6 +66,43 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void MarkdownFormatter_WriteTable_AppliesHeaderFormatter()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            FormatTableHeader = header => $"{header.Name}:{header.DisplayName}:{header.Index}"
+        });
+
+        var result = orch.WriteTable(
+            ["Display Name", "Age"],
+            ["Name", "Age"],
+            [["Alice", "30"]]);
+
+        Assert.True(result);
+        var output = orch.ToString();
+        Assert.Contains("| Name:Display Name:0 | Age:Age:1 |", output);
+    }
+
+    [Fact]
+    public void MarkdownFormatter_WriteTableStart_AppliesHeaderFormatterAfterProjection()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["Age"] },
+            FormatTableHeader = header => $"{header.Name}:{header.DisplayName}:{header.Index}"
+        });
+
+        Assert.True(orch.WriteTableStart(["Display Name", "Age"], ["Name", "Age"]));
+        orch.WriteTableRow("Alice", "30");
+        orch.WriteTableEnd();
+
+        var output = orch.ToString();
+        Assert.DoesNotContain("Display Name", output);
+        Assert.Contains("| Age:Age:0 |", output);
+        Assert.Contains("| 30 |", output);
+    }
+
+    [Fact]
     public void MarkdownFormatter_WriteCodeBlock_Renders()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());
@@ -202,60 +239,60 @@ public class MarkoutWriterTests
         Assert.Contains(">> node text", orch.ToString());
     }
 
-    // ── OneLineFormatter formatter — subset renders ──
+    // ── TableFormatter formatter — subset renders ──
 
     [Fact]
-    public void OneLineFormatter_WriteHeading_ReturnsFalse()
+    public void TableFormatter_WriteHeading_ReturnsFalse()
     {
-        var orch = MarkoutWriter.Create(new OneLineFormatter());
+        var orch = MarkoutWriter.Create(new TableFormatter());
         var result = orch.WriteHeading(1, "Title");
         Assert.False(result);
     }
 
     [Fact]
-    public void OneLineFormatter_WriteTable_ReturnsTrue()
+    public void TableFormatter_WriteTable_ReturnsTrue()
     {
-        var orch = MarkoutWriter.Create(new OneLineFormatter());
+        var orch = MarkoutWriter.Create(new TableFormatter());
         var result = orch.WriteTable(["Col"], [["Val"]]);
         Assert.True(result);
     }
 
     [Fact]
-    public void OneLineFormatter_WriteFields_ReturnsTrue()
+    public void TableFormatter_WriteFields_ReturnsTrue()
     {
-        var orch = MarkoutWriter.Create(new OneLineFormatter());
+        var orch = MarkoutWriter.Create(new TableFormatter());
         var result = orch.WriteFields(new MarkoutField("K", "V"));
         Assert.True(result);
     }
 
     [Fact]
-    public void OneLineFormatter_WriteCallout_ReturnsFalse()
+    public void TableFormatter_WriteCallout_ReturnsFalse()
     {
-        var orch = MarkoutWriter.Create(new OneLineFormatter());
+        var orch = MarkoutWriter.Create(new TableFormatter());
         var result = orch.WriteCallout(CalloutSeverity.Note, "msg");
         Assert.False(result);
     }
 
     [Fact]
-    public void OneLineFormatter_WriteCodeStart_ReturnsFalse()
+    public void TableFormatter_WriteCodeStart_ReturnsFalse()
     {
-        var orch = MarkoutWriter.Create(new OneLineFormatter());
+        var orch = MarkoutWriter.Create(new TableFormatter());
         var result = orch.WriteCodeStart("csharp");
         Assert.False(result);
     }
 
     [Fact]
-    public void OneLineFormatter_WriteBreakdown_ReturnsFalse()
+    public void TableFormatter_WriteBreakdown_ReturnsFalse()
     {
-        var orch = MarkoutWriter.Create(new OneLineFormatter());
+        var orch = MarkoutWriter.Create(new TableFormatter());
         var result = orch.WriteBreakdown([new Breakdown("X", [new Segment("A", 1)])]);
         Assert.False(result);
     }
 
     [Fact]
-    public void OneLineFormatter_WriteRule_ReturnsFalse()
+    public void TableFormatter_WriteRule_ReturnsFalse()
     {
-        var orch = MarkoutWriter.Create(new OneLineFormatter());
+        var orch = MarkoutWriter.Create(new TableFormatter());
         var result = orch.WriteRule();
         Assert.False(result);
     }

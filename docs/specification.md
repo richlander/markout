@@ -132,6 +132,7 @@ For collections of objects with consistent fields:
 - Header row required
 - Separator row with `|---|` required
 - Cell values follow scalar typing rules
+- Pipe characters inside cell values are normalized to `&#124;`
 
 ### Nested Objects
 

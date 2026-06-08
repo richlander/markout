@@ -171,6 +171,13 @@ public class MarkoutProjection
     /// Each entry maps projected position → original position.
     /// </summary>
     internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers)
+        => ComputeColumnMap(headers, default);
+
+    /// <summary>
+    /// Computes a column index map for projecting table columns.
+    /// Matches display headers, stable header names, and snake_case stable names.
+    /// </summary>
+    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
         if (_includeColumns != null)
         {
@@ -181,14 +188,18 @@ public class MarkoutProjection
                 bool isGlob = col.Contains('*') || col.Contains('?');
                 for (int i = 0; i < headers.Length; i++)
                 {
-                    if (MatchesName(col, headers[i]))
+                    if (MatchesColumn(col, headers, headerNames, i))
                     {
                         map.Add(i);
                         if (!isGlob) break;
                     }
                 }
             }
-            return map.Count > 0 ? map.ToArray() : null;
+            if (map.Count == 0)
+                throw new InvalidOperationException(
+                    $"No columns matched projection: {string.Join(", ", _includeColumns)}");
+
+            return map.ToArray();
         }
 
         if (_excludeColumns != null)
@@ -200,7 +211,7 @@ public class MarkoutProjection
                 bool excluded = false;
                 foreach (var col in _excludeColumns)
                 {
-                    if (MatchesName(col, headers[i]))
+                    if (MatchesColumn(col, headers, headerNames, i))
                     {
                         excluded = true;
                         break;
@@ -213,6 +224,19 @@ public class MarkoutProjection
         }
 
         return null;
+    }
+
+    private bool MatchesColumn(string pattern, ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames, int index)
+    {
+        if (MatchesName(pattern, headers[index]))
+            return true;
+
+        if (index >= headerNames.Length || string.IsNullOrEmpty(headerNames[index]))
+            return false;
+
+        var stableName = headerNames[index];
+        return MatchesName(pattern, stableName)
+            || MatchesName(pattern, Formatting.FormatHelper.ToSnakeCase(stableName));
     }
 
     /// <summary>

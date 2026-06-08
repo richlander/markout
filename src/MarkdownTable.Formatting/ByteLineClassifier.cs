@@ -39,14 +39,14 @@ internal enum ByteLineKind
 /// </summary>
 /// <remarks>
 /// Inspired by MarkdownTable.IO.MarkdownLineClassifier but extended to cover
-/// headings, fields (bold, oneline), and bullet lists in addition to tables.
+/// headings, fields (bold, inline), and bullet lists in addition to tables.
 /// </remarks>
 internal static class ByteLineClassifier
 {
     private static readonly SearchValues<byte> Whitespace = SearchValues.Create([(byte)' ', (byte)'\t', (byte)'\r']);
     private static readonly SearchValues<byte> PipeSearch = SearchValues.Create([(byte)'|']);
 
-    // " | " as a 3-byte pattern for oneline field separators
+    // " | " as a 3-byte pattern for inline field separators
     private static readonly byte[] PipeSeparator = [(byte)' ', (byte)'|', (byte)' '];
 
     // "**" prefix for bold fields
@@ -93,7 +93,7 @@ internal static class ByteLineClassifier
         if (first == Dash && trimmed.Length >= 2 && trimmed[1] == Space)
             return ByteLineKind.Bullet;
 
-        // Lines with pipes — distinguish table vs oneline fields
+        // Lines with pipes — distinguish table vs inline fields
         if (trimmed.IndexOfAny(PipeSearch) >= 0)
         {
             // Table lines start or end with |

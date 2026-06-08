@@ -693,13 +693,29 @@ internal static class SerializerEmitter
             return null;
 
         var result = new List<(string, string)>();
+        var usedVariableNames = new HashSet<string>();
         foreach (var (methodName, columnName) in prop.SectionIgnoreColumnWhen)
         {
-            var condVar = $"__ignore{columnName}";
+            var condVar = CreateUniqueIgnoreConditionVariable(columnName, usedVariableNames);
             sb.AppendLine($"{indent}var {condVar} = {rootTypeName}.{methodName}({propAccess});");
             result.Add((condVar, columnName));
         }
         return result;
+    }
+
+    private static string CreateUniqueIgnoreConditionVariable(string columnName, HashSet<string> usedVariableNames)
+    {
+        var suffix = NormalizeSectionName(columnName);
+        if (string.IsNullOrEmpty(suffix))
+            suffix = "Column";
+
+        var baseName = $"__ignore{suffix}";
+        var name = baseName;
+        var index = 2;
+        while (!usedVariableNames.Add(name))
+            name = baseName + index++;
+
+        return name;
     }
 
     private static void EmitNonSectionProperty(

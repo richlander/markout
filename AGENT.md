@@ -27,6 +27,17 @@ Create feature branches with descriptive names, e.g.:
 - `feature/issue-3-assembly-references`
 - `fix/null-reference-in-parser`
 
+## Repository map
+
+Read this file first, then use the docs it points to:
+
+- `README.md`: human entrypoint, quick start, formatter overview, and sample map.
+- `docs/overview.md`: minimum architecture and agent context.
+- `docs/user-guide.md`: user-facing feature reference.
+- `docs/specification.md`: Markdown/Markout output syntax details.
+- `docs/design/`: focused design notes; update current design docs when public behavior changes.
+- `SKILL.md`: agent workflow guidance; keep it concise and current with formatter behavior.
+
 ## Markdown Linting
 
 All markdown files must pass `markdownlint` before committing. When there are lint errors, run the auto-fixer first:

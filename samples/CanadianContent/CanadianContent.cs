@@ -12,7 +12,7 @@ using Spectre.Console;
 using TreeNode = Markout.TreeNode;
 
 var formatOption = new Option<string>("--format", "-f") { DefaultValueFactory = _ => "markdown", Description = "Output format" };
-formatOption.AcceptOnlyFromAmong("markdown", "ansi", "spectre", "plain", "oneline", "diagram");
+formatOption.AcceptOnlyFromAmong("markdown", "ansi", "spectre", "plain", "table", "tsv", "diagram");
 
 var maxItemsOption = new Option<int?>("-n") { Description = "Limit table rows" };
 var prettyOption = new Option<bool>("--pretty") { Description = "Pad table columns for aligned output" };
@@ -53,7 +53,13 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     var shows = JsonSerializer.Deserialize(showsJson, CanConJsonContext.Default.ListShow)!;
     var cityCountry = JsonSerializer.Deserialize(citiesJson, CanConJsonContext.Default.ListCity)!
         .ToDictionary(c => c.CityName, c => c.Country);
-    var options = new MarkoutWriterOptions { MaxItems = maxItems, IncludeSections = includeSections, PrettyTables = prettyTables };
+    var options = new MarkoutWriterOptions
+    {
+        MaxItems = maxItems,
+        IncludeSections = includeSections,
+        PrettyTables = prettyTables,
+        TableMode = format == "tsv" ? MarkoutTableMode.Tsv : MarkoutTableMode.Pretty
+    };
 
     (IMarkoutFormatter formatter, StringWriter output) CreateWriter()
     {
@@ -63,7 +69,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
         {
             "ansi" => new AnsiFormatter(terminal),
             "spectre" => new SpectreFormatter(AnsiConsole.Console),
-            "oneline" => new OneLineFormatter(),
+            "table" or "tsv" => new TableFormatter(),
             "diagram" => new DiagramFormatter(),
             _ => new MarkdownFormatter(),
         };
@@ -102,9 +108,9 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     StringWriter Summary()
     {
         var (fmt, output) = CreateWriter();
-        if (format == "oneline" && includeSections == null)
+        if (format is "table" or "tsv" && includeSections == null)
         {
-            Console.Error.WriteLine("oneline format requires a section flag with summary: --actors, --shows, or --cities");
+            Console.Error.WriteLine("table/TSV format requires a section flag with summary: --actors, --shows, or --cities");
             return output;
         }
         var overview = new CanConOverview

@@ -347,7 +347,7 @@ public class MarkoutWriter
         foreach (var field in projected)
             rows.Add([field.Key, field.Value]);
 
-        return WriteTable(headers, rows);
+        return WriteTable(headers, ["Field", "Value"], rows);
     }
 
     // ── Lists ──
@@ -444,6 +444,16 @@ public class MarkoutWriter
     /// </summary>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
     public bool WriteTable(IEnumerable<string> headers, IEnumerable<string[]> rows)
+        => WriteTableCore(headers, headerNames: null, rows);
+
+    /// <summary>
+    /// Writes a complete table with display headers, stable header names, and rows.
+    /// </summary>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteTable(IEnumerable<string> headers, IEnumerable<string> headerNames, IEnumerable<string[]> rows)
+        => WriteTableCore(headers, headerNames, rows);
+
+    private bool WriteTableCore(IEnumerable<string> headers, IEnumerable<string>? headerNames, IEnumerable<string[]> rows)
     {
         if (_sectionExcluded)
             return true;
@@ -452,11 +462,20 @@ public class MarkoutWriter
             return false;
 
         var headerArray = headers as string[] ?? headers.ToArray();
+        var headerNameArray = headerNames == null ? null : headerNames as string[] ?? headerNames.ToArray();
+        if (headerNameArray != null && headerNameArray.Length != headerArray.Length)
+            throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
         // Apply column projection
-        var columnMap = _options.Projection?.ComputeColumnMap(headerArray);
+        var columnMap = headerNameArray == null
+            ? _options.Projection?.ComputeColumnMap(headerArray)
+            : _options.Projection?.ComputeColumnMap(headerArray, headerNameArray);
         if (columnMap != null)
+        {
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
+            if (headerNameArray != null)
+                headerNameArray = MarkoutProjection.ProjectHeaders(headerNameArray, columnMap);
+        }
 
         // Materialize and project rows
         var rowList = rows as IList<string[]> ?? rows.ToList();
@@ -469,7 +488,10 @@ public class MarkoutWriter
         }
 
         EnsureBlankLineIfNeeded();
-        CreateTableWriter().WriteTable(headerArray, rowList);
+        if (headerNameArray != null)
+            CreateTableWriter().WriteTable(headerArray, headerNameArray, rowList);
+        else
+            CreateTableWriter().WriteTable(headerArray, rowList);
         _needsBlankLine = true;
         _hasContent = true;
         return true;
@@ -480,6 +502,16 @@ public class MarkoutWriter
     /// </summary>
     /// <returns><c>true</c> if the formatter supports tables or streaming tables; <c>false</c> otherwise.</returns>
     public bool WriteTableStart(params ReadOnlySpan<string> headers)
+        => WriteTableStartCore(headers, default);
+
+    /// <summary>
+    /// Starts a streaming table with display headers and stable header names.
+    /// </summary>
+    /// <returns><c>true</c> if the formatter supports tables or streaming tables; <c>false</c> otherwise.</returns>
+    public bool WriteTableStart(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
+        => WriteTableStartCore(headers, headerNames);
+
+    private bool WriteTableStartCore(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
         if (_inCode)
             throw new InvalidOperationException("Cannot start a table inside a code region.");
@@ -496,15 +528,38 @@ public class MarkoutWriter
 
         if (headers.Length == 0)
             throw new ArgumentException("At least one header is required.", nameof(headers));
+        if (headerNames.Length > 0 && headerNames.Length != headers.Length)
+            throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        _columnMap = _options.Projection?.ComputeColumnMap(headers);
+        _columnMap = headerNames.Length > 0
+            ? _options.Projection?.ComputeColumnMap(headers, headerNames)
+            : _options.Projection?.ComputeColumnMap(headers);
+        string[]? projectedHeaderNames = null;
+        if (headerNames.Length > 0)
+        {
+            projectedHeaderNames = headerNames.ToArray();
+            if (_columnMap != null)
+                projectedHeaderNames = MarkoutProjection.ProjectHeaders(projectedHeaderNames, _columnMap);
+        }
 
         EnsureBlankLineIfNeeded();
         _tableWriter = CreateTableWriter();
         if (_columnMap != null)
-            _tableWriter.WriteTableStart(MarkoutProjection.ProjectHeaders(headers, _columnMap));
+        {
+            var projectedHeaders = MarkoutProjection.ProjectHeaders(headers, _columnMap);
+            if (projectedHeaderNames != null)
+                _tableWriter.WriteTableStart(projectedHeaders, projectedHeaderNames);
+            else
+                _tableWriter.WriteTableStart(projectedHeaders);
+        }
+        else if (projectedHeaderNames != null)
+        {
+            _tableWriter.WriteTableStart(headers, projectedHeaderNames);
+        }
         else
+        {
             _tableWriter.WriteTableStart(headers);
+        }
         return true;
     }
 
@@ -954,7 +1009,7 @@ public class MarkoutWriter
             rows.Add([field.Key, field.Value]);
 
         EnsureBlankLineIfNeeded();
-        CreateTableWriter().WriteTable(headers, rows);
+        CreateTableWriter().WriteTable(headers, ["Field", "Value"], rows);
         _needsBlankLine = true;
         _hasContent = true;
         return true;

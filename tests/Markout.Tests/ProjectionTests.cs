@@ -74,7 +74,7 @@ public class ProjectionTests
     }
 
     [Fact]
-    public void IncludeColumns_UnmatchedColumnsIgnored()
+    public void IncludeColumns_MixedUnmatchedColumnsIgnored()
     {
         var options = new MarkoutWriterOptions
         {
@@ -91,6 +91,27 @@ public class ProjectionTests
         Assert.Contains("Name", output);
         Assert.Contains("Foo.dll", output);
         Assert.DoesNotContain("Version", output);
+    }
+
+    [Fact]
+    public void IncludeColumns_AllUnmatchedColumns_Throws()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection
+            {
+                IncludeColumns = ["NonExistent"]
+            }
+        };
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+        {
+            orch.WriteTableStart("Name", "Version");
+            orch.WriteTableRow("Foo.dll", "1.0.0");
+            orch.WriteTableEnd();
+        });
+        Assert.Contains("No columns matched projection: NonExistent", ex.Message);
     }
 
     // --- Column projection: ExcludeColumns ---
@@ -160,6 +181,51 @@ public class ProjectionTests
         Assert.DoesNotContain("TFM", output);
     }
 
+    [Fact]
+    public void IncludeColumns_MatchesStableHeaderNames()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection
+            {
+                IncludeColumns = ["ReturnType"]
+            }
+        };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Kind", "Return Type", "Detail"],
+            ["Kind", "ReturnType", "Detail"],
+            [["method", "void", "15"]]);
+
+        var output = sw.ToString();
+        Assert.Contains("Return Type", output);
+        Assert.Contains("void", output);
+        Assert.DoesNotContain("Kind", output);
+        Assert.DoesNotContain("Detail", output);
+    }
+
+    [Fact]
+    public void IncludeColumns_MatchesSnakeCaseStableHeaderNames()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Tsv,
+            Projection = new MarkoutProjection
+            {
+                IncludeColumns = ["return_type"]
+            }
+        };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Kind", "Return Type", "Detail"],
+            ["Kind", "ReturnType", "Detail"],
+            [["method", "void", "15"]]);
+
+        Assert.Equal("return_type\nvoid\n", sw.ToString().ReplaceLineEndings("\n"));
+    }
+
     // --- Column projection with MarkdownFormatter ---
 
     [Fact]
@@ -182,10 +248,10 @@ public class ProjectionTests
         Assert.DoesNotContain("Version", output);
     }
 
-    // --- Column projection with OneLineFormatter ---
+    // --- Column projection with TableFormatter ---
 
     [Fact]
-    public void IncludeColumns_WorksWithOneLineFormatter()
+    public void IncludeColumns_WorksWithTableFormatter()
     {
         var sw = new StringWriter();
         var options = new MarkoutWriterOptions
@@ -195,14 +261,14 @@ public class ProjectionTests
                 IncludeColumns = ["Name"]
             }
         };
-        var writer = MarkoutWriter.Create(sw, new OneLineFormatter(), options);
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
         writer.WriteTableStart("Name", "Version", "TFM");
         writer.WriteTableRow("Foo.dll", "1.0.0", "net8.0");
         writer.WriteTableEnd();
         var output = sw.ToString();
-        Assert.Contains("NAME", output);
+        Assert.Contains("Name", output);
         Assert.Contains("Foo.dll", output);
-        Assert.DoesNotContain("VERSION", output);
+        Assert.DoesNotContain("Version", output);
         Assert.DoesNotContain("TFM", output);
     }
 

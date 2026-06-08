@@ -82,7 +82,26 @@ public class GroupByWithIgnoreColumnWhen
         => rows?.Select(r => r.Pattern).Distinct().Count() <= 1;
 }
 
-// --- OneLineFormatter + IgnoreColumnWhen integration ---
+public class ReturnTypeRow
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutPropertyName("Return Type")]
+    public string ReturnType { get; set; } = "";
+}
+
+[MarkoutSerializable(AutoFields = false)]
+public class DisplayNameIgnoreColumnWhen
+{
+    [MarkoutSection(Name = "Methods")]
+    [MarkoutIgnoreColumnWhen(nameof(ReturnTypeIsUniform), "Return Type")]
+    public List<ReturnTypeRow>? Methods { get; set; }
+
+    public static bool ReturnTypeIsUniform(List<ReturnTypeRow>? rows)
+        => rows?.Select(r => r.ReturnType).Distinct().Count() <= 1;
+}
+
+// --- TableFormatter + IgnoreColumnWhen integration ---
 
 [MarkoutSerializable(TitleProperty = nameof(Title))]
 public class OneLineIgnoreColumnWhen
@@ -104,6 +123,8 @@ public class OneLineIgnoreColumnWhen
 [MarkoutContext(typeof(MixedIgnore))]
 [MarkoutContext(typeof(GroupByWithIgnoreColumnWhen))]
 [MarkoutContext(typeof(GroupedFindRow))]
+[MarkoutContext(typeof(DisplayNameIgnoreColumnWhen))]
+[MarkoutContext(typeof(ReturnTypeRow))]
 [MarkoutContext(typeof(OneLineIgnoreColumnWhen))]
 public partial class IgnoreColumnWhenTestContext : MarkoutSerializerContext
 {
@@ -343,10 +364,30 @@ public class IgnoreColumnWhenTests
         Assert.Contains("Bar", mdf);
     }
 
-    // --- OneLineFormatter + IgnoreColumnWhen + IgnoreFields integration ---
+    [Fact]
+    public void DisplayNameIgnoreColumnWhen_WithSpaces_GeneratesValidCodeAndHidesColumn()
+    {
+        var view = new DisplayNameIgnoreColumnWhen
+        {
+            Methods =
+            [
+                new() { Name = "A", ReturnType = "void" },
+                new() { Name = "B", ReturnType = "void" }
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(view, IgnoreColumnWhenTestContext.Default);
+
+        Assert.Contains("| Name |", mdf);
+        Assert.DoesNotContain("Return Type", mdf);
+        Assert.Contains("| A |", mdf);
+        Assert.Contains("| B |", mdf);
+    }
+
+    // --- TableFormatter + IgnoreColumnWhen + IgnoreFields integration ---
 
     [Fact]
-    public void OneLineFormatter_WithIgnoreColumnWhen_HidesUniformColumn()
+    public void TableFormatter_WithIgnoreColumnWhen_HidesUniformColumn()
     {
         var view = new OneLineIgnoreColumnWhen
         {
@@ -360,10 +401,10 @@ public class IgnoreColumnWhenTests
         };
 
         var sw = new StringWriter();
-        MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
+        MarkoutSerializer.Serialize(view, sw, new TableFormatter(), IgnoreColumnWhenTestContext.Default);
         var output = sw.ToString();
 
-        // OneLineFormatter renders table rows as pipe-separated lines
+        // TableFormatter renders table rows as pipe-separated lines
         Assert.Contains("Class", output);
         Assert.Contains("Struct", output);
         // Pattern is uniform → hidden
@@ -371,7 +412,7 @@ public class IgnoreColumnWhenTests
     }
 
     [Fact]
-    public void OneLineFormatter_WithIgnoreColumnWhen_ShowsNonUniformColumn()
+    public void TableFormatter_WithIgnoreColumnWhen_ShowsNonUniformColumn()
     {
         var view = new OneLineIgnoreColumnWhen
         {
@@ -385,7 +426,7 @@ public class IgnoreColumnWhenTests
         };
 
         var sw = new StringWriter();
-        MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
+        MarkoutSerializer.Serialize(view, sw, new TableFormatter(), IgnoreColumnWhenTestContext.Default);
         var output = sw.ToString();
 
         // Pattern is NOT uniform → shown
@@ -394,7 +435,7 @@ public class IgnoreColumnWhenTests
     }
 
     [Fact]
-    public void OneLineFormatter_WithIgnoreFields_NoFieldWarning()
+    public void TableFormatter_WithIgnoreFields_NoFieldWarning()
     {
         var errWriter = new StringWriter();
         var origErr = Console.Error;
@@ -412,9 +453,9 @@ public class IgnoreColumnWhenTests
             };
 
             var sw = new StringWriter();
-            MarkoutSerializer.Serialize(view, sw, new OneLineFormatter(), IgnoreColumnWhenTestContext.Default);
+            MarkoutSerializer.Serialize(view, sw, new TableFormatter(), IgnoreColumnWhenTestContext.Default);
 
-            // No warnings - OneLineFormatter supports Fields
+            // No warnings - TableFormatter supports Fields
             Assert.Equal("", errWriter.ToString());
             Assert.Contains("Class", sw.ToString());
         }

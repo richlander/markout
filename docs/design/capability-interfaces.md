@@ -71,7 +71,7 @@ No inheritance relationship between them.
 | Formatter | Interfaces | Notes |
 |-----------|-----------|-------|
 | MarkdownFormatter | All 7 | Full capability. Pipe tables, fences, bold fields. |
-| OneLineFormatter | ITableFormatter, IFieldFormatter, IListFormatter | Space-padded columns, uppercase headers. Field buffering is orchestration concern. |
+| TableFormatter | ITableFormatter, IFieldFormatter, IListFormatter | Pretty tables or normalized TSV via `TableMode`. Field adaptation is orchestration concern. |
 | UnicodeFormatter | (later) | Box-drawing, bar charts. Can adopt interfaces incrementally. |
 | DiagramFormatter | (later) | Trees and metrics only. |
 
@@ -111,7 +111,7 @@ public interface IDocumentFormatter :
     IListFormatter, ICodeBlockFormatter, IBlockFormatter { }
 
 // MarkdownFormatter implements IDocumentFormatter + IMetricsFormatter
-// OneLineFormatter implements ITableFormatter + IFieldFormatter + IListFormatter
+// TableFormatter implements ITableFormatter + IFieldFormatter + IListFormatter
 ```
 
 Aggregates don't add methods — they're purely for convenience and constraint
@@ -289,7 +289,7 @@ string md = orch.ToString();
 var formatter = format switch
 {
     OutputFormat.Markdown => new MarkdownFormatter(),
-    OutputFormat.OneLine => new OneLineFormatter(),
+    OutputFormat.Table => new TableFormatter(),
     _ => new MarkdownFormatter()
 };
 var orch = new MarkoutOrchestrator(output, formatter, options);
@@ -300,7 +300,7 @@ context.Serialize(value, orch);
 
 ### Phase 1 (done)
 
-Capability interfaces extracted. MarkdownFormatter and OneLineFormatter implement
+Capability interfaces extracted. MarkdownFormatter and TableFormatter implement
 them as explicit interface impls. Base class dispatches via `this is IXxx`.
 All tests pass.
 
@@ -308,7 +308,7 @@ All tests pass.
 
 - `MarkoutOrchestrator<TFormatter>` introduced as standalone generic class
 - `IMarkoutFormatter` marker interface added
-- MarkdownFormatter and OneLineFormatter implement `IMarkoutFormatter`
+- MarkdownFormatter and TableFormatter implement `IMarkoutFormatter`
 - Write methods return `bool` (true = rendered/filtered, false = unsupported)
 - No stderr warnings — unsupported is a return value
 - Static factory `MarkoutOrchestrator.Create()` for type inference
@@ -326,7 +326,7 @@ All tests pass.
 
 ### Phase 4a (done)
 
-- Rename MarkdownWriter → MarkdownFormatter, OneLineWriter → OneLineFormatter
+- Rename MarkdownWriter → MarkdownFormatter
 - Updated all references in both markout and dotnet-inspect repos
 
 ### Phase 4b (done)
@@ -335,7 +335,7 @@ All tests pass.
 - Source generator emits orchestrator API
 - AnsiFormatter + SpectreFormatter implement IMarkoutFormatter (pure ANSI to TextWriter)
 - MarkoutSerializerContext gains IMarkoutFormatter + TextWriter overloads
-- OneLineFormatter parameterless constructor for orchestrator model
+- TableFormatter parameterless constructor for orchestrator model
 
 ### Phase 4c (later)
 

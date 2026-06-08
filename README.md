@@ -2,7 +2,7 @@
 
 **Markup adds instructions to content. Markout removes structure from data.**
 
-Markout is a source-generated .NET serializer that projects objects into structured, human-readable documents. You annotate your models with attributes that describe data relationships — identity, enumeration, tabulation, measurement, hierarchy — and the source generator emits code that writes through an abstract renderer. The same object graph produces Markdown tables, ANSI terminal output with colored bars, plain text with aligned columns, or one-line summaries, without the developer making visual decisions.
+Markout is a source-generated .NET serializer that projects objects into structured, human-readable documents. You annotate your models with attributes that describe data relationships — identity, enumeration, tabulation, measurement, hierarchy — and the source generator emits code that writes through an abstract renderer. The same object graph produces Markdown tables, ANSI terminal output with colored bars, plain text with aligned columns, pretty tables, or TSV rows, without the developer making visual decisions.
 
 ## Quick Start
 
@@ -197,7 +197,8 @@ Run it:
 ```bash
 dotnet run samples/GitHubRepo/GitHubRepo.cs                                     # ANSI terminal (default)
 dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format markdown # Markdown
-dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format oneline  # Compact table
+dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format table    # Compact table
+dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format tsv      # Stable TSV rows
 ```
 
 **Markdown output** for `dotnet/runtime`:
@@ -241,7 +242,7 @@ dotnet run samples/GitHubRepo/GitHubRepo.cs -- dotnet/runtime --format oneline  
 | v10.0.3 | .NET 10.0.3 | 2026-02-10 |
 ```
 
-**One-line output** — same model, `--oneline` flag:
+**Table output** — same model, `--format table`:
 
 ```text
 FIELD        VALUE
@@ -299,7 +300,7 @@ Markout ships five formatters. The serializer writes through `MarkoutWriter` (th
 | **MarkdownFormatter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
 | **PlainTextFormatter** | Plain text without markup | Minimal output, no syntax characters |
 | **UnicodeFormatter** | Box-drawing characters | Rich tables with borders, no color |
-| **OneLineFormatter** | Tables only, no headings | Compact summaries, grep-friendly output |
+| **TableFormatter** | Tables, lists, fields | Compact summaries, pretty tables, TSV rows |
 | **DiagramFormatter** | Trees and structural diagrams | Dependency graphs, file trees |
 
 Optional packages:
@@ -310,6 +311,12 @@ Optional packages:
 | **Markout.Ansi.Spectre** | `SpectreFormatter` | Rich terminal UI via Spectre.Console |
 
 Formatters declare which shapes they support by implementing capability interfaces (`ITableFormatter`, `IFieldFormatter`, `ITreeFormatter`, etc.). Unsupported shapes are silently skipped — the data is never lost, only the visual sophistication changes.
+
+### Format promises
+
+- Markdown table cell values normalize pipe characters to `&#124;`; they do not emit escaped pipes (`\|`).
+- `TableFormatter` with `MarkoutTableMode.Tsv` uses stable snake_case headers by default and never emits embedded tabs or newlines in table cells.
+- `TableFormatter` with `MarkoutTableMode.Pretty` renders the same projection as TSV, with each column starting at a uniform position across rows.
 
 ## Templates
 
@@ -431,7 +438,7 @@ The package includes the source generator — no additional packages needed.
 
 - **[HelloMarkout](samples/HelloMarkout)** — Simplest possible example: a class, a context, one line of serialization
 - **[RecordDemo](samples/RecordDemo)** — Records as data models
-- **[GitHubRepo](samples/GitHubRepo)** — GitHub API → fields, breakdowns, metrics, and tables with Spectre/Markdown/OneLineFormatter output
+- **[GitHubRepo](samples/GitHubRepo)** — GitHub API → fields, breakdowns, metrics, and tables with Spectre, Markdown, table, and TSV output
 - **[GitHubActivity](samples/GitHubActivity)** — User profile and recent events from the GitHub API
 - **[CanadianContent](samples/CanadianContent)** — Canadian actors and shows with tables, trees, metrics, and multiple renderers
 - **[LatestCves](samples/LatestCves)** — .NET security advisories with trees and severity breakdowns

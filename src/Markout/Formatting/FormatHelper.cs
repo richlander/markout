@@ -14,19 +14,96 @@ public static class FormatHelper
     }
 
     /// <summary>
-    /// Escapes pipe characters and newlines in a table cell value.
+    /// Escapes Markdown table cell characters and newlines in a table cell value.
     /// </summary>
     public static string EscapeTableCell(string value)
     {
         if (value.Contains('|') || value.Contains('\n') || value.Contains('\r'))
         {
             return value
-                .Replace("|", "\\|")
+                .Replace("|", "&#124;")
                 .Replace("\r\n", " ")
                 .Replace("\n", " ")
                 .Replace("\r", " ");
         }
         return value;
+    }
+
+    /// <summary>
+    /// Normalizes a table cell for line-oriented tabular output.
+    /// </summary>
+    public static string NormalizeTableCell(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return "";
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (NeedsTableCellReplacement(value[i]))
+                return NormalizeTableCellSlow(value);
+        }
+
+        return value;
+    }
+
+    /// <summary>
+    /// Converts a Pascal/camel/display name to snake_case.
+    /// </summary>
+    public static string ToSnakeCase(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "";
+
+        var sb = new System.Text.StringBuilder(name.Length + 4);
+        var lastWasSeparator = true;
+
+        for (var i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+            if (!char.IsLetterOrDigit(c))
+            {
+                AppendSeparator(sb, ref lastWasSeparator);
+                continue;
+            }
+
+            if (char.IsUpper(c))
+            {
+                var previousIsLowerOrDigit = i > 0 && (char.IsLower(name[i - 1]) || char.IsDigit(name[i - 1]));
+                var nextIsLower = i + 1 < name.Length && char.IsLower(name[i + 1]);
+                if (sb.Length > 0 && !lastWasSeparator && (previousIsLowerOrDigit || nextIsLower))
+                    AppendSeparator(sb, ref lastWasSeparator);
+            }
+
+            sb.Append(char.ToLowerInvariant(c));
+            lastWasSeparator = false;
+        }
+
+        if (sb.Length > 0 && sb[^1] == '_')
+            sb.Length--;
+        return sb.ToString();
+    }
+
+    private static string NormalizeTableCellSlow(string value)
+    {
+        var chars = value.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            if (NeedsTableCellReplacement(chars[i]))
+                chars[i] = ' ';
+        }
+        return new string(chars);
+    }
+
+    private static bool NeedsTableCellReplacement(char c) =>
+        c is '\t' or '\r' or '\n' or '\u0085' or '\u2028' or '\u2029';
+
+    private static void AppendSeparator(System.Text.StringBuilder sb, ref bool lastWasSeparator)
+    {
+        if (!lastWasSeparator && sb.Length > 0)
+        {
+            sb.Append('_');
+            lastWasSeparator = true;
+        }
     }
 
     /// <summary>

@@ -2,6 +2,8 @@ using MarkdownTable.Formatting;
 
 namespace Markout.Templates.Tests;
 
+using MarkdownTableFormatter = MarkdownTable.Formatting.TableFormatter;
+
 public class TableFormatterTests
 {
     [Fact]
@@ -14,7 +16,7 @@ public class TableFormatterTests
             new[] { "Beta", "2" },
         };
 
-        var result = TableFormatter.Format(headers, rows);
+        var result = MarkdownTableFormatter.Format(headers, rows);
 
         Assert.Contains("| Name", result);
         Assert.Contains("| Alpha", result);
@@ -31,7 +33,7 @@ public class TableFormatterTests
             new[] { "longer value", "c" },
         };
 
-        var result = TableFormatter.Format(headers, rows);
+        var result = MarkdownTableFormatter.Format(headers, rows);
 
         // Header should be padded to at least its own length
         Assert.Contains("Much Longer Header", result);
@@ -43,7 +45,7 @@ public class TableFormatterTests
     [Fact]
     public void Format_EmptyHeaders_ReturnsEmpty()
     {
-        var result = TableFormatter.Format(Array.Empty<string>(), new List<string[]>());
+        var result = MarkdownTableFormatter.Format(Array.Empty<string>(), new List<string[]>());
         Assert.Equal(string.Empty, result);
     }
 
@@ -57,7 +59,7 @@ public class TableFormatterTests
             | Beta | 2 |
             """;
 
-        var result = TableFormatter.Reformat(input);
+        var result = MarkdownTableFormatter.Reformat(input);
 
         Assert.Contains("Alpha", result);
         Assert.Contains("Beta", result);
@@ -67,7 +69,7 @@ public class TableFormatterTests
     public void Reformat_NotATable_ReturnsOriginal()
     {
         var input = "This is just text.";
-        var result = TableFormatter.Reformat(input);
+        var result = MarkdownTableFormatter.Reformat(input);
         Assert.Equal(input, result);
     }
 
@@ -83,7 +85,7 @@ public class TableFormatterTests
         };
 
         var options = new TableFormatterOptions { AutoTune = true };
-        var result = TableFormatter.Format(headers, rows, options);
+        var result = MarkdownTableFormatter.Format(headers, rows, options);
 
         Assert.Contains("CVE-2026-1234", result);
         Assert.Contains("Microsoft.Data.SqlClient", result);
@@ -100,7 +102,7 @@ public class TableFormatterTests
             new[] { "Reasonable", "This is a very long description that far exceeds the typical column width and should be handled as an outlier by the statistical algorithm" },
         };
 
-        var result = TableFormatter.Format(headers, rows);
+        var result = MarkdownTableFormatter.Format(headers, rows);
 
         // Should produce valid output without crashing
         Assert.Contains("Short", result);
