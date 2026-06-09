@@ -189,7 +189,7 @@ public class MarkoutWriterOptions
 
     /// <summary>
     /// Header naming style for table formatters. Auto uses stable names for TSV
-    /// and display labels for pretty tables.
+    /// and JSONL, and display labels for pretty tables.
     /// </summary>
     public MarkoutTableHeaderStyle TableHeaderStyle
     {

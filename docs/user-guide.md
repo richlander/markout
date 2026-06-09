@@ -16,7 +16,7 @@ Markout is a source-generated .NET library that serializes objects to clean, rea
 - [Links](#links)
 - [Custom Value Formatters](#custom-value-formatters)
 - [Writer Options](#writer-options)
-- [Table and TSV Output](#table-and-tsv-output)
+- [Table, TSV, and JSONL Output](#table-tsv-and-jsonl-output)
 - [Low-Level Writer API](#low-level-writer-api)
 - [Attribute Reference](#attribute-reference)
 
@@ -867,12 +867,13 @@ var context = new SampleContext(new MarkoutWriterOptions
 string markdown = MarkoutSerializer.Serialize(product, context);
 ```
 
-## Table and TSV Output
+## Table, TSV, and JSONL Output
 
-`TableFormatter` renders the same table projection in two compact forms:
+`TableFormatter` renders the same table projection in compact, line-oriented forms:
 
 - `MarkoutTableMode.Pretty` (default) uses display labels and aligns columns with spaces.
 - `MarkoutTableMode.Tsv` emits normalized tab-separated rows with stable snake_case headers derived from source property names.
+- `MarkoutTableMode.Jsonl` emits one JSON object per table row with stable snake_case property names derived from source property names.
 
 ```csharp
 // Pretty compact table
@@ -881,9 +882,13 @@ MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), context);
 // TSV with stable headers
 var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv };
 MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), context, options);
+
+// JSONL with stable property names
+var jsonlOptions = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), context, jsonlOptions);
 ```
 
-Header style is configurable. `Auto` uses display names for pretty tables and stable names for TSV.
+Header style is configurable. `Auto` uses display names for pretty tables and stable names for TSV and JSONL.
 
 ```csharp
 var options = new MarkoutWriterOptions

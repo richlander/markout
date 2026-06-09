@@ -1,5 +1,6 @@
 using Markout;
 using Markout.Formatting;
+using System.Text.Json;
 
 namespace Markout.Tests;
 
@@ -78,6 +79,83 @@ public class TableFormatterTests
         Assert.Equal(
             "Return Type\tSim\nstring\t0.50\n",
             sw.ToString().ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void TableFormatter_JsonlMode_UsesStableHeadersByDefault()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Return Type", "Sim"],
+            ["ReturnType", "Similarity"],
+            [["string", "0.50"]]);
+
+        Assert.Equal(
+            "{\"return_type\":\"string\",\"similarity\":\"0.50\"}\n",
+            sw.ToString().ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void TableFormatter_JsonlMode_CanUseDisplayHeaders()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            TableHeaderStyle = MarkoutTableHeaderStyle.DisplayName
+        };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Return Type", "Sim"],
+            ["ReturnType", "Similarity"],
+            [["string", "0.50"]]);
+
+        using var document = JsonDocument.Parse(sw.ToString());
+        var root = document.RootElement;
+        Assert.Equal("string", root.GetProperty("Return Type").GetString());
+        Assert.Equal("0.50", root.GetProperty("Sim").GetString());
+    }
+
+    [Fact]
+    public void TableFormatter_JsonlMode_EscapesJsonSyntaxAndPreservesCellText()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Name", "Notes"],
+            [["Alice \"A.\"", "line 1\nline 2\tTabbed"]]);
+
+        var output = sw.ToString().ReplaceLineEndings("\n");
+        Assert.Single(output.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        Assert.Contains("\\n", output);
+        Assert.Contains("\\t", output);
+
+        using var document = JsonDocument.Parse(output);
+        var root = document.RootElement;
+        Assert.Equal("Alice \"A.\"", root.GetProperty("name").GetString());
+        Assert.Equal("line 1\nline 2\tTabbed", root.GetProperty("notes").GetString());
+    }
+
+    [Fact]
+    public void TableFormatter_JsonlMode_DoesNotEmitTruncationFooter()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            MaxItems = 1
+        };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Name"],
+            [["Alice"], ["Bob"], ["Carol"]]);
+
+        var output = sw.ToString().ReplaceLineEndings("\n");
+        Assert.Equal("{\"name\":\"Alice\"}\n", output);
+        Assert.DoesNotContain("more", output);
     }
 
     [Fact]

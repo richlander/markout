@@ -13,5 +13,10 @@ public enum MarkoutTableMode
     /// <summary>
     /// Render normalized tab-separated values.
     /// </summary>
-    Tsv
+    Tsv,
+
+    /// <summary>
+    /// Render JSON Lines with one object per table row.
+    /// </summary>
+    Jsonl
 }
