@@ -98,7 +98,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             foreach (var value in row)
             {
                 w.Write(' ');
-                w.Write(FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(value)));
+                w.Write(FormatHelper.RenderInlineMarkdownTableCell(value));
                 w.Write(" |");
             }
             w.WriteLine();
@@ -127,7 +127,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             {
                 for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
                 {
-                    var escaped = FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(row[i]));
+                    var escaped = FormatHelper.RenderInlineMarkdownTableCell(row[i]);
                     widths[i] = Math.Max(widths[i], escaped.Length);
                 }
             }
@@ -173,7 +173,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             for (int i = 0; i < headers.Length; i++)
             {
                 w.Write(' ');
-                var value = i < row.Length ? FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(row[i])) : "";
+                var value = i < row.Length ? FormatHelper.RenderInlineMarkdownTableCell(row[i]) : "";
 
                 int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
                 int space = defaultEnd[i] - rowStart - CellPadding;
@@ -231,7 +231,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             var rowEnd = new int[colCount];
             for (int i = 0; i < colCount; i++)
             {
-                var value = i < row.Length ? FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(row[i])) : "";
+                var value = i < row.Length ? FormatHelper.RenderInlineMarkdownTableCell(row[i]) : "";
                 int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
                 int space = defaultEnd[i] - rowStart - CellPadding;
                 int padWidth = Math.Max(value.Length, space);
@@ -351,7 +351,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             for (int i = 0; i < _streamingWidths.Length; i++)
             {
                 w.Write(' ');
-                var value = i < values.Length ? FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(values[i])) : "";
+                var value = i < values.Length ? FormatHelper.RenderInlineMarkdownTableCell(values[i]) : "";
 
                 int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
                 int space = _streamingDefaultEnd![i] - rowStart - CellPadding;
@@ -368,7 +368,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             foreach (var value in values)
             {
                 w.Write(' ');
-                w.Write(FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(value)));
+                w.Write(FormatHelper.RenderInlineMarkdownTableCell(value));
                 w.Write(" |");
             }
         }

@@ -68,6 +68,33 @@ public class FormatHelperTests
         Assert.Equal("left&#124;right", FormatHelper.EscapeTableCell("left|right"));
     }
 
+    [Fact]
+    public void RenderInlineMarkdownTableCell_EscapesPipeInsideCodeSpanAsBackslash()
+    {
+        // &#124; renders literally inside a code span; \| is unescaped by GFM table parsing.
+        Assert.Equal("`operator \\|`", FormatHelper.RenderInlineMarkdownTableCell("<code>operator |</code>"));
+    }
+
+    [Fact]
+    public void RenderInlineMarkdownTableCell_KeepsEntityForPipeOutsideCodeSpan()
+    {
+        Assert.Equal("left&#124;right", FormatHelper.RenderInlineMarkdownTableCell("left|right"));
+    }
+
+    [Fact]
+    public void RenderInlineMarkdownTableCell_HandlesPipeInsideAndOutsideCodeSpan()
+    {
+        Assert.Equal(
+            "a&#124;b `c \\| d`",
+            FormatHelper.RenderInlineMarkdownTableCell("a|b <code>c | d</code>"));
+    }
+
+    [Fact]
+    public void RenderInlineMarkdownTableCell_PlainTextUnchanged()
+    {
+        Assert.Equal("System.Boolean", FormatHelper.RenderInlineMarkdownTableCell("System.Boolean"));
+    }
+
     [Theory]
     [InlineData("ReturnType", "return_type")]
     [InlineData("Return Type", "return_type")]
