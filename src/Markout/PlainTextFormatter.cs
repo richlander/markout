@@ -48,7 +48,7 @@ public class PlainTextFormatter : IMarkoutFormatter,
         {
             w.Write(fields[i].Key.PadRight(maxKeyWidth));
             w.Write("  ");
-            w.WriteLine(fields[i].Value);
+            w.WriteLine(FormatHelper.RenderInlinePlainText(fields[i].Value));
         }
     }
 
@@ -62,7 +62,7 @@ public class PlainTextFormatter : IMarkoutFormatter,
         foreach (var row in rows)
         {
             for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
-                widths[i] = Math.Max(widths[i], row[i].Length);
+                widths[i] = Math.Max(widths[i], FormatHelper.RenderInlinePlainText(row[i]).Length);
         }
 
         // Header
@@ -91,9 +91,9 @@ public class PlainTextFormatter : IMarkoutFormatter,
             for (int i = 0; i < row.Length; i++)
             {
                 if (i < row.Length - 1)
-                    w.Write(row[i].PadRight(widths[i] + ColumnGap));
+                    w.Write(FormatHelper.RenderInlinePlainText(row[i]).PadRight(widths[i] + ColumnGap));
                 else
-                    w.Write(row[i]);
+                    w.Write(FormatHelper.RenderInlinePlainText(row[i]));
             }
             w.WriteLine();
         }
@@ -118,7 +118,7 @@ public class PlainTextFormatter : IMarkoutFormatter,
 
     void IBlockFormatter.FormatParagraph(TextWriter w, string text)
     {
-        w.WriteLine(text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
     void IBlockFormatter.FormatCallout(TextWriter w, CalloutSeverity severity, string message)
@@ -135,12 +135,12 @@ public class PlainTextFormatter : IMarkoutFormatter,
 
         w.Write(label);
         w.Write(": ");
-        w.WriteLine(message);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(message));
     }
 
     void IBlockFormatter.FormatQuotation(TextWriter w, string text)
     {
-        w.WriteLine(text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
     void IBlockFormatter.FormatRule(TextWriter w)
@@ -152,12 +152,12 @@ public class PlainTextFormatter : IMarkoutFormatter,
     {
         w.Write(item.Term);
         w.Write(": ");
-        w.WriteLine(item.Text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(item.Text));
 
         if (item.Detail != null)
         {
             w.Write("  ");
-            w.WriteLine(item.Detail);
+            w.WriteLine(FormatHelper.RenderInlinePlainText(item.Detail));
         }
     }
 
@@ -165,7 +165,7 @@ public class PlainTextFormatter : IMarkoutFormatter,
 
     void IListFormatter.FormatListItem(TextWriter w, string text)
     {
-        w.WriteLine(text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
     void IListFormatter.FormatArray(TextWriter w, string key, ReadOnlySpan<string> items, bool bold)
@@ -173,7 +173,7 @@ public class PlainTextFormatter : IMarkoutFormatter,
         w.Write(key);
         w.WriteLine(":");
         foreach (var item in items)
-            w.WriteLine(item);
+            w.WriteLine(FormatHelper.RenderInlinePlainText(item));
     }
 
     // ── ITreeFormatter ──
@@ -199,7 +199,7 @@ public class PlainTextFormatter : IMarkoutFormatter,
             w.Write(node.Badge);
             w.Write(' ');
         }
-        w.WriteLine(node.Text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(node.Text));
 
         if (node.Children is { Count: > 0 })
         {

@@ -77,4 +77,36 @@ public class FormatHelperTests
     {
         Assert.Equal(expected, FormatHelper.ToSnakeCase(value));
     }
+
+    [Fact]
+    public void RenderInlineMarkdown_RendersCodeTagsAsMarkdownCodeSpans()
+    {
+        Assert.Equal(
+            "Use `List<T>` here",
+            FormatHelper.RenderInlineMarkdown("Use <code>List&lt;T&gt;</code> here"));
+    }
+
+    [Fact]
+    public void RenderInlineMarkdown_UsesLongerFenceWhenCodeContainsBackticks()
+    {
+        Assert.Equal(
+            "Use `` `literal` `` here",
+            FormatHelper.RenderInlineMarkdown("Use <code>`literal`</code> here"));
+    }
+
+    [Fact]
+    public void RenderInlinePlainText_StripsCodeTagsAndDecodesXmlText()
+    {
+        Assert.Equal(
+            "Use List<T> & Span<T> here",
+            FormatHelper.RenderInlinePlainText("Use <code>List&lt;T&gt; &amp; Span&lt;T&gt;</code> here"));
+    }
+
+    [Fact]
+    public void RenderInlinePlainText_LeavesUnmatchedCodeTagsUnchanged()
+    {
+        Assert.Equal(
+            "Use <code>List&lt;T&gt; here",
+            FormatHelper.RenderInlinePlainText("Use <code>List&lt;T&gt; here"));
+    }
 }

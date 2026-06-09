@@ -77,7 +77,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
         for (int i = 0; i < fields.Length; i++)
         {
             ((IFieldFormatter)this).FormatFieldName(w, fields[i].Key, bold);
-            w.WriteLine(fields[i].Value);
+            w.WriteLine(FormatHelper.RenderInlinePlainText(fields[i].Value));
         }
     }
 
@@ -89,7 +89,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
         foreach (var row in rows)
         {
             for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
-                widths[i] = Math.Max(widths[i], row[i].Length);
+                widths[i] = Math.Max(widths[i], FormatHelper.RenderInlinePlainText(row[i]).Length);
         }
 
         // Headers (uppercase)
@@ -119,9 +119,9 @@ public class UnicodeFormatter : IMarkoutFormatter,
             for (int i = 0; i < row.Length; i++)
             {
                 if (i < row.Length - 1)
-                    w.Write(row[i].PadRight(widths[i] + ColumnGap));
+                    w.Write(FormatHelper.RenderInlinePlainText(row[i]).PadRight(widths[i] + ColumnGap));
                 else
-                    w.Write(row[i]);
+                    w.Write(FormatHelper.RenderInlinePlainText(row[i]));
             }
             w.WriteLine();
         }
@@ -138,7 +138,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
     void IListFormatter.FormatListItem(TextWriter w, string text)
     {
         w.Write("• ");
-        w.WriteLine(text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
     void IListFormatter.FormatArray(TextWriter w, string key, ReadOnlySpan<string> items, bool bold)
@@ -148,7 +148,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
         foreach (var item in items)
         {
             w.Write("  • ");
-            w.WriteLine(item);
+            w.WriteLine(FormatHelper.RenderInlinePlainText(item));
         }
     }
 
@@ -174,12 +174,12 @@ public class UnicodeFormatter : IMarkoutFormatter,
             _ => "• "
         };
         w.Write(prefix);
-        w.WriteLine(message);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(message));
     }
 
     void IBlockFormatter.FormatParagraph(TextWriter w, string text)
     {
-        w.WriteLine(text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
     void IBlockFormatter.FormatQuotation(TextWriter w, string text)
@@ -193,7 +193,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
                 w.WriteLine();
                 w.Write("│ ");
             }
-            w.Write(lines[i].TrimEnd('\r'));
+            w.Write(FormatHelper.RenderInlinePlainText(lines[i].TrimEnd('\r')));
         }
         w.WriteLine();
     }
@@ -211,7 +211,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
         if (!string.IsNullOrEmpty(item.Text))
         {
             w.Write(" — ");
-            w.Write(item.Text);
+            w.Write(FormatHelper.RenderInlinePlainText(item.Text));
         }
         w.WriteLine();
     }
@@ -225,7 +225,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
     void ITreeFormatter.FormatTreeNode(TextWriter w, string text, string prefix)
     {
         w.Write(prefix);
-        w.WriteLine(text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
     private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
@@ -237,7 +237,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
             w.Write(node.Badge);
             w.Write(' ');
         }
-        w.WriteLine(node.Text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(node.Text));
 
         if (node.Children is { Count: > 0 })
         {

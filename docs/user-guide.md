@@ -890,6 +890,14 @@ MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), context, 
 
 Header style is configurable. `Auto` uses display names for pretty tables and stable names for TSV and JSONL.
 
+Semantic inline tags let producers describe presentation without hard-coding Markdown. Use `<code>...</code>` in string values when the content is code-like or literal. Markdown renders it as a code span, while pretty table, TSV, and JSONL output emit the decoded text without tags or backticks.
+
+```csharp
+writer.WriteTable(
+    ["Select", "Signature"],
+    [["<code>Serialize:1</code>", "<code>string Serialize&lt;T&gt;(T value)</code>"]]);
+```
+
 ```csharp
 var options = new MarkoutWriterOptions
 {

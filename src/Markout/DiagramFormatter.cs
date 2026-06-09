@@ -13,11 +13,11 @@ public class DiagramFormatter : IMarkoutFormatter,
 
     void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
     {
-        w.Write(text);
+        w.Write(FormatHelper.RenderInlinePlainText(text));
         if (!string.IsNullOrEmpty(context))
         {
             w.Write(" (");
-            w.Write(context);
+            w.Write(FormatHelper.RenderInlinePlainText(context));
             w.Write(')');
         }
     }
@@ -33,7 +33,7 @@ public class DiagramFormatter : IMarkoutFormatter,
     void ITreeFormatter.FormatTreeNode(TextWriter w, string text, string prefix)
     {
         w.Write(prefix);
-        w.WriteLine(text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
     private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
@@ -45,7 +45,7 @@ public class DiagramFormatter : IMarkoutFormatter,
             w.Write(node.Badge);
             w.Write(' ');
         }
-        w.WriteLine(node.Text);
+        w.WriteLine(FormatHelper.RenderInlinePlainText(node.Text));
 
         if (node.Children is { Count: > 0 })
         {
