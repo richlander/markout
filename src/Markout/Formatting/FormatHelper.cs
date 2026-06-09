@@ -18,6 +18,16 @@ public static class FormatHelper
         => RenderInline(value, codeFormatter: FormatMarkdownCodeSpan);
 
     /// <summary>
+    /// Renders semantic inline tags for a Markdown table cell, escaping cell-breaking characters in
+    /// one code-span-aware pass. Pipes in ordinary text become <c>&amp;#124;</c>, but pipes inside a
+    /// rendered code span are escaped as <c>\|</c>: GFM unescapes <c>\|</c> while splitting table
+    /// rows, before code-span parsing, whereas <c>&amp;#124;</c> would render literally inside a code
+    /// span.
+    /// </summary>
+    public static string RenderInlineMarkdownTableCell(string? value)
+        => RenderInline(value, codeFormatter: FormatMarkdownCodeSpanForTableCell, textFormatter: EscapeTableCell);
+
+    /// <summary>
     /// Renders semantic inline tags as plain text for non-Markdown output.
     /// </summary>
     public static string RenderInlinePlainText(string? value)
@@ -162,14 +172,15 @@ public static class FormatHelper
         return clean.Length <= maxLength ? clean : clean[..(maxLength - 3)] + "...";
     }
 
-    private static string RenderInline(string? value, Func<string, string> codeFormatter)
+    private static string RenderInline(
+        string? value, Func<string, string> codeFormatter, Func<string, string>? textFormatter = null)
     {
         if (string.IsNullOrEmpty(value))
             return "";
 
         var start = IndexOfCodeStart(value, 0);
         if (start < 0)
-            return value;
+            return textFormatter is null ? value : textFormatter(value);
 
         var sb = new System.Text.StringBuilder(value.Length);
         var cursor = 0;
@@ -180,7 +191,7 @@ public static class FormatHelper
             if (end < 0)
                 break;
 
-            sb.Append(value, cursor, start - cursor);
+            AppendText(sb, value, cursor, start - cursor, textFormatter);
             var encoded = value.Substring(contentStart, end - contentStart);
             sb.Append(codeFormatter(DecodeXmlText(encoded)));
 
@@ -189,10 +200,19 @@ public static class FormatHelper
         }
 
         if (cursor == 0)
-            return value;
+            return textFormatter is null ? value : textFormatter(value);
 
-        sb.Append(value, cursor, value.Length - cursor);
+        AppendText(sb, value, cursor, value.Length - cursor, textFormatter);
         return sb.ToString();
+    }
+
+    private static void AppendText(
+        System.Text.StringBuilder sb, string value, int start, int length, Func<string, string>? textFormatter)
+    {
+        if (textFormatter is null)
+            sb.Append(value, start, length);
+        else
+            sb.Append(textFormatter(value.Substring(start, length)));
     }
 
     private static int IndexOfCodeStart(string value, int startIndex)
@@ -229,6 +249,22 @@ public static class FormatHelper
             : "`";
         var padding = delimiter.Length > 1 ? " " : "";
         return $"{delimiter}{padding}{value}{padding}{delimiter}";
+    }
+
+    private static string FormatMarkdownCodeSpanForTableCell(string value)
+    {
+        // A literal pipe inside a table-cell code span must be escaped as \| (GFM strips the
+        // backslash while splitting table rows, before code-span parsing); &#124; would render
+        // literally inside a code span. Newlines are collapsed to spaces as in other cell text.
+        if (value.Contains('|') || value.Contains('\n') || value.Contains('\r'))
+        {
+            value = value
+                .Replace("\r\n", " ")
+                .Replace("\n", " ")
+                .Replace("\r", " ")
+                .Replace("|", "\\|");
+        }
+        return FormatMarkdownCodeSpan(value);
     }
 
     private static int LongestBacktickRun(string value)
