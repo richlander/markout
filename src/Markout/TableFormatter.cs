@@ -1,5 +1,6 @@
 using Markout.Formatting;
 using System.Buffers;
+using System.Text.Encodings.Web;
 using System.Text;
 using System.Text.Json;
 
@@ -12,6 +13,10 @@ namespace Markout;
 public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatter, IListFormatter
 {
     private const int ColumnGap = 2;
+    private static readonly JsonWriterOptions JsonWriterOptions = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
     private readonly bool _showHeader;
 
     public TableFormatter(bool showHeader = true)
@@ -47,14 +52,14 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         {
             if (i > 0)
                 w.Write(" | ");
-            w.Write(FormatHelper.NormalizeTableCell(fields[i].Value));
+            w.Write(FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(fields[i].Value)));
         }
         w.WriteLine();
     }
 
     void IListFormatter.FormatListItem(TextWriter w, string text)
     {
-        w.WriteLine(FormatHelper.NormalizeTableCell(text));
+        w.WriteLine(FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(text)));
     }
 
     void IListFormatter.FormatArray(TextWriter w, string key, ReadOnlySpan<string> items, bool bold)
@@ -63,7 +68,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         w.WriteLine(":");
 
         foreach (var item in items)
-            w.WriteLine(FormatHelper.NormalizeTableCell(item));
+            w.WriteLine(FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(item)));
     }
 
     private void WriteTsvTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows)
@@ -87,7 +92,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         foreach (var row in rows)
         {
             for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
-                widths[i] = Math.Max(widths[i], FormatHelper.NormalizeTableCell(row[i]).Length);
+                widths[i] = Math.Max(widths[i], FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(row[i])).Length);
         }
 
         if (_showHeader)
@@ -105,11 +110,11 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         foreach (var row in rows)
         {
             var buffer = new ArrayBufferWriter<byte>();
-            using var json = new Utf8JsonWriter(buffer);
+            using var json = new Utf8JsonWriter(buffer, JsonWriterOptions);
             json.WriteStartObject();
             for (int i = 0; i < headers.Length; i++)
             {
-                var value = i < row.Length ? row[i] : "";
+                var value = i < row.Length ? FormatHelper.RenderInlinePlainText(row[i]) : "";
                 json.WriteString(headers[i] ?? "", value ?? "");
             }
             json.WriteEndObject();
@@ -126,7 +131,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         {
             if (i > 0)
                 w.Write('\t');
-            w.Write(FormatHelper.NormalizeTableCell(values[i]));
+            w.Write(FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(values[i])));
         }
         w.WriteLine();
     }
@@ -137,7 +142,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         {
             if (i > 0)
                 w.Write('\t');
-            w.Write(FormatHelper.NormalizeTableCell(values[i]));
+            w.Write(FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(values[i])));
         }
         w.WriteLine();
     }
@@ -146,7 +151,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
     {
         for (int i = 0; i < values.Length; i++)
         {
-            var value = FormatHelper.NormalizeTableCell(values[i]);
+            var value = FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(values[i]));
             if (i < values.Length - 1)
                 w.Write(value.PadRight(widths[i] + ColumnGap));
             else
@@ -159,7 +164,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
     {
         for (int i = 0; i < values.Length; i++)
         {
-            var value = FormatHelper.NormalizeTableCell(values[i]);
+            var value = FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(values[i]));
             if (i < values.Length - 1)
                 w.Write(value.PadRight(widths[i] + ColumnGap));
             else

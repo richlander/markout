@@ -324,6 +324,7 @@ Formatters declare which shapes they support by implementing capability interfac
 ### Format promises
 
 - Markdown table cell values normalize pipe characters to `&#124;`; they do not emit escaped pipes (`\|`).
+- Semantic inline `<code>...</code>` tags render as Markdown code spans and as plain text in table, TSV, and JSONL output.
 - `TableFormatter` with `MarkoutTableMode.Tsv` uses stable snake_case headers by default and never emits embedded tabs or newlines in table cells.
 - `TableFormatter` with `MarkoutTableMode.Jsonl` uses stable snake_case property names by default and emits one JSON object per table row.
 - `TableFormatter` with `MarkoutTableMode.Pretty` renders the same projection as TSV, with each column starting at a uniform position across rows.

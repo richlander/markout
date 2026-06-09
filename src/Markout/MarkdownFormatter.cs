@@ -53,7 +53,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
         for (int i = 0; i < fields.Length; i++)
         {
             ((IFieldFormatter)this).FormatFieldName(w, fields[i].Key, bold);
-            w.Write(fields[i].Value);
+            w.Write(FormatHelper.RenderInlineMarkdown(fields[i].Value));
             w.WriteLine("  "); // Two trailing spaces for markdown hard line break
         }
     }
@@ -98,7 +98,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             foreach (var value in row)
             {
                 w.Write(' ');
-                w.Write(FormatHelper.EscapeTableCell(value));
+                w.Write(FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(value)));
                 w.Write(" |");
             }
             w.WriteLine();
@@ -127,7 +127,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             {
                 for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
                 {
-                    var escaped = FormatHelper.EscapeTableCell(row[i]);
+                    var escaped = FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(row[i]));
                     widths[i] = Math.Max(widths[i], escaped.Length);
                 }
             }
@@ -173,7 +173,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             for (int i = 0; i < headers.Length; i++)
             {
                 w.Write(' ');
-                var value = i < row.Length ? FormatHelper.EscapeTableCell(row[i]) : "";
+                var value = i < row.Length ? FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(row[i])) : "";
 
                 int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
                 int space = defaultEnd[i] - rowStart - CellPadding;
@@ -231,7 +231,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             var rowEnd = new int[colCount];
             for (int i = 0; i < colCount; i++)
             {
-                var value = i < row.Length ? FormatHelper.EscapeTableCell(row[i]) : "";
+                var value = i < row.Length ? FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(row[i])) : "";
                 int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
                 int space = defaultEnd[i] - rowStart - CellPadding;
                 int padWidth = Math.Max(value.Length, space);
@@ -351,7 +351,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             for (int i = 0; i < _streamingWidths.Length; i++)
             {
                 w.Write(' ');
-                var value = i < values.Length ? FormatHelper.EscapeTableCell(values[i]) : "";
+                var value = i < values.Length ? FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(values[i])) : "";
 
                 int rowStart = i == 0 ? 0 : rowEnd[i - 1] + 1;
                 int space = _streamingDefaultEnd![i] - rowStart - CellPadding;
@@ -368,7 +368,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             foreach (var value in values)
             {
                 w.Write(' ');
-                w.Write(FormatHelper.EscapeTableCell(value));
+                w.Write(FormatHelper.EscapeTableCell(FormatHelper.RenderInlineMarkdown(value)));
                 w.Write(" |");
             }
         }
@@ -455,7 +455,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
     void IListFormatter.FormatListItem(TextWriter w, string text)
     {
         w.Write("- ");
-        w.WriteLine(text);
+        w.WriteLine(FormatHelper.RenderInlineMarkdown(text));
     }
 
     void IListFormatter.FormatArray(TextWriter w, string key, ReadOnlySpan<string> items, bool bold)
@@ -475,7 +475,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
         foreach (var item in items)
         {
             w.Write("- ");
-            w.WriteLine(item);
+            w.WriteLine(FormatHelper.RenderInlineMarkdown(item));
         }
     }
 

@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace Markout.Formatting;
 
 /// <summary>
@@ -5,6 +7,22 @@ namespace Markout.Formatting;
 /// </summary>
 public static class FormatHelper
 {
+    private const string CodeStart = "<code>";
+    private const string CodeEnd = "</code>";
+    private static readonly SearchValues<char> InlineTagSentinel = SearchValues.Create("<");
+
+    /// <summary>
+    /// Renders semantic inline tags for Markdown output.
+    /// </summary>
+    public static string RenderInlineMarkdown(string? value)
+        => RenderInline(value, codeFormatter: FormatMarkdownCodeSpan);
+
+    /// <summary>
+    /// Renders semantic inline tags as plain text for non-Markdown output.
+    /// </summary>
+    public static string RenderInlinePlainText(string? value)
+        => RenderInline(value, codeFormatter: static text => text);
+
     /// <summary>
     /// Formats the numeric value displayed at the end of a metric bar.
     /// </summary>
@@ -142,5 +160,93 @@ public static class FormatHelper
         string clean = text.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ");
 
         return clean.Length <= maxLength ? clean : clean[..(maxLength - 3)] + "...";
+    }
+
+    private static string RenderInline(string? value, Func<string, string> codeFormatter)
+    {
+        if (string.IsNullOrEmpty(value))
+            return "";
+
+        var start = IndexOfCodeStart(value, 0);
+        if (start < 0)
+            return value;
+
+        var sb = new System.Text.StringBuilder(value.Length);
+        var cursor = 0;
+        while (start >= 0)
+        {
+            var contentStart = start + CodeStart.Length;
+            var end = value.IndexOf(CodeEnd, contentStart, StringComparison.Ordinal);
+            if (end < 0)
+                break;
+
+            sb.Append(value, cursor, start - cursor);
+            var encoded = value.Substring(contentStart, end - contentStart);
+            sb.Append(codeFormatter(DecodeXmlText(encoded)));
+
+            cursor = end + CodeEnd.Length;
+            start = IndexOfCodeStart(value, cursor);
+        }
+
+        if (cursor == 0)
+            return value;
+
+        sb.Append(value, cursor, value.Length - cursor);
+        return sb.ToString();
+    }
+
+    private static int IndexOfCodeStart(string value, int startIndex)
+    {
+        var span = value.AsSpan(startIndex);
+        while (true)
+        {
+            var relative = span.IndexOfAny(InlineTagSentinel);
+            if (relative < 0)
+                return -1;
+
+            var absolute = startIndex + relative;
+            if (value.AsSpan(absolute).StartsWith(CodeStart, StringComparison.Ordinal))
+                return absolute;
+
+            var next = relative + 1;
+            startIndex += next;
+            span = span[next..];
+        }
+    }
+
+    private static string DecodeXmlText(string value)
+        => value
+            .Replace("&lt;", "<", StringComparison.Ordinal)
+            .Replace("&gt;", ">", StringComparison.Ordinal)
+            .Replace("&quot;", "\"", StringComparison.Ordinal)
+            .Replace("&apos;", "'", StringComparison.Ordinal)
+            .Replace("&amp;", "&", StringComparison.Ordinal);
+
+    private static string FormatMarkdownCodeSpan(string value)
+    {
+        var delimiter = value.Contains('`')
+            ? new string('`', LongestBacktickRun(value) + 1)
+            : "`";
+        var padding = delimiter.Length > 1 ? " " : "";
+        return $"{delimiter}{padding}{value}{padding}{delimiter}";
+    }
+
+    private static int LongestBacktickRun(string value)
+    {
+        var longest = 0;
+        var current = 0;
+        foreach (var c in value)
+        {
+            if (c == '`')
+            {
+                current++;
+                longest = Math.Max(longest, current);
+            }
+            else
+            {
+                current = 0;
+            }
+        }
+        return longest;
     }
 }
