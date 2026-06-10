@@ -95,6 +95,51 @@ public class FormatHelperTests
         Assert.Equal("System.Boolean", FormatHelper.RenderInlineMarkdownTableCell("System.Boolean"));
     }
 
+    [Fact]
+    public void EscapeTableCell_EscapesAngleBrackets()
+    {
+        // Raw <T> would be eaten as an HTML tag by rendered-Markdown viewers.
+        Assert.Equal("System.Collections.Generic.IList&lt;T&gt;",
+            FormatHelper.EscapeTableCell("System.Collections.Generic.IList<T>"));
+    }
+
+    [Fact]
+    public void EscapeTableCell_EscapesAmpersandFirst()
+    {
+        // & is escaped before the introduced entities, so it is not double-escaped.
+        Assert.Equal("a &amp; b &lt;c&gt;", FormatHelper.EscapeTableCell("a & b <c>"));
+    }
+
+    [Fact]
+    public void EscapeTableCell_EscapesBacktickSoFreeTextCannotOpenCodeSpan()
+    {
+        // The smoking-gun case: author backticks around angle brackets in a description. Escaping
+        // the backticks prevents a code span from forming, so the &lt;/&gt; entities decode normally.
+        Assert.Equal("a &#96;&lt;App&gt;.deps.json&#96; b",
+            FormatHelper.EscapeTableCell("a `<App>.deps.json` b"));
+    }
+
+    [Fact]
+    public void EscapeTableCell_PlainTextUnchanged()
+    {
+        Assert.Equal("Parses input", FormatHelper.EscapeTableCell("Parses input"));
+    }
+
+    [Fact]
+    public void EscapeMarkdownText_EscapesHeadingAngleBrackets()
+    {
+        Assert.Equal("System.Collections.Generic.List&lt;T&gt;",
+            FormatHelper.EscapeMarkdownText("System.Collections.Generic.List<T>"));
+    }
+
+    [Fact]
+    public void RenderInlineMarkdownTableCell_CodeSpanKeepsAngleBracketsLiteral()
+    {
+        // Inside a genuine <code> span, angle brackets are literal (no entity needed).
+        Assert.Equal("`IEnumerable<T>`",
+            FormatHelper.RenderInlineMarkdownTableCell("<code>IEnumerable&lt;T&gt;</code>"));
+    }
+
     [Theory]
     [InlineData("ReturnType", "return_type")]
     [InlineData("Return Type", "return_type")]

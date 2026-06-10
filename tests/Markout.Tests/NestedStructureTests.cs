@@ -1574,10 +1574,13 @@ public class DistributionTests
 
 public class MultiIgnorePropertyTests
 {
+    // Code-like column values are marked with <code> semantic tags (which render as Markdown code
+    // spans and are stripped for TSV/JSONL), not literal backticks — literal backticks/angle brackets
+    // in cell data are now escaped as structural characters.
     private static readonly List<ApiMemberRow> TestRows =
     [
-        new("`Parse:1`", "Parse", "`string Parse(string)`", "Parses input"),
-        new("`Parse:2`", "Parse", "`string Parse(ReadOnlySpan<char>)`", "Parses span"),
+        new("<code>Parse:1</code>", "Parse", "<code>string Parse(string)</code>", "Parses input"),
+        new("<code>Parse:2</code>", "Parse", "<code>string Parse(ReadOnlySpan&lt;char&gt;)</code>", "Parses span"),
     ];
 
     [Fact]

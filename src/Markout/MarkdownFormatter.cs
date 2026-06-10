@@ -21,12 +21,12 @@ public class MarkdownFormatter : IMarkoutFormatter,
     {
         w.Write(HeadingPrefixes[level]);
         w.Write(' ');
-        w.Write(text);
+        w.Write(FormatHelper.EscapeMarkdownText(text));
 
         if (!string.IsNullOrEmpty(context))
         {
             w.Write(" (");
-            w.Write(context);
+            w.Write(FormatHelper.EscapeMarkdownText(context));
             w.Write(')');
         }
     }
