@@ -323,7 +323,8 @@ Formatters declare which shapes they support by implementing capability interfac
 
 ### Format promises
 
-- Markdown table cell values normalize pipe characters to `&#124;`. The exception is a pipe inside a rendered `<code>` span, which is escaped as `\|`: GFM unescapes `\|` while splitting table rows (before code-span parsing), whereas `&#124;` would render literally inside a code span.
+- Markdown table-cell and heading text is treated as literal data: the structural characters `&`, `<`, `>`, and backtick are escaped to entities (`&amp;`, `&lt;`, `&gt;`, `&#96;`) so the value renders verbatim rather than being interpreted as HTML or a code span. Table cells additionally normalize the delimiting pipe to `&#124;`.
+- The exception is content inside a rendered `<code>` span, where those characters are literal: there, a pipe is escaped as `\|` (GFM unescapes it while splitting table rows, before code-span parsing) and angle brackets/ampersands need no escaping.
 - Semantic inline `<code>...</code>` tags render as Markdown code spans and as plain text in table, TSV, and JSONL output.
 - `TableFormatter` with `MarkoutTableMode.Tsv` uses stable snake_case headers by default and never emits embedded tabs or newlines in table cells.
 - `TableFormatter` with `MarkoutTableMode.Jsonl` uses stable snake_case property names by default and emits one JSON object per table row.

@@ -41,20 +41,37 @@ public static class FormatHelper
         return value == Math.Floor(value) ? ((int)value).ToString() : value.ToString("0.#");
     }
 
+    private static readonly SearchValues<char> CellEscapeChars = SearchValues.Create("&<>`|\n\r");
+
     /// <summary>
-    /// Escapes Markdown table cell characters and newlines in a table cell value.
+    /// Escapes the HTML/Markdown-structural characters in plain (non-code) Markdown text so the value
+    /// renders literally: <c>&amp;</c>, <c>&lt;</c>, <c>&gt;</c>, and backtick. Entities are used
+    /// because they decode for display in normal text context; the ampersand is escaped first so the
+    /// introduced entities are not double-escaped. The backtick is escaped so free text (e.g. a
+    /// package description) cannot open a code span that would in turn render the other entities
+    /// literally. Used for both table-cell and heading text.
+    /// </summary>
+    public static string EscapeMarkdownText(string value)
+        => value
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;")
+            .Replace("`", "&#96;");
+
+    /// <summary>
+    /// Escapes Markdown table cell text: the structural characters (<see cref="EscapeMarkdownText"/>)
+    /// plus the cell-delimiting pipe, with newlines collapsed to spaces.
     /// </summary>
     public static string EscapeTableCell(string value)
     {
-        if (value.Contains('|') || value.Contains('\n') || value.Contains('\r'))
-        {
-            return value
-                .Replace("|", "&#124;")
-                .Replace("\r\n", " ")
-                .Replace("\n", " ")
-                .Replace("\r", " ");
-        }
-        return value;
+        if (value.AsSpan().IndexOfAny(CellEscapeChars) < 0)
+            return value;
+
+        return EscapeMarkdownText(value)
+            .Replace("|", "&#124;")
+            .Replace("\r\n", " ")
+            .Replace("\n", " ")
+            .Replace("\r", " ");
     }
 
     /// <summary>
