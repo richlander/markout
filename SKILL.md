@@ -107,6 +107,7 @@ That's it. The output is Markdown by default.
 - `Level` — Heading level (default: 2 for `##`)
 - `GroupBy` — Group items by a property value
 - `ShowWhenProperty` — Boolean property controlling visibility
+- `EmptyText` — Fallback paragraph shown when the collection is non-null but empty (`null` still omits the section)
 - `IgnoreProperty` — Comma-separated column names to hide
 
 ## Built-in Shape Types

@@ -60,4 +60,12 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// but no heading (e.g., ##) is emitted. Use for preamble content that should be a named section.
     /// </summary>
     public bool Headless { get; set; }
+
+    /// <summary>
+    /// Gets or sets fallback text rendered as a paragraph when the section's collection is
+    /// non-null but empty. The section heading is still emitted, followed by this text in place
+    /// of the table or list. When the collection is null the section is omitted entirely, so the
+    /// caller controls whether the fallback appears by choosing an empty collection over null.
+    /// </summary>
+    public string? EmptyText { get; set; }
 }
