@@ -7,7 +7,7 @@ Markout is a source-generated .NET serializer for projecting object graphs into 
 - `src/Markout/` contains runtime types, writer options, formatters, attributes, and capability interfaces.
 - `src/Markout.SourceGeneration/` parses model metadata and emits type/context serializers.
 - `src/MarkdownTable.Formatting/` formats Markdown pipe tables and table-like documents.
-- `src/Markout.Ansi/` and `src/Markout.Ansi.Spectre/` contain terminal renderers.
+- `src/Markout.Ansi.Spectre/` contains the terminal renderer.
 - `src/Markout.Templates/` binds Markdown templates to model data.
 - `samples/` demonstrates file-based apps and renderer choices.
 - `tests/` contains executable xUnit v3 test projects.

@@ -333,7 +333,7 @@ All tests pass.
 
 - Update serializer to target orchestrator
 - Source generator emits orchestrator API
-- AnsiFormatter + SpectreFormatter implement IMarkoutFormatter (pure ANSI to TextWriter)
+- SpectreFormatter implements IMarkoutFormatter (pure ANSI to TextWriter)
 - MarkoutSerializerContext gains IMarkoutFormatter + TextWriter overloads
 - TableFormatter parameterless constructor for orchestrator model
 
