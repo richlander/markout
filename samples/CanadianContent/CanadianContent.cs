@@ -4,15 +4,13 @@ using System.CommandLine;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Markout;
-using Markout.Ansi;
 using Markout.Ansi.Spectre;
 using Markout.Formatting;
-using Microsoft.Extensions.Terminal;
 using Spectre.Console;
 using TreeNode = Markout.TreeNode;
 
 var formatOption = new Option<string>("--format", "-f") { DefaultValueFactory = _ => "markdown", Description = "Output format" };
-formatOption.AcceptOnlyFromAmong("markdown", "ansi", "spectre", "plain", "table", "tsv", "jsonl", "diagram");
+formatOption.AcceptOnlyFromAmong("markdown", "spectre", "plain", "table", "tsv", "jsonl", "diagram");
 
 var maxItemsOption = new Option<int?>("-n") { Description = "Limit table rows" };
 var prettyOption = new Option<bool>("--pretty") { Description = "Pad table columns for aligned output" };
@@ -69,10 +67,8 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
     (IMarkoutFormatter formatter, StringWriter output) CreateWriter()
     {
         var sw = new StringWriter();
-        var terminal = new AnsiTerminal(new SystemConsole());
         IMarkoutFormatter f = format switch
         {
-            "ansi" => new AnsiFormatter(terminal),
             "spectre" => new SpectreFormatter(AnsiConsole.Console),
             "table" or "tsv" or "jsonl" => new TableFormatter(),
             "diagram" => new DiagramFormatter(),

@@ -20,14 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Markout\Markout.csproj" />
-    <ProjectReference Include="..\..\src\Markout.Ansi\Markout.Ansi.csproj" Condition="'$(ExcludeAnsi)' != 'true'" />
     <ProjectReference Include="..\..\src\Markout.SourceGeneration\Markout.SourceGeneration.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="true" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(ExcludeAnsi)' == 'true'">
-    <Compile Remove="AnsiFormatterTests.cs" />
   </ItemGroup>
 
 </Project>

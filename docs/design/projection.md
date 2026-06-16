@@ -51,7 +51,7 @@ var writer = new MarkdownFormatter(options);
 // ... serialize any markout object ...
 ```
 
-Tables render only the Name and TFM columns. Scalar fields render only Version and License. Everything else is silently trimmed. The same projection works identically with `TableFormatter`, `AnsiFormatter`, `MarkoutWriter`, or any custom renderer.
+Tables render only the Name and TFM columns. Scalar fields render only Version and License. Everything else is silently trimmed. The same projection works identically with `TableFormatter`, `SpectreFormatter`, `MarkoutWriter`, or any custom renderer.
 
 ### Column Selection and Reordering
 
@@ -161,7 +161,7 @@ Source Generator → emits calls → MarkoutWriter (base)
                                     └── dispatches to virtual methods
                                             ├── MarkdownFormatter
                                             ├── TableFormatter
-                                            ├── AnsiFormatter
+                                            ├── SpectreFormatter
                                             └── ...
 ```
 

@@ -316,7 +316,6 @@ Optional packages:
 
 | Package | Formatter | Use case |
 |---|---|---|
-| **Markout.Ansi** | `AnsiFormatter` | Colored terminal output with bold, gradients |
 | **Markout.Ansi.Spectre** | `SpectreFormatter` | Rich terminal UI via Spectre.Console |
 
 Formatters declare which shapes they support by implementing capability interfaces (`ITableFormatter`, `IFieldFormatter`, `ITreeFormatter`, etc.). Unsupported shapes are silently skipped — the data is never lost, only the visual sophistication changes.

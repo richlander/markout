@@ -5,7 +5,6 @@ namespace Markout.Ansi.Spectre;
 
 /// <summary>
 /// A formatter that renders output as rich ANSI terminal text using Spectre.Console.
-/// Drop-in alternative to Markout.Ansi.AnsiFormatter for projects already using Spectre.
 /// </summary>
 public class SpectreFormatter : IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter

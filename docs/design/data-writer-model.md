@@ -78,7 +78,7 @@ public abstract class MarkoutWriter
 | **MarkdownFormatter** | GitHub-flavored markdown | All |
 | **TableFormatter** | Compact table or TSV output | Tables, Lists, Fields |
 | **UnicodeFormatter** | Box-drawing characters | All |
-| **AnsiFormatter** | Terminal with color | All |
+| **SpectreFormatter** | Terminal with color | All |
 | **DiagramFormatter** | Visualization specialist | Headings, Trees, Metrics |
 
 ### Shape Support and Fallback
