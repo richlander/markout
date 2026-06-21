@@ -61,11 +61,17 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// </summary>
     public bool Headless { get; set; }
 
-    /// <summary>
     /// Gets or sets fallback text rendered as a paragraph when the section's collection is
     /// non-null but empty. The section heading is still emitted, followed by this text in place
     /// of the table or list. When the collection is null the section is omitted entirely, so the
     /// caller controls whether the fallback appears by choosing an empty collection over null.
     /// </summary>
     public string? EmptyText { get; set; }
+
+    /// <summary>
+    /// Gets or sets how field rows in this section are ordered.
+    /// Applies to field collections such as <see cref="MarkoutField"/> lists and scalar
+    /// properties grouped into the same section. The default preserves input order.
+    /// </summary>
+    public MarkoutFieldOrder FieldOrder { get; set; } = MarkoutFieldOrder.Input;
 }

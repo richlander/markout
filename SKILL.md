@@ -109,6 +109,7 @@ That's it. The output is Markdown by default.
 - `ShowWhenProperty` — Boolean property controlling visibility
 - `EmptyText` — Fallback paragraph shown when the collection is non-null but empty (`null` still omits the section)
 - `IgnoreProperty` — Comma-separated column names to hide
+- `FieldOrder = MarkoutFieldOrder.Alphabetical` — Alphabetically order field rows in `List<MarkoutField>` or scalar field sections
 
 ## Built-in Shape Types
 

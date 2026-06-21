@@ -11,6 +11,7 @@ Markout is a source-generated .NET library that serializes objects to clean, rea
 - [Formatting Values](#formatting-values)
 - [Conditional Rendering](#conditional-rendering)
 - [Sections and Collections](#sections-and-collections)
+- [Section Field Order](#section-field-order)
 - [Tables](#tables)
 - [Trees](#trees)
 - [Links](#links)
@@ -694,9 +695,24 @@ Use `List<MarkoutField>` for dynamic key-value fields built at runtime:
 [MarkoutSerializable(AutoFields = false)]
 public class DynamicReport
 {
+    [MarkoutSection(Name = "Metadata", FieldOrder = MarkoutFieldOrder.Alphabetical)]
     public List<MarkoutField>? Fields { get; set; }
 }
 ```
+
+### Section Field Order
+
+Field-style sections preserve input order by default. Use
+`FieldOrder = MarkoutFieldOrder.Alphabetical` on `[MarkoutSection]` when a
+metadata inventory is easier to scan alphabetically:
+
+```csharp
+[MarkoutSection(Name = "Package Info", FieldOrder = MarkoutFieldOrder.Alphabetical)]
+public List<MarkoutField>? PackageInfo { get; set; }
+```
+
+`FieldOrder` applies to `List<MarkoutField>` sections and scalar properties
+grouped into the same section name. It does not sort arbitrary data-table rows.
 
 ## Tables
 
@@ -1002,7 +1018,7 @@ writer.WriteCodeEnd();
 | `[MarkoutPropertyName("...")]` | Property | Sets the display name for a field or column. |
 | `[MarkoutIgnore]` | Property | Excludes the property from all output. |
 | `[MarkoutIgnoreInTable]` | Property | Excludes the property in table context only. |
-| `[MarkoutSection]` | Property | Renders the property under a headed section. Works on scalar properties (grouped by name) and collections (tables, lists, trees). Properties: `Name`, `Level`, `ShowWhenProperty`, `IgnoreProperty`, `FormatProperty`, `Formatter`, `ColumnName`. |
+| `[MarkoutSection]` | Property | Renders the property under a headed section. Works on scalar properties (grouped by name) and collections (tables, lists, trees). Properties: `Name`, `Level`, `ShowWhenProperty`, `FieldOrder`, `IgnoreProperty`, `FormatProperty`, `Formatter`, `ColumnName`. |
 | `[MarkoutBoolFormat("T", "F")]` | Property | Custom true/false display strings. |
 | `[MarkoutFormat("...")]` | Property | .NET format string passed to `ToString()`. |
 | `[MarkoutDisplayFormat("...")]` | Property | Composite format string via `string.Format()`. `{0}` is the value. |

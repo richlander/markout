@@ -152,6 +152,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? SectionShowWhenProperty { get; }
     public string? SectionGroupByProperty { get; }
     public bool SectionHeadless { get; }
+    public MarkoutFieldOrderKind SectionFieldOrder { get; }
     public IReadOnlyList<(string MethodName, string ColumnName)>? SectionIgnoreColumnWhen { get; }
     public string? ElementTypeName { get; }
     public IReadOnlyList<PropertyMetadata>? ElementProperties { get; }
@@ -198,6 +199,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? sectionShowWhenProperty = null,
         string? sectionGroupByProperty = null,
         bool sectionHeadless = false,
+        MarkoutFieldOrderKind sectionFieldOrder = MarkoutFieldOrderKind.Input,
         IReadOnlyList<(string MethodName, string ColumnName)>? sectionIgnoreColumnWhen = null,
         string? elementTypeName = null,
         IReadOnlyList<PropertyMetadata>? elementProperties = null,
@@ -243,6 +245,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionShowWhenProperty = sectionShowWhenProperty;
         SectionGroupByProperty = sectionGroupByProperty;
         SectionHeadless = sectionHeadless;
+        SectionFieldOrder = sectionFieldOrder;
         SectionIgnoreColumnWhen = sectionIgnoreColumnWhen;
         ElementTypeName = elementTypeName;
         ElementProperties = elementProperties;
@@ -293,6 +296,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionShowWhenProperty == other.SectionShowWhenProperty &&
                SectionGroupByProperty == other.SectionGroupByProperty &&
                SectionHeadless == other.SectionHeadless &&
+               SectionFieldOrder == other.SectionFieldOrder &&
                IgnoreColumnWhenEqual(SectionIgnoreColumnWhen, other.SectionIgnoreColumnWhen) &&
                ElementTypeName == other.ElementTypeName &&
                ElementHasNestedContent == other.ElementHasNestedContent &&
@@ -345,6 +349,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionGroupByProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ SectionHeadless.GetHashCode();
+            hash = hash * 397 ^ (int)SectionFieldOrder;
             hash = hash * 397 ^ (SectionIgnoreColumnWhen?.Count ?? 0);
             hash = hash * 397 ^ (ValueFormatterTypeName?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (ShowWhenProperty?.GetHashCode() ?? 0);
@@ -417,6 +422,15 @@ internal enum DocumentLayoutKind
 {
     Document = 0,
     Tree = 1
+}
+
+/// <summary>
+/// Internal representation of MarkoutFieldOrder. Values mirror the runtime Markout.MarkoutFieldOrder enum.
+/// </summary>
+internal enum MarkoutFieldOrderKind
+{
+    Input = 0,
+    Alphabetical = 1
 }
 
 /// <summary>

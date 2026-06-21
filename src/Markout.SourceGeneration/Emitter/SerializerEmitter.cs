@@ -435,14 +435,14 @@ internal static class SerializerEmitter
             sb.AppendLine($"{showWhenIndent}{{");
 
             FieldEmitter.EmitScalarsWithLayout(sb, props, valueExpr, showWhenIndentLevel + 1, fieldLayout, nestingDepth,
-                sectionHeading: sectionName, sectionLevel: effectiveSectionLevel);
+                sectionHeading: sectionName, sectionLevel: effectiveSectionLevel, fieldOrder: firstProp.SectionFieldOrder);
 
             sb.AppendLine($"{showWhenIndent}}}");
         }
         else
         {
             FieldEmitter.EmitScalarsWithLayout(sb, props, valueExpr, showWhenIndentLevel, fieldLayout, nestingDepth,
-                sectionHeading: sectionName, sectionLevel: effectiveSectionLevel);
+                sectionHeading: sectionName, sectionLevel: effectiveSectionLevel, fieldOrder: firstProp.SectionFieldOrder);
         }
 
         if (firstProp.SectionShowWhenProperty != null && rootValueExpr != null)
@@ -518,10 +518,13 @@ internal static class SerializerEmitter
         if (prop.Kind == PropertyKind.FieldCollection)
         {
             var writeMethod = prop.SectionHeadless ? "WriteFieldsInline" : "WriteFieldsTable";
+            var fieldsExpression = prop.SectionFieldOrder == MarkoutFieldOrderKind.Alphabetical
+                ? $"global::Markout.MarkoutFieldOrderer.Apply(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}), global::Markout.MarkoutFieldOrder.Alphabetical)"
+                : $"global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess})";
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
-            sb.AppendLine($"{indent}    writer.{writeMethod}(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
+            sb.AppendLine($"{indent}    writer.{writeMethod}({fieldsExpression});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
             EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
