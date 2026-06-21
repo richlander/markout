@@ -411,6 +411,7 @@ Markout provides multiple layers of control, from zero-config to full custom:
 [MarkoutDisplayFormat("N0")]           // format numbers
 [MarkoutShowWhen(nameof(HasDetails))]  // conditional rendering
 [MarkoutMaxItems(10)]                  // truncate long lists
+[MarkoutSection(FieldOrder = MarkoutFieldOrder.Alphabetical)] // alpha-order field rows
 [MarkoutValueMap("k=badge", ...)]      // map values to badge-prefixed output
 [MarkoutUnwrap]                        // inline collection items without section heading
 [MarkoutIgnoreColumnWhen(...)]         // conditionally hide table columns

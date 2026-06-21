@@ -240,6 +240,7 @@ internal static class TypeParser
         string? sectionShowWhenProperty = null;
         string? sectionGroupByProperty = null;
         bool sectionHeadless = false;
+        MarkoutFieldOrderKind sectionFieldOrder = MarkoutFieldOrderKind.Input;
         List<(string MethodName, string ColumnName)>? sectionIgnoreColumnWhen = null;
 
         if (isSection)
@@ -268,6 +269,8 @@ internal static class TypeParser
                         sectionGroupByProperty = gb;
                     else if (named.Key == "Headless" && named.Value.Value is bool hl)
                         sectionHeadless = hl;
+                    else if (named.Key == "FieldOrder" && named.Value.Value is int fo)
+                        sectionFieldOrder = (MarkoutFieldOrderKind)fo;
                 }
             }
         }
@@ -479,6 +482,7 @@ internal static class TypeParser
             sectionShowWhenProperty,
             sectionGroupByProperty,
             sectionHeadless,
+            sectionFieldOrder,
             sectionIgnoreColumnWhen,
             elementTypeName,
             elementProperties,

@@ -60,4 +60,11 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// but no heading (e.g., ##) is emitted. Use for preamble content that should be a named section.
     /// </summary>
     public bool Headless { get; set; }
+
+    /// <summary>
+    /// Gets or sets how field rows in this section are ordered.
+    /// Applies to field collections such as <see cref="MarkoutField"/> lists and scalar
+    /// properties grouped into the same section. The default preserves input order.
+    /// </summary>
+    public MarkoutFieldOrder FieldOrder { get; set; } = MarkoutFieldOrder.Input;
 }

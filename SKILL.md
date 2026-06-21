@@ -108,6 +108,7 @@ That's it. The output is Markdown by default.
 - `GroupBy` — Group items by a property value
 - `ShowWhenProperty` — Boolean property controlling visibility
 - `IgnoreProperty` — Comma-separated column names to hide
+- `FieldOrder = MarkoutFieldOrder.Alphabetical` — Alphabetically order field rows in `List<MarkoutField>` or scalar field sections
 
 ## Built-in Shape Types
 

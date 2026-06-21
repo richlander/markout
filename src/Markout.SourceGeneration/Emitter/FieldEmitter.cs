@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,8 +19,12 @@ internal static class FieldEmitter
         FieldLayoutKind fieldLayout,
         int nestingDepth = 0,
         string? sectionHeading = null,
-        int sectionLevel = 2)
+        int sectionLevel = 2,
+        MarkoutFieldOrderKind fieldOrder = MarkoutFieldOrderKind.Input)
     {
+        if (fieldOrder == MarkoutFieldOrderKind.Alphabetical)
+            scalarProps = scalarProps.OrderBy(prop => prop.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+
         switch (fieldLayout)
         {
             case FieldLayoutKind.Table:

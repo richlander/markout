@@ -63,6 +63,32 @@ public partial class HeaderCallbackContext : MarkoutSerializerContext
 {
 }
 
+[MarkoutSerializable(AutoFields = false)]
+public class FieldOrderContainer
+{
+    [MarkoutSection(Name = "Package Info", FieldOrder = MarkoutFieldOrder.Alphabetical)]
+    public List<MarkoutField>? PackageInfo { get; set; }
+}
+
+[MarkoutSerializable(AutoFields = false)]
+public class ScalarFieldOrderContainer
+{
+    [MarkoutSection(Name = "Package Info", FieldOrder = MarkoutFieldOrder.Alphabetical)]
+    public string? Version { get; set; }
+
+    [MarkoutSection(Name = "Package Info", FieldOrder = MarkoutFieldOrder.Alphabetical)]
+    public string? Authors { get; set; }
+
+    [MarkoutSection(Name = "Package Info", FieldOrder = MarkoutFieldOrder.Alphabetical)]
+    public string? License { get; set; }
+}
+
+[MarkoutContext(typeof(FieldOrderContainer))]
+[MarkoutContext(typeof(ScalarFieldOrderContainer))]
+public partial class FieldOrderContext : MarkoutSerializerContext
+{
+}
+
 [MarkoutSerializable]
 public class BoldRecord
 {
@@ -172,6 +198,45 @@ public class SerializerTests
 
         Assert.Contains("| ReturnType:Return Type:0 | Sim:Sim:1 |", mdf);
         Assert.Contains("| string | 0.50 |", mdf);
+    }
+
+    [Fact]
+    public void Serialize_FieldCollectionSection_CanOrderFieldsAlphabetically()
+    {
+        var data = new FieldOrderContainer
+        {
+            PackageInfo =
+            [
+                new("Version", "1.0.0"),
+                new("Authors", "tests"),
+                new("License", "MIT")
+            ]
+        };
+
+        var mdf = MarkoutSerializer.Serialize(data, FieldOrderContext.Default);
+
+        Assert.True(
+            mdf.IndexOf("| Authors |", StringComparison.Ordinal) < mdf.IndexOf("| License |", StringComparison.Ordinal)
+            && mdf.IndexOf("| License |", StringComparison.Ordinal) < mdf.IndexOf("| Version |", StringComparison.Ordinal),
+            mdf);
+    }
+
+    [Fact]
+    public void Serialize_ScalarSection_CanOrderFieldsAlphabetically()
+    {
+        var data = new ScalarFieldOrderContainer
+        {
+            Version = "1.0.0",
+            Authors = "tests",
+            License = "MIT"
+        };
+
+        var mdf = MarkoutSerializer.Serialize(data, FieldOrderContext.Default);
+
+        Assert.True(
+            mdf.IndexOf("| Authors |", StringComparison.Ordinal) < mdf.IndexOf("| License |", StringComparison.Ordinal)
+            && mdf.IndexOf("| License |", StringComparison.Ordinal) < mdf.IndexOf("| Version |", StringComparison.Ordinal),
+            mdf);
     }
 
     [Fact]
