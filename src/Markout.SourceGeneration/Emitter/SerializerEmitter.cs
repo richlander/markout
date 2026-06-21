@@ -527,6 +527,7 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}    writer.{writeMethod}({fieldsExpression});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.ComplexArray && prop.ElementProperties != null)
         {
@@ -579,6 +580,8 @@ internal static class SerializerEmitter
             }
 
             sb.AppendLine($"{indent}}}");
+            if (!prop.IsUnwrapped)
+                EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.StringArray)
         {
@@ -598,6 +601,7 @@ internal static class SerializerEmitter
             }
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.Tree)
         {
@@ -617,6 +621,7 @@ internal static class SerializerEmitter
             }
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.Metric)
         {
@@ -626,6 +631,7 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}    writer.WriteMetrics({propAccess});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.Description)
         {
@@ -635,6 +641,7 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}    writer.WriteDescriptions({propAccess});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.Breakdown)
         {
@@ -644,6 +651,7 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.CodeSection)
         {
@@ -719,6 +727,26 @@ internal static class SerializerEmitter
             name = baseName + index++;
 
         return name;
+    }
+
+    private static void EmitSectionEmptyFallback(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        string indent,
+        int effectiveSectionLevel,
+        string sectionName)
+    {
+        if (prop.SectionEmptyText == null)
+            return;
+
+        var headlessArg = prop.SectionHeadless ? ", headless: true" : "";
+        sb.AppendLine($"{indent}else if ({propAccess} != null)");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+        sb.AppendLine($"{indent}    writer.WriteParagraph(\"{EmitHelpers.EscapeString(prop.SectionEmptyText)}\");");
+        sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+        sb.AppendLine($"{indent}}}");
     }
 
     private static void EmitNonSectionProperty(

@@ -628,6 +628,25 @@ public List<string>? Errors { get; set; }
 
 When `HasErrors` is `false`, the entire Errors section — heading and content — is omitted.
 
+### Empty-State Fallback
+
+Use `EmptyText` to render a fallback paragraph when a section's collection is **non-null but empty**. The heading is still emitted, followed by the fallback text in place of the table or list:
+
+```csharp
+[MarkoutSection(Name = "Callers", EmptyText = "No callers found in this assembly.")]
+public List<CallerRow>? Callers { get; set; }
+```
+
+| `Callers` value | Output |
+|-----------------|--------|
+| non-empty list | `## Callers` + table |
+| empty list (`[]`) | `## Callers` + paragraph `No callers found in this assembly.` |
+| `null` | section omitted entirely |
+
+This makes the section a union of "table OR fallback description." Because a `null` collection still omits the section, the caller controls whether the fallback appears by choosing an empty collection over `null` — useful when a section is explicitly requested and you want to confirm "nothing found" rather than rendering silence.
+
+`EmptyText` applies to every count-gated collection section (tables, string lists, fields, trees, metrics, descriptions, breakdowns) and composes with `ShowWhenProperty` (a `false` guard still omits the section, fallback included).
+
 ### Collection Truncation
 
 Use `[MarkoutMaxItems]` to limit the number of items rendered, with an ellipsis message:

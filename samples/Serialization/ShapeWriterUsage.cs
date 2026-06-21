@@ -25,13 +25,13 @@ public static class ShapeWriterUsage
             [
                 ["Markout", "1.0.0", "MIT"],
                 ["Markout.Templates", "1.0.0", "MIT"],
-                ["Markout.Ansi", "1.0.0", "MIT"],
+                ["Markout.Ansi.Spectre", "1.0.0", "MIT"],
             ]);
         // | Package | Version | License |
         // |---------|---------|---------|
         // | Markout | 1.0.0 | MIT |
         // | Markout.Templates | 1.0.0 | MIT |
-        // | Markout.Ansi | 1.0.0 | MIT |
+        // | Markout.Ansi.Spectre | 1.0.0 | MIT |
         #endregion
     }
 

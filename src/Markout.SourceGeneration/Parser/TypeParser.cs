@@ -241,6 +241,7 @@ internal static class TypeParser
         string? sectionGroupByProperty = null;
         bool sectionHeadless = false;
         MarkoutFieldOrderKind sectionFieldOrder = MarkoutFieldOrderKind.Input;
+        string? sectionEmptyText = null;
         List<(string MethodName, string ColumnName)>? sectionIgnoreColumnWhen = null;
 
         if (isSection)
@@ -271,6 +272,8 @@ internal static class TypeParser
                         sectionHeadless = hl;
                     else if (named.Key == "FieldOrder" && named.Value.Value is int fo)
                         sectionFieldOrder = (MarkoutFieldOrderKind)fo;
+                    else if (named.Key == "EmptyText" && named.Value.Value is string et)
+                        sectionEmptyText = et;
                 }
             }
         }
@@ -508,7 +511,8 @@ internal static class TypeParser
             isLink,
             linkTextProperty,
             valueMap,
-            isUnwrapped);
+            isUnwrapped,
+            sectionEmptyText);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
