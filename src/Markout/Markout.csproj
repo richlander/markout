@@ -8,7 +8,7 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.13.8</Version>
+    <Version>0.13.9</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,7 +32,10 @@
     <None Include="$(MSBuildThisFileDirectory)..\..\README.md"
           Pack="true"
           PackagePath="\" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\AGENTS.md"
+    <!-- Consumer/package grounding shipped at the nupkg root. Sourced from grounding/markout/
+         (NOT the repo-root AGENTS.md, which is maintainer guidance). dotnet-inspect (readme)
+         and the NuGet MCP resolve this AGENTS.md ahead of the human README.md. -->
+    <None Include="$(MSBuildThisFileDirectory)..\..\grounding\markout\AGENTS.md"
           Pack="true"
           PackagePath="\" />
   </ItemGroup>
