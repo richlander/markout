@@ -94,7 +94,7 @@ That's it. The output is Markdown by default.
 | `[MarkoutIgnore]` | Exclude from output | |
 | `[MarkoutIgnoreInTable]` | Exclude from table columns | |
 | `[MarkoutMaxItems(N)]` | Truncate long lists | `[MarkoutMaxItems(10)]` |
-| `[MarkoutLink(nameof(Url))]` | Render as hyperlink | `[MarkoutLink(nameof(HtmlUrl))]` |
+| `[MarkoutLink(TextProperty = nameof(...))]` | Render a URL property as a hyperlink | `[MarkoutLink(TextProperty = nameof(Title))]` on the URL property |
 | `[MarkoutUnwrap]` | Inline collection without section heading | |
 | `[MarkoutIgnoreColumnWhen(...)]` | Conditionally hide table column | |
 | `[MarkoutValueMap("k=v", ...)]` | Map values to display strings | |
