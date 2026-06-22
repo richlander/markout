@@ -8,7 +8,7 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.13.6</Version>
+    <Version>0.13.7</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,6 +30,9 @@
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
     <None Include="$(MSBuildThisFileDirectory)..\..\README.md"
+          Pack="true"
+          PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\AGENTS.md"
           Pack="true"
           PackagePath="\" />
   </ItemGroup>
