@@ -57,10 +57,12 @@ MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
   `List<TreeNode>`, `List<Description>`, `Callout`) or they get mistreated as table columns.
 
 ## Built-in shape types (use as model properties for rich output)
+
 `Metric` (bar chart), `Breakdown`/`Segment` (stacked bar), `Callout` (alert), `TreeNode`
 (hierarchy), `Description` (term + text), `CodeSection` (code block). e.g. `new Metric("Build", 4.2)`.
 
 ## Other output formats (still Markdown by default)
+
 Pass a formatter to change output: `new MarkdownFormatter()` (default), `PlainTextFormatter`,
 `UnicodeFormatter`, `TableFormatter` (compact/TSV/JSONL via `MarkoutWriterOptions.TableMode`).
 e.g. `MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ReportContext.Default);`
