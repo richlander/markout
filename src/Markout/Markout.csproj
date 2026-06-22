@@ -32,6 +32,9 @@
     <None Include="$(MSBuildThisFileDirectory)..\..\README.md"
           Pack="true"
           PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\AGENTS.md"
+          Pack="true"
+          PackagePath="\" />
   </ItemGroup>
 
 </Project>
