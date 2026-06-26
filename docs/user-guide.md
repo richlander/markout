@@ -880,6 +880,24 @@ var options = new MarkoutWriterOptions
 
 > From the [SectionFiltering](../samples/Serialization/SectionFiltering.cs) sample.
 
+### Heading Level Offset
+
+`HeadingLevelOffset` shifts every rendered heading by a fixed amount (default
+`0`). Set it to `1` to render a document as a nested section — "print a section,
+elide the H1" — so its title drops from `#` to `##` and any sections shift down
+with it. This lets serialized output be appended under an existing document
+without introducing a second top-level heading:
+
+```csharp
+var options = new MarkoutWriterOptions { HeadingLevelOffset = 1 };
+// # Skills        ->  ## Skills
+// ## Subsection   ->  ### Subsection
+```
+
+Rendered levels are clamped to the valid `1`–`6` range. The offset only affects
+rendered heading depth; logical section identity (used by `IncludeSections`)
+is unchanged.
+
 ### Context-Level Options
 
 Set defaults via `[MarkoutContextOptions]`:

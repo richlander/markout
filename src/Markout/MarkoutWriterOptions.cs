@@ -20,6 +20,7 @@ public class MarkoutWriterOptions
     private Func<MarkoutTableHeader, string>? _formatTableHeader;
     private MarkoutTableMode _tableMode;
     private MarkoutTableHeaderStyle _tableHeaderStyle;
+    private int _headingLevelOffset;
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -198,6 +199,28 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _tableHeaderStyle = value;
+        }
+    }
+
+    /// <summary>
+    /// Offset added to every heading level at render time. Default is 0, which
+    /// leaves levels unchanged.
+    /// <para>
+    /// Set to 1 to render a serialized document as a nested section ("print a
+    /// section, elide the H1"): the document title drops from H1 to H2 and any
+    /// sections shift down one level, so the output can be appended under an
+    /// existing document without introducing a second H1. Rendered levels are
+    /// clamped to the valid 1–6 range; logical section identity (used by
+    /// <see cref="IncludeSections"/>) is unaffected.
+    /// </para>
+    /// </summary>
+    public int HeadingLevelOffset
+    {
+        get => _headingLevelOffset;
+        set
+        {
+            ThrowIfReadOnly();
+            _headingLevelOffset = value;
         }
     }
 

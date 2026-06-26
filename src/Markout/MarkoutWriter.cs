@@ -103,7 +103,7 @@ public class MarkoutWriter
         if (_hasContent)
             _writer.WriteLine();
 
-        hf.FormatHeading(_writer, level, text, context);
+        hf.FormatHeading(_writer, RenderHeadingLevel(level), text, context);
         _writer.WriteLine();
         _hasContent = true;
         _needsBlankLine = true;
@@ -892,6 +892,14 @@ public class MarkoutWriter
 
     // ── Private infrastructure ──
 
+    private int RenderHeadingLevel(int level)
+    {
+        var adjusted = level + _options.HeadingLevelOffset;
+        if (adjusted < 1) return 1;
+        if (adjusted > 6) return 6;
+        return adjusted;
+    }
+
     private void UpdateSectionState(int level, string text)
     {
         if (level == 2)
@@ -980,7 +988,7 @@ public class MarkoutWriter
         if (_hasContent)
             _writer.WriteLine();
 
-        hf.FormatHeading(_writer, level, text, context);
+        hf.FormatHeading(_writer, RenderHeadingLevel(level), text, context);
         _writer.WriteLine();
         _hasContent = true;
         _needsBlankLine = true;
