@@ -35,6 +35,69 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void HeadingLevelOffset_ShiftsHeadingDown()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { HeadingLevelOffset = 1 });
+        orch.WriteHeading(1, "Title");
+        Assert.Equal("## Title", orch.ToString());
+    }
+
+    [Fact]
+    public void HeadingLevelOffset_ShiftsSectionHeadingDown()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { HeadingLevelOffset = 1 });
+        orch.WriteSectionStart(2, "Section");
+        Assert.Equal("### Section", orch.ToString());
+    }
+
+    [Fact]
+    public void HeadingLevelOffset_ClampsToSix()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { HeadingLevelOffset = 3 });
+        orch.WriteHeading(5, "Deep");
+        Assert.Equal("###### Deep", orch.ToString());
+    }
+
+    [Fact]
+    public void HeadingLevelOffset_NegativeClampsToOne()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { HeadingLevelOffset = -5 });
+        orch.WriteHeading(2, "Up");
+        Assert.Equal("# Up", orch.ToString());
+    }
+
+    [Fact]
+    public void HeadingLevelOffset_DefaultZero_LeavesLevelUnchanged()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter());
+        orch.WriteHeading(1, "Title");
+        Assert.Equal("# Title", orch.ToString());
+    }
+
+    [Fact]
+    public void HeadingLevelOffset_DoesNotChangeLogicalSectionFiltering()
+    {
+        // IncludeSections keys off the logical level-2 section name, which must
+        // still match even when the rendered heading is shifted by the offset.
+        var options = new MarkoutWriterOptions
+        {
+            HeadingLevelOffset = 1,
+            IncludeSections = ["Keep"],
+        };
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        orch.WriteSectionStart(2, "Keep");
+        orch.WriteParagraph("kept");
+        orch.WriteSectionStart(2, "Drop");
+        orch.WriteParagraph("dropped");
+
+        var output = orch.ToString();
+        Assert.Contains("### Keep", output);
+        Assert.Contains("kept", output);
+        Assert.DoesNotContain("Drop", output);
+        Assert.DoesNotContain("dropped", output);
+    }
+
+    [Fact]
     public void MarkdownFormatter_WriteFields_Renders()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());
