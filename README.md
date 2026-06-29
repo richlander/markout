@@ -412,6 +412,8 @@ Markout provides multiple layers of control, from zero-config to full custom:
 [MarkoutMaxItems(10)]                  // truncate long lists
 [MarkoutSection(FieldOrder = MarkoutFieldOrder.Alphabetical)] // alpha-order field rows
 [MarkoutValueMap("k=badge", ...)]      // map values to badge-prefixed output
+[MarkoutLink(TextProperty = nameof(Title))] // render a URL property as [Title](url)
+[MarkoutSection(GroupBy = nameof(Milestone))] // group list items under a `###` per value
 [MarkoutUnwrap]                        // inline collection items without section heading
 [MarkoutIgnoreColumnWhen(...)]         // conditionally hide table columns
 ```

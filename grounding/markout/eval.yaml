@@ -1,0 +1,313 @@
+config:
+  max_parallel_scenarios: 1
+
+scenarios:
+  # ---------------------------------------------------------------------------
+  # M1 — render objects as a Markdown report with Markout (a genuinely unknown
+  # package).
+  #
+  # Markout is a niche, source-generated .NET serializer (no meaningful presence in
+  # model training data). Its API LOOKS like System.Text.Json source generation, which
+  # actively misleads: there is NO reflection fallback, so every MarkoutSerializer.Serialize
+  # overload requires a MarkoutSerializerContext. The correct shape is non-obvious:
+  #   1. [MarkoutSerializable] on each model type (List<T> -> table, scalar -> field),
+  #   2. a partial context registering every type via [MarkoutContext(typeof(T))], and
+  #   3. MarkoutSerializer.Serialize(value, Console.Out, Ctx.Default).
+  # A web-blocked baseline with no grounding cannot reconstruct this from intuition; it
+  # hallucinates Json*-style or context-less APIs that do not compile. The grounding
+  # supplies exactly the missing pattern. Gates: the project builds, Program.cs actually
+  # uses Markout (not hand-written Markdown strings), and the run produces the required
+  # report structure (H1 title via TitleProperty, a field table, and a "## Advisories"
+  # section table).
+  # ---------------------------------------------------------------------------
+
+  - name: "M1: render a report as Markdown with Markout"
+    prompt: |
+      This console project references a source-generated .NET serializer library that
+      projects annotated objects into Markdown (see the package reference in the .csproj).
+      Program.cs holds scan data in plain objects. Using that library, print a GitHub-flavored
+      Markdown report to the console with:
+        - an H1 title: "Security Report"
+        - a two-column field table for the summary values: Scanned (42) and Vulnerable (2)
+        - a "## Advisories" section rendered as a table with columns Package, Severity, Cve,
+          one row per advisory
+      Produce the output through that library's serializer (do not hand-write the Markdown
+      strings). Build and run the project to confirm it prints the expected report.
+    setup:
+      files:
+        - path: SecurityReport.csproj
+          source: fixtures/report/SecurityReport.csproj
+        - path: Program.cs
+          source: fixtures/report/Program.cs
+    reject_tools:
+      - web_search
+      - web_fetch
+    assertions:
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "build"
+        expected_exit_code: 0
+        command_timeout: 600
+      # The report must be produced BY Markout, not hand-written Console.WriteLine markdown.
+      - type: file_contains
+        path: "Program.cs"
+        value: "MarkoutSerializer.Serialize"
+      # Behavior gate: only correct Markout usage yields this structure — an H1 title (via
+      # TitleProperty), a field table (Scanned/Vulnerable), and a "## Advisories" table.
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*# Security Report)(?=[\\s\\S]*\\| Scanned \\| 42 \\|)(?=[\\s\\S]*## Advisories)(?=[\\s\\S]*\\| Contoso\\.Data \\| Critical \\| CVE-2025-0001 \\|)"
+        command_timeout: 120
+    rubric:
+      - "Annotates the report model(s) with [MarkoutSerializable] and renders List<T> as a table and scalars as fields"
+      - "Declares a partial class deriving from MarkoutSerializerContext that registers every model type via [MarkoutContext(typeof(T))]"
+      - "Calls MarkoutSerializer.Serialize(value, Console.Out, Context.Default) — passing the context, since Markout has no reflection fallback"
+      - "Uses TitleProperty for the H1 and [MarkoutSection(Name = \"Advisories\")] for the section heading; does not hand-write Markdown strings"
+      - "The project builds and prints the required Markdown report"
+    timeout: 900
+
+  # ---------------------------------------------------------------------------
+  # M2 — the #1 trap: no reflection fallback. Serialize a List<T> to a Markdown
+  # table. The naive intuition (Serialize(obj)) does not compile in Markout: every
+  # overload requires a MarkoutSerializerContext. Pure grounding signal — a model
+  # with no Markout knowledge writes a context-less call and fails to build.
+  # ---------------------------------------------------------------------------
+  - name: "M2: serialize a list to a Markdown table"
+    prompt: |
+      This console project references a source-generated .NET serializer library that
+      projects annotated objects into Markdown (see the package reference in the .csproj).
+      Program.cs holds a list of NuGet packages in plain objects. Using that library,
+      print a GitHub-flavored Markdown table of the packages (one row per package, with
+      the package name and version) to the console. Produce the output through that
+      library's serializer (do not hand-write the Markdown strings). Build and run the
+      project to confirm it prints the expected table.
+    setup:
+      files:
+        - path: Report.csproj
+          source: fixtures/packages/Report.csproj
+        - path: Program.cs
+          source: fixtures/packages/Program.cs
+    reject_tools:
+      - web_search
+      - web_fetch
+    assertions:
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "build"
+        expected_exit_code: 0
+        command_timeout: 600
+      - type: file_contains
+        path: "Program.cs"
+        value: "MarkoutSerializer.Serialize"
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*\\| Serilog \\| 3\\.1\\.1 \\|)(?=[\\s\\S]*\\| Polly \\| 8\\.2\\.0 \\|)(?=[\\s\\S]*\\| Newtonsoft\\.Json \\| 13\\.0\\.3 \\|)"
+        command_timeout: 120
+    rubric:
+      - "Annotates the row model with [MarkoutSerializable] and renders the List<T> as a Markdown table"
+      - "Declares a partial class deriving from MarkoutSerializerContext registering every model type via [MarkoutContext(typeof(T))]"
+      - "Calls MarkoutSerializer.Serialize passing the context — Markout has NO reflection fallback, so a context-less call would not compile"
+      - "The project builds and prints a table with one row per package; does not hand-write Markdown strings"
+    timeout: 900
+
+  # ---------------------------------------------------------------------------
+  # M3 — built-in shape types. A build report with a warning Callout and a list of
+  # Metric step timings. Requires the Markout shape types (Callout, Metric) AND the
+  # [MarkoutIgnoreInTable] gotcha (non-tabular list properties must be marked or they
+  # are mistreated as table columns). Covered by the compact AGENTS.md shape list.
+  # ---------------------------------------------------------------------------
+  - name: "M3: build report with a callout and metric shapes"
+    prompt: |
+      This console project references a source-generated .NET serializer library that
+      projects annotated objects into Markdown (see the package reference in the .csproj).
+      Program.cs holds build data in plain objects. Using that library, print a
+      GitHub-flavored Markdown report to the console with:
+        - an H1 title from the title value ("Build Report")
+        - a warning callout/alert carrying the warning message
+        - a "## Step Durations" section listing each build step and its time in seconds
+      Use the library's built-in shape types for the callout and the step timings (do not
+      hand-write the Markdown). Build and run the project to confirm it prints the report.
+    setup:
+      files:
+        - path: Report.csproj
+          source: fixtures/buildreport/Report.csproj
+        - path: Program.cs
+          source: fixtures/buildreport/Program.cs
+    reject_tools:
+      - web_search
+      - web_fetch
+    assertions:
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "build"
+        expected_exit_code: 0
+        command_timeout: 600
+      - type: file_contains
+        path: "Program.cs"
+        value: "MarkoutSerializer.Serialize"
+      - type: file_contains
+        path: "Program.cs"
+        value: "Callout"
+      - type: file_contains
+        path: "Program.cs"
+        value: "Metric"
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*# Build Report)(?=[\\s\\S]*\\[!WARNING\\])(?=[\\s\\S]*3 steps slower than budget)(?=[\\s\\S]*Compile)(?=[\\s\\S]*4\\.8)(?=[\\s\\S]*9\\.6)"
+        command_timeout: 120
+    rubric:
+      - "Uses the built-in Callout shape (CalloutSeverity.Warning) for the warning, not a hand-written alert"
+      - "Uses the built-in Metric shape for the step timings"
+      - "Marks the non-tabular list/Callout properties with [MarkoutIgnoreInTable] so they are not mistreated as table columns"
+      - "Registers every type on a partial MarkoutSerializerContext and serializes through it; the project builds and prints the report"
+    timeout: 900
+
+  # ---------------------------------------------------------------------------
+  # M4 — formatters. Emit the same package list as TSV for piping into another tool.
+  # Requires TableFormatter + MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv }.
+  # The compact AGENTS.md documents the TableFormatter/TableMode path.
+  # ---------------------------------------------------------------------------
+  - name: "M4: emit a package list as TSV"
+    prompt: |
+      This console project references a source-generated .NET serializer library that can
+      render annotated objects in several formats (see the package reference in the .csproj).
+      Program.cs holds a list of NuGet packages in plain objects. Using that library, emit
+      the packages as TSV (tab-separated values, one row per package with name and version)
+      to the console so the output can be piped into another tool. Produce the output through
+      the library (do not hand-write tab-delimited strings). Build and run the project to
+      confirm it prints tab-separated rows.
+    setup:
+      files:
+        - path: Report.csproj
+          source: fixtures/tsv/Report.csproj
+        - path: Program.cs
+          source: fixtures/tsv/Program.cs
+    reject_tools:
+      - web_search
+      - web_fetch
+    assertions:
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "build"
+        expected_exit_code: 0
+        command_timeout: 600
+      - type: file_contains
+        path: "Program.cs"
+        value: "Tsv"
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*Serilog\\t3\\.1\\.1)(?=[\\s\\S]*Polly\\t8\\.2\\.0)(?=[\\s\\S]*Newtonsoft\\.Json\\t13\\.0\\.3)"
+        command_timeout: 120
+    rubric:
+      - "Selects the TableFormatter and sets MarkoutWriterOptions.TableMode = MarkoutTableMode.Tsv"
+      - "Passes the options + context to MarkoutSerializer.Serialize rather than hand-writing tab-delimited text"
+      - "The output is genuinely tab-separated (real \\t between columns), one row per package"
+      - "The project builds and runs"
+    timeout: 900
+
+  # ---------------------------------------------------------------------------
+  # M5 — sections + rendering rules. A report with a "## Errors" table and a
+  # "## Dependencies" tree built from the TreeNode shape. Tests type-driven rendering
+  # (List<T> -> table; List<TreeNode> -> tree) and [MarkoutSection]. Compact-doc covered.
+  # ---------------------------------------------------------------------------
+  - name: "M5: report with a section table and a dependency tree"
+    prompt: |
+      This console project references a source-generated .NET serializer library that
+      projects annotated objects into Markdown (see the package reference in the .csproj).
+      Program.cs holds compiler diagnostics and a dependency graph in plain objects. Using
+      that library, print a GitHub-flavored Markdown report to the console with:
+        - an H1 title ("Diagnostics")
+        - a "## Errors" section rendered as a table (columns for the error code and message)
+        - a "## Dependencies" section rendered as a tree built from the dependency graph
+      Use the library's tree shape for the dependency hierarchy (do not hand-write the tree).
+      Build and run the project to confirm it prints the report.
+    setup:
+      files:
+        - path: Report.csproj
+          source: fixtures/diagnostics/Report.csproj
+        - path: Program.cs
+          source: fixtures/diagnostics/Program.cs
+    reject_tools:
+      - web_search
+      - web_fetch
+    assertions:
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "build"
+        expected_exit_code: 0
+        command_timeout: 600
+      - type: file_contains
+        path: "Program.cs"
+        value: "TreeNode"
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*# Diagnostics)(?=[\\s\\S]*## Errors)(?=[\\s\\S]*CS0103)(?=[\\s\\S]*## Dependencies)(?=[\\s\\S]*Serilog\\.Sinks\\.Console)"
+        command_timeout: 120
+    rubric:
+      - "Renders the errors as a table via type-driven rendering (List<T> -> table) under a [MarkoutSection(Name = \"Errors\")]"
+      - "Builds the dependency hierarchy with the built-in TreeNode shape under a [MarkoutSection(Name = \"Dependencies\")]"
+      - "Marks the TreeNode list with [MarkoutIgnoreInTable] so it is not mistreated as a table"
+      - "Registers every type on a partial MarkoutSerializerContext and serializes through it; the project builds and prints the report"
+    timeout: 900
+
+  # ---------------------------------------------------------------------------
+  # M6 — advanced attributes (the broad-skill wedge). A GitHub issues report whose
+  # title is a hyperlink, whose state is mapped to a ✓/✗ badge, grouped by milestone.
+  # These attributes ([MarkoutLink], [MarkoutValueMap], MarkoutSection.GroupBy) are
+  # documented only in the BROAD skill, NOT the compact AGENTS.md. Designed so the
+  # compact-grounding arms (NuGet MCP / dotnet-inspect -> AGENTS.md) cannot fully pass
+  # while the broad-skill arm can — the question that keeps the broad skill non-redundant.
+  # ---------------------------------------------------------------------------
+  - name: "M6: grouped issue report with links and value-mapped badges"
+    prompt: |
+      This console project references a source-generated .NET serializer library that
+      projects annotated objects into Markdown (see the package reference in the .csproj).
+      Program.cs holds a list of GitHub issues in plain objects. Using that library, print
+      a GitHub-flavored Markdown report to the console with:
+        - an H1 title ("Open Issues")
+        - the issues grouped under a subheading for each milestone (e.g. "### v1.0")
+        - each issue's title rendered as a Markdown hyperlink to its URL
+        - each issue's state shown as a badge: "open" as ✓ and "closed" as ✗
+      Use the library's own attributes for the hyperlink, the value-to-badge mapping, and the
+      grouping (do not hand-write the Markdown links, badges, or group headings). Build and run
+      the project to confirm it prints the report.
+    setup:
+      files:
+        - path: Report.csproj
+          source: fixtures/issues/Report.csproj
+        - path: Program.cs
+          source: fixtures/issues/Program.cs
+    reject_tools:
+      - web_search
+      - web_fetch
+    assertions:
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "build"
+        expected_exit_code: 0
+        command_timeout: 600
+      - type: file_contains
+        path: "Program.cs"
+        value: "MarkoutSerializer.Serialize"
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*### v1\\.0)(?=[\\s\\S]*### v2\\.0)(?=[\\s\\S]*\\[Crash on startup\\]\\(https://github\\.com/acme/app/issues/1\\))(?=[\\s\\S]*✓)(?=[\\s\\S]*✗)"
+        command_timeout: 120
+    rubric:
+      - "Renders the issue title as a hyperlink to its URL using [MarkoutLink] (with TextProperty for the link text), not a hand-built [text](url) string"
+      - "Maps the state values to ✓/✗ badges using [MarkoutValueMap] (or [MarkoutBoolFormat]), not a hand-written conditional"
+      - "Groups the issues by milestone using MarkoutSection.GroupBy, producing a subheading per milestone"
+      - "Registers every type on a partial MarkoutSerializerContext and serializes through it; the project builds and prints the report"
+    timeout: 900
