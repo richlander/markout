@@ -3,7 +3,9 @@
 Real jobs a developer asks an AI to do with this package. Each is gated by a
 build + run with a deterministic anchor, so the grounding (AGENTS.md) is proven
 to move an agent from "fails / hand-rolls" to "uses the API correctly, first try."
-Machine form + fixtures: `eval.yaml`. Datasets/cards: `data/`.
+Machine form + fixtures: `eval.yaml`. Regenerate results with `run.sh` — datasets
+land in the grounding cache (`$GROUNDING_DATA_DIR`, not the repo); the distilled
+quality card lives in the PR.
 
 | # | Task | Key API | Anchor |
 | --- | --- | --- | --- |
