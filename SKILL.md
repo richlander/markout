@@ -128,11 +128,17 @@ public List<Metric>? Metrics { get; set; }
 public List<Breakdown>? Distribution { get; set; }
 // Usage: new Breakdown("By Type", [new Segment("Critical", 3), new Segment("Low", 12)])
 
-// Alert box
+// Alert boxes — use ONE SCALAR Callout property PER alert. Severities:
+// Warning / Caution / Note / Tip / Important. Each renders "> [!WARNING]" etc.
+// GOTCHA: a List<Callout> renders as a TABLE, not alerts — for N alerts declare N
+// scalar Callout properties, never a list.
 [MarkoutIgnoreInTable]
 [MarkoutSkipDefault]
 public Callout Warning { get; set; }
-// Usage: new Callout(CalloutSeverity.Warning, "3 issues found")
+[MarkoutIgnoreInTable]
+[MarkoutSkipDefault]
+public Callout Caution { get; set; }
+// Usage: new Callout(CalloutSeverity.Warning, "Disk space low"); one property per alert
 
 // Tree hierarchy
 [MarkoutIgnoreInTable]

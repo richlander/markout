@@ -27,6 +27,7 @@ public class Report
     public int Count { get; set; }
     [MarkoutSection(Name = "Items")]                    // -> "## Items" heading
     public List<Row>? Items { get; set; }              // List<T> -> a table
+    [MarkoutIgnoreInTable] public Callout Alert { get; set; } // ONE scalar Callout per alert -> "> [!WARNING]"; a List<Callout> renders a table
 }
 
 [MarkoutSerializable]
@@ -49,20 +50,20 @@ MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 - **Register every type.** A model used in output but missing `[MarkoutSerializable]` +
   `[MarkoutContext(typeof(T))]` will not serialize. The context class MUST be `partial`.
 - **Attributes are Markout's, not System.Text.Json's:** `[MarkoutSerializable]` (not
-  `[JsonSerializable]`), `[MarkoutContext]`, `[MarkoutSection(Name=...)]`, `TitleProperty`,
-  `[MarkoutPropertyName]`, `[MarkoutIgnore]`. Do not use `Json*` attributes.
+  `[JsonSerializable]`), `[MarkoutContext]`, `[MarkoutSection(Name=...)]`, `TitleProperty` (H1) /
+  `DescriptionProperty` (intro paragraph under the heading), `[MarkoutPropertyName]`, `[MarkoutIgnore]`. Do not use `Json*` attributes.
 - **Rendering is driven by type, not markup:** `List<T>` -> table; scalar (`string`/`int`/`bool`) ->
   a `Field | Value` row; `[MarkoutSection(Name="X")]` -> a `## X` heading above the property.
 - **Put `[MarkoutIgnoreInTable]` on non-tabular list properties** (`List<Metric>`, `List<Breakdown>`,
-  `List<TreeNode>`, `List<Description>`, `Callout`) or they get mistreated as table columns.
+  `List<TreeNode>`, `List<Description>`) — and on a **scalar** `Callout` (one per alert, never a list) — or they get mistreated as table columns.
 
 ## Built-in shape types (use as model properties for rich output)
 
-`Metric` (bar chart), `Breakdown`/`Segment` (stacked bar), `Callout` (alert), `TreeNode`
+`Metric` (bar chart), `Breakdown`/`Segment` (stacked bar), `Callout` (alert; `CalloutSeverity.Warning/Caution/Note/Tip/Important`), `TreeNode`
 (hierarchy), `Description` (term + text), `CodeSection` (code block). e.g. `new Metric("Build", 4.2)`.
 
 ## Other output formats (still Markdown by default)
 
 Pass a formatter to change output: `new MarkdownFormatter()` (default), `PlainTextFormatter`,
 `UnicodeFormatter`, `TableFormatter` (compact/TSV/JSONL via `MarkoutWriterOptions.TableMode`).
-e.g. `MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ReportContext.Default);`
+e.g. TSV: `MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ReportContext.Default, new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });`
