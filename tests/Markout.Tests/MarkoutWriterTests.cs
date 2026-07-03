@@ -286,7 +286,7 @@ public class MarkoutWriterTests
     public void MarkdownFormatter_WriteTree_Renders()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());
-        var result = orch.WriteTree(new TreeNode("Root", null, new TreeNode("Child")));
+        var result = orch.WriteTree(new TreeNode("Root", [new TreeNode("Child")]));
         Assert.True(result);
         var output = orch.ToString();
         Assert.Contains("Root", output);

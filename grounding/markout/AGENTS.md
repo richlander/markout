@@ -60,6 +60,9 @@ MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 
 `Metric` (bar chart), `Breakdown`/`Segment` (stacked bar), `Callout` (alert), `TreeNode`
 (hierarchy), `Description` (term + text), `CodeSection` (code block). e.g. `new Metric("Build", 4.2)`.
+Pass children as a list/array/collection expression, never as trailing arguments:
+`new TreeNode("root", [new TreeNode("leaf")])`. `Badge` is an optional property:
+`new TreeNode("root") { Badge = "📁" }`.
 
 ## Other output formats (still Markdown by default)
 

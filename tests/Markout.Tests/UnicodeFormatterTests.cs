@@ -105,9 +105,9 @@ public class UnicodeFormatterTests
         var sw = new StringWriter();
         var orch = MarkoutWriter.Create(sw, new UnicodeFormatter());
         orch.WriteTree(
-            new TreeNode("Root", null,
+            new TreeNode("Root", [
                 new TreeNode("Child A"),
-                new TreeNode("Child B")));
+                new TreeNode("Child B")]));
         var output = sw.ToString();
         Assert.Contains("Root", output);
         Assert.Contains("Child A", output);
@@ -122,10 +122,10 @@ public class UnicodeFormatterTests
         var sw = new StringWriter();
         var orch = MarkoutWriter.Create(sw, new UnicodeFormatter());
         orch.WriteTree(
-            new TreeNode("Root", null,
-                new TreeNode("Parent", null,
+            new TreeNode("Root", [
+                new TreeNode("Parent", [
                     new TreeNode("Child 1"),
-                    new TreeNode("Child 2"))));
+                    new TreeNode("Child 2")])]));
         var output = sw.ToString();
         Assert.Contains("Root", output);
         Assert.Contains("Parent", output);
@@ -141,10 +141,10 @@ public class UnicodeFormatterTests
         var sw = new StringWriter();
         var orch = MarkoutWriter.Create(sw, new UnicodeFormatter());
         orch.WriteTree(
-            new TreeNode("Root", null,
-                new TreeNode("Parent 1", null,
-                    new TreeNode("Child")),
-                new TreeNode("Parent 2")));
+            new TreeNode("Root", [
+                new TreeNode("Parent 1", [
+                    new TreeNode("Child")]),
+                new TreeNode("Parent 2")]));
         var output = sw.ToString();
         Assert.Contains("│", output); // Vertical line should appear in prefix
     }

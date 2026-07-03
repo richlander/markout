@@ -181,7 +181,7 @@ This demonstrates that when you need custom formatting, you project your data to
 ```csharp
 var tree = shoes.Select(s => new TreeNode(
     $"{s.Model} ({s.Category}, ${s.Price})",
-    s.Reviews?.Select(r => $"\"{r.Comment}\" — {r.Author}")
+    s.Reviews?.Select(r => new TreeNode($"\"{r.Comment}\" — {r.Author}"))
 ));
 writer.WriteTree(tree);
 ```

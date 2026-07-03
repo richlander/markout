@@ -757,15 +757,15 @@ Use `List<TreeNode>` for hierarchical data with box-drawing characters:
 ```csharp
 var tree = new[]
 {
-    new TreeNode("CEO", new[]
-    {
-        new TreeNode("VP Engineering", new[]
-        {
+    new TreeNode("CEO",
+    [
+        new TreeNode("VP Engineering",
+        [
             new TreeNode("Dev Team Lead"),
             new TreeNode("QA Team Lead")
-        }),
+        ]),
         new TreeNode("VP Sales")
-    })
+    ])
 };
 
 writer.WriteTree(tree);
@@ -779,11 +779,11 @@ writer.WriteTree(tree);
    └─ VP Sales
 ```
 
-`TreeNode` supports optional icons:
+`TreeNode` supports optional icons via the `Badge` property:
 
 ```csharp
-new TreeNode("Critical Issue", "🔴")
-new TreeNode("Warning", "🟡")
+new TreeNode("Critical Issue") { Badge = "🔴" }
+new TreeNode("Warning") { Badge = "🟡" }
 ```
 
 > The [LatestCves](../samples/LatestCves/LatestCves.cs) sample uses trees with icons to display CVE severity.

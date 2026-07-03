@@ -78,13 +78,13 @@ public static class WriterUsage
         writer.WriteHeading(1, "Organization");
 
         writer.WriteTree(
-            new TreeNode("CEO", null,
-                new TreeNode("VP Engineering", null,
+            new TreeNode("CEO", [
+                new TreeNode("VP Engineering", [
                     new TreeNode("Dev Team Lead"),
-                    new TreeNode("QA Team Lead")),
-                new TreeNode("VP Sales", null,
+                    new TreeNode("QA Team Lead")]),
+                new TreeNode("VP Sales", [
                     new TreeNode("Account Manager"),
-                    new TreeNode("Sales Rep"))));
+                    new TreeNode("Sales Rep")])]));
 
         Console.WriteLine(writer.ToString());
         // # Organization

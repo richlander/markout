@@ -49,9 +49,9 @@ public class MermaidFormatterTests
     {
         var orch = MarkoutWriter.Create(new MermaidFormatter());
         orch.WriteTree(
-            new TreeNode("Root", null,
+            new TreeNode("Root", [
                 new TreeNode("Child A"),
-                new TreeNode("Child B")));
+                new TreeNode("Child B")]));
         var output = orch.ToString();
         Assert.Contains("graph TD", output);
     }
@@ -61,9 +61,9 @@ public class MermaidFormatterTests
     {
         var orch = MarkoutWriter.Create(new MermaidFormatter());
         orch.WriteTree(
-            new TreeNode("Root", null,
+            new TreeNode("Root", [
                 new TreeNode("Child A"),
-                new TreeNode("Child B")));
+                new TreeNode("Child B")]));
         var output = orch.ToString();
         Assert.Contains("\"Root\"", output);
         Assert.Contains("\"Child A\"", output);
@@ -75,9 +75,9 @@ public class MermaidFormatterTests
     {
         var orch = MarkoutWriter.Create(new MermaidFormatter());
         orch.WriteTree(
-            new TreeNode("Root", null,
+            new TreeNode("Root", [
                 new TreeNode("Child A"),
-                new TreeNode("Child B")));
+                new TreeNode("Child B")]));
         var output = orch.ToString();
         // Root is n0, children are n1 and n2
         Assert.Contains("n0 --> n1", output);
@@ -89,9 +89,9 @@ public class MermaidFormatterTests
     {
         var orch = MarkoutWriter.Create(new MermaidFormatter());
         orch.WriteTree(
-            new TreeNode("A", null,
-                new TreeNode("B", null,
-                    new TreeNode("C"))));
+            new TreeNode("A", [
+                new TreeNode("B", [
+                    new TreeNode("C")])]));
         var output = orch.ToString();
         Assert.Contains("\"A\"", output);
         Assert.Contains("\"B\"", output);
@@ -120,7 +120,7 @@ public class MermaidFormatterTests
     {
         var options = new MarkoutWriterOptions { IncludeBadges = true };
         var orch = MarkoutWriter.Create(new MermaidFormatter(), options);
-        orch.WriteTree(new TreeNode("Libraries", "📁"));
+        orch.WriteTree(new TreeNode("Libraries") { Badge = "📁" });
         var output = orch.ToString();
         Assert.Contains("📁 Libraries", output);
     }
@@ -130,7 +130,7 @@ public class MermaidFormatterTests
     {
         var options = new MarkoutWriterOptions { IncludeBadges = false };
         var orch = MarkoutWriter.Create(new MermaidFormatter(), options);
-        orch.WriteTree(new TreeNode("Libraries", "📁"));
+        orch.WriteTree(new TreeNode("Libraries") { Badge = "📁" });
         var output = orch.ToString();
         Assert.DoesNotContain("📁", output);
         Assert.Contains("\"Libraries\"", output);
@@ -189,11 +189,11 @@ public class MermaidFormatterTests
     {
         var orch = MarkoutWriter.Create(new MermaidFormatter());
         orch.WriteTree(
-            new TreeNode("A", null,
+            new TreeNode("A", [
                 new TreeNode("A1"),
-                new TreeNode("A2")),
-            new TreeNode("B", null,
-                new TreeNode("B1")));
+                new TreeNode("A2")]),
+            new TreeNode("B", [
+                new TreeNode("B1")]));
         var output = orch.ToString();
         // 5 nodes total: n0 (A), n1 (A1), n2 (A2), n3 (B), n4 (B1)
         Assert.Contains("n0[", output);

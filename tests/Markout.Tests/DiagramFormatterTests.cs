@@ -21,9 +21,9 @@ public class DiagramFormatterTests
     {
         var orch = MarkoutWriter.Create(new DiagramFormatter());
         orch.WriteTree(
-            new TreeNode("Root", null,
+            new TreeNode("Root", [
                 new TreeNode("Child A"),
-                new TreeNode("Child B")));
+                new TreeNode("Child B")]));
         var output = orch.ToString();
         Assert.Contains("Root", output);
         Assert.Contains("Child A", output);

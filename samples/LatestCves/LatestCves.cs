@@ -76,14 +76,14 @@ foreach (var (version, vi) in versionData.OrderByDescending(v => decimal.TryPars
                 "LOW" => "🟢",
                 _ => null
             };
-            return new TreeNode(label, badge);
+            return new TreeNode(label) { Badge = badge };
         })
         .ToList();
 
     if (cves.Count == 0)
         cves.Add(new TreeNode("None"));
 
-    tree.Add(new TreeNode($"{version} (last updated: {date})", null, [..cves]));
+    tree.Add(new TreeNode($"{version} (last updated: {date})", cves));
 }
 
 // Count severity distribution
