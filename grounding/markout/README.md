@@ -29,7 +29,7 @@ that grows in *depth, not domain*:
 - **CT-24** — +12 advanced tasks (SKILL.md's remit).
 
 The goal is [Pareto](https://en.wikipedia.org/wiki/Pareto_efficiency): help where a model has gaps,
-harm no model. Numbers below are the isolated-arm, n=3 runs under price-weighted IET
+harm no model. Numbers below are isolated-arm, **matched n=5** runs under price-weighted IET
 (`input + 0.1·cache + 5·output`).
 
 ## What AGENTS.md protects (vs. baseline)
@@ -40,48 +40,52 @@ Ungrounded, an agent hallucinates `Json*`-style or context-less calls that don't
 through the NuGet cache and the web to recover. AGENTS.md supplies exactly the missing pattern, so
 the agent compiles first try.
 
-Core-6, baseline → AGENTS.md (~958-tok doc):
+Core-6, baseline → AGENTS.md (~1650-tok doc):
 
 | | mini (haiku-4.5) | frontier (opus-4.8) |
 | --- | --- | --- |
-| tasks correct | 5/6 → **6/6** | 6/6 → 6/6 |
-| func assertions | 19/20 → **20/20** | 20/20 → 20/20 |
-| archaeology | 50 → **29** | 48 → **21** |
-| cost | **−40%** | **−25%** |
+| tasks correct | 5/6 → 5/6 | 6/6 → 6/6 |
+| func assertions | 19/20 → 19/20 | 20/20 → 20/20 |
+| archaeology | 52 → **3** | 15 → **7** |
+| output tok | 11963 → **4242** | 7724 → **4600** |
+| cost | 12.95 → **4.28** (−67%) | 14.83 → **9.40** (−37%) |
 | verdict | **BETTER** | **BETTER** |
 
-Against baseline, AGENTS.md is BETTER on both tiers: it fixes the lone mini-tier failure, roughly
-halves archaeology, and cuts cost 25–40% by removing the failed-compile-and-search loop.
+Against baseline, AGENTS.md is BETTER on both tiers: it collapses archaeology (the failed-compile,
+decompile-the-generator, search-the-web loop) by ~10× on mini and ~2× on frontier, and cuts cost
+37–67%. The one mini task it doesn't lift (M3) fails identically *without* grounding — a residual
+mini-model gap, not a regression.
 
 ## What AGENTS.md earns over README.md (its real competition)
 
 The baseline is a low bar; the *Brochure* is the real one — if AGENTS.md can't beat a package's own
-README, why maintain two docs? Head-to-head on Core-6 (baseline removed):
+README, why maintain two docs? Head-to-head on Core-6 (baseline removed), AGENTS.md is **BETTER on
+both tiers**: **+1 task** on each, **−30% cost** on mini, **−34% cost** on frontier, with lower
+archaeology (mini 11→3, frontier 13→7). The terse, model-shaped gap-fill both answers more and costs
+less than shipping the human README to the model.
 
-- **Mini — BETTER.** Same 6/6 correctness, **−37% work-IET / −31% output** vs the README. The terse
-  gap-fill pays its way on the cheap model.
-- **Frontier — not ahead; the head-to-head grades WORSE on cost (functionally tied).** Same 6/6, but
-  AGENTS.md induced *more* work than the README (archaeology 21 vs ~10, **+35% work-IET**). Opus
-  already knows Markout's basics, so on Core-6 the README is the more efficient path and the extra
-  always-on prose is mildly counterproductive.
-
-Read: **AGENTS.md's Core-6 premium is a mini-tier phenomenon.** On the frontier its value has to come
-from *depth* — gaps the model still has — which is what MM-12 tests.
+**This size was found by eval, and the sizing matters.** An earlier, aggressively compressed ~950-tok
+version of this doc lost that contest: on the frontier the model recovered the trimmed API by
+*decompiling `Markout.SourceGeneration.dll`* (M3/M4/M6 archaeology), and the mini head-to-head graded
+**WORSE than the README** (+53% cost). Adding back the Shape Library, the Renderers table, and the M6
+attribute reference (`MarkoutLink` / `MarkoutValueMap` / `GroupBy`) — ~700 tokens — is what flips mini
+from WORSE to BETTER and holds the frontier ahead. Over-compression is not free; the always-on doc has
+to actually carry the facts the model would otherwise dig for.
 
 ## Generalization (MM-12) and the ceiling (CT-24)
 
 - **MM-12 — AGENTS.md generalizes.** The gap-fill content, authored against Core-6, carries to the +6
   harder tasks at **12/12** — evidence the tiers share connective tissue and the doc isn't overfit to
   the basic six. (A 6/12 here would have signalled Core-6 overfit or a domain jump between rungs.)
-- **CT-24 — the Textbook is the ceiling; AGENTS.md deliberately stops short.** `SKILL.md` nails
-  **24/24 on frontier**. AGENTS.md does *not* carry the advanced-12 content — we compressed that out
-  on purpose (it's ~958 tok paid on every call) — so it falls off on CT-24 **by design**. That falloff
-  is a *clean tier boundary, not overfit*: the depth is there when you opt into the Textbook, while
-  the always-on doc stays lean. The CT-24 generalization signal is one you act on or not; here we
-  chose "not," and left depth to `SKILL.md`.
+- **CT-24 — the Textbook is the ceiling; AGENTS.md stops short by design.** `SKILL.md` nails
+  **24/24 on frontier**. AGENTS.md carries the everyday shapes/attributes but *not* the full
+  advanced-12 surface — that depth is `SKILL.md`'s remit, opt-in and unbounded by the always-on token
+  budget. The falloff on CT-24 is a *clean tier boundary, not overfit*: everyday tasks are covered in
+  the packed doc; the long tail is one `skill` invocation away.
 
 ## Bottom line
 
 AGENTS.md protects every agent from Markout's compile-or-hallucinate trap (BETTER vs baseline on both
-tiers), earns a real premium over the README on the mini tier and at MM-12, and stays deliberately
-lean — ceding the advanced tier to the opt-in `SKILL.md` rather than bloating the always-on path.
+tiers), and — at the eval-tuned ~1650-token size — beats the package's own README on both tiers while
+staying well short of the opt-in Textbook. Bigger is not always better, and neither is smaller: the
+right size is the one the questions choose.

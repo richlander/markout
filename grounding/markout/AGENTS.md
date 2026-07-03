@@ -62,8 +62,60 @@ MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 `Metric` (bar chart), `Breakdown`/`Segment` (stacked bar), `Callout` (alert; `CalloutSeverity.Warning/Caution/Note/Tip/Important`), `TreeNode`
 (hierarchy), `Description` (term + text), `CodeSection` (code block). e.g. `new Metric("Build", 4.2)`.
 
-## Other output formats (still Markdown by default)
+## Shape Library (data relationship -> rendering)
 
-Pass a formatter to change output: `new MarkdownFormatter()` (default), `PlainTextFormatter`,
-`UnicodeFormatter`, `TableFormatter` (compact/TSV/JSONL via `MarkoutWriterOptions.TableMode`).
+Each property maps to a data relationship, not a visual element; the renderer decides presentation.
+
+| Relationship | C# type | Means | Markdown |
+|---|---|---|---|
+| Identity | `string`/`int`/`bool` | named value | `Key: value` |
+| Enumeration | `string[]` | sequence of items | `- item` |
+| Tabulation | `List<T>` | uniform records | `\| col \| col \|` |
+| Section | `[MarkoutSection]` | logical grouping | `## Heading` |
+| Description | `List<Description>` | terms + explanations | `- **Term:** text` |
+| Measurement | `List<Metric>` | comparative quantities | `Label ████░░ 45` |
+| Composition | `List<Breakdown>` | parts of a whole | stacked bar |
+| Hierarchy | `List<TreeNode>` | parent-child | `├── node` |
+| Quotation | `CodeSection` | verbatim content | code block |
+| Attention | `Callout` | important message | `> [!WARNING]` |
+
+Record-type constructors (named for what the data *is*):
+
+```csharp
+new Metric("Build Time", 4.2)                                    // measurement
+new Description("dotnet-inspect", "API surface inspection tool")  // term + explanation
+new Breakdown("Jan 2025", [new("Critical", 1), new("High", 3)])  // proportional composition
+new Callout(CalloutSeverity.Warning, "3 vulnerabilities found")  // attention
+new CodeSection("csharp", "public class Foo { }")                // verbatim content
+new TreeNode("root", [new TreeNode("child")])                    // hierarchy
+```
+
+## Renderers (swap the formatter, change the output)
+
+Serialize writes through a formatter; pass a different one to change output.
+
+| Formatter | Output | Use |
+|---|---|---|
+| `MarkdownFormatter` | GitHub-Flavored Markdown (default) | reports, tool output |
+| `PlainTextFormatter` | plain text, no markup | minimal output |
+| `UnicodeFormatter` | box-drawing chars | bordered tables |
+| `TableFormatter` | tables / lists / fields | compact summaries, TSV/JSONL rows |
+| `DiagramFormatter` | trees / structural diagrams | dependency graphs |
+
+`TableFormatter` + `MarkoutWriterOptions.TableMode`:
+- `Tsv` — stable snake_case headers; never emits embedded tabs/newlines in cells.
+- `Jsonl` — stable snake_case names; one JSON object per row.
+- `Pretty` — same projection as TSV with each column at a uniform position.
+
 e.g. TSV: `MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ReportContext.Default, new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });`
+
+## Advanced property attributes (links, badges, grouping)
+
+- **`[MarkoutLink(TextProperty = nameof(Title))]`** on a URL/string property -> renders it as
+  `[Title](url)` (the `TextProperty` supplies the link text; the annotated property is the href).
+- **`[MarkoutValueMap("open=✗", "closed=✓", ...)]`** -> maps a property's raw values to display
+  strings (badges/icons) before rendering.
+- **`[MarkoutSection(GroupBy = nameof(Milestone))]`** on a `List<T>` -> groups the items under a
+  `###` sub-heading per distinct `Milestone` value, instead of one flat table.
+- Also: `[MarkoutMaxItems(n)]` (truncate a list), `[MarkoutDisplayFormat("{0:N0}")]` (numeric
+  format), `[MarkoutSkipNull]` / `[MarkoutSkipDefault]` (hide empty/default values).
