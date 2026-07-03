@@ -25,21 +25,13 @@ public class TreeNode
     public List<TreeNode>? Children { get; set; }
 
     /// <summary>
-    /// Creates a leaf node with optional badge.
+    /// Creates a tree node. Pass <paramref name="children"/> (a list, array, or
+    /// collection expression) to add child nodes, or omit for a leaf. Set
+    /// <see cref="Badge"/> via an object initializer if needed.
     /// </summary>
-    public TreeNode(string text, string? badge = null)
+    public TreeNode(string text, IEnumerable<TreeNode>? children = null)
     {
         Text = text;
-        Badge = badge;
-    }
-
-    /// <summary>
-    /// Creates a tree node with children. Pass null for badge if not needed.
-    /// </summary>
-    public TreeNode(string text, string? badge, params ReadOnlySpan<TreeNode> children)
-    {
-        Text = text;
-        Badge = badge;
-        Children = children.Length > 0 ? [..children] : null;
+        Children = children?.ToList();
     }
 }

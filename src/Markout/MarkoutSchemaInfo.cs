@@ -286,8 +286,7 @@ public sealed class MarkoutSchemaInfo
         return props.Select(p => p.Children.Count > 0
             ? new TreeNode(
                 $"{p.Name}: {p.TypeName} → {p.Rendering}",
-                null,
-                [..ToTreeNodes(p.Children)])
+                ToTreeNodes(p.Children))
             : new TreeNode($"{p.Name}: {p.TypeName} → {p.Rendering}")
         ).ToList();
     }

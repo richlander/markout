@@ -78,11 +78,11 @@ public static class ShapeWriterUsage
         var tree = new TreeWriter(Console.Out);
 
         tree.WriteTree([
-            new TreeNode("src", null,
-                new TreeNode("Markout", null,
+            new TreeNode("src", [
+                new TreeNode("Markout", [
                     new TreeNode("MarkoutWriter.cs"),
-                    new TreeNode("MarkdownFormatter.cs")),
-                new TreeNode("Markout.Templates")),
+                    new TreeNode("MarkdownFormatter.cs")]),
+                new TreeNode("Markout.Templates")]),
             new TreeNode("tests"),
         ]);
         // └─ src

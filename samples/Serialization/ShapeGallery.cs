@@ -83,12 +83,12 @@ public static class ShapeGallery
         // Hierarchy — tree
         writer.WriteHeading(2, "Project Structure");
         writer.WriteTree(
-            new TreeNode("src", null,
-                new TreeNode("Markout", null, new TreeNode("MarkoutWriter.cs"), new TreeNode("MarkoutShape.cs")),
-                new TreeNode("Markout.SourceGeneration", null, new TreeNode("Parser"), new TreeNode("Emitter")),
-                new TreeNode("Markout.Ansi.Spectre", null, new TreeNode("SpectreFormatter.cs"))),
-            new TreeNode("tests", null,
-                new TreeNode("Markout.Tests")));
+            new TreeNode("src", [
+                new TreeNode("Markout", [new TreeNode("MarkoutWriter.cs"), new TreeNode("MarkoutShape.cs")]),
+                new TreeNode("Markout.SourceGeneration", [new TreeNode("Parser"), new TreeNode("Emitter")]),
+                new TreeNode("Markout.Ansi.Spectre", [new TreeNode("SpectreFormatter.cs")])]),
+            new TreeNode("tests", [
+                new TreeNode("Markout.Tests")]));
 
         // Quotation — code section
         writer.WriteHeading(2, "Quick Start");

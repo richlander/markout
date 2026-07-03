@@ -380,8 +380,8 @@ public class SerializerTests
             Name = "MyClass",
             Kind = "class",
             Members = [
-                new TreeNode("Inherits", null, new TreeNode("BaseClass")),
-                new TreeNode("Properties (2)", null, new TreeNode("string Name"), new TreeNode("int Count"))
+                new TreeNode("Inherits", [new TreeNode("BaseClass")]),
+                new TreeNode("Properties (2)", [new TreeNode("string Name"), new TreeNode("int Count")])
             ]
         };
 
@@ -407,9 +407,9 @@ public class SerializerTests
         {
             Title = "Package Contents",
             Files = [
-                new TreeNode("lib", null,
-                    new TreeNode("net8.0", null, new TreeNode("MyLib.dll")),
-                    new TreeNode("net9.0", null, new TreeNode("MyLib.dll")))
+                new TreeNode("lib", [
+                    new TreeNode("net8.0", [new TreeNode("MyLib.dll")]),
+                    new TreeNode("net9.0", [new TreeNode("MyLib.dll")])])
             ]
         };
 
