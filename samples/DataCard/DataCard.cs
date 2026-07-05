@@ -26,10 +26,10 @@ Console.WriteLine("# Markdown\n");
 Console.WriteLine(MarkoutSerializer.Serialize(card, BuildCardContext.Default));
 
 // 2) JSONL — the SAME rows, decomposed into typed columns a tool can consume.
-//    Each record carries only its own keys (JsonTypedValues emits numbers, not strings).
+//    OmitEmptyJsonFields makes each record carry only its own keys; JsonTypedValues emits numbers.
 Console.WriteLine("\n# JSONL (same model, decomposed)\n");
 MarkoutSerializer.Serialize(card, Console.Out, new TableFormatter(), BuildCardContext.Default,
-    new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+    new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true, OmitEmptyJsonFields = true });
 
 [MarkoutSerializable]
 public sealed class BuildCard

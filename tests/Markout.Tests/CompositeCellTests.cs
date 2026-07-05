@@ -558,7 +558,7 @@ public class CompositeCellTests
     {
         var sw = new StringWriter();
         var writer = MarkoutWriter.Create(sw, new TableFormatter(),
-            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, OmitEmptyJsonFields = true });
         writer.WriteCompositeTable(SampleRows());
         var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
@@ -606,5 +606,27 @@ public class CompositeCellTests
         // TSV keeps the uniform union: every row has the same column count, absent cells blank.
         var width = lines[0].Split('\t').Length;
         Assert.All(lines, line => Assert.Equal(width, line.Split('\t').Length));
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_TypedValues_KeepsIdentityColumnAsString()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        // Numeric/boolean row labels must not be type-coerced — the identity key stays a string.
+        writer.WriteCompositeTable(
+            new MarkoutCompositeRow("2024", new Fraction(3, 4)),
+            new MarkoutCompositeRow("true", new Fraction(1, 2)));
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        var row0 = JsonDocument.Parse(lines[0]).RootElement;
+        Assert.Equal(JsonValueKind.String, row0.GetProperty("field").ValueKind);
+        Assert.Equal("2024", row0.GetProperty("field").GetString());
+        Assert.Equal(JsonValueKind.Number, row0.GetProperty("count").ValueKind); // data still typed
+
+        var row1 = JsonDocument.Parse(lines[1]).RootElement;
+        Assert.Equal(JsonValueKind.String, row1.GetProperty("field").ValueKind);
+        Assert.Equal("true", row1.GetProperty("field").GetString());
     }
 }

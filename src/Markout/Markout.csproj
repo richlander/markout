@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.16.0</Version>
-    <PackageReleaseNotes>Add composite-cell shapes (Change&lt;V&gt;, Fraction, Share, Percent, Segments) with [MarkoutDelta]/[MarkoutUnit] for multi-format tables. BREAKING: the Breakdown element type Segment(Category, Count) is renamed to Slice(Category, Count) and Breakdown.Segments to Breakdown.Slices; update `new Segment(...)` to `new Slice(...)`.</PackageReleaseNotes>
+    <Version>0.16.1</Version>
+    <PackageReleaseNotes>Composite-cell shapes (Change&lt;V&gt;, Fraction, Share, Percent, Segments) with [MarkoutDelta]/[MarkoutUnit] render as a dense Markdown table and decompose into typed JSONL/TSV columns. JSONL supports heterogeneous records (MarkoutWriterOptions.OmitEmptyJsonFields) and numeric/boolean values (MarkoutWriterOptions.JsonTypedValues). BREAKING (since 0.16.0): the Breakdown element type Segment(Category, Count) is renamed to Slice(Category, Count) and Breakdown.Segments to Breakdown.Slices; update `new Segment(...)` to `new Slice(...)`.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

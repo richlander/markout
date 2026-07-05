@@ -23,6 +23,8 @@ public class MarkoutWriter
     private bool _needsBlankLine;
     private bool _inTable;
     private bool _inCode;
+    // Number of leading identity columns for the in-progress table write (composite decompose).
+    private int _pendingJsonIdentityColumns;
 
     // Section tracking
     private string? _currentSectionName;
@@ -469,16 +471,25 @@ public class MarkoutWriter
         var outRows = new List<string[]>(rows.Length);
         for (int r = 0; r < decomposedRows.Length; r++)
         {
-            // Absent cells stay null (a sentinel distinct from ""): structured formatters omit
-            // null keys to produce heterogeneous JSONL, while TSV/pretty render them as blanks.
-            var values = new string?[keyOrder.Count + 1];
+            var values = new string[keyOrder.Count + 1];
             values[0] = labels[r];
+            for (int i = 1; i < values.Length; i++)
+                values[i] = "";
             foreach (var field in decomposedRows[r])
                 values[keyIndex[field.Key] + 1] = field.Value;
-            outRows.Add(values!);
+            outRows.Add(values);
         }
 
-        return WriteTable(headers, headerNames, outRows);
+        // Column 0 is the row identity/label; keep it a JSON string even under JsonTypedValues.
+        _pendingJsonIdentityColumns = 1;
+        try
+        {
+            return WriteTable(headers, headerNames, outRows);
+        }
+        finally
+        {
+            _pendingJsonIdentityColumns = 0;
+        }
     }
 
     /// <summary>
@@ -1125,10 +1136,14 @@ public class MarkoutWriter
 
     private TableWriter CreateTableWriter()
     {
+        // Scope identity-column typing to the in-progress composite write via a per-call copy.
+        var options = _pendingJsonIdentityColumns > 0
+            ? _options.WithJsonIdentityColumns(_pendingJsonIdentityColumns)
+            : _options;
         if (_formatter is ITableFormatter tf)
-            return new TableWriter(_writer, tf, _options);
+            return new TableWriter(_writer, tf, options);
         if (_formatter is IStreamingTableFormatter stf)
-            return new TableWriter(_writer, stf, _options);
+            return new TableWriter(_writer, stf, options);
         throw new InvalidOperationException("Formatter does not support tables.");
     }
 

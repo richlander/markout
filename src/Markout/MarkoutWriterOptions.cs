@@ -21,7 +21,35 @@ public class MarkoutWriterOptions
     private MarkoutTableMode _tableMode;
     private MarkoutTableHeaderStyle _tableHeaderStyle;
     private bool _jsonTypedValues;
+    private bool _omitEmptyJsonFields;
+    private int _jsonIdentityColumns;
     private int _headingLevelOffset;
+
+    /// <summary>Creates a new, writable options instance with default values.</summary>
+    public MarkoutWriterOptions()
+    {
+    }
+
+    private MarkoutWriterOptions(MarkoutWriterOptions source)
+    {
+        // Copies every setting into a fresh, writable instance (does not copy IsReadOnly).
+        _includeBadges = source._includeBadges;
+        _includeDescription = source._includeDescription;
+        _boldFieldNames = source._boldFieldNames;
+        _prettyTables = source._prettyTables;
+        _maxItems = source._maxItems;
+        _includeSections = source._includeSections;
+        _projection = source._projection;
+        _suppressedShapes = source._suppressedShapes;
+        _tableOptions = source._tableOptions;
+        _formatTableHeader = source._formatTableHeader;
+        _tableMode = source._tableMode;
+        _tableHeaderStyle = source._tableHeaderStyle;
+        _jsonTypedValues = source._jsonTypedValues;
+        _omitEmptyJsonFields = source._omitEmptyJsonFields;
+        _jsonIdentityColumns = source._jsonIdentityColumns;
+        _headingLevelOffset = source._headingLevelOffset;
+    }
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -243,9 +271,40 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
+    /// When rendering JSONL, omit fields whose value is empty so each record contains only its
+    /// populated keys (heterogeneous records). Default is false (every column is emitted). Useful
+    /// for composite-cell decomposition, where a card's rows have different shapes; TSV keeps the
+    /// uniform column union regardless.
+    /// </summary>
+    public bool OmitEmptyJsonFields
+    {
+        get => _omitEmptyJsonFields;
+        set
+        {
+            ThrowIfReadOnly();
+            _omitEmptyJsonFields = value;
+        }
+    }
+
+    /// <summary>
     /// Gets whether this instance is read-only.
     /// </summary>
     public bool IsReadOnly => _isReadOnly;
+
+    /// <summary>
+    /// Number of leading table columns that are identity/label columns and are always emitted as
+    /// JSON strings, even when <see cref="JsonTypedValues"/> is set. Used by composite-cell
+    /// decomposition so the leading <c>field</c> column stays a stable string.
+    /// </summary>
+    internal int JsonIdentityColumns => _jsonIdentityColumns;
+
+    /// <summary>Returns a writable copy of these options with <see cref="JsonIdentityColumns"/> set.</summary>
+    internal MarkoutWriterOptions WithJsonIdentityColumns(int count)
+    {
+        var copy = new MarkoutWriterOptions(this);
+        copy._jsonIdentityColumns = count;
+        return copy;
+    }
 
     /// <summary>
     /// Marks this instance as read-only. After calling this method, any attempt to set

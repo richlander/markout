@@ -1,6 +1,5 @@
 using Markout.Formatting;
 using System.Buffers;
-using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text;
 using System.Text.Json;
@@ -119,14 +118,14 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
             json.WriteStartObject();
             for (int i = 0; i < headers.Length; i++)
             {
-                // A null cell means "absent" (distinct from an empty string): omit its key so
-                // composite decomposition yields heterogeneous records. Empty strings are kept.
-                if (i < row.Length && row[i] is null)
+                var value = i < row.Length ? FormatHelper.RenderInlinePlainText(row[i]) : "";
+
+                // Heterogeneous records: drop empty fields when opted in.
+                if (options.OmitEmptyJsonFields && string.IsNullOrEmpty(value))
                     continue;
 
-                var value = i < row.Length ? FormatHelper.RenderInlinePlainText(row[i]) : "";
                 var key = headers[i] ?? "";
-                if (options.JsonTypedValues)
+                if (options.JsonTypedValues && i >= options.JsonIdentityColumns)
                     WriteTypedJsonValue(json, key, value);
                 else
                     json.WriteString(key, value ?? "");
@@ -140,7 +139,9 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
     }
 
     /// <summary>
-    /// Writes a cell as a JSON number or boolean when its text parses as one; otherwise a string.
+    /// Writes a cell as a JSON number or boolean when its text is one; otherwise a string.
+    /// Numbers are written verbatim (<see cref="Utf8JsonWriter.WriteRawValue(System.ReadOnlySpan{char}, bool)"/>)
+    /// so exact digits are preserved without rounding through a CLR numeric type.
     /// Enabled by <see cref="MarkoutWriterOptions.JsonTypedValues"/>.
     /// </summary>
     private static void WriteTypedJsonValue(Utf8JsonWriter json, string key, string? value)
@@ -148,22 +149,80 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         if (string.IsNullOrEmpty(value))
         {
             json.WriteString(key, value ?? "");
-            return;
+        }
+        else if (IsJsonNumber(value))
+        {
+            json.WritePropertyName(key);
+            json.WriteRawValue(value, skipInputValidation: true);
+        }
+        else if (value == "true")
+        {
+            json.WriteBoolean(key, true);
+        }
+        else if (value == "false")
+        {
+            json.WriteBoolean(key, false);
+        }
+        else
+        {
+            json.WriteString(key, value);
+        }
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="s"/> is a valid JSON number token (RFC 8259 grammar).
+    /// Rejects leading zeros, a leading '+', thousands separators, hex, NaN/Infinity, etc., so
+    /// only strictly numeric text is coerced.
+    /// </summary>
+    private static bool IsJsonNumber(string s)
+    {
+        int i = 0, n = s.Length;
+        if (n == 0)
+            return false;
+
+        if (s[i] == '-')
+        {
+            i++;
+            if (i == n)
+                return false;
         }
 
-        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l))
-            json.WriteNumber(key, l);
-        else if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var m))
-            json.WriteNumber(key, m);
-        else if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
-                 && !double.IsNaN(d) && !double.IsInfinity(d))
-            json.WriteNumber(key, d);
-        else if (value == "true")
-            json.WriteBoolean(key, true);
-        else if (value == "false")
-            json.WriteBoolean(key, false);
+        if (s[i] == '0')
+        {
+            i++;
+        }
+        else if (s[i] >= '1' && s[i] <= '9')
+        {
+            i++;
+            while (i < n && s[i] >= '0' && s[i] <= '9')
+                i++;
+        }
         else
-            json.WriteString(key, value);
+        {
+            return false;
+        }
+
+        if (i < n && s[i] == '.')
+        {
+            i++;
+            if (i == n || s[i] < '0' || s[i] > '9')
+                return false;
+            while (i < n && s[i] >= '0' && s[i] <= '9')
+                i++;
+        }
+
+        if (i < n && (s[i] == 'e' || s[i] == 'E'))
+        {
+            i++;
+            if (i < n && (s[i] == '+' || s[i] == '-'))
+                i++;
+            if (i == n || s[i] < '0' || s[i] > '9')
+                return false;
+            while (i < n && s[i] >= '0' && s[i] <= '9')
+                i++;
+        }
+
+        return i == n;
     }
 
     private static void WriteTsvRow(TextWriter w, ReadOnlySpan<string> values)
