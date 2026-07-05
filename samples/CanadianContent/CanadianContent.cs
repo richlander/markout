@@ -300,7 +300,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
             Breakdown = [new Breakdown("All Shows", shows
                 .GroupBy(s => s.Type)
                 .OrderByDescending(g => g.Count())
-                .Select(g => new Segment(g.Key, g.Count()))
+                .Select(g => new Slice(g.Key, g.Count()))
                 .ToArray())]
         };
         MarkoutSerializer.Serialize(view, output, fmt, CanConContext.Default, options);
@@ -331,7 +331,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
             GenreMix = [new Breakdown("All Shows", shows
                 .GroupBy(s => s.Type)
                 .OrderByDescending(g => g.Count())
-                .Select(g => new Segment(g.Key, g.Count()))
+                .Select(g => new Slice(g.Key, g.Count()))
                 .ToArray())],
             FilmographyTree = topActors.Select(actor =>
             {

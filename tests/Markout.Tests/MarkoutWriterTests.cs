@@ -222,7 +222,7 @@ public class MarkoutWriterTests
     public void MarkdownFormatter_WriteBreakdown_Renders()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());
-        var breakdown = new Breakdown("Test", [new Segment("Pass", 8), new Segment("Fail", 2)]);
+        var breakdown = new Breakdown("Test", [new Slice("Pass", 8), new Slice("Fail", 2)]);
         var result = orch.WriteBreakdown([breakdown]);
         Assert.True(result);
         var output = orch.ToString();
@@ -348,7 +348,7 @@ public class MarkoutWriterTests
     public void TableFormatter_WriteBreakdown_ReturnsFalse()
     {
         var orch = MarkoutWriter.Create(new TableFormatter());
-        var result = orch.WriteBreakdown([new Breakdown("X", [new Segment("A", 1)])]);
+        var result = orch.WriteBreakdown([new Breakdown("X", [new Slice("A", 1)])]);
         Assert.False(result);
     }
 
@@ -1108,7 +1108,7 @@ public class MarkoutWriterTests
         Assert.False(orch.WriteListItem("item"));
         Assert.False(orch.WriteCallout(CalloutSeverity.Note, "msg"));
         Assert.False(orch.WriteRule());
-        Assert.False(orch.WriteBreakdown([new Breakdown("X", [new Segment("A", 1)])]));
+        Assert.False(orch.WriteBreakdown([new Breakdown("X", [new Slice("A", 1)])]));
         Assert.False(orch.WriteMetrics([new Metric("M", 1)]));
         Assert.False(orch.WriteParagraph("text"));
         Assert.False(orch.WriteTreeNode("node"));
@@ -1361,7 +1361,7 @@ public class MarkoutWriterTests
         Assert.True(orch.WriteCodeEnd());
         Assert.True(orch.WriteCallout(CalloutSeverity.Note, "msg"));
         Assert.True(orch.WriteRule());
-        Assert.True(orch.WriteBreakdown([new Breakdown("test", [new Segment("a", 1)])]));
+        Assert.True(orch.WriteBreakdown([new Breakdown("test", [new Slice("a", 1)])]));
     }
 
     // ── Cascade field → streaming table ──

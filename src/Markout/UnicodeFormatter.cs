@@ -255,14 +255,14 @@ public class UnicodeFormatter : IMarkoutFormatter,
 
         foreach (var item in items)
         {
-            int total = item.Segments.Sum(s => s.Count);
+            int total = item.Slices.Sum(s => s.Count);
             if (total <= 0)
                 continue;
 
             w.Write(item.Label.PadRight(15));
             w.Write(" ");
 
-            foreach (var segment in item.Segments)
+            foreach (var segment in item.Slices)
             {
                 double fraction = (double)segment.Count / total;
                 int width = (int)Math.Round(fraction * availableWidth);

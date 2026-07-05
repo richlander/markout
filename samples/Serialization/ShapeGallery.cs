@@ -74,9 +74,9 @@ public static class ShapeGallery
         writer.WriteHeading(2, "Code Breakdown");
         writer.WriteBreakdown([
             new Breakdown("By Language", [
-                new Segment("C#", 85),
-                new Segment("MSBuild", 10),
-                new Segment("JSON", 5),
+                new Slice("C#", 85),
+                new Slice("MSBuild", 10),
+                new Slice("JSON", 5),
             ]),
         ]);
 
