@@ -293,4 +293,80 @@ public class TableFormatterTests
         Assert.False(result);
         Assert.Equal("", sw.ToString());
     }
+
+    [Fact]
+    public void JsonlMode_JsonTypedValues_CoercesNumbersAndBooleans()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Name", "Count", "Ratio", "Active"],
+            ["name", "count", "ratio", "active"],
+            [["Alice", "3", "0.5", "true"]]);
+
+        var root = JsonDocument.Parse(sw.ToString()).RootElement;
+        Assert.Equal(JsonValueKind.String, root.GetProperty("name").ValueKind);
+        Assert.Equal(3, root.GetProperty("count").GetInt32());
+        Assert.Equal(0.5, root.GetProperty("ratio").GetDouble());
+        Assert.Equal(JsonValueKind.True, root.GetProperty("active").ValueKind);
+    }
+
+    [Fact]
+    public void JsonlMode_DefaultsToStringValues()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(["Count"], ["count"], [["3"]]);
+
+        var root = JsonDocument.Parse(sw.ToString()).RootElement;
+        Assert.Equal(JsonValueKind.String, root.GetProperty("count").ValueKind);
+    }
+
+    [Fact]
+    public void JsonlMode_NullCell_IsEmptyStringNotOmitted_ByDefault()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        // A null cell (e.g. from a direct WriteTable) must serialize as "", not be dropped.
+        writer.WriteTable(["A", "B"], ["a", "b"], new List<string[]> { new[] { "x", null! } });
+
+        var root = JsonDocument.Parse(sw.ToString()).RootElement;
+        Assert.Equal("x", root.GetProperty("a").GetString());
+        Assert.True(root.TryGetProperty("b", out var b));
+        Assert.Equal("", b.GetString());
+    }
+
+    [Fact]
+    public void JsonlMode_JsonTypedValues_PreservesLargeNumbersExactly()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        var big = "123456789012345678901234567890";
+        writer.WriteTable(["Big"], ["big"], [[big]]);
+
+        // Emitted verbatim as an (unquoted) number — no rounding through double/decimal.
+        Assert.Contains("\"big\":" + big, sw.ToString().ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void JsonlMode_JsonTypedValues_LeavesNonJsonNumbersAsStrings()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["A", "B", "C", "D"],
+            ["a", "b", "c", "d"],
+            [["007", "+7", "NaN", "1e3"]]);
+
+        var root = JsonDocument.Parse(sw.ToString()).RootElement;
+        Assert.Equal(JsonValueKind.String, root.GetProperty("a").ValueKind);   // leading zero
+        Assert.Equal(JsonValueKind.String, root.GetProperty("b").ValueKind);   // leading '+'
+        Assert.Equal(JsonValueKind.String, root.GetProperty("c").ValueKind);   // NaN
+        Assert.Equal(JsonValueKind.Number, root.GetProperty("d").ValueKind);   // valid JSON exponent
+    }
 }

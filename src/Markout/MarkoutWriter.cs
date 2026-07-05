@@ -23,6 +23,8 @@ public class MarkoutWriter
     private bool _needsBlankLine;
     private bool _inTable;
     private bool _inCode;
+    // Number of leading identity columns for the in-progress table write (composite decompose).
+    private int _pendingJsonIdentityColumns;
 
     // Section tracking
     private string? _currentSectionName;
@@ -478,7 +480,16 @@ public class MarkoutWriter
             outRows.Add(values);
         }
 
-        return WriteTable(headers, headerNames, outRows);
+        // Column 0 is the row identity/label; keep it a JSON string even under JsonTypedValues.
+        _pendingJsonIdentityColumns = 1;
+        try
+        {
+            return WriteTable(headers, headerNames, outRows);
+        }
+        finally
+        {
+            _pendingJsonIdentityColumns = 0;
+        }
     }
 
     /// <summary>
@@ -616,14 +627,41 @@ public class MarkoutWriter
             rowList = projected;
         }
 
+        // Resolve identity (never-typed) columns to their post-projection positions, since
+        // projection can drop or reorder the leading identity column.
+        var tableOptions = ResolveIdentityColumns(headerArray.Length, columnMap);
+
         EnsureBlankLineIfNeeded();
         if (headerNameArray != null)
-            CreateTableWriter().WriteTable(headerArray, headerNameArray, rowList);
+            CreateTableWriter(tableOptions).WriteTable(headerArray, headerNameArray, rowList);
         else
-            CreateTableWriter().WriteTable(headerArray, rowList);
+            CreateTableWriter(tableOptions).WriteTable(headerArray, rowList);
         _needsBlankLine = true;
         _hasContent = true;
         return true;
+    }
+
+    // Maps the pre-projection leading identity columns through the projection map to their
+    // projected indices, returning options the JSONL writer uses to keep those columns as strings.
+    private MarkoutWriterOptions ResolveIdentityColumns(int projectedColumnCount, int[]? columnMap)
+    {
+        if (_pendingJsonIdentityColumns <= 0)
+            return _options;
+
+        var indices = new HashSet<int>();
+        if (columnMap == null)
+        {
+            for (int i = 0; i < _pendingJsonIdentityColumns && i < projectedColumnCount; i++)
+                indices.Add(i);
+        }
+        else
+        {
+            for (int j = 0; j < columnMap.Length; j++)
+                if (columnMap[j] >= 0 && columnMap[j] < _pendingJsonIdentityColumns)
+                    indices.Add(j);
+        }
+
+        return _options.WithJsonIdentityColumnIndices(indices);
     }
 
     /// <summary>
@@ -1123,12 +1161,14 @@ public class MarkoutWriter
         _needsBlankLine = true;
     }
 
-    private TableWriter CreateTableWriter()
+    private TableWriter CreateTableWriter() => CreateTableWriter(_options);
+
+    private TableWriter CreateTableWriter(MarkoutWriterOptions options)
     {
         if (_formatter is ITableFormatter tf)
-            return new TableWriter(_writer, tf, _options);
+            return new TableWriter(_writer, tf, options);
         if (_formatter is IStreamingTableFormatter stf)
-            return new TableWriter(_writer, stf, _options);
+            return new TableWriter(_writer, stf, options);
         throw new InvalidOperationException("Formatter does not support tables.");
     }
 

@@ -20,7 +20,36 @@ public class MarkoutWriterOptions
     private Func<MarkoutTableHeader, string>? _formatTableHeader;
     private MarkoutTableMode _tableMode;
     private MarkoutTableHeaderStyle _tableHeaderStyle;
+    private bool _jsonTypedValues;
+    private bool _omitEmptyJsonFields;
+    private IReadOnlySet<int>? _jsonIdentityColumnIndices;
     private int _headingLevelOffset;
+
+    /// <summary>Creates a new, writable options instance with default values.</summary>
+    public MarkoutWriterOptions()
+    {
+    }
+
+    private MarkoutWriterOptions(MarkoutWriterOptions source)
+    {
+        // Copies every setting into a fresh, writable instance (does not copy IsReadOnly).
+        _includeBadges = source._includeBadges;
+        _includeDescription = source._includeDescription;
+        _boldFieldNames = source._boldFieldNames;
+        _prettyTables = source._prettyTables;
+        _maxItems = source._maxItems;
+        _includeSections = source._includeSections;
+        _projection = source._projection;
+        _suppressedShapes = source._suppressedShapes;
+        _tableOptions = source._tableOptions;
+        _formatTableHeader = source._formatTableHeader;
+        _tableMode = source._tableMode;
+        _tableHeaderStyle = source._tableHeaderStyle;
+        _jsonTypedValues = source._jsonTypedValues;
+        _omitEmptyJsonFields = source._omitEmptyJsonFields;
+        _jsonIdentityColumnIndices = source._jsonIdentityColumnIndices;
+        _headingLevelOffset = source._headingLevelOffset;
+    }
 
     /// <summary>
     /// Gets the default options instance. This instance is read-only.
@@ -225,9 +254,57 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
+    /// When rendering JSONL, emit cell values that parse as a number or boolean as JSON numbers
+    /// or booleans instead of quoted strings. Default is false (all values are strings).
+    /// Useful for composite-cell decomposition, where columns such as <c>before</c>/<c>after</c>/
+    /// <c>count</c>/<c>pct</c> are numeric. Coercion is text-based, so opt in only when numeric-
+    /// looking strings should become numbers.
+    /// </summary>
+    public bool JsonTypedValues
+    {
+        get => _jsonTypedValues;
+        set
+        {
+            ThrowIfReadOnly();
+            _jsonTypedValues = value;
+        }
+    }
+
+    /// <summary>
+    /// When rendering JSONL, omit fields whose value is empty so each record contains only its
+    /// populated keys (heterogeneous records). Default is false (every column is emitted). Useful
+    /// for composite-cell decomposition, where a card's rows have different shapes; TSV keeps the
+    /// uniform column union regardless.
+    /// </summary>
+    public bool OmitEmptyJsonFields
+    {
+        get => _omitEmptyJsonFields;
+        set
+        {
+            ThrowIfReadOnly();
+            _omitEmptyJsonFields = value;
+        }
+    }
+
+    /// <summary>
     /// Gets whether this instance is read-only.
     /// </summary>
     public bool IsReadOnly => _isReadOnly;
+
+    /// <summary>
+    /// Projected column indices that are identity/label columns and are always emitted as JSON
+    /// strings, even when <see cref="JsonTypedValues"/> is set. Set by composite-cell decomposition
+    /// after projection so the <c>field</c> column stays a stable string regardless of column order.
+    /// </summary>
+    internal IReadOnlySet<int>? JsonIdentityColumnIndices => _jsonIdentityColumnIndices;
+
+    /// <summary>Returns a writable copy of these options with <see cref="JsonIdentityColumnIndices"/> set.</summary>
+    internal MarkoutWriterOptions WithJsonIdentityColumnIndices(IReadOnlySet<int>? indices)
+    {
+        var copy = new MarkoutWriterOptions(this);
+        copy._jsonIdentityColumnIndices = indices;
+        return copy;
+    }
 
     /// <summary>
     /// Marks this instance as read-only. After calling this method, any attempt to set

@@ -550,4 +550,117 @@ public class CompositeCellTests
         var withoutNote = new RefCellCard { Score = new Change<long>(1, 2), Note = null };
         Assert.DoesNotContain("Note", MarkoutSerializer.Serialize(withoutNote, RefCellContext.Default));
     }
+
+    // ── Structured-output follow-ups (#124 typed values, #125 heterogeneous JSONL) ──
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_IsHeterogeneous_OmitsAbsentKeys()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, OmitEmptyJsonFields = true });
+        writer.WriteCompositeTable(SampleRows());
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // Each record carries only its own keys — a scalar Change row has no segment columns.
+        var session = JsonDocument.Parse(lines[0]).RootElement;
+        Assert.True(session.TryGetProperty("before", out _));
+        Assert.False(session.TryGetProperty("web_before", out _));
+
+        var tools = JsonDocument.Parse(lines[1]).RootElement;
+        Assert.True(tools.TryGetProperty("web_before", out _));
+        Assert.False(tools.TryGetProperty("before", out _));
+
+        var verdict = JsonDocument.Parse(lines[2]).RootElement;
+        Assert.Equal(new[] { "field", "value" }, verdict.EnumerateObject().Select(p => p.Name).ToArray());
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_TypedValues_EmitsNumbersButKeepsStrings()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        writer.WriteCompositeTable(SampleRows());
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        var session = JsonDocument.Parse(lines[0]).RootElement;
+        Assert.Equal(JsonValueKind.Number, session.GetProperty("before").ValueKind);
+        Assert.Equal(98555, session.GetProperty("before").GetInt64());
+        Assert.Equal(-38, session.GetProperty("delta_pct").GetInt32());
+
+        var verdict = JsonDocument.Parse(lines[2]).RootElement;
+        Assert.Equal(JsonValueKind.String, verdict.GetProperty("value").ValueKind);
+        Assert.Equal("BETTER", verdict.GetProperty("value").GetString());
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Tsv_StaysUniform_BlankForAbsentColumns()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });
+        writer.WriteCompositeTable(SampleRows());
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // TSV keeps the uniform union: every row has the same column count, absent cells blank.
+        var width = lines[0].Split('\t').Length;
+        Assert.All(lines, line => Assert.Equal(width, line.Split('\t').Length));
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_TypedValues_KeepsIdentityColumnAsString()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        // Numeric/boolean row labels must not be type-coerced — the identity key stays a string.
+        writer.WriteCompositeTable(
+            new MarkoutCompositeRow("2024", new Fraction(3, 4)),
+            new MarkoutCompositeRow("true", new Fraction(1, 2)));
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        var row0 = JsonDocument.Parse(lines[0]).RootElement;
+        Assert.Equal(JsonValueKind.String, row0.GetProperty("field").ValueKind);
+        Assert.Equal("2024", row0.GetProperty("field").GetString());
+        Assert.Equal(JsonValueKind.Number, row0.GetProperty("count").ValueKind); // data still typed
+
+        var row1 = JsonDocument.Parse(lines[1]).RootElement;
+        Assert.Equal(JsonValueKind.String, row1.GetProperty("field").ValueKind);
+        Assert.Equal("true", row1.GetProperty("field").GetString());
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_TypedValues_IdentityScopingSurvivesProjection()
+    {
+        // Reordering the identity column must still keep it a string and type the data column.
+        var reordered = RenderComposite(new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            JsonTypedValues = true,
+            Projection = MarkoutProjection.WithColumns("count", "field"),
+        });
+        var r = JsonDocument.Parse(reordered).RootElement;
+        Assert.Equal(JsonValueKind.Number, r.GetProperty("count").ValueKind);
+        Assert.Equal(JsonValueKind.String, r.GetProperty("field").ValueKind);
+
+        // Dropping the identity column must not force a data column to a string.
+        var dropped = RenderComposite(new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            JsonTypedValues = true,
+            Projection = MarkoutProjection.WithoutColumns("field"),
+        });
+        var d = JsonDocument.Parse(dropped).RootElement;
+        Assert.Equal(JsonValueKind.Number, d.GetProperty("count").ValueKind);
+        Assert.False(d.TryGetProperty("field", out _));
+    }
+
+    private static string RenderComposite(MarkoutWriterOptions options)
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteCompositeTable(new MarkoutCompositeRow("2024", new Fraction(3, 4)));
+        return sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+    }
 }
