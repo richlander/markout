@@ -51,6 +51,23 @@ public partial class NullableCompositeContext : MarkoutSerializerContext
 {
 }
 
+// Link formatting must survive the composite-card path (regression: EmitScalarCompositeRow
+// previously dropped [MarkoutLink]).
+[MarkoutSerializable]
+public class LinkedCompositeCard
+{
+    [MarkoutPropertyName("score")]
+    public Change<long> Score { get; set; }
+
+    [MarkoutLink]
+    public string? Url { get; set; }
+}
+
+[MarkoutContext(typeof(LinkedCompositeCard))]
+public partial class LinkedCompositeContext : MarkoutSerializerContext
+{
+}
+
 public class CompositeCellTests
 {
     private static string Inline(IMarkoutCell cell, MarkoutCellFormat format = default)
@@ -410,5 +427,69 @@ public class CompositeCellTests
         Assert.Equal(keys.Count, keys.Distinct().Count());
         Assert.Contains(new MarkoutField("before_before", "1"), fields);
         Assert.Contains(new MarkoutField("after_after", "4"), fields);
+    }
+
+    // ── Regression: second adversarial review (Gemini / GPT-5.5 / MAI) ──
+
+    [Fact]
+    public void Change_Scalar_NegativeBase_PercentUsesMagnitude()
+    {
+        // A rise from a negative base is a gain, not a loss: divide by |before|.
+        var cell = new Change<int>(-10, 10);
+        Assert.Equal("-10 \u2192 10 (+200%)", Inline(cell, new MarkoutCellFormat(Delta.Percent)));
+        Assert.Equal("200", Decompose(cell, new MarkoutCellFormat(Delta.Percent))[2].Value);
+    }
+
+    [Fact]
+    public void Change_Scalar_LargeLong_PreservesPrecision()
+    {
+        // Values beyond double's exact integer range must not be rounded.
+        var cell = new Change<long>(9007199254740993L, 9007199254740994L);
+        var fields = Decompose(cell);
+        Assert.Equal("9007199254740993", fields[0].Value);
+        Assert.Equal("9007199254740994", fields[1].Value);
+        Assert.Equal("9007199254740993 \u2192 9007199254740994", Inline(cell));
+    }
+
+    [Fact]
+    public void Change_NullableCompositeSide_RendersShapeNotStructDump()
+    {
+        var cell = new Change<Fraction?>(null, new Fraction(1, 2));
+        Assert.Equal(" \u2192 1/2", Inline(cell));
+
+        var fields = Decompose(cell);
+        Assert.Equal([new("after_count", "1"), new("after_total", "2")], fields);
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_HandlesEmptyAndNumericKeys()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+        // "!!!" and "???" both normalize to empty; "2" is a bare digit — all must stay distinct.
+        writer.WriteCompositeTable(
+            new MarkoutCompositeRow("segments",
+                new Segments(new Segment("!!!", 1), new Segment("2", 2), new Segment("???", 3))));
+
+        var line = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+        var root = JsonDocument.Parse(line).RootElement;
+
+        var props = root.EnumerateObject().ToList();
+        Assert.Equal(4, props.Count); // field + 3 distinct value columns
+        Assert.Equal(props.Count, props.Select(p => p.Name).Distinct().Count());
+        Assert.All(props, p => Assert.False(string.IsNullOrEmpty(p.Name)));
+        var values = props.Where(p => p.Name != "field").Select(p => p.Value.GetString()).OrderBy(v => v).ToList();
+        Assert.Equal(["1", "2", "3"], values);
+    }
+
+    [Fact]
+    public void Generated_LinkedComposite_RendersLinkOnScalarRow()
+    {
+        var card = new LinkedCompositeCard { Score = new Change<long>(10, 20), Url = "https://example.com" };
+        var output = MarkoutSerializer.Serialize(card, LinkedCompositeContext.Default);
+
+        Assert.Contains("[https://example.com](https://example.com)", output);
+        Assert.Contains("| score | 10 \u2192 20 |", output);
     }
 }

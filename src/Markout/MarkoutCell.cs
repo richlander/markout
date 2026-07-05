@@ -81,9 +81,11 @@ internal static class CellText
         null => string.Empty,
         double d => Number(d),
         float f => Number(f),
-        long l => Number(l),
-        int i => Number(i),
-        short or byte or sbyte or ushort or uint or ulong or decimal => Number(Convert.ToDouble(value, CultureInfo.InvariantCulture)),
+        // Format integral and decimal types directly to preserve full precision
+        // (routing large long/ulong/decimal through double would round them).
+        decimal m => m.ToString(CultureInfo.InvariantCulture),
+        long or int or short or sbyte or byte or ushort or uint or ulong
+            => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
         _ => value.ToString() ?? string.Empty
     };
 

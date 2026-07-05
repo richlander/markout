@@ -14,11 +14,13 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
     /// <inheritdoc/>
     public void FormatInline(TextWriter writer, in MarkoutCellFormat format)
     {
-        if (Before is IMarkoutCell beforeCell && After is IMarkoutCell afterCell)
+        // If either half is a composite shape, render both as shapes (a null half writes nothing)
+        // so a nullable composite side never leaks a struct ToString via the scalar path.
+        if (Before is IMarkoutCell || After is IMarkoutCell)
         {
-            beforeCell.FormatInline(writer, format);
+            (Before as IMarkoutCell)?.FormatInline(writer, format);
             writer.Write(CellText.Arrow);
-            afterCell.FormatInline(writer, format);
+            (After as IMarkoutCell)?.FormatInline(writer, format);
             return;
         }
 
@@ -37,10 +39,10 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
     /// <inheritdoc/>
     public void Decompose(ICollection<MarkoutField> fields, string? side, in MarkoutCellFormat format)
     {
-        if (Before is IMarkoutCell beforeCell && After is IMarkoutCell afterCell)
+        if (Before is IMarkoutCell || After is IMarkoutCell)
         {
-            beforeCell.Decompose(fields, CellText.SideKey(side, "before"), format);
-            afterCell.Decompose(fields, CellText.SideKey(side, "after"), format);
+            (Before as IMarkoutCell)?.Decompose(fields, CellText.SideKey(side, "before"), format);
+            (After as IMarkoutCell)?.Decompose(fields, CellText.SideKey(side, "after"), format);
             return;
         }
 
@@ -59,7 +61,8 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
             return CellText.Placeholder;
         return mode switch
         {
-            Delta.Percent => before == 0 ? CellText.Placeholder : CellText.SignedPercent((after - before) / before * 100),
+            // Divide by |before| so a rise from a negative base reports as a gain, not a loss.
+            Delta.Percent => before == 0 ? CellText.Placeholder : CellText.SignedPercent((after - before) / Math.Abs(before) * 100),
             Delta.Absolute => CellText.SignedNumber(after - before),
             _ => CellText.Placeholder
         };
@@ -71,7 +74,7 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
             return CellText.Placeholder;
         return mode switch
         {
-            Delta.Percent => before == 0 ? CellText.Placeholder : CellText.PercentNumber((after - before) / before * 100),
+            Delta.Percent => before == 0 ? CellText.Placeholder : CellText.PercentNumber((after - before) / Math.Abs(before) * 100),
             Delta.Absolute => CellText.Number(after - before),
             _ => CellText.Placeholder
         };

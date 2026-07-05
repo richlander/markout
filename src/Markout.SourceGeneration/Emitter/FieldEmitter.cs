@@ -322,7 +322,7 @@ internal static class FieldEmitter
             }
             else
             {
-                EmitScalarCompositeRow(sb, prop, propAccess, rowsVar, fieldIndent);
+                EmitScalarCompositeRow(sb, prop, propAccess, valueExpr, rowsVar, fieldIndent);
             }
 
             if (prop.ShowWhenProperty != null)
@@ -393,11 +393,15 @@ internal static class FieldEmitter
         StringBuilder sb,
         PropertyMetadata prop,
         string propAccess,
+        string valueExpr,
         string rowsVar,
         string indent)
     {
-        string RowAdd(string valueStr) =>
-            $"{rowsVar}.Add(global::Markout.MarkoutCompositeRow.Scalar(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {valueStr}));";
+        string RowAdd(string valueStr)
+        {
+            var linked = EmitHelpers.WrapWithLink(prop, valueStr, valueExpr);
+            return $"{rowsVar}.Add(global::Markout.MarkoutCompositeRow.Scalar(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {linked}));";
+        }
 
         if (prop.IsNullableValueType)
         {

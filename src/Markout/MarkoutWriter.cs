@@ -451,7 +451,11 @@ public class MarkoutWriter
         {
             headers[i + 1] = keyOrder[i];
 
+            // TableWriter re-applies ToSnakeCase to stable names, so use a non-empty fixed point
+            // (ToSnakeCase(stable) == stable) and dedupe on it to guarantee unique output keys.
             var stable = Formatting.FormatHelper.ToSnakeCase(keyOrder[i]);
+            if (string.IsNullOrEmpty(stable))
+                stable = "column";
             if (!usedStableKeys.Add(stable))
             {
                 int suffix = 2;

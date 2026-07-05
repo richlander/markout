@@ -444,7 +444,8 @@ internal static class EmitHelpers
             PropertyKind.Double or PropertyKind.Decimal => $"{propAccess} != 0",
             PropertyKind.DateTime or PropertyKind.DateTimeOffset => $"{propAccess} != default",
             PropertyKind.Enum => $"{propAccess} != default({prop.TypeName})",
-            PropertyKind.CompositeCell => $"!{propAccess}.Equals(default({prop.TypeName}))",
+            // Null-safe for both value-type and reference-type IMarkoutCell implementations.
+            PropertyKind.CompositeCell => $"!global::System.Collections.Generic.EqualityComparer<{prop.TypeName}>.Default.Equals({propAccess}, default({prop.TypeName}))",
             PropertyKind.StringArray => $"{propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0",
             PropertyKind.Formattable => $"{propAccess} != null",
             _ => $"{propAccess} != null"
