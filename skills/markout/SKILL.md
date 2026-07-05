@@ -1,3 +1,9 @@
+---
+name: markout
+version: 0.15.0
+description: Source-generated .NET serializer that renders objects as Markdown (also ANSI terminal, plain text, pretty tables, TSV/JSONL). Use it when a CLI or tool needs structured, human- or agent-readable output instead of hand-built strings; it requires a generated MarkoutSerializerContext and Markout attributes (no reflection fallback).
+---
+
 # Markout — Coding Agent Integration Guide
 
 Markout is a .NET source-generated serializer that turns objects into readable documents and compact tabular output (Markdown, ANSI terminal, plain text, pretty tables, TSV). Use it whenever a CLI tool needs structured output instead of raw `Console.WriteLine`.

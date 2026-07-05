@@ -1,0 +1,10 @@
+{
+  "name": "markout",
+  "description": "Markout skills for coding assistants",
+  "version": "0.15.0",
+  "author": {
+    "name": "Richard Lander"
+  },
+  "license": "MIT",
+  "keywords": ["dotnet", "markout", "markdown", "serializer"]
+}
