@@ -39,18 +39,18 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
     {
         if (Before is IMarkoutCell beforeCell && After is IMarkoutCell afterCell)
         {
-            beforeCell.Decompose(fields, "before", format);
-            afterCell.Decompose(fields, "after", format);
+            beforeCell.Decompose(fields, CellText.SideKey(side, "before"), format);
+            afterCell.Decompose(fields, CellText.SideKey(side, "after"), format);
             return;
         }
 
-        fields.Add(new MarkoutField("before", CellText.Scalar(Before)));
-        fields.Add(new MarkoutField("after", CellText.Scalar(After)));
+        fields.Add(new MarkoutField(CellText.SideKey(side, "before"), CellText.Scalar(Before)));
+        fields.Add(new MarkoutField(CellText.SideKey(side, "after"), CellText.Scalar(After)));
 
         if (format.Delta == Delta.Percent)
-            fields.Add(new MarkoutField("deltaPct", DeltaValue(Delta.Percent)));
+            fields.Add(new MarkoutField(CellText.SideKey(side, "deltaPct"), DeltaValue(Delta.Percent)));
         else if (format.Delta == Delta.Absolute)
-            fields.Add(new MarkoutField("deltaAbs", DeltaValue(Delta.Absolute)));
+            fields.Add(new MarkoutField(CellText.SideKey(side, "deltaAbs"), DeltaValue(Delta.Absolute)));
     }
 
     private string DeltaSuffix(Delta mode)

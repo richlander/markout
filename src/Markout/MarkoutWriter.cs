@@ -365,11 +365,15 @@ public class MarkoutWriter
         if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
             return false;
 
-        if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
-            return WriteDecomposedCompositeTable(rows);
+        var projected = ProjectCompositeRows(rows);
+        if (projected.Length == 0)
+            return true;
 
-        var denseRows = new List<string[]>(rows.Length);
-        foreach (var row in rows)
+        if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
+            return WriteDecomposedCompositeTable(projected);
+
+        var denseRows = new List<string[]>(projected.Length);
+        foreach (var row in projected)
         {
             var sw = new StringWriter();
             row.Cell?.FormatInline(sw, row.Format);
@@ -377,6 +381,37 @@ public class MarkoutWriter
         }
 
         return WriteTable(["Field", "Value"], ["Field", "Value"], denseRows);
+    }
+
+    // Applies field projection (WithFields/WithoutFields) to composite rows by their label,
+    // mirroring how WriteFieldsTable projects Field | Value rows.
+    private MarkoutCompositeRow[] ProjectCompositeRows(ReadOnlySpan<MarkoutCompositeRow> rows)
+    {
+        if (_options.Projection == null)
+            return rows.ToArray();
+
+        var asFields = new MarkoutField[rows.Length];
+        for (int i = 0; i < rows.Length; i++)
+            asFields[i] = new MarkoutField(rows[i].Label, "");
+
+        var kept = ProjectFields(asFields);
+        var rowArray = rows.ToArray();
+        var result = new List<MarkoutCompositeRow>(kept.Length);
+        var consumed = new bool[rowArray.Length];
+        foreach (var field in kept)
+        {
+            for (int i = 0; i < rowArray.Length; i++)
+            {
+                if (!consumed[i] && rowArray[i].Label == field.Key)
+                {
+                    result.Add(rowArray[i]);
+                    consumed[i] = true;
+                    break;
+                }
+            }
+        }
+
+        return result.ToArray();
     }
 
     private bool WriteDecomposedCompositeTable(ReadOnlySpan<MarkoutCompositeRow> rows)
@@ -404,15 +439,28 @@ public class MarkoutWriter
         }
 
         // Leading "field" column names the property/row; remaining columns are the union keys.
+        // Stable header names are snake-cased for output, so disambiguate any that collide after
+        // normalization (or with the reserved leading column) to avoid silent duplicate keys.
         var headers = new string[keyOrder.Count + 1];
+        var headerNames = new string[keyOrder.Count + 1];
         headers[0] = "Field";
+        headerNames[0] = "field";
+        var usedStableKeys = new HashSet<string>(StringComparer.Ordinal) { "field" };
+
         for (int i = 0; i < keyOrder.Count; i++)
+        {
             headers[i + 1] = keyOrder[i];
 
-        var headerNames = new string[keyOrder.Count + 1];
-        headerNames[0] = "field";
-        for (int i = 0; i < keyOrder.Count; i++)
-            headerNames[i + 1] = keyOrder[i];
+            var stable = Formatting.FormatHelper.ToSnakeCase(keyOrder[i]);
+            if (!usedStableKeys.Add(stable))
+            {
+                int suffix = 2;
+                string candidate;
+                do { candidate = stable + "_" + suffix++; } while (!usedStableKeys.Add(candidate));
+                stable = candidate;
+            }
+            headerNames[i + 1] = stable;
+        }
 
         var outRows = new List<string[]>(rows.Length);
         for (int r = 0; r < decomposedRows.Length; r++)

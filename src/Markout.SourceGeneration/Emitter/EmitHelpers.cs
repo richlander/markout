@@ -422,7 +422,7 @@ internal static class EmitHelpers
             PropertyKind.Boolean or PropertyKind.Int32 or PropertyKind.Int64
                 or PropertyKind.Double or PropertyKind.Decimal
                 or PropertyKind.DateTime or PropertyKind.DateTimeOffset
-                or PropertyKind.Enum => null,
+                or PropertyKind.Enum or PropertyKind.CompositeCell => null,
             _ => $"{propAccess} != null"
         };
     }
@@ -444,6 +444,7 @@ internal static class EmitHelpers
             PropertyKind.Double or PropertyKind.Decimal => $"{propAccess} != 0",
             PropertyKind.DateTime or PropertyKind.DateTimeOffset => $"{propAccess} != default",
             PropertyKind.Enum => $"{propAccess} != default({prop.TypeName})",
+            PropertyKind.CompositeCell => $"!{propAccess}.Equals(default({prop.TypeName}))",
             PropertyKind.StringArray => $"{propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0",
             PropertyKind.Formattable => $"{propAccess} != null",
             _ => $"{propAccess} != null"

@@ -318,8 +318,7 @@ internal static class FieldEmitter
 
             if (prop.Kind == PropertyKind.CompositeCell)
             {
-                var format = $"new global::Markout.MarkoutCellFormat({EmitHelpers.DeltaLiteral(prop)}, {EmitHelpers.UnitLiteral(prop)})";
-                sb.AppendLine($"{fieldIndent}{rowsVar}.Add(new global::Markout.MarkoutCompositeRow(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {propAccess}, {format}));");
+                EmitCompositeCellRow(sb, prop, propAccess, rowsVar, fieldIndent);
             }
             else
             {
@@ -336,6 +335,54 @@ internal static class FieldEmitter
             sb.AppendLine($"{indent}    writer.WriteHeading({sectionLevel}, \"{EmitHelpers.EscapeString(sectionHeading)}\");");
         sb.AppendLine($"{indent}    writer.WriteCompositeTable(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({rowsVar}));");
         sb.AppendLine($"{indent}}}");
+    }
+
+    /// <summary>
+    /// Emits a composite-cell property as a <c>MarkoutCompositeRow</c>, honoring nullable and
+    /// skip guards so a null/default composite is not rendered as a blank row.
+    /// </summary>
+    private static void EmitCompositeCellRow(
+        StringBuilder sb,
+        PropertyMetadata prop,
+        string propAccess,
+        string rowsVar,
+        string indent)
+    {
+        var format = $"new global::Markout.MarkoutCellFormat({EmitHelpers.DeltaLiteral(prop)}, {EmitHelpers.UnitLiteral(prop)})";
+
+        string RowAdd(string cellExpr) =>
+            $"{rowsVar}.Add(new global::Markout.MarkoutCompositeRow(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {cellExpr}, {format}));";
+
+        if (prop.IsNullableValueType)
+        {
+            // Nullable composite: the underlying struct boxes cleanly to IMarkoutCell.
+            var valueExpr = $"{propAccess}.Value";
+            sb.AppendLine($"{indent}if ({propAccess}.HasValue)");
+            sb.AppendLine($"{indent}    {RowAdd(valueExpr)}");
+        }
+        else if (prop.SkipWhenDefault)
+        {
+            var condition = EmitHelpers.GetNonDefaultCondition(prop, propAccess);
+            sb.AppendLine($"{indent}if ({condition})");
+            sb.AppendLine($"{indent}    {RowAdd(propAccess)}");
+        }
+        else if (prop.SkipWhenNull)
+        {
+            var condition = EmitHelpers.GetNonNullCondition(prop, propAccess);
+            if (condition != null)
+            {
+                sb.AppendLine($"{indent}if ({condition})");
+                sb.AppendLine($"{indent}    {RowAdd(propAccess)}");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}{RowAdd(propAccess)}");
+            }
+        }
+        else
+        {
+            sb.AppendLine($"{indent}{RowAdd(propAccess)}");
+        }
     }
 
     /// <summary>

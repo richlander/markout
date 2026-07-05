@@ -8,7 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.15.0</Version>
+    <Version>0.16.0</Version>
+    <PackageReleaseNotes>Add composite-cell shapes (Change&lt;V&gt;, Fraction, Share, Percent, Segments) with [MarkoutDelta]/[MarkoutUnit] for multi-format tables. BREAKING: the Breakdown element type Segment(Category, Count) is renamed to Slice(Category, Count) and Breakdown.Segments to Breakdown.Slices; update `new Segment(...)` to `new Slice(...)`.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

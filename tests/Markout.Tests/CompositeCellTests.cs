@@ -35,6 +35,22 @@ public partial class QualityCardContext : MarkoutSerializerContext
 {
 }
 
+// Nullable + skip guards on the composite path (regression: generated code must compile
+// under TreatWarningsAsErrors and must skip null composites instead of emitting blank rows).
+[MarkoutSerializable]
+public class NullableCompositeCard
+{
+    [MarkoutPropertyName("maybe"), MarkoutDelta(Delta.Percent)]
+    public Change<long>? Maybe { get; set; }
+
+    public string? Note { get; set; }
+}
+
+[MarkoutContext(typeof(NullableCompositeCard))]
+public partial class NullableCompositeContext : MarkoutSerializerContext
+{
+}
+
 public class CompositeCellTests
 {
     private static string Inline(IMarkoutCell cell, MarkoutCellFormat format = default)
@@ -326,5 +342,73 @@ public class CompositeCellTests
         Assert.Contains("web_before", headers);
         Assert.Contains("delta_pct", headers);
         Assert.Contains("value", headers);
+    }
+
+    // ── Regression: review findings ──
+
+    [Fact]
+    public void Generated_NullableComposite_Null_IsSkipped()
+    {
+        var card = new NullableCompositeCard { Maybe = null, Note = "n/a" };
+        var output = MarkoutSerializer.Serialize(card, NullableCompositeContext.Default);
+
+        Assert.DoesNotContain("maybe", output);
+        Assert.Contains("| Note | n/a |", output);
+    }
+
+    [Fact]
+    public void Generated_NullableComposite_Present_Renders()
+    {
+        var card = new NullableCompositeCard { Maybe = new Change<long>(100, 50), Note = "ok" };
+        var output = MarkoutSerializer.Serialize(card, NullableCompositeContext.Default);
+
+        Assert.Contains("| maybe | 100 \u2192 50 (-50%) |", output);
+    }
+
+    [Fact]
+    public void WriteCompositeTable_AppliesFieldProjection()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new MarkdownFormatter(),
+            new MarkoutWriterOptions { Projection = MarkoutProjection.WithFields("Verdict") });
+        writer.WriteCompositeTable(SampleRows());
+        var output = sw.ToString();
+
+        Assert.Contains("| Verdict | BETTER |", output);
+        Assert.DoesNotContain("Session IET", output);
+        Assert.DoesNotContain("tool calls", output);
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_DisambiguatesCollidingKeys()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+        // "a b" and "a_b" both normalize to "a_b"; they must not silently merge into one key.
+        writer.WriteCompositeTable(
+            new MarkoutCompositeRow("segments", new Segments(new Segment("a b", 1), new Segment("a_b", 2))));
+
+        var line = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+        var root = JsonDocument.Parse(line).RootElement;
+
+        // Leading column + two distinct value columns, both values preserved.
+        var props = root.EnumerateObject().ToList();
+        Assert.Equal(3, props.Count);
+        var values = props.Where(p => p.Name != "field").Select(p => p.Value.GetString()).OrderBy(v => v).ToList();
+        Assert.Equal(["1", "2"], values);
+    }
+
+    [Fact]
+    public void Change_NestedInChange_ThreadsSideWithoutKeyCollision()
+    {
+        // Change<Change<int>> is an edge case, but its decomposed keys must stay distinct.
+        var cell = new Change<Change<int>>(new Change<int>(1, 2), new Change<int>(3, 4));
+        var fields = Decompose(cell);
+
+        var keys = fields.Select(f => f.Key).ToList();
+        Assert.Equal(keys.Count, keys.Distinct().Count());
+        Assert.Contains(new MarkoutField("before_before", "1"), fields);
+        Assert.Contains(new MarkoutField("after_after", "4"), fields);
     }
 }
