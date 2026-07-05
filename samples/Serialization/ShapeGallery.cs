@@ -9,7 +9,7 @@ namespace Markout.Samples.Serialization;
 public static class ShapeGallery
 {
     /// <summary>
-    /// Renders all ten data relationships through the writer API.
+    /// Renders the built-in data relationships through the writer API.
     /// </summary>
     public static void WriteAllShapes()
     {
@@ -79,6 +79,16 @@ public static class ShapeGallery
                 new Slice("JSON", 5),
             ]),
         ]);
+
+        // Composite cells — dense in Markdown, decomposed into typed columns in TSV/JSONL
+        writer.WriteHeading(2, "Quality Card");
+        writer.WriteCompositeTable(
+            new("tasks correct", new Change<Fraction>(new Fraction(24, 24), new Fraction(24, 24))),
+            new("tool calls: web / bash / other", new Change<Segments>(
+                new Segments(new Segment("web", 21), new Segment("bash", 171), new Segment("other", 236)),
+                new Segments(new Segment("web", 0), new Segment("bash", 75), new Segment("other", 183)))),
+            new("output tok (% of IET)", new Change<Share>(new Share(5056, 21067), new Share(3129, 13037))),
+            new("Session IET", new Change<long>(98555, 61190), new MarkoutCellFormat(Delta.Percent)));
 
         // Hierarchy — tree
         writer.WriteHeading(2, "Project Structure");
