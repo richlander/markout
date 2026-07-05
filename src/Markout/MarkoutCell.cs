@@ -110,31 +110,28 @@ internal static class CellText
     /// <summary>
     /// Computes a signed absolute delta (<c>After − Before</c>), exact for integral and decimal
     /// types (a large <c>long</c>/<c>decimal</c> difference must not round through <c>double</c>).
+    /// Integral types subtract as <c>decimal</c> to avoid <c>long</c> wrap-around; a <c>decimal</c>
+    /// overflow falls back to <c>double</c> rather than throwing.
     /// </summary>
     public static string AbsoluteDelta(object? before, object? after, bool signed)
     {
         switch (before, after)
         {
             case (long b, long a):
-                return SignInt(a - b, signed);
+                return SignDecimal((decimal)a - (decimal)b, signed);
             case (ulong b, ulong a):
                 return SignDecimal((decimal)a - (decimal)b, signed);
             case (decimal b, decimal a):
-                return SignDecimal(a - b, signed);
-            default:
-                if (TryScalarDouble(before, out var bd) && TryScalarDouble(after, out var ad))
-                {
-                    var d = ad - bd;
-                    return signed ? SignedNumber(d) : Number(d);
-                }
-                return Placeholder;
+                try { return SignDecimal(a - b, signed); }
+                catch (OverflowException) { break; } // fall through to the double path
         }
-    }
 
-    private static string SignInt(long delta, bool signed)
-    {
-        var text = delta.ToString(CultureInfo.InvariantCulture);
-        return signed && delta > 0 ? "+" + text : text;
+        if (TryScalarDouble(before, out var bd) && TryScalarDouble(after, out var ad))
+        {
+            var d = ad - bd;
+            return signed ? SignedNumber(d) : Number(d);
+        }
+        return Placeholder;
     }
 
     private static string SignDecimal(decimal delta, bool signed)

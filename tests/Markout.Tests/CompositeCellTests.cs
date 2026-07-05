@@ -531,6 +531,17 @@ public class CompositeCellTests
     }
 
     [Fact]
+    public void Change_Scalar_ExtremeAbsoluteDelta_DoesNotOverflow()
+    {
+        // long endpoints must not wrap around, and decimal extremes must not throw.
+        var lng = new Change<long>(long.MinValue, long.MaxValue);
+        Assert.Equal("18446744073709551615", Decompose(lng, new MarkoutCellFormat(Delta.Absolute))[2].Value);
+
+        var dec = new Change<decimal>(decimal.MinValue, decimal.MaxValue);
+        Assert.Null(Record.Exception(() => Decompose(dec, new MarkoutCellFormat(Delta.Absolute))));
+    }
+
+    [Fact]
     public void Generated_ReferenceTypeCell_SkipNull_IsSkipped()
     {
         var withNote = new RefCellCard { Score = new Change<long>(1, 2), Note = new TextCell("hi") };
