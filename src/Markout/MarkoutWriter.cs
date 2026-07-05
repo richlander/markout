@@ -627,14 +627,41 @@ public class MarkoutWriter
             rowList = projected;
         }
 
+        // Resolve identity (never-typed) columns to their post-projection positions, since
+        // projection can drop or reorder the leading identity column.
+        var tableOptions = ResolveIdentityColumns(headerArray.Length, columnMap);
+
         EnsureBlankLineIfNeeded();
         if (headerNameArray != null)
-            CreateTableWriter().WriteTable(headerArray, headerNameArray, rowList);
+            CreateTableWriter(tableOptions).WriteTable(headerArray, headerNameArray, rowList);
         else
-            CreateTableWriter().WriteTable(headerArray, rowList);
+            CreateTableWriter(tableOptions).WriteTable(headerArray, rowList);
         _needsBlankLine = true;
         _hasContent = true;
         return true;
+    }
+
+    // Maps the pre-projection leading identity columns through the projection map to their
+    // projected indices, returning options the JSONL writer uses to keep those columns as strings.
+    private MarkoutWriterOptions ResolveIdentityColumns(int projectedColumnCount, int[]? columnMap)
+    {
+        if (_pendingJsonIdentityColumns <= 0)
+            return _options;
+
+        var indices = new HashSet<int>();
+        if (columnMap == null)
+        {
+            for (int i = 0; i < _pendingJsonIdentityColumns && i < projectedColumnCount; i++)
+                indices.Add(i);
+        }
+        else
+        {
+            for (int j = 0; j < columnMap.Length; j++)
+                if (columnMap[j] >= 0 && columnMap[j] < _pendingJsonIdentityColumns)
+                    indices.Add(j);
+        }
+
+        return _options.WithJsonIdentityColumnIndices(indices);
     }
 
     /// <summary>
@@ -1134,12 +1161,10 @@ public class MarkoutWriter
         _needsBlankLine = true;
     }
 
-    private TableWriter CreateTableWriter()
+    private TableWriter CreateTableWriter() => CreateTableWriter(_options);
+
+    private TableWriter CreateTableWriter(MarkoutWriterOptions options)
     {
-        // Scope identity-column typing to the in-progress composite write via a per-call copy.
-        var options = _pendingJsonIdentityColumns > 0
-            ? _options.WithJsonIdentityColumns(_pendingJsonIdentityColumns)
-            : _options;
         if (_formatter is ITableFormatter tf)
             return new TableWriter(_writer, tf, options);
         if (_formatter is IStreamingTableFormatter stf)

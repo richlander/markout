@@ -22,7 +22,7 @@ public class MarkoutWriterOptions
     private MarkoutTableHeaderStyle _tableHeaderStyle;
     private bool _jsonTypedValues;
     private bool _omitEmptyJsonFields;
-    private int _jsonIdentityColumns;
+    private IReadOnlySet<int>? _jsonIdentityColumnIndices;
     private int _headingLevelOffset;
 
     /// <summary>Creates a new, writable options instance with default values.</summary>
@@ -47,7 +47,7 @@ public class MarkoutWriterOptions
         _tableHeaderStyle = source._tableHeaderStyle;
         _jsonTypedValues = source._jsonTypedValues;
         _omitEmptyJsonFields = source._omitEmptyJsonFields;
-        _jsonIdentityColumns = source._jsonIdentityColumns;
+        _jsonIdentityColumnIndices = source._jsonIdentityColumnIndices;
         _headingLevelOffset = source._headingLevelOffset;
     }
 
@@ -292,17 +292,17 @@ public class MarkoutWriterOptions
     public bool IsReadOnly => _isReadOnly;
 
     /// <summary>
-    /// Number of leading table columns that are identity/label columns and are always emitted as
-    /// JSON strings, even when <see cref="JsonTypedValues"/> is set. Used by composite-cell
-    /// decomposition so the leading <c>field</c> column stays a stable string.
+    /// Projected column indices that are identity/label columns and are always emitted as JSON
+    /// strings, even when <see cref="JsonTypedValues"/> is set. Set by composite-cell decomposition
+    /// after projection so the <c>field</c> column stays a stable string regardless of column order.
     /// </summary>
-    internal int JsonIdentityColumns => _jsonIdentityColumns;
+    internal IReadOnlySet<int>? JsonIdentityColumnIndices => _jsonIdentityColumnIndices;
 
-    /// <summary>Returns a writable copy of these options with <see cref="JsonIdentityColumns"/> set.</summary>
-    internal MarkoutWriterOptions WithJsonIdentityColumns(int count)
+    /// <summary>Returns a writable copy of these options with <see cref="JsonIdentityColumnIndices"/> set.</summary>
+    internal MarkoutWriterOptions WithJsonIdentityColumnIndices(IReadOnlySet<int>? indices)
     {
         var copy = new MarkoutWriterOptions(this);
-        copy._jsonIdentityColumns = count;
+        copy._jsonIdentityColumnIndices = indices;
         return copy;
     }
 

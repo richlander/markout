@@ -629,4 +629,38 @@ public class CompositeCellTests
         Assert.Equal(JsonValueKind.String, row1.GetProperty("field").ValueKind);
         Assert.Equal("true", row1.GetProperty("field").GetString());
     }
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_TypedValues_IdentityScopingSurvivesProjection()
+    {
+        // Reordering the identity column must still keep it a string and type the data column.
+        var reordered = RenderComposite(new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            JsonTypedValues = true,
+            Projection = MarkoutProjection.WithColumns("count", "field"),
+        });
+        var r = JsonDocument.Parse(reordered).RootElement;
+        Assert.Equal(JsonValueKind.Number, r.GetProperty("count").ValueKind);
+        Assert.Equal(JsonValueKind.String, r.GetProperty("field").ValueKind);
+
+        // Dropping the identity column must not force a data column to a string.
+        var dropped = RenderComposite(new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            JsonTypedValues = true,
+            Projection = MarkoutProjection.WithoutColumns("field"),
+        });
+        var d = JsonDocument.Parse(dropped).RootElement;
+        Assert.Equal(JsonValueKind.Number, d.GetProperty("count").ValueKind);
+        Assert.False(d.TryGetProperty("field", out _));
+    }
+
+    private static string RenderComposite(MarkoutWriterOptions options)
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteCompositeTable(new MarkoutCompositeRow("2024", new Fraction(3, 4)));
+        return sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+    }
 }

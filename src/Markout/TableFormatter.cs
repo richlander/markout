@@ -125,7 +125,8 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
                     continue;
 
                 var key = headers[i] ?? "";
-                if (options.JsonTypedValues && i >= options.JsonIdentityColumns)
+                var isIdentity = options.JsonIdentityColumnIndices?.Contains(i) ?? false;
+                if (options.JsonTypedValues && !isIdentity)
                     WriteTypedJsonValue(json, key, value);
                 else
                     json.WriteString(key, value ?? "");
