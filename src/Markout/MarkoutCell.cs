@@ -107,6 +107,42 @@ internal static class CellText
         }
     }
 
+    /// <summary>
+    /// Computes a signed absolute delta (<c>After − Before</c>), exact for integral and decimal
+    /// types (a large <c>long</c>/<c>decimal</c> difference must not round through <c>double</c>).
+    /// </summary>
+    public static string AbsoluteDelta(object? before, object? after, bool signed)
+    {
+        switch (before, after)
+        {
+            case (long b, long a):
+                return SignInt(a - b, signed);
+            case (ulong b, ulong a):
+                return SignDecimal((decimal)a - (decimal)b, signed);
+            case (decimal b, decimal a):
+                return SignDecimal(a - b, signed);
+            default:
+                if (TryScalarDouble(before, out var bd) && TryScalarDouble(after, out var ad))
+                {
+                    var d = ad - bd;
+                    return signed ? SignedNumber(d) : Number(d);
+                }
+                return Placeholder;
+        }
+    }
+
+    private static string SignInt(long delta, bool signed)
+    {
+        var text = delta.ToString(CultureInfo.InvariantCulture);
+        return signed && delta > 0 ? "+" + text : text;
+    }
+
+    private static string SignDecimal(decimal delta, bool signed)
+    {
+        var text = delta.ToString(CultureInfo.InvariantCulture);
+        return signed && delta > 0 ? "+" + text : text;
+    }
+
     /// <summary>Combines a decomposition <paramref name="side"/> with a sub-field name as <c>{side}_{sub}</c>.</summary>
     public static string SideKey(string? side, string sub)
         => side is null ? sub : side + "_" + sub;

@@ -182,6 +182,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? SectionEmptyText { get; }
     public MarkoutDeltaKind DeltaMode { get; }
     public string? Unit { get; }
+    public bool IsReferenceTypeCell { get; }
 
     public PropertyMetadata(
         string name,
@@ -230,7 +231,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         bool isUnwrapped = false,
         string? sectionEmptyText = null,
         MarkoutDeltaKind deltaMode = MarkoutDeltaKind.None,
-        string? unit = null)
+        string? unit = null,
+        bool isReferenceTypeCell = false)
     {
         Name = name;
         DisplayName = displayName;
@@ -279,6 +281,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionEmptyText = sectionEmptyText;
         DeltaMode = deltaMode;
         Unit = unit;
+        IsReferenceTypeCell = isReferenceTypeCell;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -331,6 +334,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionEmptyText == other.SectionEmptyText &&
                DeltaMode == other.DeltaMode &&
                Unit == other.Unit &&
+               IsReferenceTypeCell == other.IsReferenceTypeCell &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -368,6 +372,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionEmptyText?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (int)DeltaMode;
             hash = hash * 397 ^ (Unit?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ IsReferenceTypeCell.GetHashCode();
             return hash;
         }
     }

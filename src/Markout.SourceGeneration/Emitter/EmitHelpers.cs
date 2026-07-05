@@ -419,10 +419,12 @@ internal static class EmitHelpers
             PropertyKind.StringArray => $"{propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0",
             PropertyKind.Formattable => $"{propAccess} != null",
             // Non-nullable value types (bool, int, etc.) are never null — no condition needed
+            // Reference-type composite cells can be null; value-type ones never are.
+            PropertyKind.CompositeCell => prop.IsReferenceTypeCell ? $"{propAccess} != null" : null,
             PropertyKind.Boolean or PropertyKind.Int32 or PropertyKind.Int64
                 or PropertyKind.Double or PropertyKind.Decimal
                 or PropertyKind.DateTime or PropertyKind.DateTimeOffset
-                or PropertyKind.Enum or PropertyKind.CompositeCell => null,
+                or PropertyKind.Enum => null,
             _ => $"{propAccess} != null"
         };
     }

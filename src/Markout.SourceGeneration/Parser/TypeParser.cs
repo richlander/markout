@@ -489,6 +489,10 @@ internal static class TypeParser
             ));
         }
 
+        // Reference-type IMarkoutCell implementations need null guards for skip attributes
+        // (built-in composite shapes are value types and never null).
+        bool isReferenceTypeCell = kind == PropertyKind.CompositeCell && prop.Type.IsReferenceType;
+
         return new PropertyMetadata(
             prop.Name,
             displayName,
@@ -536,7 +540,8 @@ internal static class TypeParser
             isUnwrapped,
             sectionEmptyText,
             deltaMode,
-            unit);
+            unit,
+            isReferenceTypeCell);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

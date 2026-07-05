@@ -63,7 +63,7 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         {
             // Divide by |before| so a rise from a negative base reports as a gain, not a loss.
             Delta.Percent => before == 0 ? CellText.Placeholder : CellText.SignedPercent((after - before) / Math.Abs(before) * 100),
-            Delta.Absolute => CellText.SignedNumber(after - before),
+            Delta.Absolute => CellText.AbsoluteDelta(Before, After, signed: true),
             _ => CellText.Placeholder
         };
     }
@@ -75,7 +75,7 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         return mode switch
         {
             Delta.Percent => before == 0 ? CellText.Placeholder : CellText.PercentNumber((after - before) / Math.Abs(before) * 100),
-            Delta.Absolute => CellText.Number(after - before),
+            Delta.Absolute => CellText.AbsoluteDelta(Before, After, signed: false),
             _ => CellText.Placeholder
         };
     }

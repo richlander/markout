@@ -68,6 +68,34 @@ public partial class LinkedCompositeContext : MarkoutSerializerContext
 {
 }
 
+// A reference-type IMarkoutCell implementation (built-in shapes are value types) to verify
+// skip-null guarding and null-safe skip-default on the composite path.
+public sealed class TextCell(string text) : IMarkoutCell
+{
+    private readonly string _text = text;
+
+    public void FormatInline(TextWriter writer, in MarkoutCellFormat format)
+        => writer.Write(_text);
+
+    public void Decompose(ICollection<MarkoutField> fields, string? side, in MarkoutCellFormat format)
+        => fields.Add(new MarkoutField(side is null ? "text" : side + "_text", _text));
+}
+
+[MarkoutSerializable]
+public class RefCellCard
+{
+    [MarkoutPropertyName("score")]
+    public Change<long> Score { get; set; }
+
+    [MarkoutSkipNull]
+    public TextCell? Note { get; set; }
+}
+
+[MarkoutContext(typeof(RefCellCard))]
+public partial class RefCellContext : MarkoutSerializerContext
+{
+}
+
 public class CompositeCellTests
 {
     private static string Inline(IMarkoutCell cell, MarkoutCellFormat format = default)
@@ -491,5 +519,24 @@ public class CompositeCellTests
 
         Assert.Contains("[https://example.com](https://example.com)", output);
         Assert.Contains("| score | 10 \u2192 20 |", output);
+    }
+
+    [Fact]
+    public void Change_Scalar_LargeLong_AbsoluteDeltaIsExact()
+    {
+        // The absolute delta must be computed in long, not via double.
+        var cell = new Change<long>(9007199254740993L, 9007199254740994L);
+        Assert.Equal("1", Decompose(cell, new MarkoutCellFormat(Delta.Absolute))[2].Value);
+        Assert.Equal("9007199254740993 \u2192 9007199254740994 (+1)", Inline(cell, new MarkoutCellFormat(Delta.Absolute)));
+    }
+
+    [Fact]
+    public void Generated_ReferenceTypeCell_SkipNull_IsSkipped()
+    {
+        var withNote = new RefCellCard { Score = new Change<long>(1, 2), Note = new TextCell("hi") };
+        Assert.Contains("| Note | hi |", MarkoutSerializer.Serialize(withNote, RefCellContext.Default));
+
+        var withoutNote = new RefCellCard { Score = new Change<long>(1, 2), Note = null };
+        Assert.DoesNotContain("Note", MarkoutSerializer.Serialize(withoutNote, RefCellContext.Default));
     }
 }
