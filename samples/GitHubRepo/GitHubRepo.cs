@@ -117,7 +117,7 @@ async Task Run(ParseResult parseResult, CancellationToken ct)
             ? [new Breakdown("By bytes", languages
                 .OrderByDescending(kv => kv.Value)
                 .Take(maxLanguages)
-                .Select(kv => new Segment(kv.Key, (int)(kv.Value * 100 / totalBytes)))
+                .Select(kv => new Slice(kv.Key, (int)(kv.Value * 100 / totalBytes)))
                 .ToArray())]
             : null,
         ContributorMetrics = useMetrics ? contributors

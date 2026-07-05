@@ -522,11 +522,11 @@ public class MarkdownFormatter : IMarkoutFormatter,
         {
             var item = items[0];
             var total = 0;
-            foreach (var seg in item.Segments) total += seg.Count;
+            foreach (var seg in item.Slices) total += seg.Count;
             if (total == 0) total = 1;
 
             var headers = new[] { "Category", "Count", "%" };
-            var rows = item.Segments
+            var rows = item.Slices
                 .Where(s => s.Count > 0)
                 .Select(s => new[] { s.Category, s.Count.ToString(), $"{s.Count * 100.0 / total:F0}" })
                 .ToList();
@@ -540,10 +540,10 @@ public class MarkdownFormatter : IMarkoutFormatter,
             foreach (var item in items)
             {
                 var total = 0;
-                foreach (var seg in item.Segments) total += seg.Count;
+                foreach (var seg in item.Slices) total += seg.Count;
                 if (total == 0) total = 1;
 
-                foreach (var seg in item.Segments.Where(s => s.Count > 0))
+                foreach (var seg in item.Slices.Where(s => s.Count > 0))
                     rows.Add([item.Label, seg.Category, seg.Count.ToString(), $"{seg.Count * 100.0 / total:F0}"]);
             }
 

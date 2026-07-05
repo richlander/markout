@@ -31,6 +31,8 @@ internal static class TypeParser
     private const string MarkoutValueMapAttribute = "Markout.MarkoutValueMapAttribute";
     private const string MarkoutUnwrapAttribute = "Markout.MarkoutUnwrapAttribute";
     private const string MarkoutIgnoreColumnWhenAttribute = "Markout.MarkoutIgnoreColumnWhenAttribute";
+    private const string MarkoutDeltaAttribute = "Markout.MarkoutDeltaAttribute";
+    private const string MarkoutUnitAttribute = "Markout.MarkoutUnitAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -440,6 +442,26 @@ internal static class TypeParser
                 valueMap = entries;
         }
 
+        // Parse [MarkoutDelta] — derived-change mode for a numeric Comparison<> cell
+        MarkoutDeltaKind deltaMode = MarkoutDeltaKind.None;
+        var deltaAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutDeltaAttribute);
+        if (deltaAttr != null && deltaAttr.ConstructorArguments.Length > 0 &&
+            deltaAttr.ConstructorArguments[0].Value is int deltaValue)
+        {
+            deltaMode = (MarkoutDeltaKind)deltaValue;
+        }
+
+        // Parse [MarkoutUnit] — unit suffix for a Share cell value
+        string? unit = null;
+        var unitAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutUnitAttribute);
+        if (unitAttr != null && unitAttr.ConstructorArguments.Length > 0 &&
+            unitAttr.ConstructorArguments[0].Value is string unitValue)
+        {
+            unit = unitValue;
+        }
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -466,6 +488,10 @@ internal static class TypeParser
                 GetKindDisplayName(kind)
             ));
         }
+
+        // Reference-type IMarkoutCell implementations need null guards for skip attributes
+        // (built-in composite shapes are value types and never null).
+        bool isReferenceTypeCell = kind == PropertyKind.CompositeCell && prop.Type.IsReferenceType;
 
         return new PropertyMetadata(
             prop.Name,
@@ -512,7 +538,10 @@ internal static class TypeParser
             linkTextProperty,
             valueMap,
             isUnwrapped,
-            sectionEmptyText);
+            sectionEmptyText,
+            deltaMode,
+            unit,
+            isReferenceTypeCell);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
@@ -554,6 +583,11 @@ internal static class TypeParser
         // Callout type - renders as admonition block
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.Callout))
             return (PropertyKind.Callout, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+
+        // Composite-cell shapes (Comparison<>, Fraction, Share, Percent, Segments) implement IMarkoutCell
+        if (knownTypes.IMarkoutCell != null &&
+            type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, knownTypes.IMarkoutCell)))
+            return (PropertyKind.CompositeCell, null, null, false, null, null, true, FieldLayoutKind.Table, false);
 
         // Enum types
         if (type.TypeKind == TypeKind.Enum)
@@ -817,7 +851,8 @@ internal static class TypeParser
             PropertyKind.Decimal or 
             PropertyKind.DateTime or 
             PropertyKind.DateTimeOffset or
-            PropertyKind.Enum;
+            PropertyKind.Enum or
+            PropertyKind.CompositeCell;
     }
 
     private static string GetKindDisplayName(PropertyKind kind)

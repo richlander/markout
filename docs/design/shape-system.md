@@ -150,9 +150,18 @@ public readonly record struct Metric(string Label, double Value);
 // Description — a term with explanatory text
 public readonly record struct Description(string Term, string Text, string? Detail = null);
 
-// Composition — a labeled breakdown of proportional parts
-public readonly record struct Segment(string Category, int Count);
-public readonly record struct Breakdown(string Label, Segment[] Segments);
+// Composition — a labeled breakdown of proportional parts (slices of a shared whole)
+public readonly record struct Slice(string Category, int Count);
+public readonly record struct Breakdown(string Label, Slice[] Slices);
+
+// Composite cells — data-only cells that render densely and decompose into typed columns.
+// The type picks the rendering; [MarkoutDelta]/[MarkoutUnit] configure derivation/format.
+public readonly record struct Change<V>(V Before, V After);        // before → after (+ derived delta)
+public readonly record struct Fraction(double Count, double Total); // 24/24
+public readonly record struct Share(double Value, double Whole);    // 5056 (24%)
+public readonly record struct Percent(double Part, double Whole);   // 93%
+public readonly record struct Segment(string Label, double Value);
+public readonly record struct Segments(params Segment[] Parts);     // 21/171/236
 
 // Hierarchy — a recursive node with children
 public class TreeNode { ... }

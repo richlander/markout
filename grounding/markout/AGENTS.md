@@ -58,11 +58,26 @@ MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 
 ## Built-in shape types (use as model properties for rich output)
 
-`Metric` (bar chart), `Breakdown`/`Segment` (stacked bar), `Callout` (alert), `TreeNode`
+`Metric` (bar chart), `Breakdown`/`Slice` (stacked bar), `Callout` (alert), `TreeNode`
 (hierarchy), `Description` (term + text), `CodeSection` (code block). e.g. `new Metric("Build", 4.2)`.
 Pass children as a list/array/collection expression, never as trailing arguments:
 `new TreeNode("root", [new TreeNode("leaf")])`. `Badge` is an optional property:
 `new TreeNode("root") { Badge = "📁" }`.
+
+## Composite table cells (dense Markdown + decomposed columns from one model)
+
+Composite cells are data-only scalar properties: `FieldLayout.Table` renders a dense Markdown
+value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from one declaration.
+
+- `Change<V>` — a `before → after` change (NOT `Comparison`, which collides with `System.Comparison<T>`).
+  `[MarkoutDelta(Delta.Percent)]` on a numeric `Change<V>` appends the signed change, e.g.
+  `98555 → 61190 (−38%)`; `Delta.Absolute` appends the signed difference.
+- `Fraction(count, total)` → `24/24`; `Share(value, whole)` → `5056 (24%)`
+  (`[MarkoutUnit("s")]` → `103s (93%)`); `Percent(part, whole)` → `93%`;
+  `Segments(new Segment(label, value), ...)` → `21/171/236` (labels become column names).
+- `Change<V>` nests over composites: `Change<Fraction>`, `Change<Share>`, `Change<Segments>`.
+  A zero denominator renders `—` rather than `NaN`/`Inf`. e.g.
+  `[MarkoutPropertyName("Session IET"), MarkoutDelta(Delta.Percent)] public Change<long> SessionIet { get; init; }`.
 
 ## Other output formats (still Markdown by default)
 

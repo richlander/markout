@@ -102,7 +102,7 @@ var view = new CveReport
         ? new Callout(CalloutSeverity.Caution, $"{criticalCount} critical severity CVE(s) found. Update affected runtimes immediately.")
         : default,
     SeverityBreakdown = severityCounts.Count > 0
-        ? [new Breakdown("By Severity", severityCounts.Select(kv => new Segment(kv.Key, kv.Value)).ToArray())]
+        ? [new Breakdown("By Severity", severityCounts.Select(kv => new Slice(kv.Key, kv.Value)).ToArray())]
         : null,
     Releases = tree
 };

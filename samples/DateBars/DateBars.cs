@@ -19,11 +19,11 @@ var view = new DateProgress
     Title = $"{icon}  {now:dddd, MMMM d, yyyy — h:mm tt}",
     Progress =
     [
-        new Breakdown("Month",  [new Segment("Elapsed", now.Month),     new Segment("Remaining", 12 - now.Month)]),
-        new Breakdown("Day",    [new Segment("Elapsed", now.Day),       new Segment("Remaining", daysInMonth - now.Day)]),
-        new Breakdown("Year",   [new Segment("Elapsed", now.DayOfYear), new Segment("Remaining", daysInYear - now.DayOfYear)]),
-        new Breakdown("Hour",   [new Segment("Elapsed", now.Hour),      new Segment("Remaining", 24 - now.Hour)]),
-        new Breakdown("Minute", [new Segment("Elapsed", now.Minute),    new Segment("Remaining", 60 - now.Minute)]),
+        new Breakdown("Month",  [new Slice("Elapsed", now.Month),     new Slice("Remaining", 12 - now.Month)]),
+        new Breakdown("Day",    [new Slice("Elapsed", now.Day),       new Slice("Remaining", daysInMonth - now.Day)]),
+        new Breakdown("Year",   [new Slice("Elapsed", now.DayOfYear), new Slice("Remaining", daysInYear - now.DayOfYear)]),
+        new Breakdown("Hour",   [new Slice("Elapsed", now.Hour),      new Slice("Remaining", 24 - now.Hour)]),
+        new Breakdown("Minute", [new Slice("Elapsed", now.Minute),    new Slice("Remaining", 60 - now.Minute)]),
     ]
 };
 

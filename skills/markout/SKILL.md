@@ -132,7 +132,7 @@ public List<Metric>? Metrics { get; set; }
 [MarkoutSection(Name = "Distribution")]
 [MarkoutIgnoreInTable]
 public List<Breakdown>? Distribution { get; set; }
-// Usage: new Breakdown("By Type", [new Segment("Critical", 3), new Segment("Low", 12)])
+// Usage: new Breakdown("By Type", [new Slice("Critical", 3), new Slice("Low", 12)])
 
 // Alert box
 [MarkoutIgnoreInTable]
@@ -156,6 +156,61 @@ public List<Description>? Terms { get; set; }
 public CodeSection? SourceCode { get; set; }
 // Usage: new CodeSection("csharp", "public class Foo { }")
 ```
+
+## Composite Table Cells (one model → dense Markdown + decomposed columns)
+
+Composite cells are data-only value types used as **scalar properties**. With
+`FieldLayout.Table` (the default) each property becomes a row: Markdown renders a dense,
+human-readable value, while `TableFormatter` (TSV/JSONL) decomposes the same cell into typed
+columns — no pre-stringifying, one declaration serves both.
+
+| Shape | Dense Markdown | Decomposed columns |
+|---|---|---|
+| `Change<V>` (+`[MarkoutDelta(Delta.Percent)]`) | `98555 → 61190 (−38%)` | `before`, `after`, `delta_pct` |
+| `Fraction(count, total)` | `24/24` | `count`, `total` |
+| `Share(value, whole)` (+`[MarkoutUnit("s")]`) | `5056 (24%)` / `103s (93%)` | `value`, `pct` |
+| `Percent(part, whole)` | `93%` | `pct` |
+| `Segments(Segment(label, value)…)` | `21/171/236` | one column per `label` |
+| `Change<Segments>` | `21/171/236 → 0/75/183` | `{label}_before`, `{label}_after` |
+| `Change<Fraction>` | `24/24 → 24/24` | `before_count`, `before_total`, `after_count`, `after_total` |
+
+`Change<V>` is named `Change` (not `Comparison`) to avoid colliding with `System.Comparison<T>`.
+A zero denominator renders `—` instead of `NaN`/`Inf`.
+
+```csharp
+[MarkoutSerializable]   // FieldLayout.Table is the default — properties become rows
+public class QualityCard
+{
+    [MarkoutPropertyName("tasks correct")]
+    public Change<Fraction> TasksCorrect { get; set; }              // 24/24 → 24/24
+
+    [MarkoutPropertyName("tool calls: web / bash / other")]
+    public Change<Segments> ToolCalls { get; set; }                 // 21/171/236 → 0/75/183
+
+    [MarkoutPropertyName("tool-turn secs (% of turn time)"), MarkoutUnit("s")]
+    public Change<Share> ToolTurnSecs { get; set; }                 // 103s (93%) → 61s (90%)
+
+    [MarkoutPropertyName("Session IET"), MarkoutDelta(Delta.Percent)]
+    public Change<long> SessionIet { get; set; }                    // 98555 → 61190 (−38%)
+
+    public string? Verdict { get; set; }                            // BETTER
+}
+
+[MarkoutContext(typeof(QualityCard))]
+public partial class QualityCardContext : MarkoutSerializerContext { }
+
+// Dense Markdown table:
+MarkoutSerializer.Serialize(card, Console.Out, QualityCardContext.Default);
+
+// Same rows, decomposed to JSONL — one record per property, typed columns:
+var jsonl = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+MarkoutSerializer.Serialize(card, Console.Out, new TableFormatter(), QualityCardContext.Default, jsonl);
+// {"field":"Session IET","before":"98555","after":"61190","delta_pct":"-38", ...}
+// {"field":"tool calls: web / bash / other","web_before":"21","bash_before":"171", ...}
+```
+
+Composite cells derive only intrinsics (delta from before/after, percent from part/whole).
+Markout does not aggregate or bind external data — hand it already-correct values.
 
 ## Choosing a Formatter
 

@@ -10,9 +10,13 @@ namespace Markout;
 /// Formatter for compact tabular output. It can render normalized TSV or a pretty
 /// space-padded table from the same row/column projection.
 /// </summary>
-public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatter, IListFormatter
+public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatter, IListFormatter, ICompositeCellFormatter
 {
     private const int ColumnGap = 2;
+
+    /// <summary>Structured output decomposes composite cells into typed columns.</summary>
+    bool ICompositeCellFormatter.DecomposesCompositeCells => true;
+
     private static readonly JsonWriterOptions JsonWriterOptions = new()
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping

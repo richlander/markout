@@ -275,8 +275,8 @@ public class SpectreFormatter : IMarkoutFormatter,
 
     void IMetricsFormatter.FormatBreakdown(TextWriter w, IReadOnlyList<Breakdown> items, int? maxBarWidth, bool uniformBarWidth, MarkoutWriterOptions options)
     {
-        var categories = items.SelectMany(b => b.Segments).Select(s => s.Category).Distinct().ToList();
-        var maxTotal = items.Max(b => b.Segments.Sum(s => s.Count));
+        var categories = items.SelectMany(b => b.Slices).Select(s => s.Category).Distinct().ToList();
+        var maxTotal = items.Max(b => b.Slices.Sum(s => s.Count));
         if (maxTotal == 0) return;
 
         var labelWidth = items.Max(b => b.Label.Length);
@@ -289,7 +289,7 @@ public class SpectreFormatter : IMarkoutFormatter,
             SgrBold(w, item.Label.PadRight(labelWidth));
             w.Write("  ");
             var bw = 0;
-            foreach (var seg in item.Segments)
+            foreach (var seg in item.Slices)
             {
                 var catIndex = categories.IndexOf(seg.Category);
                 Sgr(w, DistributionSgrColors[catIndex % DistributionSgrColors.Length]);
@@ -301,7 +301,7 @@ public class SpectreFormatter : IMarkoutFormatter,
             if (maxBarChars > bw) w.Write(new string(' ', maxBarChars - bw));
             w.Write("  ");
             Sgr(w, SgrDarkGray);
-            w.Write(string.Join(", ", item.Segments.Where(s => s.Count > 0).Select(s => $"{s.Count} {s.Category}")));
+            w.Write(string.Join(", ", item.Slices.Where(s => s.Count > 0).Select(s => $"{s.Count} {s.Category}")));
             SgrReset(w);
             w.WriteLine();
         }

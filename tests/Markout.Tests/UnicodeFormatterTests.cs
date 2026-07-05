@@ -315,14 +315,14 @@ public class UnicodeFormatterTests
         var orch = MarkoutWriter.Create(sw, new UnicodeFormatter());
         orch.WriteBreakdown([
             new Breakdown("Windows", [
-                new Segment("Critical", 10),
-                new Segment("High", 20),
-                new Segment("Medium", 30)
+                new Slice("Critical", 10),
+                new Slice("High", 20),
+                new Slice("Medium", 30)
             ]),
             new Breakdown("Linux", [
-                new Segment("Critical", 5),
-                new Segment("High", 15),
-                new Segment("Medium", 20)
+                new Slice("Critical", 5),
+                new Slice("High", 15),
+                new Slice("Medium", 20)
             ])
         ], maxBarWidth: 30);
         var output = sw.ToString();

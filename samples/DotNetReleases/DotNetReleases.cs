@@ -24,7 +24,7 @@ var view = new ReleasesView
     TypeBreakdown = [new Breakdown("Release Types", releases
         .GroupBy(r => r.ReleaseType?.ToUpperInvariant() ?? "UNKNOWN")
         .OrderByDescending(g => g.Count())
-        .Select(g => new Segment(g.Key, g.Count()))
+        .Select(g => new Slice(g.Key, g.Count()))
         .ToArray())],
     Releases = releases.Select(r => new ReleaseRow
     {

@@ -180,6 +180,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public IReadOnlyList<(string Key, string Value)>? ValueMap { get; }
     public bool IsUnwrapped { get; }
     public string? SectionEmptyText { get; }
+    public MarkoutDeltaKind DeltaMode { get; }
+    public string? Unit { get; }
+    public bool IsReferenceTypeCell { get; }
 
     public PropertyMetadata(
         string name,
@@ -226,7 +229,10 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? linkTextProperty = null,
         IReadOnlyList<(string Key, string Value)>? valueMap = null,
         bool isUnwrapped = false,
-        string? sectionEmptyText = null)
+        string? sectionEmptyText = null,
+        MarkoutDeltaKind deltaMode = MarkoutDeltaKind.None,
+        string? unit = null,
+        bool isReferenceTypeCell = false)
     {
         Name = name;
         DisplayName = displayName;
@@ -273,6 +279,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         ValueMap = valueMap;
         IsUnwrapped = isUnwrapped;
         SectionEmptyText = sectionEmptyText;
+        DeltaMode = deltaMode;
+        Unit = unit;
+        IsReferenceTypeCell = isReferenceTypeCell;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -323,6 +332,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                ValueMapEqual(ValueMap, other.ValueMap) &&
                IsUnwrapped == other.IsUnwrapped &&
                SectionEmptyText == other.SectionEmptyText &&
+               DeltaMode == other.DeltaMode &&
+               Unit == other.Unit &&
+               IsReferenceTypeCell == other.IsReferenceTypeCell &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -358,6 +370,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (ValueMap?.Count ?? 0);
             hash = hash * 397 ^ IsUnwrapped.GetHashCode();
             hash = hash * 397 ^ (SectionEmptyText?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (int)DeltaMode;
+            hash = hash * 397 ^ (Unit?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ IsReferenceTypeCell.GetHashCode();
             return hash;
         }
     }
@@ -458,5 +473,16 @@ internal enum PropertyKind
     CodeSection,
     Callout,
     Breakdown,
+    CompositeCell,
     Other
+}
+
+/// <summary>
+/// Internal representation of Markout.Delta. Values mirror the runtime enum.
+/// </summary>
+internal enum MarkoutDeltaKind
+{
+    None = 0,
+    Percent = 1,
+    Absolute = 2
 }
