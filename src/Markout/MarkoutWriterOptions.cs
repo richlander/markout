@@ -20,6 +20,7 @@ public class MarkoutWriterOptions
     private Func<MarkoutTableHeader, string>? _formatTableHeader;
     private MarkoutTableMode _tableMode;
     private MarkoutTableHeaderStyle _tableHeaderStyle;
+    private bool _jsonTypedValues;
     private int _headingLevelOffset;
 
     /// <summary>
@@ -221,6 +222,23 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _headingLevelOffset = value;
+        }
+    }
+
+    /// <summary>
+    /// When rendering JSONL, emit cell values that parse as a number or boolean as JSON numbers
+    /// or booleans instead of quoted strings. Default is false (all values are strings).
+    /// Useful for composite-cell decomposition, where columns such as <c>before</c>/<c>after</c>/
+    /// <c>count</c>/<c>pct</c> are numeric. Coercion is text-based, so opt in only when numeric-
+    /// looking strings should become numbers.
+    /// </summary>
+    public bool JsonTypedValues
+    {
+        get => _jsonTypedValues;
+        set
+        {
+            ThrowIfReadOnly();
+            _jsonTypedValues = value;
         }
     }
 

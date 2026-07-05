@@ -550,4 +550,61 @@ public class CompositeCellTests
         var withoutNote = new RefCellCard { Score = new Change<long>(1, 2), Note = null };
         Assert.DoesNotContain("Note", MarkoutSerializer.Serialize(withoutNote, RefCellContext.Default));
     }
+
+    // ── Structured-output follow-ups (#124 typed values, #125 heterogeneous JSONL) ──
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_IsHeterogeneous_OmitsAbsentKeys()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+        writer.WriteCompositeTable(SampleRows());
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // Each record carries only its own keys — a scalar Change row has no segment columns.
+        var session = JsonDocument.Parse(lines[0]).RootElement;
+        Assert.True(session.TryGetProperty("before", out _));
+        Assert.False(session.TryGetProperty("web_before", out _));
+
+        var tools = JsonDocument.Parse(lines[1]).RootElement;
+        Assert.True(tools.TryGetProperty("web_before", out _));
+        Assert.False(tools.TryGetProperty("before", out _));
+
+        var verdict = JsonDocument.Parse(lines[2]).RootElement;
+        Assert.Equal(new[] { "field", "value" }, verdict.EnumerateObject().Select(p => p.Name).ToArray());
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Jsonl_TypedValues_EmitsNumbersButKeepsStrings()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        writer.WriteCompositeTable(SampleRows());
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        var session = JsonDocument.Parse(lines[0]).RootElement;
+        Assert.Equal(JsonValueKind.Number, session.GetProperty("before").ValueKind);
+        Assert.Equal(98555, session.GetProperty("before").GetInt64());
+        Assert.Equal(-38, session.GetProperty("delta_pct").GetInt32());
+
+        var verdict = JsonDocument.Parse(lines[2]).RootElement;
+        Assert.Equal(JsonValueKind.String, verdict.GetProperty("value").ValueKind);
+        Assert.Equal("BETTER", verdict.GetProperty("value").GetString());
+    }
+
+    [Fact]
+    public void WriteCompositeTable_Tsv_StaysUniform_BlankForAbsentColumns()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });
+        writer.WriteCompositeTable(SampleRows());
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // TSV keeps the uniform union: every row has the same column count, absent cells blank.
+        var width = lines[0].Split('\t').Length;
+        Assert.All(lines, line => Assert.Equal(width, line.Split('\t').Length));
+    }
 }

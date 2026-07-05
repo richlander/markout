@@ -293,4 +293,34 @@ public class TableFormatterTests
         Assert.False(result);
         Assert.Equal("", sw.ToString());
     }
+
+    [Fact]
+    public void JsonlMode_JsonTypedValues_CoercesNumbersAndBooleans()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(
+            ["Name", "Count", "Ratio", "Active"],
+            ["name", "count", "ratio", "active"],
+            [["Alice", "3", "0.5", "true"]]);
+
+        var root = JsonDocument.Parse(sw.ToString()).RootElement;
+        Assert.Equal(JsonValueKind.String, root.GetProperty("name").ValueKind);
+        Assert.Equal(3, root.GetProperty("count").GetInt32());
+        Assert.Equal(0.5, root.GetProperty("ratio").GetDouble());
+        Assert.Equal(JsonValueKind.True, root.GetProperty("active").ValueKind);
+    }
+
+    [Fact]
+    public void JsonlMode_DefaultsToStringValues()
+    {
+        var sw = new StringWriter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(), options);
+        writer.WriteTable(["Count"], ["count"], [["3"]]);
+
+        var root = JsonDocument.Parse(sw.ToString()).RootElement;
+        Assert.Equal(JsonValueKind.String, root.GetProperty("count").ValueKind);
+    }
 }

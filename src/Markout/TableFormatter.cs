@@ -1,5 +1,6 @@
 using Markout.Formatting;
 using System.Buffers;
+using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text;
 using System.Text.Json;
@@ -36,7 +37,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
                 WriteTsvTable(w, headers, rows, skippedRows);
                 break;
             case MarkoutTableMode.Jsonl:
-                WriteJsonlTable(w, headers, rows);
+                WriteJsonlTable(w, headers, rows, options);
                 break;
             default:
                 WritePrettyTable(w, headers, rows, skippedRows);
@@ -109,7 +110,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
             w.WriteLine($"\n... and {skippedRows} more");
     }
 
-    private static void WriteJsonlTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows)
+    private static void WriteJsonlTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, MarkoutWriterOptions options)
     {
         foreach (var row in rows)
         {
@@ -118,8 +119,17 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
             json.WriteStartObject();
             for (int i = 0; i < headers.Length; i++)
             {
+                // A null cell means "absent" (distinct from an empty string): omit its key so
+                // composite decomposition yields heterogeneous records. Empty strings are kept.
+                if (i < row.Length && row[i] is null)
+                    continue;
+
                 var value = i < row.Length ? FormatHelper.RenderInlinePlainText(row[i]) : "";
-                json.WriteString(headers[i] ?? "", value ?? "");
+                var key = headers[i] ?? "";
+                if (options.JsonTypedValues)
+                    WriteTypedJsonValue(json, key, value);
+                else
+                    json.WriteString(key, value ?? "");
             }
             json.WriteEndObject();
             json.Flush();
@@ -127,6 +137,33 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
             w.Write(Encoding.UTF8.GetString(buffer.WrittenSpan));
             w.WriteLine();
         }
+    }
+
+    /// <summary>
+    /// Writes a cell as a JSON number or boolean when its text parses as one; otherwise a string.
+    /// Enabled by <see cref="MarkoutWriterOptions.JsonTypedValues"/>.
+    /// </summary>
+    private static void WriteTypedJsonValue(Utf8JsonWriter json, string key, string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            json.WriteString(key, value ?? "");
+            return;
+        }
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l))
+            json.WriteNumber(key, l);
+        else if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var m))
+            json.WriteNumber(key, m);
+        else if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
+                 && !double.IsNaN(d) && !double.IsInfinity(d))
+            json.WriteNumber(key, d);
+        else if (value == "true")
+            json.WriteBoolean(key, true);
+        else if (value == "false")
+            json.WriteBoolean(key, false);
+        else
+            json.WriteString(key, value);
     }
 
     private static void WriteTsvRow(TextWriter w, ReadOnlySpan<string> values)

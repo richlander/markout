@@ -469,13 +469,13 @@ public class MarkoutWriter
         var outRows = new List<string[]>(rows.Length);
         for (int r = 0; r < decomposedRows.Length; r++)
         {
-            var values = new string[keyOrder.Count + 1];
+            // Absent cells stay null (a sentinel distinct from ""): structured formatters omit
+            // null keys to produce heterogeneous JSONL, while TSV/pretty render them as blanks.
+            var values = new string?[keyOrder.Count + 1];
             values[0] = labels[r];
-            for (int i = 1; i < values.Length; i++)
-                values[i] = "";
             foreach (var field in decomposedRows[r])
                 values[keyIndex[field.Key] + 1] = field.Value;
-            outRows.Add(values);
+            outRows.Add(values!);
         }
 
         return WriteTable(headers, headerNames, outRows);

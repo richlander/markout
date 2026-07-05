@@ -202,12 +202,17 @@ public partial class QualityCardContext : MarkoutSerializerContext { }
 // Dense Markdown table:
 MarkoutSerializer.Serialize(card, Console.Out, QualityCardContext.Default);
 
-// Same rows, decomposed to JSONL — one record per property, typed columns:
-var jsonl = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+// Same rows, decomposed to JSONL — one record per property, only that row's keys.
+// Set JsonTypedValues to emit numbers instead of quoted strings (strings stay strings).
+var jsonl = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true };
 MarkoutSerializer.Serialize(card, Console.Out, new TableFormatter(), QualityCardContext.Default, jsonl);
-// {"field":"Session IET","before":"98555","after":"61190","delta_pct":"-38", ...}
-// {"field":"tool calls: web / bash / other","web_before":"21","bash_before":"171", ...}
+// {"field":"Session IET","before":98555,"after":61190,"delta_pct":-38}
+// {"field":"tool calls: web / bash / other","web_before":21,"bash_before":171,"other_before":236, ...}
 ```
+
+JSONL records are **heterogeneous** — each object contains only the keys its own cell produces.
+TSV keeps a uniform union of columns (absent cells blank). Without `JsonTypedValues`, all values
+are strings.
 
 Composite cells derive only intrinsics (delta from before/after, percent from part/whole).
 Markout does not aggregate or bind external data — hand it already-correct values.

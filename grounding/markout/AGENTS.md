@@ -79,6 +79,10 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
   A zero denominator renders `—` rather than `NaN`/`Inf`. e.g.
   `[MarkoutPropertyName("Session IET"), MarkoutDelta(Delta.Percent)] public Change<long> SessionIet { get; init; }`.
 
+JSONL decomposition is **heterogeneous** (each record holds only its own keys); TSV keeps a uniform
+column union (absent cells blank). Set `MarkoutWriterOptions.JsonTypedValues = true` to emit numeric
+columns as JSON numbers instead of strings.
+
 ## Other output formats (still Markdown by default)
 
 Pass a formatter to change output: `new MarkdownFormatter()` (default), `PlainTextFormatter`,
