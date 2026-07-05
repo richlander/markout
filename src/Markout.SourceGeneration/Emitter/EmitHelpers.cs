@@ -13,6 +13,10 @@ internal static class EmitHelpers
     {
         var access = nullable ? $"{propAccess}.Value" : propAccess;
 
+        // Composite cell: render its dense, human-readable form
+        if (prop.Kind == PropertyKind.CompositeCell)
+            return $"global::Markout.MarkoutCell.ToInlineString({access}, {DeltaLiteral(prop)}, {UnitLiteral(prop)})";
+
         // Value formatter takes highest priority
         if (prop.ValueFormatterTypeName != null)
         {
@@ -128,6 +132,10 @@ internal static class EmitHelpers
 
     private static string GetTableCellValueCore(PropertyMetadata prop, string propAccess, string itemExpr)
     {
+        // Composite cell in a table column renders its dense form (no per-column decomposition).
+        if (prop.Kind == PropertyKind.CompositeCell)
+            return $"global::Markout.MarkoutCell.ToInlineString({propAccess}, {DeltaLiteral(prop)}, {UnitLiteral(prop)})";
+
         if (prop.IsNullableValueType)
         {
             if (prop.ValueFormatterTypeName != null)
@@ -336,6 +344,18 @@ internal static class EmitHelpers
                (prop.Kind == PropertyKind.StringArray || prop.Kind == PropertyKind.ComplexArray);
     }
 
+    /// <summary>Emits the runtime Markout.Delta enum literal for a composite cell property.</summary>
+    public static string DeltaLiteral(PropertyMetadata prop) => prop.DeltaMode switch
+    {
+        MarkoutDeltaKind.Percent => "global::Markout.Delta.Percent",
+        MarkoutDeltaKind.Absolute => "global::Markout.Delta.Absolute",
+        _ => "global::Markout.Delta.None"
+    };
+
+    /// <summary>Emits the unit string literal (or <c>null</c>) for a composite cell property.</summary>
+    public static string UnitLiteral(PropertyMetadata prop)
+        => prop.Unit == null ? "null" : $"\"{EscapeString(prop.Unit)}\"";
+
     public static bool IsScalarKind(PropertyKind kind)
     {
         return kind is
@@ -347,7 +367,8 @@ internal static class EmitHelpers
             PropertyKind.Decimal or
             PropertyKind.DateTime or
             PropertyKind.DateTimeOffset or
-            PropertyKind.Enum;
+            PropertyKind.Enum or
+            PropertyKind.CompositeCell;
     }
 
     public static string EscapeString(string s)

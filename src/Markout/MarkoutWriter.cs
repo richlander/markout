@@ -350,7 +350,84 @@ public class MarkoutWriter
         return WriteTable(headers, ["Field", "Value"], rows);
     }
 
-    // ── Lists ──
+    /// <summary>
+    /// Writes a composite-cell table: one row per <see cref="MarkoutCompositeRow"/>. Formatters
+    /// that decompose composites (<see cref="Formatting.ICompositeCellFormatter"/>) emit one
+    /// typed column per decomposed field (union across rows, blank where absent); all others
+    /// render a dense two-column <c>Field | Value</c> table.
+    /// </summary>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteCompositeTable(params ReadOnlySpan<MarkoutCompositeRow> rows)
+    {
+        if (_sectionExcluded || rows.Length == 0)
+            return true;
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
+        if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
+            return WriteDecomposedCompositeTable(rows);
+
+        var denseRows = new List<string[]>(rows.Length);
+        foreach (var row in rows)
+        {
+            var sw = new StringWriter();
+            row.Cell?.FormatInline(sw, row.Format);
+            denseRows.Add([row.Label, sw.ToString()]);
+        }
+
+        return WriteTable(["Field", "Value"], ["Field", "Value"], denseRows);
+    }
+
+    private bool WriteDecomposedCompositeTable(ReadOnlySpan<MarkoutCompositeRow> rows)
+    {
+        // First pass: decompose each row and collect the ordered union of column keys.
+        var keyOrder = new List<string>();
+        var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        var decomposedRows = new List<MarkoutField>[rows.Length];
+        var labels = new string[rows.Length];
+
+        for (int r = 0; r < rows.Length; r++)
+        {
+            var fields = new List<MarkoutField>();
+            rows[r].Cell?.Decompose(fields, null, rows[r].Format);
+            decomposedRows[r] = fields;
+            labels[r] = rows[r].Label;
+            foreach (var field in fields)
+            {
+                if (!keyIndex.ContainsKey(field.Key))
+                {
+                    keyIndex[field.Key] = keyOrder.Count;
+                    keyOrder.Add(field.Key);
+                }
+            }
+        }
+
+        // Leading "field" column names the property/row; remaining columns are the union keys.
+        var headers = new string[keyOrder.Count + 1];
+        headers[0] = "Field";
+        for (int i = 0; i < keyOrder.Count; i++)
+            headers[i + 1] = keyOrder[i];
+
+        var headerNames = new string[keyOrder.Count + 1];
+        headerNames[0] = "field";
+        for (int i = 0; i < keyOrder.Count; i++)
+            headerNames[i + 1] = keyOrder[i];
+
+        var outRows = new List<string[]>(rows.Length);
+        for (int r = 0; r < decomposedRows.Length; r++)
+        {
+            var values = new string[keyOrder.Count + 1];
+            values[0] = labels[r];
+            for (int i = 1; i < values.Length; i++)
+                values[i] = "";
+            foreach (var field in decomposedRows[r])
+                values[keyIndex[field.Key] + 1] = field.Value;
+            outRows.Add(values);
+        }
+
+        return WriteTable(headers, headerNames, outRows);
+    }
 
     /// <summary>
     /// Writes a single bullet list item.
