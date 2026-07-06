@@ -15,7 +15,7 @@ internal static class EmitHelpers
 
         // Composite cell: render its dense, human-readable form
         if (prop.Kind == PropertyKind.CompositeCell)
-            return $"global::Markout.MarkoutCell.ToInlineString({access}, {DeltaLiteral(prop)}, {UnitLiteral(prop)})";
+            return $"global::Markout.MarkoutCell.ToInlineString({access}, {CompositeCellFormatLiteral(prop)})";
 
         // Value formatter takes highest priority
         if (prop.ValueFormatterTypeName != null)
@@ -134,7 +134,7 @@ internal static class EmitHelpers
     {
         // Composite cell in a table column renders its dense form (no per-column decomposition).
         if (prop.Kind == PropertyKind.CompositeCell)
-            return $"global::Markout.MarkoutCell.ToInlineString({propAccess}, new global::Markout.MarkoutCellFormat({DeltaLiteral(prop)}, {UnitLiteral(prop)}) {{ Goal = {GoalLiteral(prop)}, Noise = {NoiseLiteral(prop)} }})";
+            return $"global::Markout.MarkoutCell.ToInlineString({propAccess}, {CompositeCellFormatLiteral(prop)})";
 
         if (prop.IsNullableValueType)
         {
@@ -376,6 +376,14 @@ internal static class EmitHelpers
             return "global::System.Double.NegativeInfinity";
         return noise.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
     }
+
+    /// <summary>
+    /// Emits the full <c>MarkoutCellFormat</c> initializer for a composite cell property — delta and unit
+    /// as constructor args, goal and noise as object-initializer members. The single source of truth for
+    /// every composite-cell rendering path (dense field layouts, table columns, composite-card rows).
+    /// </summary>
+    public static string CompositeCellFormatLiteral(PropertyMetadata prop)
+        => $"new global::Markout.MarkoutCellFormat({DeltaLiteral(prop)}, {UnitLiteral(prop)}) {{ Goal = {GoalLiteral(prop)}, Noise = {NoiseLiteral(prop)} }}";
 
     public static bool IsScalarKind(PropertyKind kind)
     {

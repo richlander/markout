@@ -429,4 +429,19 @@ public class GoalAwareCellTests
 
         Assert.Contains("0 \u2192 7 (bad)", md);
     }
+
+    [Fact]
+    public void Generated_MarkoutGoal_CardProperty_RendersInlineWord()
+    {
+        // The composite-card (field-layout) path also renders the dense goal word in Markdown.
+        var card = new GoalAttrCard
+        {
+            Failures = new(0, 7),       // Lower: introduced -> bad
+            FullyRaised = new(40, 55),  // Higher: increased -> good
+        };
+        var md = MarkoutSerializer.Serialize(card, GoalAttrCardContext.Default);
+
+        Assert.Contains("0 \u2192 7 (bad)", md);
+        Assert.Contains("40 \u2192 55 (good)", md);
+    }
 }
