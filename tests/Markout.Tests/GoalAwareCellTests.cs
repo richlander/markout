@@ -249,6 +249,16 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactNoiseBand_InclusiveAboveLongRange()
+    {
+        // Integer ulong tolerance above long.MaxValue stays exact and inclusive (type-agnostic path).
+        var fields = Decompose(new Change<ulong>(0UL, 10000000000000002048UL),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 10000000000000002048d });
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_Goal_SmallValues_UnchangedBehaviorPreserved()
     {
         // The exact path must match the double path for ordinary values.
