@@ -503,7 +503,19 @@ public class MarkoutWriter
     /// <param name="labelHeader">The header/identity-column name for the row labels.</param>
     /// <param name="rows">The multi-source rows.</param>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
-    public bool WriteMultiSourceTable(string labelHeader, IReadOnlyList<MultiSourceRow> rows, string? structuredSection = null)
+    public bool WriteMultiSourceTable(string labelHeader, IReadOnlyList<MultiSourceRow> rows)
+        => WriteMultiSourceTable(labelHeader, rows, null);
+
+    /// <summary>
+    /// As <see cref="WriteMultiSourceTable(string, IReadOnlyList{MultiSourceRow})"/>, plus an optional
+    /// <paramref name="structuredSection"/>: when non-null, decomposed (TSV/JSONL) rows gain a leading
+    /// <c>section</c> column carrying that value. Markdown/dense output is unaffected.
+    /// </summary>
+    /// <param name="labelHeader">The header/identity-column name for the row labels.</param>
+    /// <param name="rows">The multi-source rows.</param>
+    /// <param name="structuredSection">A section discriminator prepended to decomposed rows, or <c>null</c>.</param>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteMultiSourceTable(string labelHeader, IReadOnlyList<MultiSourceRow> rows, string? structuredSection)
     {
         if (_sectionExcluded || rows.Count == 0)
             return true;
@@ -725,7 +737,18 @@ public class MarkoutWriter
     /// structured output.
     /// </summary>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
-    public bool WriteMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows, string? structuredSection = null) where T : struct
+    public bool WriteMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows) where T : struct
+        => WriteMetricChangeTable(rows, null);
+
+    /// <summary>
+    /// As <see cref="WriteMetricChangeTable{T}(IReadOnlyList{MetricChange{T}})"/>, plus an optional
+    /// <paramref name="structuredSection"/>: when non-null, decomposed (TSV/JSONL) rows gain a leading
+    /// <c>section</c> column carrying that value. Markdown output is unaffected.
+    /// </summary>
+    /// <param name="rows">The gated-metric rows.</param>
+    /// <param name="structuredSection">A section discriminator prepended to decomposed rows, or <c>null</c>.</param>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows, string? structuredSection) where T : struct
     {
         if (_sectionExcluded || rows.Count == 0)
             return true;
