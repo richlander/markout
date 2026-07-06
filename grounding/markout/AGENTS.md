@@ -59,7 +59,7 @@ MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 
 ## Built-in shape types (use as model properties for rich output)
 
-`Metric` (bar chart), `Breakdown`/`Segment` (stacked bar), `Callout` (alert; `CalloutSeverity.Warning/Caution/Note/Tip/Important`), `TreeNode`
+`Metric` (measurement — `| label | value |` table in Markdown, bar chart in Unicode/ANSI), `Breakdown`/`Segment` (stacked bar), `Callout` (alert; `CalloutSeverity.Warning/Caution/Note/Tip/Important`), `TreeNode`
 (hierarchy), `Description` (term + text), `CodeSection` (code block). e.g. `new Metric("Build", 4.2)`.
 
 ## Shape Library (data relationship -> rendering)
@@ -73,7 +73,7 @@ Each property maps to a data relationship, not a visual element; the renderer de
 | Tabulation | `List<T>` | uniform records | `\| col \| col \|` |
 | Section | `[MarkoutSection]` | logical grouping | `## Heading` |
 | Description | `List<Description>` | terms + explanations | `- **Term:** text` |
-| Measurement | `List<Metric>` | comparative quantities | `Label ████░░ 45` |
+| Measurement | `List<Metric>` | comparative quantities | `\| label \| value \|` table (bars in Unicode/ANSI) |
 | Composition | `List<Breakdown>` | parts of a whole | stacked bar |
 | Hierarchy | `List<TreeNode>` | parent-child | `├── node` |
 | Quotation | `CodeSection` | verbatim content | code block |
@@ -87,7 +87,7 @@ new Description("dotnet-inspect", "API surface inspection tool")  // term + expl
 new Breakdown("Jan 2025", [new("Critical", 1), new("High", 3)])  // proportional composition
 new Callout(CalloutSeverity.Warning, "3 vulnerabilities found")  // attention
 new CodeSection("csharp", "public class Foo { }")                // verbatim content
-new TreeNode("root", [new TreeNode("child")])                    // hierarchy
+new TreeNode("app", [new TreeNode("Serilog", [new TreeNode("Serilog.Sinks.Console")])]) // hierarchy (nests via children)
 ```
 
 ## Renderers (swap the formatter, change the output)
@@ -100,7 +100,7 @@ Serialize writes through a formatter; pass a different one to change output.
 | `PlainTextFormatter` | plain text, no markup | minimal output |
 | `UnicodeFormatter` | box-drawing chars | bordered tables |
 | `TableFormatter` | tables / lists / fields | compact summaries, TSV/JSONL rows |
-| `DiagramFormatter` | trees / structural diagrams | dependency graphs |
+| `DiagramFormatter` | box/branch tree diagrams | alt tree style (Markdown already renders `List<TreeNode>` as a tree) |
 
 `TableFormatter` + `MarkoutWriterOptions.TableMode`:
 - `Tsv` — stable snake_case headers; never emits embedded tabs/newlines in cells.
@@ -109,8 +109,15 @@ Serialize writes through a formatter; pass a different one to change output.
 
 e.g. TSV: `MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ReportContext.Default, new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });`
 
-## Advanced property attributes (links, badges, grouping)
+## Advanced attributes (layout, links, badges, grouping)
 
+- **`[MarkoutSection(Level = 3)]`** sets that section's heading level (default `2` = `##`), e.g.
+  `Level = 3` -> `### Heading`. `Name` / `Level` / `GroupBy` all combine on the one attribute.
+- **`[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]`** picks how a type's scalar fields
+  render: `FieldLayout.{Table (default), Inline, Bulleted, Numbered, Plain}` — `Bulleted` -> `- Env: prod`
+  instead of a `| Field | Value |` table. `AutoFields = false` on the same attribute drops the field block.
+- **`[MarkoutBoolFormat("✓", "✗")]`** on a `bool` -> renders true/false as those strings
+  (e.g. `| Passed | ✓ |`), not `True`/`False`.
 - **`[MarkoutLink(TextProperty = nameof(Title))]`** on a URL/string property -> renders it as
   `[Title](url)` (the `TextProperty` supplies the link text; the annotated property is the href).
 - **`[MarkoutValueMap("open=✗", "closed=✓", ...)]`** -> maps a property's raw values to display
