@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.20.0</Version>
-    <PackageReleaseNotes>Goal-aware dense Markdown rendering: a MetricChange&lt;T&gt; table now inlines the status word into the Change cell (0 → 7 (bad)), appends a goal marker to the metric label ((-) for Goal.Lower, (+) for Goal.Higher), and drops the separate Status column; a caller StatusLabel stays the inline word. [MarkoutGoal] Change&lt;T&gt; properties (scalar and composite Share/Percent/Fraction) render the same inline word, merged with any [MarkoutDelta] suffix into one group (0 → 7 (+40%, bad)). Set MarkoutWriterOptions.InlineGoalStatus = false to keep the legacy Metric | Change | Target | Status layout. Structured (TSV/JSONL) output is unchanged (separate direction/status fields).</PackageReleaseNotes>
+    <Version>0.21.0</Version>
+    <PackageReleaseNotes>Segments aggregate goal magnitude: Segments now implements IGoalMagnitude as the sum of its parts' values, so a Change&lt;Segments&gt; with a Goal derives a total-based direction/status (e.g. 14/7 → 0/0 with Goal.Lower is resolved/good) while still decomposing each part. Opt-in via MarkoutCellFormat.Goal — Goal.Context (default) derives nothing, so a purely compositional breakdown declines by not setting a goal; a constant-sum breakdown reads as Unchanged. Dense Markdown shows the inline word for free through the 0.20 IGoalMagnitude seam.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

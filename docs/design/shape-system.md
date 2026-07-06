@@ -166,7 +166,7 @@ public readonly record struct Segments(params Segment[] Parts);     // 21/171/23
 // Goal-aware derivation — [MarkoutGoal] (or a Goal on MetricChange<T>/MarkoutCellFormat) derives a
 // structural Direction and a goal-applied GateStatus polarity from a numeric Change<V>, as separate
 // direction/status fields. A caller-supplied Status overrides the derived polarity. Composite
-// Change<Share|Percent|Fraction> derive from IGoalMagnitude (Share→Value, Percent/Fraction→ratio).
+// Change<Share|Percent|Fraction|Segments> derive from IGoalMagnitude (Share→Value, Percent/Fraction→ratio, Segments→sum of parts).
 public enum Goal { Context, Higher, Lower }                         // which direction is "good"
 public enum Direction { Unchanged, Increased, Decreased, Introduced, Resolved }; // structural, goal-neutral
 public interface IGoalMagnitude { double GoalMagnitude { get; } }   // composite cell's comparable magnitude

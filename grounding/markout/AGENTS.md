@@ -78,8 +78,8 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
   `status` (`good`/`bad`/`neutral`) — instead of the caller hand-coding ceiling/floor/drift. Optional
   noise, `[MarkoutGoal(Goal.Higher, 0.001)]`, treats sub-threshold movement as `unchanged`. `Goal.Context`
   (default) derives nothing. Composite `Change<Share|Percent|Fraction>` also derive `direction`/`status`
-  from a single comparable magnitude (`Share` → raw `Value`; `Percent`/`Fraction` → their ratio);
-  `Change<Segments>` has no single magnitude, so it derives nothing. In dense Markdown the polarity word
+  from a single comparable magnitude (`Share` → raw `Value`; `Percent`/`Fraction` → their ratio;
+  `Segments` → the **sum** of its parts' values, i.e. the breakdown total). In dense Markdown the polarity word
   renders inline, merged with any delta suffix into one group: `0 → 7 (bad)`, `98555 → 61190 (−38%, good)`.
 - `Fraction(count, total)` → `24/24`; `Share(value, whole)` → `5056 (24%)`
   (`[MarkoutUnit("s")]` → `103s (93%)`); `Percent(part, whole)` → `93%`;
