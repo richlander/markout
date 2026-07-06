@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.16.1</Version>
-    <PackageReleaseNotes>Composite-cell shapes (Change&lt;V&gt;, Fraction, Share, Percent, Segments) with [MarkoutDelta]/[MarkoutUnit] render as a dense Markdown table and decompose into typed JSONL/TSV columns. JSONL supports heterogeneous records (MarkoutWriterOptions.OmitEmptyJsonFields) and numeric/boolean values (MarkoutWriterOptions.JsonTypedValues). BREAKING (since 0.16.0): the Breakdown element type Segment(Category, Count) is renamed to Slice(Category, Count) and Breakdown.Segments to Breakdown.Slices; update `new Segment(...)` to `new Slice(...)`.</PackageReleaseNotes>
+    <Version>0.17.0</Version>
+    <PackageReleaseNotes>First-class multi-source data cards: MetricChange&lt;T&gt; renders as a Metric | Change | Target | Status table, and MultiSourceRow/Source pivot named roles into columns; both decompose to flat typed JSONL/TSV. GateStatus/Verdict is a first-class verdict cell; Source accepts scalars (new Source("baseline", 2)) and Source.Text(...); [MarkoutLabelHeader] sets the pivot label column; MARKOUT005 enforces MetricChange&lt;T&gt;'s numeric-scalar contract. BREAKING: nested Segments decomposition keys flip label-first to side-first (e.g. web_before becomes before_web) so multi-source keys are uniform as {role}_{side}_{field}; standalone Segments keys are unchanged.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

@@ -653,6 +653,27 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}}}");
             EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
+        else if (prop.Kind == PropertyKind.MetricChange)
+        {
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+            sb.AppendLine($"{indent}    writer.WriteMetricChangeTable({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+            sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
+        }
+        else if (prop.Kind == PropertyKind.MultiSource)
+        {
+            var labelHeader = EmitHelpers.EscapeString(prop.MultiSourceLabelHeader ?? "Field");
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+            sb.AppendLine($"{indent}    writer.WriteMultiSourceTable(\"{labelHeader}\", {propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+            sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
+        }
         else if (prop.Kind == PropertyKind.CodeSection)
         {
             sb.AppendLine($"{indent}if ({propAccess}.Content != null)");
@@ -803,6 +824,16 @@ internal static class SerializerEmitter
             case PropertyKind.Breakdown:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
                 sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
+                break;
+
+            case PropertyKind.MetricChange:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
+                sb.AppendLine($"{indent}    writer.WriteMetricChangeTable({propAccess});");
+                break;
+
+            case PropertyKind.MultiSource:
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
+                sb.AppendLine($"{indent}    writer.WriteMultiSourceTable(\"{EmitHelpers.EscapeString(prop.MultiSourceLabelHeader ?? "Field")}\", {propAccess});");
                 break;
 
             case PropertyKind.ComplexArray:
@@ -1012,6 +1043,10 @@ internal static class SerializerEmitter
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (code block)";
             if (prop.Kind == PropertyKind.Breakdown)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (distribution)";
+            if (prop.Kind == PropertyKind.MetricChange)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (gated metrics)";
+            if (prop.Kind == PropertyKind.MultiSource)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (multi-source)";
             return $"H{prop.SectionLevel} Section \"{sectionName}\"";
         }
 
@@ -1036,6 +1071,8 @@ internal static class SerializerEmitter
             PropertyKind.CodeSection => "Code",
             PropertyKind.Callout => "Callout",
             PropertyKind.Breakdown => "Breakdown",
+            PropertyKind.MetricChange => "MetricChange",
+            PropertyKind.MultiSource => "MultiSource",
             _ => "Field"
         };
     }

@@ -236,7 +236,7 @@ public class CompositeCellTests
     }
 
     [Fact]
-    public void Change_NestedSegments_RendersAndDecomposesByLabelAndSide()
+    public void Change_NestedSegments_RendersAndDecomposesBySideAndLabel()
     {
         var cell = new Change<Segments>(
             new Segments(new Segment("web", 21), new Segment("bash", 171), new Segment("other", 236)),
@@ -246,8 +246,8 @@ public class CompositeCellTests
         var fields = Decompose(cell);
         Assert.Equal(
             [
-                new("web_before", "21"), new("bash_before", "171"), new("other_before", "236"),
-                new("web_after", "0"), new("bash_after", "75"), new("other_after", "183")
+                new("before_web", "21"), new("before_bash", "171"), new("before_other", "236"),
+                new("after_web", "0"), new("after_bash", "75"), new("after_other", "183")
             ],
             fields);
     }
@@ -296,7 +296,7 @@ public class CompositeCellTests
         Assert.Equal("field", headers[0]);
         Assert.Contains("before", headers);
         Assert.Contains("delta_pct", headers);
-        Assert.Contains("web_before", headers);
+        Assert.Contains("before_web", headers);
 
         // Session IET row carries before/after/delta but no segment columns.
         var sessionRow = lines[1].Split('\t');
@@ -321,8 +321,8 @@ public class CompositeCellTests
         Assert.Equal("-38", session.GetProperty("delta_pct").GetString());
 
         var tools = JsonDocument.Parse(lines[1]).RootElement;
-        Assert.Equal("21", tools.GetProperty("web_before").GetString());
-        Assert.Equal("183", tools.GetProperty("other_after").GetString());
+        Assert.Equal("21", tools.GetProperty("before_web").GetString());
+        Assert.Equal("183", tools.GetProperty("after_other").GetString());
     }
 
     // ── End-to-end through the source generator ──
@@ -384,7 +384,7 @@ public class CompositeCellTests
 
         Assert.Equal("field", headers[0]);
         Assert.Contains("before_count", headers);
-        Assert.Contains("web_before", headers);
+        Assert.Contains("before_web", headers);
         Assert.Contains("delta_pct", headers);
         Assert.Contains("value", headers);
     }
@@ -565,10 +565,10 @@ public class CompositeCellTests
         // Each record carries only its own keys — a scalar Change row has no segment columns.
         var session = JsonDocument.Parse(lines[0]).RootElement;
         Assert.True(session.TryGetProperty("before", out _));
-        Assert.False(session.TryGetProperty("web_before", out _));
+        Assert.False(session.TryGetProperty("before_web", out _));
 
         var tools = JsonDocument.Parse(lines[1]).RootElement;
-        Assert.True(tools.TryGetProperty("web_before", out _));
+        Assert.True(tools.TryGetProperty("before_web", out _));
         Assert.False(tools.TryGetProperty("before", out _));
 
         var verdict = JsonDocument.Parse(lines[2]).RootElement;

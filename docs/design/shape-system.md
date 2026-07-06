@@ -163,6 +163,15 @@ public readonly record struct Percent(double Part, double Whole);   // 93%
 public readonly record struct Segment(string Label, double Value);
 public readonly record struct Segments(params Segment[] Parts);     // 21/171/236
 
+// Card shapes — list-shapes that render as multi-format cards (Markdown table + typed JSONL/TSV).
+public readonly record struct MetricChange<T>(string Name, T Before, T After,
+    T? Target = null, string? TargetLabel = null,
+    GateStatus Status = GateStatus.Unknown, string? StatusLabel = null) where T : struct; // gated metric
+public readonly record struct Source(string Role, IMarkoutCell? Value, MarkoutCellFormat Format = default);
+public readonly struct MultiSourceRow(string label, params Source[] sources); // role matrix (roles → columns)
+public enum GateStatus { Unknown, Good, Neutral, Warning, Bad }    // verdict polarity
+public readonly record struct Verdict(GateStatus Status, string? Label = null); // first-class verdict cell
+
 // Hierarchy — a recursive node with children
 public class TreeNode { ... }
 

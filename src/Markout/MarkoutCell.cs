@@ -143,8 +143,4 @@ internal static class CellText
     /// <summary>Combines a decomposition <paramref name="side"/> with a sub-field name as <c>{side}_{sub}</c>.</summary>
     public static string SideKey(string? side, string sub)
         => side is null ? sub : side + "_" + sub;
-
-    /// <summary>Combines a segment <paramref name="label"/> with a decomposition side as <c>{label}_{side}</c>.</summary>
-    public static string LabelKey(string label, string? side)
-        => side is null ? label : label + "_" + side;
 }

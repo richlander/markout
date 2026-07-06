@@ -62,4 +62,17 @@ internal static class DiagnosticDescriptors
                      "Either add [MarkoutSection] to collection properties, or remove AutoFields=false."
     );
 
+    public static readonly DiagnosticDescriptor MetricChangeNonScalarType = new(
+        id: "MARKOUT005",
+        title: "MetricChange<T> requires a numeric scalar type argument",
+        messageFormat: "Property '{0}' uses MetricChange<{1}>, but T must be a numeric scalar type " +
+                       "(int, long, double, decimal, etc.). Composite shapes (e.g. Segments, Share) are not " +
+                       "supported here; keep them as ordinary rows or a plain metric.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "MetricChange<T> renders Before/After/Target as scalar values. A non-numeric type argument " +
+                     "renders incorrectly (e.g. a target prints the raw struct), so it is rejected at compile time."
+    );
+
 }

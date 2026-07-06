@@ -493,6 +493,286 @@ public class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes a multi-source pivot table: each <see cref="MultiSourceRow"/> carries named-role
+    /// cells. Formatters that decompose composites (<see cref="Formatting.ICompositeCellFormatter"/>,
+    /// i.e. TSV/JSONL) emit one flat record per row with <c>{role}_{field}</c> columns (each cell
+    /// decomposed with its role as the side); all others render a wide table with one column per
+    /// role — caller-supplied role order (first appearance across rows), a role absent from a row
+    /// rendered as <c>-</c>, and each cell the dense render of that role's value.
+    /// </summary>
+    /// <param name="labelHeader">The header/identity-column name for the row labels.</param>
+    /// <param name="rows">The multi-source rows.</param>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteMultiSourceTable(string labelHeader, IReadOnlyList<MultiSourceRow> rows)
+    {
+        if (_sectionExcluded || rows.Count == 0)
+            return true;
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
+        // Column axis = roles in caller (first-appearance) order across the whole row collection.
+        var roleOrder = new List<string>();
+        var roleIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            if (row.Sources is null)
+                continue;
+            foreach (var source in row.Sources)
+                if (source.Role is not null && roleIndex.TryAdd(source.Role, roleOrder.Count))
+                    roleOrder.Add(source.Role);
+        }
+
+        if (roleOrder.Count == 0)
+            return true;
+
+        if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
+            return WriteDecomposedMultiSourceTable(labelHeader, rows, roleOrder);
+
+        return WriteDenseMultiSourceTable(labelHeader, rows, roleOrder, roleIndex);
+    }
+
+    // Document formatters: one column per role; each cell the dense render of that role's value.
+    private bool WriteDenseMultiSourceTable(
+        string labelHeader, IReadOnlyList<MultiSourceRow> rows, List<string> roleOrder, Dictionary<string, int> roleIndex)
+    {
+        var headers = new string[roleOrder.Count + 1];
+        headers[0] = labelHeader;
+        for (int i = 0; i < roleOrder.Count; i++)
+            headers[i + 1] = roleOrder[i];
+
+        var outRows = new List<string[]>(rows.Count);
+        foreach (var row in rows)
+        {
+            var values = new string[roleOrder.Count + 1];
+            values[0] = row.Label;
+            for (int i = 1; i < values.Length; i++)
+                values[i] = "-";
+
+            if (row.Sources is not null)
+            {
+                foreach (var source in row.Sources)
+                {
+                    if (source.Role is null || source.Value is null || !roleIndex.TryGetValue(source.Role, out var idx))
+                        continue;
+                    var sw = new StringWriter();
+                    source.Value.FormatInline(sw, source.Format);
+                    values[idx + 1] = sw.ToString();
+                }
+            }
+
+            outRows.Add(values);
+        }
+
+        return WriteTable(headers, outRows);
+    }
+
+    // Decomposing formatters (TSV/JSONL): one flat record per row, {role}_{field} columns.
+    private bool WriteDecomposedMultiSourceTable(
+        string labelHeader, IReadOnlyList<MultiSourceRow> rows, List<string> roleOrder)
+    {
+        // Decompose each source with side = role, tagging fields with their owning role so the
+        // column union can be ordered role-major (caller role order), then field order within a role.
+        var perRow = new List<(string Role, List<MarkoutField> Fields)>[rows.Count];
+        var labels = new string[rows.Count];
+        for (int r = 0; r < rows.Count; r++)
+        {
+            var row = rows[r];
+            labels[r] = row.Label;
+            var tagged = new List<(string, List<MarkoutField>)>();
+            if (row.Sources is not null)
+            {
+                foreach (var source in row.Sources)
+                {
+                    if (source.Role is null || source.Value is null)
+                        continue;
+                    var fields = new List<MarkoutField>();
+                    source.Value.Decompose(fields, source.Role, source.Format);
+                    tagged.Add((source.Role, fields));
+                }
+            }
+            perRow[r] = tagged;
+        }
+
+        // Assign every distinct (role, composed-field-key) a unique output column, deterministically
+        // by global role order (roleOrder) then first-seen field order — so the same source maps to
+        // the same column in EVERY row regardless of per-row source order or presence. Colliding
+        // composed keys (role "a"+"b_c" vs role "a_b"+"c" → both "a_b_c") get a deterministic "_N"
+        // suffix on the later role, applied globally rather than per row.
+        var columnOf = new Dictionary<(string Role, string Field), string>();
+        var takenColumns = new HashSet<string>(StringComparer.Ordinal);
+        var keyOrder = new List<string>();
+        foreach (var role in roleOrder)
+            foreach (var tagged in perRow)
+                foreach (var (owner, fields) in tagged)
+                    if (owner == role)
+                        foreach (var field in fields)
+                        {
+                            var id = (role, field.Key);
+                            if (columnOf.ContainsKey(id))
+                                continue;
+                            var column = field.Key;
+                            if (!takenColumns.Add(column))
+                            {
+                                int suffix = 2;
+                                string candidate;
+                                do { candidate = field.Key + "_" + suffix++; } while (!takenColumns.Add(candidate));
+                                column = candidate;
+                            }
+                            columnOf[id] = column;
+                            keyOrder.Add(column);
+                        }
+
+        // Flatten each row into (column, value) using the global map.
+        var perRowFlat = new List<MarkoutField>[perRow.Length];
+        for (int r = 0; r < perRow.Length; r++)
+        {
+            var flat = new List<MarkoutField>();
+            foreach (var (role, fields) in perRow[r])
+                foreach (var field in fields)
+                    flat.Add(new MarkoutField(columnOf[(role, field.Key)], field.Value));
+            perRowFlat[r] = flat;
+        }
+
+        return WriteDecomposedFieldTable(labelHeader, labels, perRowFlat, keyOrder);
+    }
+
+    // Shared emitter for flat decomposed record tables (multi-source, metric-change): a leading
+    // identity column (from labelHeader) plus one column per key in keyOrder. Stable header names
+    // are snake-cased and de-duped because TableWriter re-applies ToSnakeCase to header keys for
+    // TSV/JSONL; the leading identity column stays a JSON string.
+    private bool WriteDecomposedFieldTable(
+        string labelHeader, IReadOnlyList<string> labels, IReadOnlyList<List<MarkoutField>> perRowFields, IReadOnlyList<string> keyOrder)
+    {
+        var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < keyOrder.Count; i++)
+            keyIndex[keyOrder[i]] = i;
+
+        var headers = new string[keyOrder.Count + 1];
+        var headerNames = new string[keyOrder.Count + 1];
+        headers[0] = labelHeader;
+        var labelKey = Formatting.FormatHelper.ToSnakeCase(labelHeader);
+        if (string.IsNullOrEmpty(labelKey))
+            labelKey = "field";
+        headerNames[0] = labelKey;
+        var usedStableKeys = new HashSet<string>(StringComparer.Ordinal) { labelKey };
+
+        for (int i = 0; i < keyOrder.Count; i++)
+        {
+            headers[i + 1] = keyOrder[i];
+            var stable = Formatting.FormatHelper.ToSnakeCase(keyOrder[i]);
+            if (string.IsNullOrEmpty(stable))
+                stable = "column";
+            if (!usedStableKeys.Add(stable))
+            {
+                int suffix = 2;
+                string candidate;
+                do { candidate = stable + "_" + suffix++; } while (!usedStableKeys.Add(candidate));
+                stable = candidate;
+            }
+            headerNames[i + 1] = stable;
+        }
+
+        var outRows = new List<string[]>(perRowFields.Count);
+        for (int r = 0; r < perRowFields.Count; r++)
+        {
+            var values = new string[keyOrder.Count + 1];
+            values[0] = labels[r];
+            for (int i = 1; i < values.Length; i++)
+                values[i] = "";
+            foreach (var field in perRowFields[r])
+                if (keyIndex.TryGetValue(field.Key, out var idx))
+                    values[idx + 1] = field.Value;
+            outRows.Add(values);
+        }
+
+        _pendingJsonIdentityColumns = 1;
+        try
+        {
+            return WriteTable(headers, headerNames, outRows);
+        }
+        finally
+        {
+            _pendingJsonIdentityColumns = 0;
+        }
+    }
+
+    /// <summary>
+    /// Writes a gated-metric table from <see cref="MetricChange{T}"/> rows: document formatters
+    /// render fixed <c>Metric | Change | Target | Status</c> columns; decomposing formatters
+    /// (TSV/JSONL) emit flat typed fields (<c>before</c>, <c>after</c>, optional <c>target</c>/
+    /// <c>target_label</c>, <c>status</c>). Absent targets render <c>-</c> and are omitted from
+    /// structured output.
+    /// </summary>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows) where T : struct
+    {
+        if (_sectionExcluded || rows.Count == 0)
+            return true;
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
+        if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
+            return WriteDecomposedMetricChangeTable(rows);
+
+        var outRows = new List<string[]>(rows.Count);
+        foreach (var metric in rows)
+            outRows.Add([metric.Name, ChangeText(metric), TargetText(metric), StatusText(metric)]);
+
+        return WriteTable(["Metric", "Change", "Target", "Status"], outRows);
+    }
+
+    private bool WriteDecomposedMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows) where T : struct
+    {
+        var labels = new string[rows.Count];
+        var perRow = new List<MarkoutField>[rows.Count];
+        var keyOrder = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        for (int r = 0; r < rows.Count; r++)
+        {
+            var metric = rows[r];
+            labels[r] = metric.Name;
+            var fields = new List<MarkoutField>();
+            new Change<T>(metric.Before, metric.After).Decompose(fields, null, default);
+            if (metric.Target is not null)
+            {
+                fields.Add(new MarkoutField("target", CellText.Scalar(metric.Target.Value)));
+                if (!string.IsNullOrEmpty(metric.TargetLabel))
+                    fields.Add(new MarkoutField("targetLabel", metric.TargetLabel!));
+            }
+            if (metric.Status != GateStatus.Unknown || !string.IsNullOrEmpty(metric.StatusLabel))
+                fields.Add(new MarkoutField("status", StatusText(metric)));
+
+            perRow[r] = fields;
+            foreach (var field in fields)
+                if (seen.Add(field.Key))
+                    keyOrder.Add(field.Key);
+        }
+
+        return WriteDecomposedFieldTable("Metric", labels, perRow, keyOrder);
+    }
+
+    private static string ChangeText<T>(in MetricChange<T> metric) where T : struct
+        => MarkoutCell.ToInlineString(new Change<T>(metric.Before, metric.After));
+
+    private static string TargetText<T>(in MetricChange<T> metric) where T : struct
+    {
+        if (metric.Target is null)
+            return "-";
+        var value = CellText.Scalar(metric.Target.Value);
+        return string.IsNullOrEmpty(metric.TargetLabel) ? value : metric.TargetLabel + ": " + value;
+    }
+
+    private static string StatusText<T>(in MetricChange<T> metric) where T : struct
+    {
+        if (!string.IsNullOrEmpty(metric.StatusLabel))
+            return metric.StatusLabel!;
+        return metric.Status == GateStatus.Unknown ? "-" : GateStatusText.Slug(metric.Status);
+    }
+
+    /// <summary>
     /// Writes a single bullet list item.
     /// </summary>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support lists.</returns>

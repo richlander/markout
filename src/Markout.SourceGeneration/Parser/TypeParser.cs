@@ -24,6 +24,7 @@ internal static class TypeParser
     private const string MarkoutSkipNullAttribute = "Markout.MarkoutSkipNullAttribute";
     private const string MarkoutDisplayFormatAttribute = "Markout.MarkoutDisplayFormatAttribute";
     private const string MarkoutMaxItemsAttribute = "Markout.MarkoutMaxItemsAttribute";
+    private const string MarkoutLabelHeaderAttribute = "Markout.MarkoutLabelHeaderAttribute";
     private const string MarkoutTableDisplayAttribute = "Markout.MarkoutTableDisplayAttribute";
     private const string MarkoutValueFormatterAttribute = "Markout.MarkoutValueFormatterAttribute";
     private const string MarkoutShowWhenAttribute = "Markout.MarkoutShowWhenAttribute";
@@ -462,6 +463,16 @@ internal static class TypeParser
             unit = unitValue;
         }
 
+        // Parse [MarkoutLabelHeader] — label/identity column header for a List<MultiSourceRow> card
+        string? multiSourceLabelHeader = null;
+        var labelHeaderAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutLabelHeaderAttribute);
+        if (labelHeaderAttr != null && labelHeaderAttr.ConstructorArguments.Length > 0 &&
+            labelHeaderAttr.ConstructorArguments[0].Value is string labelHeaderValue)
+        {
+            multiSourceLabelHeader = labelHeaderValue;
+        }
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -541,7 +552,8 @@ internal static class TypeParser
             sectionEmptyText,
             deltaMode,
             unit,
-            isReferenceTypeCell);
+            isReferenceTypeCell,
+            multiSourceLabelHeader);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
@@ -604,6 +616,19 @@ internal static class TypeParser
 
             if (elementType.SpecialType == SpecialType.System_String)
                 return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.Table, true);
+
+            // MetricChange<T>[] / MultiSourceRow[] — same card shapes as the List<T> forms (arrays
+            // satisfy IReadOnlyList<T>); IsArray=true so the emitter guards on .Length not .Count.
+            if (knownTypes.MetricChange is not null &&
+                elementType is INamedTypeSymbol metricChangeArrayElement &&
+                SymbolEqualityComparer.Default.Equals(metricChangeArrayElement.OriginalDefinition, knownTypes.MetricChange))
+            {
+                ReportIfNonScalarMetricChange(metricChangeArrayElement, diagnostics, propertyName, propertyLocation);
+                return (PropertyKind.MetricChange, null, null, false, null, null, true, FieldLayoutKind.Table, true);
+            }
+
+            if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.MultiSourceRow))
+                return (PropertyKind.MultiSource, null, null, false, null, null, true, FieldLayoutKind.Table, true);
 
             var elementSettings = GetElementTypeSettings(elementType);
             var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes, elementSettings.NamingPolicy, elementSettings.SkipNullByDefault);
@@ -713,6 +738,36 @@ internal static class TypeParser
                         }
                     }
 
+                    // Check for IReadOnlyList<MetricChange<T>> / List<MetricChange<T>> - renders as a
+                    // gated-metric table (Metric | Change | Target | Status). MetricChange is generic,
+                    // so compare the element's original definition against the open generic symbol.
+                    if (knownTypes.MetricChange is not null &&
+                        elementType is INamedTypeSymbol metricChangeElement &&
+                        SymbolEqualityComparer.Default.Equals(metricChangeElement.OriginalDefinition, knownTypes.MetricChange))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>")
+                        {
+                            // MetricChange<T> is scalar-only; the T:struct constraint can't exclude composite
+                            // shapes (Segments etc. are structs), so enforce a numeric allow-list here.
+                            ReportIfNonScalarMetricChange(metricChangeElement, diagnostics, propertyName, propertyLocation);
+                            return (PropertyKind.MetricChange, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+                        }
+                    }
+
+                    // Check for IReadOnlyList<MultiSourceRow> / List<MultiSourceRow> - renders as a
+                    // pivoted multi-source table (roles become columns).
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.MultiSourceRow))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>")
+                        {
+                            return (PropertyKind.MultiSource, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+                        }
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.Table, false);
 
@@ -743,6 +798,30 @@ internal static class TypeParser
         return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.Table, false);
     }
 
+    private static bool IsNumericScalarType(ITypeSymbol type) => type.SpecialType switch
+    {
+        SpecialType.System_Int32 or SpecialType.System_Int64 or SpecialType.System_Int16 or
+        SpecialType.System_Byte or SpecialType.System_SByte or SpecialType.System_UInt16 or
+        SpecialType.System_UInt32 or SpecialType.System_UInt64 or SpecialType.System_Double or
+        SpecialType.System_Single or SpecialType.System_Decimal => true,
+        _ => false
+    };
+
+    // Emits MARKOUT005 when a MetricChange<T> element has a non-numeric-scalar T (e.g. a composite shape).
+    private static void ReportIfNonScalarMetricChange(
+        INamedTypeSymbol metricChangeElement, List<DiagnosticInfo>? diagnostics, string? propertyName, Location? propertyLocation)
+    {
+        var typeArg = metricChangeElement.TypeArguments.Length == 1 ? metricChangeElement.TypeArguments[0] : null;
+        if (typeArg != null && !IsNumericScalarType(typeArg) && diagnostics != null && propertyName != null)
+        {
+            diagnostics.Add(new DiagnosticInfo(
+                DiagnosticDescriptors.MetricChangeNonScalarType,
+                propertyLocation,
+                propertyName,
+                typeArg.ToDisplayString()));
+        }
+    }
+
     private static bool HasNestedContent(IReadOnlyList<PropertyMetadata>? props)
     {
         if (props == null) return false;
@@ -753,6 +832,7 @@ internal static class TypeParser
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
              p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
+             p.Kind == PropertyKind.MetricChange || p.Kind == PropertyKind.MultiSource ||
              (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 
