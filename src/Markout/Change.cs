@@ -53,6 +53,13 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
             fields.Add(new MarkoutField(CellText.SideKey(side, "deltaPct"), DeltaValue(Delta.Percent)));
         else if (format.Delta == Delta.Absolute)
             fields.Add(new MarkoutField(CellText.SideKey(side, "deltaAbs"), DeltaValue(Delta.Absolute)));
+
+        if (format.Goal != Goal.Context &&
+            GoalDerivation.TryDerive(Before, After, format.Goal, format.Noise, out var direction, out var status))
+        {
+            fields.Add(new MarkoutField(CellText.SideKey(side, "direction"), DirectionText.Slug(direction)));
+            fields.Add(new MarkoutField(CellText.SideKey(side, "status"), GateStatusText.Slug(status)));
+        }
     }
 
     private string DeltaSuffix(Delta mode)

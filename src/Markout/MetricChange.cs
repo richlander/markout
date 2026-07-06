@@ -27,4 +27,16 @@ public readonly record struct MetricChange<T>(
     string? TargetLabel = null,
     GateStatus Status = GateStatus.Unknown,
     string? StatusLabel = null)
-    where T : struct;
+    where T : struct
+{
+    /// <summary>
+    /// The optimization goal. When not <see cref="Goal.Context"/> and <see cref="Status"/> is
+    /// caller-unset, Markout derives a structural <c>direction</c> and a polarity <c>status</c> from
+    /// <see cref="Before"/> → <see cref="After"/>. Set via object initializer to preserve the shipped
+    /// constructor, e.g. <c>new MetricChange&lt;int&gt;("Failures", b, a) { Goal = Goal.Lower }</c>.
+    /// </summary>
+    public Goal Goal { get; init; } = Goal.Context;
+
+    /// <summary>The tolerance (inclusive) under which a change is <see cref="Direction.Unchanged"/>; default exact.</summary>
+    public double Noise { get; init; }
+}

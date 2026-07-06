@@ -356,6 +356,18 @@ internal static class EmitHelpers
     public static string UnitLiteral(PropertyMetadata prop)
         => prop.Unit == null ? "null" : $"\"{EscapeString(prop.Unit)}\"";
 
+    /// <summary>Emits the runtime Markout.Goal enum literal for a composite cell property.</summary>
+    public static string GoalLiteral(PropertyMetadata prop) => prop.Goal switch
+    {
+        MarkoutGoalKind.Higher => "global::Markout.Goal.Higher",
+        MarkoutGoalKind.Lower => "global::Markout.Goal.Lower",
+        _ => "global::Markout.Goal.Context"
+    };
+
+    /// <summary>Emits the noise-tolerance double literal for a composite cell property.</summary>
+    public static string NoiseLiteral(PropertyMetadata prop)
+        => prop.Noise.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+
     public static bool IsScalarKind(PropertyKind kind)
     {
         return kind is

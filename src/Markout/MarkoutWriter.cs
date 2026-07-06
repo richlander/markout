@@ -785,8 +785,11 @@ public class MarkoutWriter
                 if (!string.IsNullOrEmpty(metric.TargetLabel))
                     fields.Add(new MarkoutField("targetLabel", metric.TargetLabel!));
             }
-            if (metric.Status != GateStatus.Unknown || !string.IsNullOrEmpty(metric.StatusLabel))
-                fields.Add(new MarkoutField("status", StatusText(metric)));
+            var (direction, status) = Resolve(metric);
+            if (direction is not null)
+                fields.Add(new MarkoutField("direction", direction));
+            if (status is not null)
+                fields.Add(new MarkoutField("status", status));
 
             perRow[r] = fields;
             foreach (var field in fields)
@@ -809,10 +812,32 @@ public class MarkoutWriter
     }
 
     private static string StatusText<T>(in MetricChange<T> metric) where T : struct
+        => Resolve(metric).Status ?? "-";
+
+    /// <summary>
+    /// Resolves the row's <c>direction</c> (structural) and <c>status</c> (polarity) text. A
+    /// caller-supplied <see cref="MetricChange{T}.StatusLabel"/> or <see cref="MetricChange{T}.Status"/>
+    /// overrides the derived polarity; direction is derived whenever a goal is set.
+    /// </summary>
+    private static (string? Direction, string? Status) Resolve<T>(in MetricChange<T> metric) where T : struct
     {
+        Direction? direction = null;
+        var derived = GateStatus.Neutral;
+        if (metric.Goal != Goal.Context &&
+            GoalDerivation.TryDerive(metric.Before, metric.After, metric.Goal, metric.Noise, out var d, out derived))
+            direction = d;
+
+        string? status;
         if (!string.IsNullOrEmpty(metric.StatusLabel))
-            return metric.StatusLabel!;
-        return metric.Status == GateStatus.Unknown ? "-" : GateStatusText.Slug(metric.Status);
+            status = metric.StatusLabel;
+        else if (metric.Status != GateStatus.Unknown)
+            status = GateStatusText.Slug(metric.Status);
+        else if (direction is not null)
+            status = GateStatusText.Slug(derived);
+        else
+            status = null;
+
+        return (direction is null ? null : DirectionText.Slug(direction.Value), status);
     }
 
     /// <summary>
