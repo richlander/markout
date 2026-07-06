@@ -14,8 +14,27 @@ public readonly record struct Segment(string Label, double Value);
 /// <c>{side}_{label}</c> when nested in a <see cref="Change{V}"/>).
 /// </summary>
 /// <param name="Parts">The labeled parts, rendered left-to-right in order.</param>
-public readonly record struct Segments(params Segment[] Parts) : IMarkoutCell
+public readonly record struct Segments(params Segment[] Parts) : IMarkoutCell, IGoalMagnitude
 {
+    /// <summary>
+    /// The aggregate magnitude for goal derivation is the sum of the parts' values (the breakdown's
+    /// total). Opt-in via <see cref="MarkoutCellFormat.Goal"/> — <see cref="Goal.Context"/> (the default)
+    /// derives nothing, so a purely compositional breakdown declines simply by not setting a goal. A
+    /// constant-sum (proportion) breakdown reads as <see cref="Direction.Unchanged"/>.
+    /// </summary>
+    double IGoalMagnitude.GoalMagnitude
+    {
+        get
+        {
+            if (Parts is null)
+                return 0;
+            double sum = 0;
+            foreach (var part in Parts)
+                sum += part.Value;
+            return sum;
+        }
+    }
+
     /// <inheritdoc/>
     public void FormatInline(TextWriter writer, in MarkoutCellFormat format)
     {

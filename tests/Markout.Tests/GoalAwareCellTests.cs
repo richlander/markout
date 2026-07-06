@@ -50,6 +50,24 @@ public partial class GoalTableCardContext : MarkoutSerializerContext
 {
 }
 
+// Attribute path for Delta.Multiple and [MarkoutDeltaNoun].
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class DeltaModesCard
+{
+    [MarkoutIgnore] public string Title => "Delta modes";
+
+    [MarkoutPropertyName("Residual"), MarkoutDelta(Delta.Multiple)]
+    public Change<int> Residual { get; set; }
+
+    [MarkoutPropertyName("Tasks"), MarkoutDeltaNoun("solved")]
+    public Change<Fraction> Tasks { get; set; }
+}
+
+[MarkoutContext(typeof(DeltaModesCard))]
+public partial class DeltaModesCardContext : MarkoutSerializerContext
+{
+}
+
 public class GoalAwareCellTests
 {
     private static List<MarkoutField> Decompose(IMarkoutCell cell, MarkoutCellFormat format)
@@ -330,16 +348,15 @@ public class GoalAwareCellTests
     }
 
     [Fact]
-    public void MultiSourceRow_SegmentsCell_NoDerivedDirection_EvenWithGoal()
+    public void MultiSourceRow_SegmentsCell_ContextGoal_NoDerivedDirection()
     {
-        // Segments has no single comparable magnitude (no IGoalMagnitude) -> no direction/status.
+        // With NO goal (Context), a Segments breakdown still derives nothing (opt-out).
         var rows = new[]
         {
             new MultiSourceRow("tool calls",
                 new Source("opus", new Change<Segments>(
                     new Segments(new Segment("web", 21), new Segment("other", 171)),
-                    new Segments(new Segment("web", 10), new Segment("other", 183))),
-                    new MarkoutCellFormat { Goal = Goal.Lower })),
+                    new Segments(new Segment("web", 10), new Segment("other", 183))))),
         };
 
         var sw = new StringWriter();
@@ -350,6 +367,75 @@ public class GoalAwareCellTests
 
         Assert.False(row.TryGetProperty("opus_direction", out _));
         Assert.False(row.TryGetProperty("opus_status", out _));
+    }
+
+    // --- Segments aggregate goal magnitude (sum of parts) ---
+
+    [Fact]
+    public void Change_Segments_WithGoal_DerivesFromSumTotal_AndKeepsParts()
+    {
+        // Archaeology-style: 14/7 -> 0/0, sum 21 -> 0, Goal.Lower -> resolved/good.
+        var cell = new Change<Segments>(
+            new Segments(new Segment("cache", 14), new Segment("nuget_org", 7)),
+            new Segments(new Segment("cache", 0), new Segment("nuget_org", 0)));
+        var fields = Decompose(cell, new MarkoutCellFormat { Goal = Goal.Lower });
+
+        // Parts still decompose.
+        Assert.Equal("14", fields.Single(f => f.Key == "before_cache").Value);
+        Assert.Equal("7", fields.Single(f => f.Key == "before_nuget_org").Value);
+        Assert.Equal("0", fields.Single(f => f.Key == "after_cache").Value);
+        // Total-derived axes.
+        Assert.Equal("resolved", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Segments_ConstantSum_IsUnchanged()
+    {
+        // Parts shift but the total is constant -> Unchanged/neutral (honest, if uninformative).
+        var cell = new Change<Segments>(
+            new Segments(new Segment("a", 3), new Segment("b", 7)),   // sum 10
+            new Segments(new Segment("a", 6), new Segment("b", 4)));  // sum 10
+        var fields = Decompose(cell, new MarkoutCellFormat { Goal = Goal.Lower });
+
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Segments_WithGoal_RendersDenseInlineWord()
+    {
+        // Free dense rendering via the IGoalMagnitude seam: 14/7 -> 0/0 (good).
+        var s = Inline(new Change<Segments>(
+            new Segments(new Segment("cache", 14), new Segment("nuget_org", 7)),
+            new Segments(new Segment("cache", 0), new Segment("nuget_org", 0))),
+            new MarkoutCellFormat { Goal = Goal.Lower });
+
+        Assert.Equal("14/7 \u2192 0/0 (good)", s);
+    }
+
+    [Fact]
+    public void MultiSourceRow_SegmentsCell_WithGoal_DerivesTotalAxes()
+    {
+        var rows = new[]
+        {
+            new MultiSourceRow("failure buckets",
+                new Source("baseline",
+                    new Change<Segments>(
+                        new Segments(new Segment("new_body_missing", 4), new Segment("old_body_missing", 3)),
+                        new Segments(new Segment("new_body_missing", 0), new Segment("old_body_missing", 0))),
+                    new MarkoutCellFormat { Goal = Goal.Lower })),
+        };
+
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, OmitEmptyJsonFields = true });
+        writer.WriteMultiSourceTable("Metric", rows);
+        var row = JsonDocument.Parse(sw.ToString().Trim()).RootElement;
+
+        Assert.Equal("4", row.GetProperty("baseline_before_new_body_missing").GetString());
+        Assert.Equal("resolved", row.GetProperty("baseline_direction").GetString());
+        Assert.Equal("good", row.GetProperty("baseline_status").GetString());
     }
 
     [Fact]
@@ -379,6 +465,119 @@ public class GoalAwareCellTests
             Assert.False(row.TryGetProperty("opus_direction", out _));
             Assert.False(row.TryGetProperty("opus_status", out _));
         }
+    }
+
+    // --- Delta.Multiple (slice 2) ---
+
+    [Fact]
+    public void Change_DeltaMultiple_RendersFactorAndDirectionWord()
+    {
+        Assert.Equal("15 \u2192 5 (3\u00d7 fewer)", Inline(new Change<long>(15, 5), new MarkoutCellFormat(Delta.Multiple)));
+        Assert.Equal("5 \u2192 15 (3\u00d7 more)", Inline(new Change<long>(5, 15), new MarkoutCellFormat(Delta.Multiple)));
+        Assert.Equal("15 \u2192 6 (2.5\u00d7 fewer)", Inline(new Change<long>(15, 6), new MarkoutCellFormat(Delta.Multiple)));
+    }
+
+    [Fact]
+    public void Change_DeltaMultiple_ZeroEndpoint_RendersPlaceholder()
+    {
+        Assert.Equal("15 \u2192 0 (\u2014)", Inline(new Change<long>(15, 0), new MarkoutCellFormat(Delta.Multiple)));
+    }
+
+    [Fact]
+    public void Change_DeltaMultiple_NonFinite_RendersPlaceholderWithoutWord()
+    {
+        var s = Inline(new Change<double>(double.PositiveInfinity, 5), new MarkoutCellFormat(Delta.Multiple));
+        Assert.EndsWith("(\u2014)", s);
+        Assert.DoesNotContain("\u00d7", s);   // no "—× fewer"
+        Assert.DoesNotContain("fewer", s);
+    }
+
+    [Fact]
+    public void Change_DeltaMultiple_MergesWithGoalStatus()
+    {
+        Assert.Equal("15 \u2192 5 (3\u00d7 fewer, good)",
+            Inline(new Change<long>(15, 5), new MarkoutCellFormat(Delta.Multiple) { Goal = Goal.Lower }));
+    }
+
+    [Fact]
+    public void Change_DeltaMultiple_DecomposesFactor()
+    {
+        var fields = Decompose(new Change<long>(15, 5), new MarkoutCellFormat(Delta.Multiple));
+        Assert.Equal("3", fields.Single(f => f.Key == "deltaMultiple").Value);
+    }
+
+    // --- Delta-noun (slice 3) ---
+
+    [Fact]
+    public void Change_DeltaNoun_Scalar_RendersSignedDeltaWithNoun()
+    {
+        Assert.Equal("4 \u2192 6 (+2 solved)", Inline(new Change<long>(4, 6), new MarkoutCellFormat { DeltaNoun = "solved" }));
+        Assert.Equal("6 \u2192 4 (-2 solved)", Inline(new Change<long>(6, 4), new MarkoutCellFormat { DeltaNoun = "solved" }));
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_MergesWithGoalStatus()
+    {
+        Assert.Equal("4 \u2192 6 (+2 solved, good)",
+            Inline(new Change<long>(4, 6), new MarkoutCellFormat { DeltaNoun = "solved", Goal = Goal.Higher }));
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_Fraction_UsesCountDelta()
+    {
+        // Fraction delta-noun is on the numerator (Count): 4/6 -> 6/6 => +2 solved.
+        Assert.Equal("4/6 \u2192 6/6 (+2 solved)",
+            Inline(new Change<Fraction>(new Fraction(4, 6), new Fraction(6, 6)), new MarkoutCellFormat { DeltaNoun = "solved" }));
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_Fraction_WithGoal_MergesRatioStatus()
+    {
+        // Ratio 0.667 -> 1.0 increased, Higher -> good; noun on Count delta.
+        Assert.Equal("4/6 \u2192 6/6 (+2 solved, good)",
+            Inline(new Change<Fraction>(new Fraction(4, 6), new Fraction(6, 6)),
+                new MarkoutCellFormat { DeltaNoun = "solved", Goal = Goal.Higher }));
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_Share_UsesValueDelta()
+    {
+        var s = Inline(new Change<Share>(new Share(10, 20), new Share(7, 20)), new MarkoutCellFormat { DeltaNoun = "tokens" });
+        Assert.EndsWith("(-3 tokens)", s);
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_Scalar_ExactForLargeIntegers()
+    {
+        // 2^53 and 2^53+1 are indistinguishable as double; the exact delta path keeps them apart.
+        var s = Inline(new Change<long>(9007199254740992L, 9007199254740993L), new MarkoutCellFormat { DeltaNoun = "solved" });
+        Assert.EndsWith("(+1 solved)", s);
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_NonFinite_OmitsNoun()
+    {
+        var s = Inline(new Change<Fraction>(new Fraction(double.NaN, 6), new Fraction(6, 6)),
+            new MarkoutCellFormat { DeltaNoun = "solved" });
+        Assert.DoesNotContain("solved", s);   // no "— solved"
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_PositiveInfinity_OmitsNoun()
+    {
+        // +Infinity delta must render the bare placeholder, never "+— solved".
+        var s = Inline(new Change<double>(5, double.PositiveInfinity), new MarkoutCellFormat { DeltaNoun = "solved" });
+        Assert.DoesNotContain("solved", s);
+        Assert.DoesNotContain("+\u2014", s);
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_IsMarkdownOnly_DecomposeUnaffected()
+    {
+        var fields = Decompose(new Change<long>(4, 6), new MarkoutCellFormat { DeltaNoun = "solved" });
+        Assert.DoesNotContain(fields, f => f.Value.Contains("solved"));
+        Assert.Equal("4", fields.Single(f => f.Key == "before").Value);
+        Assert.Equal("6", fields.Single(f => f.Key == "after").Value);
     }
 
     // --- Attribute path (source generator) ---
@@ -443,5 +642,19 @@ public class GoalAwareCellTests
 
         Assert.Contains("0 \u2192 7 (bad)", md);
         Assert.Contains("40 \u2192 55 (good)", md);
+    }
+
+    [Fact]
+    public void Generated_DeltaMultipleAndNoun_RenderInMarkdown()
+    {
+        var card = new DeltaModesCard
+        {
+            Residual = new(15, 5),
+            Tasks = new(new Fraction(4, 6), new Fraction(6, 6)),
+        };
+        var md = MarkoutSerializer.Serialize(card, DeltaModesCardContext.Default);
+
+        Assert.Contains("15 \u2192 5 (3\u00d7 fewer)", md);
+        Assert.Contains("4/6 \u2192 6/6 (+2 solved)", md);
     }
 }

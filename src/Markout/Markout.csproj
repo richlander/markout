@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.20.0</Version>
-    <PackageReleaseNotes>Goal-aware dense Markdown rendering: a MetricChange&lt;T&gt; table now inlines the status word into the Change cell (0 → 7 (bad)), appends a goal marker to the metric label ((-) for Goal.Lower, (+) for Goal.Higher), and drops the separate Status column; a caller StatusLabel stays the inline word. [MarkoutGoal] Change&lt;T&gt; properties (scalar and composite Share/Percent/Fraction) render the same inline word, merged with any [MarkoutDelta] suffix into one group (0 → 7 (+40%, bad)). Set MarkoutWriterOptions.InlineGoalStatus = false to keep the legacy Metric | Change | Target | Status layout. Structured (TSV/JSONL) output is unchanged (separate direction/status fields).</PackageReleaseNotes>
+    <Version>0.21.0</Version>
+    <PackageReleaseNotes>Goal-aware annotation follow-ups (all in 0.21.0): (1) Segments implements IGoalMagnitude as the sum of its parts, so a Change&lt;Segments&gt; with a Goal derives a total-based direction/status while still decomposing each part (opt-in via Goal; constant-sum reads Unchanged). (2) Delta.Multiple renders a multiplicative factor with a direction word — 15 → 5 (3× fewer), 5 → 15 (3× more); a zero endpoint renders the placeholder; decomposes to a deltaMultiple field. (3) [MarkoutDeltaNoun("solved")] renders a caller noun on the signed absolute delta — 4/6 → 6/6 (+2 solved) — the sibling of [MarkoutUnit]; composites use IDeltaCountable (Fraction → count, Share → value); Markdown-only. All annotations merge into the single 0.20 parenthetical: 4/6 → 6/6 (+2 solved, good).</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

@@ -7,10 +7,13 @@ namespace Markout;
 /// </summary>
 /// <param name="Value">The value shown before the derived percent.</param>
 /// <param name="Whole">The whole the value is a share of. A zero renders the placeholder.</param>
-public readonly record struct Share(double Value, double Whole) : IMarkoutCell, IGoalMagnitude
+public readonly record struct Share(double Value, double Whole) : IMarkoutCell, IGoalMagnitude, IDeltaCountable
 {
     /// <summary>The raw value drives goal derivation (the share percent is secondary context).</summary>
     double IGoalMagnitude.GoalMagnitude => Value;
+
+    /// <summary>The raw value carries the delta noun.</summary>
+    double IDeltaCountable.DeltaCount => Value;
 
     /// <inheritdoc/>
     public void FormatInline(TextWriter writer, in MarkoutCellFormat format)

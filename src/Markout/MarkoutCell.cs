@@ -86,6 +86,8 @@ internal static class CellText
     public static string SignedNumber(double value)
     {
         var text = Number(value);
+        if (text == Placeholder)
+            return Placeholder;   // non-finite: bare placeholder, never "+—"
         return value > 0 ? "+" + text : text;
     }
 

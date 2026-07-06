@@ -35,6 +35,7 @@ internal static class TypeParser
     private const string MarkoutDeltaAttribute = "Markout.MarkoutDeltaAttribute";
     private const string MarkoutUnitAttribute = "Markout.MarkoutUnitAttribute";
     private const string MarkoutGoalAttribute = "Markout.MarkoutGoalAttribute";
+    private const string MarkoutDeltaNounAttribute = "Markout.MarkoutDeltaNounAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -483,6 +484,16 @@ internal static class TypeParser
             }
         }
 
+        // Parse [MarkoutDeltaNoun] — caller noun rendered on the delta of a numeric Change<> cell
+        string? deltaNoun = null;
+        var deltaNounAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutDeltaNounAttribute);
+        if (deltaNounAttr != null && deltaNounAttr.ConstructorArguments.Length > 0 &&
+            deltaNounAttr.ConstructorArguments[0].Value is string deltaNounValue)
+        {
+            deltaNoun = deltaNounValue;
+        }
+
         // Parse [MarkoutLabelHeader] — label/identity column header for a List<MultiSourceRow> card
         string? multiSourceLabelHeader = null;
         var labelHeaderAttr = prop.GetAttributes()
@@ -576,7 +587,8 @@ internal static class TypeParser
             isReferenceTypeCell,
             multiSourceLabelHeader,
             goal,
-            noise);
+            noise,
+            deltaNoun);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

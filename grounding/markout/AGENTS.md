@@ -71,15 +71,19 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
 
 - `Change<V>` — a `before → after` change (NOT `Comparison`, which collides with `System.Comparison<T>`).
   `[MarkoutDelta(Delta.Percent)]` on a numeric `Change<V>` appends the signed change, e.g.
-  `98555 → 61190 (−38%)`; `Delta.Absolute` appends the signed difference.
+  `98555 → 61190 (−38%)`; `Delta.Absolute` appends the signed difference; `Delta.Multiple` appends a
+  multiplicative factor with a direction word, e.g. `15 → 5 (3× fewer)` / `5 → 15 (3× more)` (a zero
+  endpoint renders `—`). `[MarkoutDeltaNoun("solved")]` renders a caller noun on the signed delta —
+  `4/6 → 6/6 (+2 solved)` (sibling of `[MarkoutUnit]`; composites use `IDeltaCountable`: `Fraction`→count,
+  `Share`→value; Markdown-only).
   `[MarkoutGoal(Goal.Higher)]` / `[MarkoutGoal(Goal.Lower)]` on a numeric `Change<V>` makes Markout
   derive two decomposed fields — a structural `direction`
   (`increased`/`decreased`/`introduced` (0→N)/`resolved` (N→0)/`unchanged`) and a goal-applied polarity
   `status` (`good`/`bad`/`neutral`) — instead of the caller hand-coding ceiling/floor/drift. Optional
   noise, `[MarkoutGoal(Goal.Higher, 0.001)]`, treats sub-threshold movement as `unchanged`. `Goal.Context`
   (default) derives nothing. Composite `Change<Share|Percent|Fraction>` also derive `direction`/`status`
-  from a single comparable magnitude (`Share` → raw `Value`; `Percent`/`Fraction` → their ratio);
-  `Change<Segments>` has no single magnitude, so it derives nothing. In dense Markdown the polarity word
+  from a single comparable magnitude (`Share` → raw `Value`; `Percent`/`Fraction` → their ratio;
+  `Segments` → the **sum** of its parts' values, i.e. the breakdown total). In dense Markdown the polarity word
   renders inline, merged with any delta suffix into one group: `0 → 7 (bad)`, `98555 → 61190 (−38%, good)`.
 - `Fraction(count, total)` → `24/24`; `Share(value, whole)` → `5056 (24%)`
   (`[MarkoutUnit("s")]` → `103s (93%)`); `Percent(part, whole)` → `93%`;
