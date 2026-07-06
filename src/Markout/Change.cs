@@ -52,7 +52,17 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         string? statusPart = null;
         if (format.Goal != Goal.Context &&
             GoalDerivation.TryDerive(Before, After, format.Goal, format.Noise, out _, out var status))
-            statusPart = GateStatusText.Slug(status);
+        {
+            // Delta.Multiple already renders a goal-aligned direction word ("fewer"/"more"), so an
+            // aligned (Good) status word is redundant — suppress it. Keep it when it conflicts (Bad),
+            // when there is no rendered multiple phrase (placeholder), or for a delta-noun.
+            var multipleImpliesGood = format.DeltaNoun is null
+                && format.Delta == Delta.Multiple
+                && status == GateStatus.Good
+                && deltaPart is not null && deltaPart != CellText.Placeholder;
+            if (!multipleImpliesGood)
+                statusPart = GateStatusText.Slug(status);
+        }
 
         WriteParenGroup(writer, deltaPart, statusPart);
     }
