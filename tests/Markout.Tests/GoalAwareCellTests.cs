@@ -219,6 +219,16 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactNoiseBand_ComparedInDecimalDomain()
+    {
+        // Exact delta 2^53+1 exceeds a 2^53 tolerance; the boundary must not round back to double.
+        var fields = Decompose(new Change<long>(0L, 9007199254740993L),
+            new MarkoutCellFormat { Goal = Goal.Lower, Noise = 9007199254740992d });
+        Assert.Equal("introduced", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("bad", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_Goal_SmallValues_UnchangedBehaviorPreserved()
     {
         // The exact path must match the double path for ordinary values.

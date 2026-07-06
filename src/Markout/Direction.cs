@@ -121,7 +121,9 @@ internal static class GoalDerivation
         if (CellText.TryExactDelta(before, after, out var exact))
         {
             var tolerance = noise >= 0 ? noise : 0;   // NaN/negative -> exact, matching Classify
-            direction = Math.Abs((double)exact) <= tolerance
+            // Compare in the exact decimal domain so the tolerance boundary isn't rounded back to
+            // double. A tolerance beyond decimal range (incl. +Infinity) is always within tolerance.
+            direction = tolerance >= (double)decimal.MaxValue || Math.Abs(exact) <= (decimal)tolerance
                 ? Direction.Unchanged
                 : ClassifyFromSign(Math.Sign(exact), b == 0, a == 0);
             status = Polarity(direction, goal);
