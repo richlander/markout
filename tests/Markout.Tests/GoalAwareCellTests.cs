@@ -209,6 +209,16 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactClassification_HonorsNoiseBand()
+    {
+        // Exact delta of 1 exceeds a 0.5 tolerance -> increased (not collapsed to unchanged).
+        var fields = Decompose(new Change<long>(9007199254740992L, 9007199254740993L),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 0.5 });
+        Assert.Equal("increased", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_Goal_SmallValues_UnchangedBehaviorPreserved()
     {
         // The exact path must match the double path for ordinary values.

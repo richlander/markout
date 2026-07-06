@@ -114,12 +114,16 @@ internal static class GoalDerivation
         if (!CellText.TryScalarDouble(before, out var b) || !CellText.TryScalarDouble(after, out var a))
             return false;
 
-        // Exact path: at exact tolerance, classify large long/ulong/decimal from their exact decimal
-        // sign so adjacent values beyond double's 2^53 range aren't collapsed to Unchanged. (Zero is
-        // exactly representable, so the b == 0 / a == 0 zero-crossing checks stay valid in double.)
-        if (noise == 0 && CellText.TryExactDelta(before, after, out var exact))
+        // Exact path: classify large long/ulong/decimal from their exact decimal delta so adjacent
+        // values beyond double's 2^53 range aren't collapsed to Unchanged. Applies at any tolerance
+        // (the noise band is checked against the exact delta). Zero is exactly representable, so the
+        // b == 0 / a == 0 zero-crossing checks stay valid in double.
+        if (CellText.TryExactDelta(before, after, out var exact))
         {
-            direction = ClassifyFromSign(Math.Sign(exact), b == 0, a == 0);
+            var tolerance = noise >= 0 ? noise : 0;   // NaN/negative -> exact, matching Classify
+            direction = Math.Abs((double)exact) <= tolerance
+                ? Direction.Unchanged
+                : ClassifyFromSign(Math.Sign(exact), b == 0, a == 0);
             status = Polarity(direction, goal);
             return true;
         }
