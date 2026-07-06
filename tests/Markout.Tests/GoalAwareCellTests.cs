@@ -184,6 +184,120 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactClassification_BeyondDoublePrecision()
+    {
+        // 2^53 and 2^53+1 are the same double; the exact decimal path keeps them distinct (#140).
+        var up = Decompose(new Change<long>(9007199254740992L, 9007199254740993L),
+            new MarkoutCellFormat { Goal = Goal.Higher });
+        Assert.Equal("increased", up.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", up.Single(f => f.Key == "status").Value);
+
+        var down = Decompose(new Change<long>(9007199254740993L, 9007199254740992L),
+            new MarkoutCellFormat { Goal = Goal.Lower });
+        Assert.Equal("decreased", down.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", down.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactClassification_Decimal()
+    {
+        // decimal.MaxValue and MaxValue-1 collapse to the same double; exact decimal keeps them apart.
+        var fields = Decompose(new Change<decimal>(decimal.MaxValue, decimal.MaxValue - 1m),
+            new MarkoutCellFormat { Goal = Goal.Lower });
+        Assert.Equal("decreased", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactClassification_HonorsNoiseBand()
+    {
+        // Exact delta of 1 exceeds a 0.5 tolerance -> increased (not collapsed to unchanged).
+        var fields = Decompose(new Change<long>(9007199254740992L, 9007199254740993L),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 0.5 });
+        Assert.Equal("increased", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactNoiseBand_ComparedInDecimalDomain()
+    {
+        // Exact delta 2^53+1 exceeds a 2^53 tolerance; the boundary must not round back to double.
+        var fields = Decompose(new Change<long>(0L, 9007199254740993L),
+            new MarkoutCellFormat { Goal = Goal.Lower, Noise = 9007199254740992d });
+        Assert.Equal("introduced", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("bad", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactNoiseBand_InclusiveAtLargeIntegerBoundary()
+    {
+        // Exact delta exactly equal to a large integer tolerance is within the inclusive band.
+        var fields = Decompose(new Change<long>(0L, 9007199254740991L),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 9007199254740991d });
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactNoiseBand_InclusiveAboveE18()
+    {
+        // Integer tolerance above 1e18 (still within long range) stays exact and inclusive.
+        var fields = Decompose(new Change<long>(0L, 1000000000000000128L),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 1000000000000000128d });
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactNoiseBand_InclusiveAboveLongRange()
+    {
+        // Integer ulong tolerance above long.MaxValue stays exact and inclusive (type-agnostic path).
+        var fields = Decompose(new Change<ulong>(0UL, 10000000000000002048UL),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 10000000000000002048d });
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_SmallValues_UnchangedBehaviorPreserved()
+    {
+        // The exact path must match the double path for ordinary values.
+        var fields = Decompose(new Change<long>(5, 5), new MarkoutCellFormat { Goal = Goal.Higher });
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactNoiseBand_LargeFractionalTolerance()
+    {
+        // A large fractional tolerance is reconstructed exactly; the exact delta exceeds it -> introduced.
+        var fields = Decompose(new Change<decimal>(0m, 4503599627370498m),
+            new MarkoutCellFormat { Goal = Goal.Lower, Noise = 4503599627370495.5d });
+        Assert.Equal("introduced", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("bad", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactNoiseBand_SmallNonRoundTolerance()
+    {
+        // A small tolerance that is a double just below 2 must not round up to 2: delta 2 exceeds it.
+        var fields = Decompose(new Change<long>(0L, 2L),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 1.9999999999999998d });
+        Assert.Equal("introduced", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactNoiseBand_FractionalDecimalDelta()
+    {
+        // A fractional decimal delta just above a large integer tolerance must not round into the band.
+        var fields = Decompose(new Change<decimal>(0m, 9007199254740991.1m),
+            new MarkoutCellFormat { Goal = Goal.Lower, Noise = 9007199254740991d });
+        Assert.Equal("introduced", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("bad", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_GoalAndDelta_EmitBothDerivedAxesAndDelta()
     {
         var format = new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower };

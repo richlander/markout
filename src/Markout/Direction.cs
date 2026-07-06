@@ -113,6 +113,82 @@ internal static class GoalDerivation
         status = GateStatus.Neutral;
         if (!CellText.TryScalarDouble(before, out var b) || !CellText.TryScalarDouble(after, out var a))
             return false;
+
+        // Exact path: classify large long/ulong/decimal from their exact decimal delta so adjacent
+        // values beyond double's 2^53 range aren't collapsed to Unchanged. The noise band is checked
+        // exactly (rational comparison of the decimal delta and the double tolerance), and the zero
+        // checks stay valid in double since zero is exactly representable.
+        if (CellText.TryExactDelta(before, after, out var exact))
+        {
+            var tol = noise >= 0 ? noise : 0;   // NaN/negative -> exact, matching Classify
+            var within = double.IsPositiveInfinity(tol) || WithinTolerance(Math.Abs(exact), tol);
+            direction = within
+                ? Direction.Unchanged
+                : ClassifyFromSign(Math.Sign(exact), b == 0, a == 0);
+            status = Polarity(direction, goal);
+            return true;
+        }
+
         return TryDerive(b, a, goal, noise, out direction, out status);
+    }
+
+    /// <summary>
+    /// Classifies from a precomputed sign of <c>after − before</c> and the zero-crossing flags, matching
+    /// <see cref="Classify"/> but without re-deriving the sign from a lossy <see cref="double"/> delta.
+    /// </summary>
+    private static Direction ClassifyFromSign(int sign, bool beforeZero, bool afterZero)
+    {
+        if (sign == 0)
+            return Direction.Unchanged;
+        if (beforeZero && sign > 0)
+            return Direction.Introduced;
+        if (afterZero && sign < 0)
+            return Direction.Resolved;
+        return sign > 0 ? Direction.Increased : Direction.Decreased;
+    }
+
+    /// <summary>
+    /// Exact test of <c>delta &lt;= tolerance</c> (both non-negative, <paramref name="tolerance"/> finite),
+    /// comparing the <see cref="decimal"/> delta and the <see cref="double"/> tolerance as exact rationals
+    /// so neither is rounded. This keeps the inclusive noise boundary exact for arbitrarily large or
+    /// non-round tolerances, where a <c>decimal</c>↔<c>double</c> conversion would round.
+    /// </summary>
+    private static bool WithinTolerance(decimal delta, double tolerance)
+    {
+        if (tolerance == 0)
+            return delta == 0;
+
+        // delta = deltaUnscaled / 10^deltaScale
+        var bits = decimal.GetBits(delta);
+        var deltaUnscaled = (new System.Numerics.BigInteger((uint)bits[2]) << 64)
+            + (new System.Numerics.BigInteger((uint)bits[1]) << 32)
+            + (uint)bits[0];
+        var deltaScale = (bits[3] >> 16) & 0xFF;
+
+        // tolerance = tMantissa * 2^tExp
+        var t = BitConverter.DoubleToInt64Bits(tolerance);
+        var expField = (int)((t >> 52) & 0x7FF);
+        var tMantissa = new System.Numerics.BigInteger(t & 0xFFFFFFFFFFFFFL);
+        int tExp;
+        if (expField == 0)
+        {
+            tExp = -1074;                       // subnormal: no implicit leading bit
+        }
+        else
+        {
+            tMantissa += 0x10000000000000L;     // implicit leading bit
+            tExp = expField - 1075;
+        }
+
+        // delta <= tolerance  <=>  deltaUnscaled / 10^deltaScale <= tMantissa * 2^tExp
+        //   left = deltaUnscaled, right = tMantissa * 10^deltaScale, then absorb 2^tExp on the right
+        //   (or 2^-tExp on the left) to keep both sides integral.
+        var left = deltaUnscaled;
+        var right = tMantissa * System.Numerics.BigInteger.Pow(10, deltaScale);
+        if (tExp >= 0)
+            right *= System.Numerics.BigInteger.Pow(2, tExp);
+        else
+            left *= System.Numerics.BigInteger.Pow(2, -tExp);
+        return left <= right;
     }
 }

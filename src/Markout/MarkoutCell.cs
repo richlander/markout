@@ -156,6 +156,31 @@ internal static class CellText
         return signed && delta > 0 ? "+" + text : text;
     }
 
+    /// <summary>
+    /// Computes the exact <c>after − before</c> as a <see cref="decimal"/> for integral/decimal pairs
+    /// (<see cref="long"/>/<see cref="ulong"/>/<see cref="decimal"/>) whose magnitudes can exceed
+    /// <see cref="double"/>'s exact-integer range (2^53). Returns <c>false</c> for other types (the
+    /// caller uses the <c>double</c> path); a <see cref="decimal"/> overflow also returns <c>false</c>.
+    /// </summary>
+    public static bool TryExactDelta(object? before, object? after, out decimal delta)
+    {
+        switch (before, after)
+        {
+            case (long b, long a):
+                delta = (decimal)a - b;
+                return true;
+            case (ulong b, ulong a):
+                delta = (decimal)a - b;
+                return true;
+            case (decimal b, decimal a):
+                try { delta = a - b; return true; }
+                catch (OverflowException) { break; }
+        }
+
+        delta = 0m;
+        return false;
+    }
+
     /// <summary>Combines a decomposition <paramref name="side"/> with a sub-field name as <c>{side}_{sub}</c>.</summary>
     public static string SideKey(string? side, string sub)
         => side is null ? sub : side + "_" + sub;
