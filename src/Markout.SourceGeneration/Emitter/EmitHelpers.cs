@@ -366,7 +366,16 @@ internal static class EmitHelpers
 
     /// <summary>Emits the noise-tolerance double literal for a composite cell property.</summary>
     public static string NoiseLiteral(PropertyMetadata prop)
-        => prop.Noise.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+    {
+        var noise = prop.Noise;
+        if (double.IsNaN(noise))
+            return "global::System.Double.NaN";
+        if (double.IsPositiveInfinity(noise))
+            return "global::System.Double.PositiveInfinity";
+        if (double.IsNegativeInfinity(noise))
+            return "global::System.Double.NegativeInfinity";
+        return noise.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     public static bool IsScalarKind(PropertyKind kind)
     {

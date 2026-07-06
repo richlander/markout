@@ -46,17 +46,26 @@ internal static class DirectionText
 internal static class GoalDerivation
 {
     /// <summary>
-    /// Classifies the movement from <paramref name="before"/> to <paramref name="after"/>. A movement
-    /// whose magnitude is within <paramref name="noise"/> (inclusive) is <see cref="Direction.Unchanged"/>.
+    /// Classifies the movement from <paramref name="before"/> to <paramref name="after"/> (both assumed
+    /// finite). A movement whose magnitude is within <paramref name="noise"/> (inclusive) is
+    /// <see cref="Direction.Unchanged"/>. The zero-crossing categories are restricted to
+    /// <em>non-negative</em> counts — <c>0 → +N</c> is <see cref="Direction.Introduced"/> and
+    /// <c>+N → 0</c> is <see cref="Direction.Resolved"/> — so a crossing that involves a negative value
+    /// (e.g. <c>0 → -5</c>) falls through to sign-based <see cref="Direction.Increased"/>/<see cref="Direction.Decreased"/>,
+    /// keeping <see cref="Polarity"/> algebraically correct.
     /// </summary>
     public static Direction Classify(double before, double after, double noise = 0)
     {
+        // A NaN or negative tolerance is meaningless; treat it as exact (0).
+        if (!(noise >= 0))
+            noise = 0;
+
         var delta = after - before;
         if (Math.Abs(delta) <= noise)
             return Direction.Unchanged;
-        if (before == 0)
+        if (before == 0 && after > 0)
             return Direction.Introduced;
-        if (after == 0)
+        if (after == 0 && before > 0)
             return Direction.Resolved;
         return delta > 0 ? Direction.Increased : Direction.Decreased;
     }
@@ -64,7 +73,8 @@ internal static class GoalDerivation
     /// <summary>
     /// Applies <paramref name="goal"/> to a structural <paramref name="direction"/> to get the good/bad
     /// polarity. <see cref="Goal.Context"/> and <see cref="Direction.Unchanged"/> are always
-    /// <see cref="GateStatus.Neutral"/>.
+    /// <see cref="GateStatus.Neutral"/>. Relies on <see cref="Classify"/> restricting
+    /// <see cref="Direction.Introduced"/> to rises and <see cref="Direction.Resolved"/> to falls.
     /// </summary>
     public static GateStatus Polarity(Direction direction, Goal goal)
     {
@@ -78,8 +88,24 @@ internal static class GoalDerivation
     }
 
     /// <summary>
-    /// Convenience: classify a change and return both axes. Returns <c>false</c> when either side is not
-    /// a numeric scalar (goal derivation does not apply), leaving both outputs at their neutral defaults.
+    /// Derives both axes from finite scalar magnitudes. Returns <c>false</c> when either side is not a
+    /// finite number (NaN/Infinity), so callers omit <c>direction</c>/<c>status</c> — matching the
+    /// <c>—</c> placeholder a non-finite value renders.
+    /// </summary>
+    public static bool TryDerive(double before, double after, Goal goal, double noise, out Direction direction, out GateStatus status)
+    {
+        direction = Direction.Unchanged;
+        status = GateStatus.Neutral;
+        if (!double.IsFinite(before) || !double.IsFinite(after))
+            return false;
+        direction = Classify(before, after, noise);
+        status = Polarity(direction, goal);
+        return true;
+    }
+
+    /// <summary>
+    /// Convenience: derive both axes from boxed scalars. Returns <c>false</c> when either side is not a
+    /// (finite) numeric scalar, leaving both outputs at their neutral defaults.
     /// </summary>
     public static bool TryDerive(object? before, object? after, Goal goal, double noise, out Direction direction, out GateStatus status)
     {
@@ -87,8 +113,6 @@ internal static class GoalDerivation
         status = GateStatus.Neutral;
         if (!CellText.TryScalarDouble(before, out var b) || !CellText.TryScalarDouble(after, out var a))
             return false;
-        direction = Classify(b, a, noise);
-        status = Polarity(direction, goal);
-        return true;
+        return TryDerive(b, a, goal, noise, out direction, out status);
     }
 }

@@ -52,6 +52,13 @@ public class GoalAwareCellTests
     // Unchanged is always neutral regardless of goal
     [InlineData(5, 5, "lower", "unchanged", "neutral")]
     [InlineData(5, 5, "higher", "unchanged", "neutral")]
+    // Negative-involved crossings fall through to sign-based direction (polarity stays algebraic)
+    [InlineData(0, -5, "higher", "decreased", "bad")]
+    [InlineData(0, -5, "lower", "decreased", "good")]
+    [InlineData(-5, 0, "higher", "increased", "good")]
+    [InlineData(-5, 0, "lower", "increased", "bad")]
+    [InlineData(-3, -5, "lower", "decreased", "good")]
+    [InlineData(-5, -3, "higher", "increased", "good")]
     public void Change_WithGoal_DerivesDirectionAndPolarity(int before, int after, string goal, string direction, string status)
     {
         var format = new MarkoutCellFormat { Goal = goal == "lower" ? Goal.Lower : Goal.Higher };
@@ -171,6 +178,81 @@ public class GoalAwareCellTests
 
         Assert.Equal("decreased", row.GetProperty("direction").GetString()); // still derived
         Assert.Equal("near-threshold", row.GetProperty("status").GetString()); // caller override wins
+    }
+
+    [Fact]
+    public void Change_NonFiniteInput_EmitsNoDirectionOrStatus()
+    {
+        // NaN/Infinity render as the — placeholder; goal derivation is omitted rather than guessed.
+        Assert.DoesNotContain(Decompose(new Change<double>(double.NaN, 5), new MarkoutCellFormat { Goal = Goal.Higher }),
+            f => f.Key is "direction" or "status");
+        Assert.DoesNotContain(Decompose(new Change<double>(5, double.PositiveInfinity), new MarkoutCellFormat { Goal = Goal.Lower }),
+            f => f.Key is "direction" or "status");
+    }
+
+    // --- Composite cells derive from a comparable magnitude (runtime Source path) ---
+
+    [Fact]
+    public void MultiSourceRow_CompositeCells_DeriveDirectionAndStatusFromMagnitude()
+    {
+        var rows = new[]
+        {
+            // Share magnitude = raw Value: 5056 -> 3129 tokens, Lower -> good.
+            new MultiSourceRow("output tok",
+                new Source("opus", new Change<Share>(new Share(5056, 21067), new Share(3129, 13037)),
+                    new MarkoutCellFormat { Goal = Goal.Lower })),
+            // Fraction magnitude = Count/Total rate: 20/24 -> 24/24 rate up, Higher -> good.
+            new MultiSourceRow("tasks correct",
+                new Source("opus", new Change<Fraction>(new Fraction(20, 24), new Fraction(24, 24)),
+                    new MarkoutCellFormat { Goal = Goal.Higher })),
+            // Percent magnitude = Part/Whole: 80% -> 95%, Higher -> good.
+            new MultiSourceRow("read grounding",
+                new Source("opus", new Change<Percent>(new Percent(80, 100), new Percent(95, 100)),
+                    new MarkoutCellFormat { Goal = Goal.Higher })),
+        };
+
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, OmitEmptyJsonFields = true });
+        writer.WriteMultiSourceTable("Metric", rows);
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        var tok = JsonDocument.Parse(lines[0]).RootElement;
+        Assert.Equal("decreased", tok.GetProperty("opus_direction").GetString());
+        Assert.Equal("good", tok.GetProperty("opus_status").GetString());
+        // The composite's own decomposed fields are still present.
+        Assert.Equal("5056", tok.GetProperty("opus_before_value").GetString());
+
+        var tasks = JsonDocument.Parse(lines[1]).RootElement;
+        Assert.Equal("increased", tasks.GetProperty("opus_direction").GetString());
+        Assert.Equal("good", tasks.GetProperty("opus_status").GetString());
+
+        var read = JsonDocument.Parse(lines[2]).RootElement;
+        Assert.Equal("increased", read.GetProperty("opus_direction").GetString());
+        Assert.Equal("good", read.GetProperty("opus_status").GetString());
+    }
+
+    [Fact]
+    public void MultiSourceRow_SegmentsCell_NoDerivedDirection_EvenWithGoal()
+    {
+        // Segments has no single comparable magnitude (no IGoalMagnitude) -> no direction/status.
+        var rows = new[]
+        {
+            new MultiSourceRow("tool calls",
+                new Source("opus", new Change<Segments>(
+                    new Segments(new Segment("web", 21), new Segment("other", 171)),
+                    new Segments(new Segment("web", 10), new Segment("other", 183))),
+                    new MarkoutCellFormat { Goal = Goal.Lower })),
+        };
+
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, OmitEmptyJsonFields = true });
+        writer.WriteMultiSourceTable("Metric", rows);
+        var row = JsonDocument.Parse(sw.ToString().Trim()).RootElement;
+
+        Assert.False(row.TryGetProperty("opus_direction", out _));
+        Assert.False(row.TryGetProperty("opus_status", out _));
     }
 
     // --- Attribute path (source generator) ---

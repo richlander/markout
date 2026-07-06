@@ -77,7 +77,9 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
   (`increased`/`decreased`/`introduced` (0→N)/`resolved` (N→0)/`unchanged`) and a goal-applied polarity
   `status` (`good`/`bad`/`neutral`) — instead of the caller hand-coding ceiling/floor/drift. Optional
   noise, `[MarkoutGoal(Goal.Higher, 0.001)]`, treats sub-threshold movement as `unchanged`. `Goal.Context`
-  (default) derives nothing.
+  (default) derives nothing. Composite `Change<Share|Percent|Fraction>` also derive `direction`/`status`
+  from a single comparable magnitude (`Share` → raw `Value`; `Percent`/`Fraction` → their ratio);
+  `Change<Segments>` has no single magnitude, so it derives nothing.
 - `Fraction(count, total)` → `24/24`; `Share(value, whole)` → `5056 (24%)`
   (`[MarkoutUnit("s")]` → `103s (93%)`); `Percent(part, whole)` → `93%`;
   `Segments(new Segment(label, value), ...)` → `21/171/236` (labels become column names).
