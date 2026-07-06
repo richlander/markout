@@ -46,36 +46,67 @@ internal static class CollectionEmitter
         }));
         var headerNames = string.Join(", ", visibleProps.Select(p =>
             $"\"{EmitHelpers.EscapeString(p.Name)}\""));
-        sb.AppendLine($"{indent}writer.WriteTableStart(new string[] {{ {headers} }}, new string[] {{ {headerNames} }});");
 
-        // Instantiate formatter if configured
-        if (prop.SectionFormatterTypeName != null)
+        // Per-column dense value expression (formatted property override, else the cell value).
+        string CellExpr(PropertyMetadata p)
         {
-            sb.AppendLine($"{indent}var __fmt = new {prop.SectionFormatterTypeName}();");
+            if (p.Name == prop.SectionFormatProperty && prop.SectionFormatterTypeName != null)
+            {
+                var access = $"{itemVar}.{p.Name}";
+                return $"{access} != null ? __fmt.Format({access}) : \"\"";
+            }
+            return EmitHelpers.GetTableCellValue(p, itemVar);
         }
 
-        sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
-        sb.AppendLine($"{indent}{{");
-
-        // Build row values
-        var values = new List<string>();
-        foreach (var elemProp in visibleProps)
+        void EmitDense(string ind)
         {
-            if (elemProp.Name == prop.SectionFormatProperty && prop.SectionFormatterTypeName != null)
+            sb.AppendLine($"{ind}writer.WriteTableStart(new string[] {{ {headers} }}, new string[] {{ {headerNames} }});");
+            if (prop.SectionFormatterTypeName != null)
+                sb.AppendLine($"{ind}var __fmt = new {prop.SectionFormatterTypeName}();");
+            sb.AppendLine($"{ind}foreach (var {itemVar} in {propAccess})");
+            sb.AppendLine($"{ind}{{");
+            var values = visibleProps.Select(CellExpr).ToList();
+            sb.AppendLine($"{ind}    writer.WriteTableRow({string.Join(", ", values)});");
+            sb.AppendLine($"{ind}}}");
+            sb.AppendLine($"{ind}writer.WriteTableEnd();");
+        }
+
+        // Scalar-only tables render identically to structured output as before; only tables with
+        // composite columns need a decompose branch (typed sub-columns for TSV/JSONL, dense otherwise).
+        if (!visibleProps.Any(p => p.Kind == PropertyKind.CompositeCell))
+        {
+            EmitDense(indent);
+            return;
+        }
+
+        sb.AppendLine($"{indent}if (writer.DecomposesCompositeCells)");
+        sb.AppendLine($"{indent}{{");
+        var di = indent + "    ";
+        if (prop.SectionFormatterTypeName != null)
+            sb.AppendLine($"{di}var __fmt = new {prop.SectionFormatterTypeName}();");
+        sb.AppendLine($"{di}var __drows = new global::System.Collections.Generic.List<global::System.Collections.Generic.List<global::Markout.MarkoutField>>();");
+        sb.AppendLine($"{di}foreach (var {itemVar} in {propAccess})");
+        sb.AppendLine($"{di}{{");
+        sb.AppendLine($"{di}    var __df = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
+        foreach (var p in visibleProps)
+        {
+            if (p.Kind == PropertyKind.CompositeCell)
             {
-                var access = $"{itemVar}.{elemProp.Name}";
-                values.Add($"{access} != null ? __fmt.Format({access}) : \"\"");
+                sb.AppendLine($"{di}    ((global::Markout.IMarkoutCell?){itemVar}.{p.Name})?.Decompose(__df, \"{EmitHelpers.EscapeString(p.Name)}\", {EmitHelpers.CompositeCellFormatLiteral(p)});");
             }
             else
             {
-                var value = EmitHelpers.GetTableCellValue(elemProp, itemVar);
-                values.Add(value);
+                sb.AppendLine($"{di}    __df.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(p.Name)}\", {CellExpr(p)}));");
             }
         }
-
-        sb.AppendLine($"{indent}    writer.WriteTableRow({string.Join(", ", values)});");
+        sb.AppendLine($"{di}    __drows.Add(__df);");
+        sb.AppendLine($"{di}}}");
+        sb.AppendLine($"{di}writer.WriteDecomposedRows(__drows);");
         sb.AppendLine($"{indent}}}");
-        sb.AppendLine($"{indent}writer.WriteTableEnd();");
+        sb.AppendLine($"{indent}else");
+        sb.AppendLine($"{indent}{{");
+        EmitDense(indent + "    ");
+        sb.AppendLine($"{indent}}}");
     }
 
     /// <summary>

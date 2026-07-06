@@ -63,6 +63,14 @@ public class MarkoutWriter
     public MarkoutWriterOptions Options => _options;
 
     /// <summary>
+    /// Whether the active formatter decomposes composite cells into typed columns (TSV/JSONL). Element-table
+    /// serialization uses this to decompose composite columns into typed sub-columns for structured output
+    /// while keeping the dense string for document formatters.
+    /// </summary>
+    public bool DecomposesCompositeCells
+        => _formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true };
+
+    /// <summary>
     /// Gets whether descriptions should be included in output.
     /// </summary>
     public bool IncludeDescription => _options.IncludeDescription;
@@ -730,7 +738,62 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a gated-metric table from <see cref="MetricChange{T}"/> rows: document formatters
+    /// Writes an element table whose columns are already decomposed into typed fields (used by the
+    /// generated element-table path for decomposing formatters: each row's composite columns are
+    /// decomposed into <c>{column}_{sub}</c> fields, scalar columns into a single field). Columns are the
+    /// union of keys across rows in first-appearance order; a row missing a key renders blank.
+    /// </summary>
+    /// <param name="rows">Per-row decomposed fields (one list per element row).</param>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteDecomposedRows(IReadOnlyList<IReadOnlyList<MarkoutField>> rows)
+    {
+        if (_sectionExcluded || rows.Count == 0)
+            return true;
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
+        var keyOrder = new List<string>();
+        var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var row in rows)
+            foreach (var field in row)
+                if (keyIndex.TryAdd(field.Key, keyOrder.Count))
+                    keyOrder.Add(field.Key);
+
+        var headers = new string[keyOrder.Count];
+        var headerNames = new string[keyOrder.Count];
+        var usedStableKeys = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < keyOrder.Count; i++)
+        {
+            headers[i] = keyOrder[i];
+            var stable = Formatting.FormatHelper.ToSnakeCase(keyOrder[i]);
+            if (string.IsNullOrEmpty(stable))
+                stable = "column";
+            if (!usedStableKeys.Add(stable))
+            {
+                int suffix = 2;
+                string candidate;
+                do { candidate = stable + "_" + suffix++; } while (!usedStableKeys.Add(candidate));
+                stable = candidate;
+            }
+            headerNames[i] = stable;
+        }
+
+        var outRows = new List<string[]>(rows.Count);
+        foreach (var row in rows)
+        {
+            var values = new string[keyOrder.Count];
+            for (int i = 0; i < values.Length; i++)
+                values[i] = "";
+            foreach (var field in row)
+                if (keyIndex.TryGetValue(field.Key, out var idx))
+                    values[idx] = field.Value;
+            outRows.Add(values);
+        }
+
+        return WriteTable(headers, headerNames, outRows);
+    }
+
     /// render fixed <c>Metric | Change | Target | Status</c> columns; decomposing formatters
     /// (TSV/JSONL) emit flat typed fields (<c>before</c>, <c>after</c>, optional <c>target</c>/
     /// <c>target_label</c>, <c>status</c>). Absent targets render <c>-</c> and are omitted from
