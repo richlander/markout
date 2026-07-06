@@ -52,6 +52,30 @@ public partial class ScalarElementCardContext : MarkoutSerializerContext
 {
 }
 
+// Reconstruction target: string columns matching the original card's headers, so re-serializing the
+// reconstructed dense cells yields the same Markdown document (same title/section/headers/widths).
+public class ReconstructedRow
+{
+    public string Name { get; set; } = "";
+    public string Score { get; set; } = "";
+    public string Tasks { get; set; } = "";
+    public string Bugs { get; set; } = "";
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ReconstructedCard
+{
+    [MarkoutIgnore] public string Title => "Rows";
+
+    [MarkoutSection(Name = "Rows")]
+    public List<ReconstructedRow> Rows { get; set; } = new();
+}
+
+[MarkoutContext(typeof(ReconstructedCard))]
+public partial class ReconstructedCardContext : MarkoutSerializerContext
+{
+}
+
 public class DecomposedElementTableTests
 {
     private static DecomposedElementCard Card() => new()
@@ -132,5 +156,50 @@ public class DecomposedElementTableTests
         var row = JsonDocument.Parse(sw.ToString().Trim()).RootElement;
         Assert.Equal("x", row.GetProperty("name").GetString());
         Assert.Equal(3, row.GetProperty("count").GetInt32());
+    }
+
+    [Fact]
+    public void MarkdownCard_IsByteForByteReconstructableFromJson()
+    {
+        // The reconstructable-JSON contract: rebuild the dense Markdown card from the JSON fields alone
+        // (a hard-coded algorithm that re-applies Markout's display formatting), and require it to be
+        // byte-for-byte identical to the directly-rendered Markdown. This proves the JSON carries all the
+        // data (raw + derived judgement + caller metadata) needed to reconstruct the card.
+        var card = Card();
+        var markdown = MarkoutSerializer.Serialize(card, DecomposedElementCardContext.Default);
+
+        var sw = new StringWriter();
+        MarkoutSerializer.Serialize(card, sw, new TableFormatter(), DecomposedElementCardContext.Default,
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        var records = sw.ToString().ReplaceLineEndings("\n")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => JsonDocument.Parse(l).RootElement)
+            .ToList();
+
+        const string arrow = " \u2192 ";
+        static string SignedPct(int pct) => (pct > 0 ? "+" : "") + pct + "%";
+        static string Signed(int n) => (n > 0 ? "+" : "") + n;
+
+        var reconstructed = new ReconstructedCard
+        {
+            Rows = records.Select(r => new ReconstructedRow
+            {
+                Name = r.GetProperty("name").GetString()!,
+                // score: [MarkoutDelta(Percent)] -> "before → after (±pct%)"
+                Score = r.GetProperty("score_before").GetInt64() + arrow + r.GetProperty("score_after").GetInt64()
+                    + " (" + SignedPct(r.GetProperty("score_delta_pct").GetInt32()) + ")",
+                // tasks: [MarkoutDeltaNoun] -> "bc/bt → ac/at (±count noun)"
+                Tasks = r.GetProperty("tasks_before_count").GetInt32() + "/" + r.GetProperty("tasks_before_total").GetInt32()
+                    + arrow + r.GetProperty("tasks_after_count").GetInt32() + "/" + r.GetProperty("tasks_after_total").GetInt32()
+                    + " (" + Signed(r.GetProperty("tasks_delta_count").GetInt32()) + " " + r.GetProperty("tasks_delta_noun").GetString() + ")",
+                // bugs: [MarkoutGoal] -> "before → after (status)"
+                Bugs = r.GetProperty("bugs_before").GetInt32() + arrow + r.GetProperty("bugs_after").GetInt32()
+                    + " (" + r.GetProperty("bugs_status").GetString() + ")",
+            }).ToList(),
+        };
+
+        var reconstructedMarkdown = MarkoutSerializer.Serialize(reconstructed, ReconstructedCardContext.Default);
+
+        Assert.Equal(markdown, reconstructedMarkdown);
     }
 }
