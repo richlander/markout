@@ -184,6 +184,40 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactClassification_BeyondDoublePrecision()
+    {
+        // 2^53 and 2^53+1 are the same double; the exact decimal path keeps them distinct (#140).
+        var up = Decompose(new Change<long>(9007199254740992L, 9007199254740993L),
+            new MarkoutCellFormat { Goal = Goal.Higher });
+        Assert.Equal("increased", up.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", up.Single(f => f.Key == "status").Value);
+
+        var down = Decompose(new Change<long>(9007199254740993L, 9007199254740992L),
+            new MarkoutCellFormat { Goal = Goal.Lower });
+        Assert.Equal("decreased", down.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", down.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_ExactClassification_Decimal()
+    {
+        // decimal.MaxValue and MaxValue-1 collapse to the same double; exact decimal keeps them apart.
+        var fields = Decompose(new Change<decimal>(decimal.MaxValue, decimal.MaxValue - 1m),
+            new MarkoutCellFormat { Goal = Goal.Lower });
+        Assert.Equal("decreased", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
+    public void Change_Goal_SmallValues_UnchangedBehaviorPreserved()
+    {
+        // The exact path must match the double path for ordinary values.
+        var fields = Decompose(new Change<long>(5, 5), new MarkoutCellFormat { Goal = Goal.Higher });
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_GoalAndDelta_EmitBothDerivedAxesAndDelta()
     {
         var format = new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower };

@@ -113,6 +113,32 @@ internal static class GoalDerivation
         status = GateStatus.Neutral;
         if (!CellText.TryScalarDouble(before, out var b) || !CellText.TryScalarDouble(after, out var a))
             return false;
+
+        // Exact path: at exact tolerance, classify large long/ulong/decimal from their exact decimal
+        // sign so adjacent values beyond double's 2^53 range aren't collapsed to Unchanged. (Zero is
+        // exactly representable, so the b == 0 / a == 0 zero-crossing checks stay valid in double.)
+        if (noise == 0 && CellText.TryExactDelta(before, after, out var exact))
+        {
+            direction = ClassifyFromSign(Math.Sign(exact), b == 0, a == 0);
+            status = Polarity(direction, goal);
+            return true;
+        }
+
         return TryDerive(b, a, goal, noise, out direction, out status);
+    }
+
+    /// <summary>
+    /// Classifies from a precomputed sign of <c>after − before</c> and the zero-crossing flags, matching
+    /// <see cref="Classify"/> but without re-deriving the sign from a lossy <see cref="double"/> delta.
+    /// </summary>
+    private static Direction ClassifyFromSign(int sign, bool beforeZero, bool afterZero)
+    {
+        if (sign == 0)
+            return Direction.Unchanged;
+        if (beforeZero && sign > 0)
+            return Direction.Introduced;
+        if (afterZero && sign < 0)
+            return Direction.Resolved;
+        return sign > 0 ? Direction.Increased : Direction.Decreased;
     }
 }

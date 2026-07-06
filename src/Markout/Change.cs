@@ -122,7 +122,7 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         return mode switch
         {
             // Divide by |before| so a rise from a negative base reports as a gain, not a loss.
-            Delta.Percent => before == 0 ? CellText.Placeholder : CellText.SignedPercent((after - before) / Math.Abs(before) * 100),
+            Delta.Percent => PercentText(before, after, signed: true),
             Delta.Absolute => CellText.AbsoluteDelta(Before, After, signed: true),
             Delta.Multiple => MultipleText(withWord: true),
             _ => CellText.Placeholder
@@ -135,11 +135,25 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
             return CellText.Placeholder;
         return mode switch
         {
-            Delta.Percent => before == 0 ? CellText.Placeholder : CellText.PercentNumber((after - before) / Math.Abs(before) * 100),
+            Delta.Percent => PercentText(before, after, signed: false),
             Delta.Absolute => CellText.AbsoluteDelta(Before, After, signed: false),
             Delta.Multiple => MultipleText(withWord: false),
             _ => CellText.Placeholder
         };
+    }
+
+    /// <summary>
+    /// The percent change <c>(After − Before) / |Before| × 100</c>. Uses the exact decimal delta for the
+    /// numerator (large long/decimal) so a real change of large adjacent values isn't lost to double
+    /// rounding; a zero <c>Before</c> renders the placeholder.
+    /// </summary>
+    private string PercentText(double before, double after, bool signed)
+    {
+        if (before == 0)
+            return CellText.Placeholder;
+        var numerator = CellText.TryExactDelta(Before, After, out var exact) ? (double)exact : after - before;
+        var pct = numerator / Math.Abs(before) * 100;
+        return signed ? CellText.SignedPercent(pct) : CellText.PercentNumber(pct);
     }
 
     /// <summary>
