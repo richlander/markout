@@ -739,13 +739,18 @@ public class MarkoutWriter
 
     /// <summary>
     /// Writes an element table whose columns are already decomposed into typed fields (used by the
-    /// generated element-table path for decomposing formatters: each row's composite columns are
-    /// decomposed into <c>{column}_{sub}</c> fields, scalar columns into a single field). Columns are the
-    /// union of keys across rows in first-appearance order; a row missing a key renders blank.
+    /// generated element-table path for decomposing formatters). Each row is a list of <em>source
+    /// columns</em>, and each source column is the list of fields it contributed (a composite column
+    /// decomposes into <c>{column}_{sub}</c> fields; a scalar column contributes a single field; a null
+    /// composite contributes none). Output columns are identified by <c>(source-column index, field key)</c>
+    /// so a scalar column whose key collides with a composite subfield keeps its own column regardless of
+    /// whether the composite is present in a given row. Columns appear in first-appearance order across rows;
+    /// a row that omits a column renders blank. Display headers are the raw field keys, snake_cased and
+    /// de-duplicated.
     /// </summary>
-    /// <param name="rows">Per-row decomposed fields (one list per element row).</param>
+    /// <param name="rows">Per-row source columns, each source column being its decomposed fields.</param>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
-    public bool WriteDecomposedRows(IReadOnlyList<IReadOnlyList<MarkoutField>> rows)
+    public bool WriteDecomposedRows(IReadOnlyList<IReadOnlyList<IReadOnlyList<MarkoutField>>> rows)
     {
         if (_sectionExcluded || rows.Count == 0)
             return true;
@@ -754,29 +759,32 @@ public class MarkoutWriter
             return false;
 
         var keyOrder = new List<string>();
-        var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
-        // Resolve each row's fields to columns. Keys that repeat WITHIN a row (e.g. a scalar column named
-        // "x_before" colliding with composite column "x"'s "x_before" subfield) get distinct columns so no
-        // field is silently dropped; the raw key stays the display header (snake_case dedupe below makes the
-        // emitted column names distinct). Heterogeneous rows with unique keys are unaffected.
+        var keyIndex = new Dictionary<(int Column, string Key), int>();
+        // Column identity is (source-column index, field key), not the raw key alone. The source-column
+        // index is stable across rows (every row emits the same source columns in order, even when a
+        // nullable composite contributes no fields), so a scalar column whose key collides with a composite
+        // subfield keeps its own output column in every row. Within a source column, keys are unique.
         var resolvedRows = new List<(int Col, string Value)[]>(rows.Count);
         foreach (var row in rows)
         {
-            var seen = new Dictionary<string, int>(StringComparer.Ordinal);
-            var resolved = new (int, string)[row.Count];
-            for (int i = 0; i < row.Count; i++)
+            var count = 0;
+            foreach (var column in row)
+                count += column.Count;
+            var resolved = new (int, string)[count];
+            var n = 0;
+            for (int ci = 0; ci < row.Count; ci++)
             {
-                var field = row[i];
-                int occurrence = seen.TryGetValue(field.Key, out var c) ? c + 1 : 1;
-                seen[field.Key] = occurrence;
-                var resolvedKey = occurrence == 1 ? field.Key : field.Key + "\0" + occurrence;
-                if (!keyIndex.TryGetValue(resolvedKey, out var col))
+                foreach (var field in row[ci])
                 {
-                    col = keyOrder.Count;
-                    keyIndex[resolvedKey] = col;
-                    keyOrder.Add(field.Key);
+                    var id = (ci, field.Key);
+                    if (!keyIndex.TryGetValue(id, out var col))
+                    {
+                        col = keyOrder.Count;
+                        keyIndex[id] = col;
+                        keyOrder.Add(field.Key);
+                    }
+                    resolved[n++] = (col, field.Value);
                 }
-                resolved[i] = (col, field.Value);
             }
             resolvedRows.Add(resolved);
         }

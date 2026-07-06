@@ -102,6 +102,32 @@ public partial class CollisionCardContext : MarkoutSerializerContext
 {
 }
 
+// Same collision, but the composite column is nullable so it contributes no fields in rows where it is
+// null. Guards that the scalar column stays in one output column across rows (no cross-row source mixing).
+public class NullableCollisionRow
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutDelta(Delta.Percent)]
+    public Change<long>? Score { get; set; }
+
+    public long Score_before { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class NullableCollisionCard
+{
+    [MarkoutIgnore] public string Title => "Rows";
+
+    [MarkoutSection(Name = "Rows")]
+    public List<NullableCollisionRow> Rows { get; set; } = new();
+}
+
+[MarkoutContext(typeof(NullableCollisionCard))]
+public partial class NullableCollisionCardContext : MarkoutSerializerContext
+{
+}
+
 public class DecomposedElementTableTests
 {
     private static DecomposedElementCard Card() => new()
@@ -202,6 +228,40 @@ public class DecomposedElementTableTests
 
         Assert.Equal(100, row.GetProperty("score_before").GetInt64());
         Assert.Equal(999, row.GetProperty("score_before_2").GetInt64());
+    }
+
+    [Fact]
+    public void NullableCompositeAbsentInSomeRows_ScalarColumnStaysAligned()
+    {
+        // Row 1's composite is null (contributes no fields); row 2's is present. The scalar "Score_before"
+        // must stay in a single output column across BOTH rows — never landing in the composite's column
+        // just because the composite was absent in row 1. Column identity is per source column, not per-row
+        // occurrence, so the two sources never mix.
+        var card = new NullableCollisionCard
+        {
+            Rows =
+            [
+                new NullableCollisionRow { Name = "a", Score = null, Score_before = 999 },
+                new NullableCollisionRow { Name = "b", Score = new Change<long>(100, 50), Score_before = 888 },
+            ],
+        };
+
+        var sw = new StringWriter();
+        MarkoutSerializer.Serialize(card, sw, new TableFormatter(), NullableCollisionCardContext.Default,
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var r0 = JsonDocument.Parse(lines[0]).RootElement;
+        var r1 = JsonDocument.Parse(lines[1]).RootElement;
+
+        // The scalar column is stable across rows (established first, so it owns "score_before").
+        Assert.Equal(999, r0.GetProperty("score_before").GetInt64());
+        Assert.Equal(888, r1.GetProperty("score_before").GetInt64());
+        // The composite's before value lives in its own separate column, present only when the composite is.
+        Assert.Equal(100, r1.GetProperty("score_before_2").GetInt64());
+        // Row 0 has no composite, so its own separate column carries no numeric value.
+        bool row0HasCompositeValue = r0.TryGetProperty("score_before_2", out var v)
+            && v.ValueKind is JsonValueKind.Number;
+        Assert.False(row0HasCompositeValue, "row 0 must not carry a composite before value");
     }
 
     [Fact]

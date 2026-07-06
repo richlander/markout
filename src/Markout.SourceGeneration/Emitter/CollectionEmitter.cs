@@ -84,22 +84,26 @@ internal static class CollectionEmitter
         var di = indent + "    ";
         if (prop.SectionFormatterTypeName != null)
             sb.AppendLine($"{di}var __fmt = new {prop.SectionFormatterTypeName}();");
-        sb.AppendLine($"{di}var __drows = new global::System.Collections.Generic.List<global::System.Collections.Generic.List<global::Markout.MarkoutField>>();");
+        sb.AppendLine($"{di}var __drows = new global::System.Collections.Generic.List<global::System.Collections.Generic.List<global::System.Collections.Generic.List<global::Markout.MarkoutField>>>();");
         sb.AppendLine($"{di}foreach (var {itemVar} in {propAccess})");
         sb.AppendLine($"{di}{{");
-        sb.AppendLine($"{di}    var __df = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
+        sb.AppendLine($"{di}    var __cols = new global::System.Collections.Generic.List<global::System.Collections.Generic.List<global::Markout.MarkoutField>>();");
         foreach (var p in visibleProps)
         {
+            sb.AppendLine($"{di}    {{");
+            sb.AppendLine($"{di}        var __c = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
             if (p.Kind == PropertyKind.CompositeCell)
             {
-                sb.AppendLine($"{di}    ((global::Markout.IMarkoutCell?){itemVar}.{p.Name})?.Decompose(__df, \"{EmitHelpers.EscapeString(p.Name)}\", {EmitHelpers.CompositeCellFormatLiteral(p)});");
+                sb.AppendLine($"{di}        ((global::Markout.IMarkoutCell?){itemVar}.{p.Name})?.Decompose(__c, \"{EmitHelpers.EscapeString(p.Name)}\", {EmitHelpers.CompositeCellFormatLiteral(p)});");
             }
             else
             {
-                sb.AppendLine($"{di}    __df.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(p.Name)}\", {CellExpr(p)}));");
+                sb.AppendLine($"{di}        __c.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(p.Name)}\", {CellExpr(p)}));");
             }
+            sb.AppendLine($"{di}        __cols.Add(__c);");
+            sb.AppendLine($"{di}    }}");
         }
-        sb.AppendLine($"{di}    __drows.Add(__df);");
+        sb.AppendLine($"{di}    __drows.Add(__cols);");
         sb.AppendLine($"{di}}}");
         sb.AppendLine($"{di}writer.WriteDecomposedRows(__drows);");
         sb.AppendLine($"{indent}}}");
