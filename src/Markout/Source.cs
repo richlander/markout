@@ -23,9 +23,13 @@ public readonly record struct Source(string Role, IMarkoutCell? Value, MarkoutCe
     public Source(string role, decimal value, MarkoutCellFormat format = default)
         : this(role, new ScalarSourceCell(value), format) { }
 
-    /// <summary>Creates a source with a text scalar value (decomposes to a single <c>{role}</c> field).</summary>
-    public Source(string role, string value, MarkoutCellFormat format = default)
-        : this(role, new ScalarSourceCell(value), format) { }
+    /// <summary>
+    /// Creates a source with a text scalar value (decomposes to a single <c>{role}</c> field). A static
+    /// factory rather than a constructor so a <c>string</c> overload does not make <c>new Source(role, null)</c>
+    /// ambiguous with the primary <see cref="IMarkoutCell"/> constructor.
+    /// </summary>
+    public static Source Text(string role, string value, MarkoutCellFormat format = default)
+        => new(role, new ScalarSourceCell(value), format);
 }
 
 /// <summary>

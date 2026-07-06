@@ -594,45 +594,43 @@ public class MarkoutWriter
             perRow[r] = tagged;
         }
 
-        // Guard against silent overwrite when two sources in the SAME row compose the same flat key
-        // (e.g. role "a" + field "b_c" vs role "a_b" + field "c" → both "a_b_c"). Disambiguate the
-        // later collision deterministically so no value is dropped.
-        foreach (var tagged in perRow)
-        {
-            var seenInRow = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var (_, fields) in tagged)
-            {
-                for (int i = 0; i < fields.Count; i++)
-                {
-                    var key = fields[i].Key;
-                    if (!seenInRow.Add(key))
-                    {
-                        int suffix = 2;
-                        string candidate;
-                        do { candidate = key + "_" + suffix++; } while (!seenInRow.Add(candidate));
-                        fields[i] = new MarkoutField(candidate, fields[i].Value);
-                    }
-                }
-            }
-        }
-
+        // Assign every distinct (role, composed-field-key) a unique output column, deterministically
+        // by global role order (roleOrder) then first-seen field order — so the same source maps to
+        // the same column in EVERY row regardless of per-row source order or presence. Colliding
+        // composed keys (role "a"+"b_c" vs role "a_b"+"c" → both "a_b_c") get a deterministic "_N"
+        // suffix on the later role, applied globally rather than per row.
+        var columnOf = new Dictionary<(string Role, string Field), string>();
+        var takenColumns = new HashSet<string>(StringComparer.Ordinal);
         var keyOrder = new List<string>();
-        var seenKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var role in roleOrder)
             foreach (var tagged in perRow)
                 foreach (var (owner, fields) in tagged)
                     if (owner == role)
                         foreach (var field in fields)
-                            if (seenKeys.Add(field.Key))
-                                keyOrder.Add(field.Key);
+                        {
+                            var id = (role, field.Key);
+                            if (columnOf.ContainsKey(id))
+                                continue;
+                            var column = field.Key;
+                            if (!takenColumns.Add(column))
+                            {
+                                int suffix = 2;
+                                string candidate;
+                                do { candidate = field.Key + "_" + suffix++; } while (!takenColumns.Add(candidate));
+                                column = candidate;
+                            }
+                            columnOf[id] = column;
+                            keyOrder.Add(column);
+                        }
 
-        // Flatten the role-tagged fields into one list per row for the shared emitter.
+        // Flatten each row into (column, value) using the global map.
         var perRowFlat = new List<MarkoutField>[perRow.Length];
         for (int r = 0; r < perRow.Length; r++)
         {
             var flat = new List<MarkoutField>();
-            foreach (var (_, fields) in perRow[r])
-                flat.AddRange(fields);
+            foreach (var (role, fields) in perRow[r])
+                foreach (var field in fields)
+                    flat.Add(new MarkoutField(columnOf[(role, field.Key)], field.Value));
             perRowFlat[r] = flat;
         }
 

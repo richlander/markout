@@ -178,27 +178,50 @@ public class MultiSourceTableTests
         Assert.Equal("REGRESSION", rec.GetProperty("verdict").GetString());
     }
 
-    // ── Colliding composed keys are disambiguated (no silent data loss) ──
+    // ── Null source value is unambiguous and renders as an absent cell ──
 
     [Fact]
-    public void Jsonl_CollidingComposedKeys_AreDisambiguated()
+    public void NullSourceValue_CompilesAndRendersDash()
+    {
+        // Regression: the scalar ctor overloads must not make `new Source(role, null)` ambiguous.
+        MultiSourceRow[] rows = [new("m", new Source("a", null), new Source("b", 5))];
+
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Metric", rows);
+
+        Assert.Contains("| m | - | 5 |", writer.ToString());
+    }
+
+    // ── Colliding composed keys are disambiguated consistently across rows (no data mixing) ──
+
+    [Fact]
+    public void Jsonl_CollidingComposedKeys_AreDisambiguatedConsistentlyAcrossRows()
     {
         // role "a" + segment "b_c" and role "a_b" + segment "c" both compose to "a_b_c".
+        // The two rows present the colliding sources in DIFFERENT orders; a given role must map to
+        // the same column in every row (no data landing in the wrong column).
         MultiSourceRow[] rows =
         [
-            new("row",
+            new("row1",
                 new Source("a", new Segments(new Segment("b_c", 1))),
                 new Source("a_b", new Segments(new Segment("c", 2)))),
+            new("row2",
+                new Source("a_b", new Segments(new Segment("c", 3))),
+                new Source("a", new Segments(new Segment("b_c", 4)))),
         ];
 
         var sw = new StringWriter();
         var writer = MarkoutWriter.Create(sw, new TableFormatter(),
             new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
         writer.WriteMultiSourceTable("Metric", rows);
-        var rec = JsonDocument.Parse(sw.ToString().ReplaceLineEndings("\n").Trim()).RootElement;
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var r1 = JsonDocument.Parse(lines[0]).RootElement;
+        var r2 = JsonDocument.Parse(lines[1]).RootElement;
 
-        // Both values survive; the second colliding key is disambiguated.
-        Assert.Equal("1", rec.GetProperty("a_b_c").GetString());
-        Assert.Equal("2", rec.GetProperty("a_b_c_2").GetString());
+        // Role "a" is always column "a_b_c"; role "a_b" is always column "a_b_c_2".
+        Assert.Equal("1", r1.GetProperty("a_b_c").GetString());
+        Assert.Equal("2", r1.GetProperty("a_b_c_2").GetString());
+        Assert.Equal("4", r2.GetProperty("a_b_c").GetString());
+        Assert.Equal("3", r2.GetProperty("a_b_c_2").GetString());
     }
 }

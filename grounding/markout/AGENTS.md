@@ -98,8 +98,9 @@ flat typed JSONL/TSV — with no imperative writer calls:
   `Source(role, IMarkoutCell? value, format = default)`. Roles pivot to **columns** in Markdown
   (caller-supplied order; absent role → `-`); JSONL emits one flat record per row with
   `{role}_{side}_{field}` keys. Values are any `IMarkoutCell` incl. nested `Change<Share>` etc.;
-  **scalars work too** — `new Source("baseline", 2)` (int/long/double/decimal/string) decomposes to a
-  single `{role}` field. Set the label column header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`).
+  **scalars work too** — `new Source("baseline", 2)` (int/long/double/decimal) and `Source.Text(role, s)`
+  decompose to a single `{role}` field; `new Source(role, null)` is an absent cell. Set the label column
+  header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`).
 - `Verdict(GateStatus Status, string? Label = null)` — a first-class verdict cell (typed polarity
   `GateStatus` + optional caller label); use as a `Source` value for a verdict row (decomposes to `{role}`).
 
