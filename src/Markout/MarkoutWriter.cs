@@ -211,21 +211,23 @@ public class MarkoutWriter
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        var projected = ProjectFields(fields);
-        if (projected.Length == 0)
+        ReadOnlySpan<MarkoutField> toRender = fields;
+        if (NeedsFieldProjection)
+            toRender = ProjectFields(fields);
+        if (toRender.Length == 0)
             return true;
 
         // Cascade: IFieldFormatter → ITableFormatter → IStreamingTableFormatter
         if (_formatter is IFieldFormatter ff)
         {
             EnsureBlankLineIfNeeded();
-            ff.FormatFields(_writer, projected, _options.BoldFieldNames);
+            ff.FormatFields(_writer, toRender, _options.BoldFieldNames);
             _needsBlankLine = true;
             _hasContent = true;
             return true;
         }
 
-        return RenderFieldsAsTable(projected);
+        return RenderFieldsAsTable(toRender);
     }
 
     /// <summary>

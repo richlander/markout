@@ -27,6 +27,13 @@ public class NoProjectionAllocationTests
     }
 
     [Fact]
+    public void WriteFields_NoProjection_DoesNotAllocate()
+    {
+        var w = MarkoutWriter.Create(TextWriter.Null, new MarkdownFormatter());
+        Assert.Equal(0, AllocatedPerBatch(() => w.WriteFields(Fields)));
+    }
+
+    [Fact]
     public void WriteFieldsInline_NoProjection_DoesNotAllocate()
     {
         var w = MarkoutWriter.Create(TextWriter.Null, new MarkdownFormatter());

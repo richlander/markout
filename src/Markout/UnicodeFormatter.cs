@@ -73,6 +73,9 @@ public class UnicodeFormatter : IMarkoutFormatter,
     }
 
     void IFieldFormatter.FormatFields(TextWriter w, MarkoutField[] fields, bool bold)
+        => ((IFieldFormatter)this).FormatFields(w, (ReadOnlySpan<MarkoutField>)fields, bold);
+
+    void IFieldFormatter.FormatFields(TextWriter w, ReadOnlySpan<MarkoutField> fields, bool bold)
     {
         for (int i = 0; i < fields.Length; i++)
         {

@@ -35,6 +35,9 @@ public class PlainTextFormatter : IMarkoutFormatter,
     }
 
     void IFieldFormatter.FormatFields(TextWriter w, MarkoutField[] fields, bool bold)
+        => ((IFieldFormatter)this).FormatFields(w, (ReadOnlySpan<MarkoutField>)fields, bold);
+
+    void IFieldFormatter.FormatFields(TextWriter w, ReadOnlySpan<MarkoutField> fields, bool bold)
     {
         // Calculate max key width for alignment
         int maxKeyWidth = 0;
