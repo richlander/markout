@@ -268,6 +268,16 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactNoiseBand_LargeFractionalTolerance()
+    {
+        // A large fractional tolerance is reconstructed exactly; the exact delta exceeds it -> introduced.
+        var fields = Decompose(new Change<decimal>(0m, 4503599627370498m),
+            new MarkoutCellFormat { Goal = Goal.Lower, Noise = 4503599627370495.5d });
+        Assert.Equal("introduced", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("bad", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_GoalAndDelta_EmitBothDerivedAxesAndDelta()
     {
         var format = new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower };

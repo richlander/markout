@@ -150,13 +150,13 @@ internal static class GoalDerivation
 
     /// <summary>
     /// Converts a finite non-negative tolerance to <see cref="decimal"/> for the exact noise-band check.
-    /// A large integer-valued tolerance is reconstructed exactly from its IEEE-754 significand/exponent —
-    /// a direct <c>(decimal)double</c> cast rounds to 15 significant digits, which would shrink the
-    /// inclusive boundary. Small (&lt; 15-digit) or fractional tolerances cast directly (already exact).
+    /// A large tolerance (integer or fractional) is reconstructed exactly from its IEEE-754
+    /// significand/exponent — a direct <c>(decimal)double</c> cast rounds to 15 significant digits, which
+    /// would move the inclusive boundary. Small (&lt; 15-digit) tolerances cast directly (already exact).
     /// </summary>
     private static decimal ToleranceDecimal(double tolerance)
     {
-        if (tolerance < 1e15 || tolerance != Math.Floor(tolerance))
+        if (tolerance < 1e15)
             return (decimal)tolerance;
 
         var bits = BitConverter.DoubleToInt64Bits(tolerance);
