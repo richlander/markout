@@ -19,6 +19,22 @@ public class MetricChangeTableTests
         writer.WriteMetricChangeTable(Rows());
         var output = writer.ToString();
 
+        // Dense default: Status column dropped; caller StatusLabel inlined into the Change cell.
+        Assert.Contains("| Metric | Change | Target |", output);
+        Assert.DoesNotContain("| Metric | Change | Target | Status |", output);
+        Assert.Contains("| Failures | 0 \u2192 7 (regression) | allowed failures: 0 |", output);
+        Assert.Contains("| Changed bodies | 45 \u2192 46 (drift) | - |", output);
+        Assert.Contains("| Compared bodies | 78 \u2192 78 | - |", output);
+    }
+
+    [Fact]
+    public void Markdown_InlineGoalStatusDisabled_KeepsLegacyStatusColumn()
+    {
+        var writer = new MarkoutWriter(new MarkdownFormatter(),
+            new MarkoutWriterOptions { InlineGoalStatus = false });
+        writer.WriteMetricChangeTable(Rows());
+        var output = writer.ToString();
+
         Assert.Contains("| Metric | Change | Target | Status |", output);
         Assert.Contains("| Failures | 0 \u2192 7 | allowed failures: 0 | regression |", output);
         Assert.Contains("| Changed bodies | 45 \u2192 46 | - | drift |", output);

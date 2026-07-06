@@ -34,9 +34,9 @@ public class GeneratedMetricChangeTests
         var md = MarkoutSerializer.Serialize(Card(), GeneratedIlDiffCardContext.Default);
 
         Assert.Contains("## Baseline comparison", md);
-        Assert.Contains("| Metric | Change | Target | Status |", md);
-        Assert.Contains("| Failures | 0 \u2192 7 | allowed failures: 0 | regression |", md);
-        Assert.Contains("| Changed bodies | 45 \u2192 46 | - | drift |", md);
+        Assert.Contains("| Metric | Change | Target |", md);
+        Assert.Contains("| Failures | 0 \u2192 7 (regression) | allowed failures: 0 |", md);
+        Assert.Contains("| Changed bodies | 45 \u2192 46 (drift) | - |", md);
     }
 
     [Fact]
@@ -84,8 +84,8 @@ public class GeneratedMetricChangeArrayTests
         };
         var md = MarkoutSerializer.Serialize(card, GeneratedArrayCardContext.Default);
 
-        Assert.Contains("| Metric | Change | Target | Status |", md);
-        Assert.Contains("| Failures | 0 \u2192 7 | allowed failures: 0 | regression |", md);
+        Assert.Contains("| Metric | Change | Target |", md);
+        Assert.Contains("| Failures | 0 \u2192 7 (regression) | allowed failures: 0 |", md);
     }
 }
 

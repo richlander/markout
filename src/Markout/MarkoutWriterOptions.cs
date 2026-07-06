@@ -24,6 +24,7 @@ public class MarkoutWriterOptions
     private bool _omitEmptyJsonFields;
     private IReadOnlySet<int>? _jsonIdentityColumnIndices;
     private int _headingLevelOffset;
+    private bool _inlineGoalStatus = true;
 
     /// <summary>Creates a new, writable options instance with default values.</summary>
     public MarkoutWriterOptions()
@@ -49,6 +50,7 @@ public class MarkoutWriterOptions
         _omitEmptyJsonFields = source._omitEmptyJsonFields;
         _jsonIdentityColumnIndices = source._jsonIdentityColumnIndices;
         _headingLevelOffset = source._headingLevelOffset;
+        _inlineGoalStatus = source._inlineGoalStatus;
     }
 
     /// <summary>
@@ -73,6 +75,24 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _includeBadges = value;
+        }
+    }
+
+    /// <summary>
+    /// Whether a <see cref="MetricChange{T}"/> Markdown table renders goal state <em>densely</em>:
+    /// the derived (or caller-supplied) status word is inlined into the Change cell
+    /// (<c>0 → 7 (bad)</c>), a goal marker is appended to the metric label (<c>Failures (-)</c> for
+    /// <see cref="Goal.Lower"/>, <c>(+)</c> for <see cref="Goal.Higher"/>), and the separate
+    /// <c>Status</c> column is dropped. Default is <c>true</c>. Set <c>false</c> to keep the legacy
+    /// <c>Metric | Change | Target | Status</c> layout. Structured (TSV/JSONL) output is unaffected.
+    /// </summary>
+    public bool InlineGoalStatus
+    {
+        get => _inlineGoalStatus;
+        set
+        {
+            ThrowIfReadOnly();
+            _inlineGoalStatus = value;
         }
     }
 
