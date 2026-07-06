@@ -504,6 +504,18 @@ public class MarkoutWriter
     /// <param name="rows">The multi-source rows.</param>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
     public bool WriteMultiSourceTable(string labelHeader, IReadOnlyList<MultiSourceRow> rows)
+        => WriteMultiSourceTable(labelHeader, rows, null);
+
+    /// <summary>
+    /// As <see cref="WriteMultiSourceTable(string, IReadOnlyList{MultiSourceRow})"/>, plus an optional
+    /// <paramref name="structuredSection"/>: when non-null, decomposed (TSV/JSONL) rows gain a leading
+    /// <c>section</c> column carrying that value. Markdown/dense output is unaffected.
+    /// </summary>
+    /// <param name="labelHeader">The header/identity-column name for the row labels.</param>
+    /// <param name="rows">The multi-source rows.</param>
+    /// <param name="structuredSection">A section discriminator prepended to decomposed rows, or <c>null</c>.</param>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteMultiSourceTable(string labelHeader, IReadOnlyList<MultiSourceRow> rows, string? structuredSection)
     {
         if (_sectionExcluded || rows.Count == 0)
             return true;
@@ -527,7 +539,7 @@ public class MarkoutWriter
             return true;
 
         if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
-            return WriteDecomposedMultiSourceTable(labelHeader, rows, roleOrder);
+            return WriteDecomposedMultiSourceTable(labelHeader, rows, roleOrder, structuredSection);
 
         return WriteDenseMultiSourceTable(labelHeader, rows, roleOrder, roleIndex);
     }
@@ -569,7 +581,7 @@ public class MarkoutWriter
 
     // Decomposing formatters (TSV/JSONL): one flat record per row, {role}_{field} columns.
     private bool WriteDecomposedMultiSourceTable(
-        string labelHeader, IReadOnlyList<MultiSourceRow> rows, List<string> roleOrder)
+        string labelHeader, IReadOnlyList<MultiSourceRow> rows, List<string> roleOrder, string? structuredSection)
     {
         // Decompose each source with side = role, tagging fields with their owning role so the
         // column union can be ordered role-major (caller role order), then field order within a role.
@@ -634,7 +646,7 @@ public class MarkoutWriter
             perRowFlat[r] = flat;
         }
 
-        return WriteDecomposedFieldTable(labelHeader, labels, perRowFlat, keyOrder);
+        return WriteDecomposedFieldTable(labelHeader, labels, perRowFlat, keyOrder, structuredSection);
     }
 
     // Shared emitter for flat decomposed record tables (multi-source, metric-change): a leading
@@ -642,51 +654,71 @@ public class MarkoutWriter
     // are snake-cased and de-duped because TableWriter re-applies ToSnakeCase to header keys for
     // TSV/JSONL; the leading identity column stays a JSON string.
     private bool WriteDecomposedFieldTable(
-        string labelHeader, IReadOnlyList<string> labels, IReadOnlyList<List<MarkoutField>> perRowFields, IReadOnlyList<string> keyOrder)
+        string labelHeader, IReadOnlyList<string> labels, IReadOnlyList<List<MarkoutField>> perRowFields, IReadOnlyList<string> keyOrder,
+        string? structuredSection = null)
     {
         var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         for (int i = 0; i < keyOrder.Count; i++)
             keyIndex[keyOrder[i]] = i;
 
-        var headers = new string[keyOrder.Count + 1];
-        var headerNames = new string[keyOrder.Count + 1];
-        headers[0] = labelHeader;
+        // Leading identity columns: an optional "section" discriminator (for multiplexed structured
+        // streams), then the row label. Both stay JSON strings (never coerced under JsonTypedValues).
+        int lead = structuredSection is null ? 1 : 2;
+        var headers = new string[keyOrder.Count + lead];
+        var headerNames = new string[keyOrder.Count + lead];
+        var usedStableKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        string Dedupe(string stable)
+        {
+            if (usedStableKeys.Add(stable))
+                return stable;
+            int suffix = 2;
+            string candidate;
+            do { candidate = stable + "_" + suffix++; } while (!usedStableKeys.Add(candidate));
+            return candidate;
+        }
+
+        int col = 0;
+        if (structuredSection is not null)
+        {
+            headers[col] = "section";
+            headerNames[col] = Dedupe("section");
+            col++;
+        }
+        headers[col] = labelHeader;
         var labelKey = Formatting.FormatHelper.ToSnakeCase(labelHeader);
         if (string.IsNullOrEmpty(labelKey))
             labelKey = "field";
-        headerNames[0] = labelKey;
-        var usedStableKeys = new HashSet<string>(StringComparer.Ordinal) { labelKey };
+        headerNames[col] = Dedupe(labelKey);
+        col++;
 
         for (int i = 0; i < keyOrder.Count; i++)
         {
-            headers[i + 1] = keyOrder[i];
+            headers[col] = keyOrder[i];
             var stable = Formatting.FormatHelper.ToSnakeCase(keyOrder[i]);
             if (string.IsNullOrEmpty(stable))
                 stable = "column";
-            if (!usedStableKeys.Add(stable))
-            {
-                int suffix = 2;
-                string candidate;
-                do { candidate = stable + "_" + suffix++; } while (!usedStableKeys.Add(candidate));
-                stable = candidate;
-            }
-            headerNames[i + 1] = stable;
+            headerNames[col] = Dedupe(stable);
+            col++;
         }
 
         var outRows = new List<string[]>(perRowFields.Count);
         for (int r = 0; r < perRowFields.Count; r++)
         {
-            var values = new string[keyOrder.Count + 1];
-            values[0] = labels[r];
-            for (int i = 1; i < values.Length; i++)
+            var values = new string[keyOrder.Count + lead];
+            for (int i = 0; i < values.Length; i++)
                 values[i] = "";
+            int c = 0;
+            if (structuredSection is not null)
+                values[c++] = structuredSection;
+            values[c] = labels[r];
             foreach (var field in perRowFields[r])
                 if (keyIndex.TryGetValue(field.Key, out var idx))
-                    values[idx + 1] = field.Value;
+                    values[lead + idx] = field.Value;
             outRows.Add(values);
         }
 
-        _pendingJsonIdentityColumns = 1;
+        _pendingJsonIdentityColumns = lead;
         try
         {
             return WriteTable(headers, headerNames, outRows);
@@ -706,6 +738,17 @@ public class MarkoutWriter
     /// </summary>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
     public bool WriteMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows) where T : struct
+        => WriteMetricChangeTable(rows, null);
+
+    /// <summary>
+    /// As <see cref="WriteMetricChangeTable{T}(IReadOnlyList{MetricChange{T}})"/>, plus an optional
+    /// <paramref name="structuredSection"/>: when non-null, decomposed (TSV/JSONL) rows gain a leading
+    /// <c>section</c> column carrying that value. Markdown output is unaffected.
+    /// </summary>
+    /// <param name="rows">The gated-metric rows.</param>
+    /// <param name="structuredSection">A section discriminator prepended to decomposed rows, or <c>null</c>.</param>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows, string? structuredSection) where T : struct
     {
         if (_sectionExcluded || rows.Count == 0)
             return true;
@@ -714,7 +757,7 @@ public class MarkoutWriter
             return false;
 
         if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
-            return WriteDecomposedMetricChangeTable(rows);
+            return WriteDecomposedMetricChangeTable(rows, structuredSection);
 
         var outRows = new List<string[]>(rows.Count);
         foreach (var metric in rows)
@@ -723,7 +766,7 @@ public class MarkoutWriter
         return WriteTable(["Metric", "Change", "Target", "Status"], outRows);
     }
 
-    private bool WriteDecomposedMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows) where T : struct
+    private bool WriteDecomposedMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows, string? structuredSection) where T : struct
     {
         var labels = new string[rows.Count];
         var perRow = new List<MarkoutField>[rows.Count];
@@ -751,7 +794,7 @@ public class MarkoutWriter
                     keyOrder.Add(field.Key);
         }
 
-        return WriteDecomposedFieldTable("Metric", labels, perRow, keyOrder);
+        return WriteDecomposedFieldTable("Metric", labels, perRow, keyOrder, structuredSection);
     }
 
     private static string ChangeText<T>(in MetricChange<T> metric) where T : struct

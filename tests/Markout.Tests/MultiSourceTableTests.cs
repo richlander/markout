@@ -224,4 +224,22 @@ public class MultiSourceTableTests
         Assert.Equal("4", r2.GetProperty("a_b_c").GetString());
         Assert.Equal("3", r2.GetProperty("a_b_c_2").GetString());
     }
+
+    // ── Structured-section discriminator (issue #131) ──
+
+    [Fact]
+    public void Jsonl_StructuredSection_ComposesWithLabelColumn()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        writer.WriteMultiSourceTable("Metric", MatrixRows(), structuredSection: "grounding");
+        var line0 = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+
+        // section + the multi-source label column ("metric") both lead, both stay strings.
+        Assert.StartsWith("{\"section\":\"grounding\",\"metric\":\"output tok\"", line0);
+        var rec = JsonDocument.Parse(line0).RootElement;
+        Assert.Equal("grounding", rec.GetProperty("section").GetString());
+        Assert.Equal(JsonValueKind.String, rec.GetProperty("metric").ValueKind);
+    }
 }

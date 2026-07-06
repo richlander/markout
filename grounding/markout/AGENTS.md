@@ -94,6 +94,9 @@ flat typed JSONL/TSV — with no imperative writer calls:
   `target`/`target_label`/`status`. `Status` is caller-supplied (Markout never derives it). `T` must be
   a numeric scalar (int/long/double/decimal/...); a composite `T` (e.g. `Segments`) is a compile error
   (`MARKOUT005`).
+- `[MarkoutSection(Name = "...", IncludeSectionInStructuredRows = true)]` on a `List<MetricChange<T>>`
+  or `List<MultiSourceRow>` section prepends a leading `section` column (the section name) to TSV/JSONL
+  rows — for multiplexing several sectioned card shapes into one structured stream. Markdown is unchanged.
 - `List<MultiSourceRow>` — a role matrix: `MultiSourceRow(label, params Source[])`,
   `Source(role, IMarkoutCell? value, format = default)`. Roles pivot to **columns** in Markdown
   (caller-supplied order; absent role → `-`); JSONL emits one flat record per row with

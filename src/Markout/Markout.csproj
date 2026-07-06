@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.17.0</Version>
-    <PackageReleaseNotes>First-class multi-source data cards: MetricChange&lt;T&gt; renders as a Metric | Change | Target | Status table, and MultiSourceRow/Source pivot named roles into columns; both decompose to flat typed JSONL/TSV. GateStatus/Verdict is a first-class verdict cell; Source accepts scalars (new Source("baseline", 2)) and Source.Text(...); [MarkoutLabelHeader] sets the pivot label column; MARKOUT005 enforces MetricChange&lt;T&gt;'s numeric-scalar contract. BREAKING: nested Segments decomposition keys flip label-first to side-first (e.g. web_before becomes before_web) so multi-source keys are uniform as {role}_{side}_{field}; standalone Segments keys are unchanged.</PackageReleaseNotes>
+    <Version>0.18.0</Version>
+    <PackageReleaseNotes>Section-aware structured rows: [MarkoutSection(IncludeSectionInStructuredRows = true)] on a List&lt;MetricChange&lt;T&gt;&gt; or List&lt;MultiSourceRow&gt; section prepends a leading "section" column (the section name) to decomposed TSV/JSONL rows, so a tool can multiplex several sectioned card shapes into one structured stream and route by section. Markdown output is unchanged.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
