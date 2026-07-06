@@ -24,6 +24,7 @@ internal static class TypeParser
     private const string MarkoutSkipNullAttribute = "Markout.MarkoutSkipNullAttribute";
     private const string MarkoutDisplayFormatAttribute = "Markout.MarkoutDisplayFormatAttribute";
     private const string MarkoutMaxItemsAttribute = "Markout.MarkoutMaxItemsAttribute";
+    private const string MarkoutLabelHeaderAttribute = "Markout.MarkoutLabelHeaderAttribute";
     private const string MarkoutTableDisplayAttribute = "Markout.MarkoutTableDisplayAttribute";
     private const string MarkoutValueFormatterAttribute = "Markout.MarkoutValueFormatterAttribute";
     private const string MarkoutShowWhenAttribute = "Markout.MarkoutShowWhenAttribute";
@@ -462,6 +463,16 @@ internal static class TypeParser
             unit = unitValue;
         }
 
+        // Parse [MarkoutLabelHeader] — label/identity column header for a List<MultiSourceRow> card
+        string? multiSourceLabelHeader = null;
+        var labelHeaderAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutLabelHeaderAttribute);
+        if (labelHeaderAttr != null && labelHeaderAttr.ConstructorArguments.Length > 0 &&
+            labelHeaderAttr.ConstructorArguments[0].Value is string labelHeaderValue)
+        {
+            multiSourceLabelHeader = labelHeaderValue;
+        }
+
         // Detect nullable value types before determining property kind
         bool isNullableValueType = false;
         if (prop.Type is INamedTypeSymbol nullableCheck &&
@@ -541,7 +552,8 @@ internal static class TypeParser
             sectionEmptyText,
             deltaMode,
             unit,
-            isReferenceTypeCell);
+            isReferenceTypeCell,
+            multiSourceLabelHeader);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
@@ -729,6 +741,19 @@ internal static class TypeParser
                         }
                     }
 
+                    // Check for IReadOnlyList<MultiSourceRow> / List<MultiSourceRow> - renders as a
+                    // pivoted multi-source table (roles become columns).
+                    if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.MultiSourceRow))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.MultiSource, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+                        }
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.Table, false);
 
@@ -769,7 +794,7 @@ internal static class TypeParser
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
              p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
-             p.Kind == PropertyKind.MetricChange ||
+             p.Kind == PropertyKind.MetricChange || p.Kind == PropertyKind.MultiSource ||
              (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 

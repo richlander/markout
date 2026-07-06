@@ -183,6 +183,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public MarkoutDeltaKind DeltaMode { get; }
     public string? Unit { get; }
     public bool IsReferenceTypeCell { get; }
+    public string? MultiSourceLabelHeader { get; }
 
     public PropertyMetadata(
         string name,
@@ -232,7 +233,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? sectionEmptyText = null,
         MarkoutDeltaKind deltaMode = MarkoutDeltaKind.None,
         string? unit = null,
-        bool isReferenceTypeCell = false)
+        bool isReferenceTypeCell = false,
+        string? multiSourceLabelHeader = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -282,6 +284,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         DeltaMode = deltaMode;
         Unit = unit;
         IsReferenceTypeCell = isReferenceTypeCell;
+        MultiSourceLabelHeader = multiSourceLabelHeader;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -335,6 +338,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                DeltaMode == other.DeltaMode &&
                Unit == other.Unit &&
                IsReferenceTypeCell == other.IsReferenceTypeCell &&
+               MultiSourceLabelHeader == other.MultiSourceLabelHeader &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -373,6 +377,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (int)DeltaMode;
             hash = hash * 397 ^ (Unit?.GetHashCode() ?? 0);
             hash = hash * 397 ^ IsReferenceTypeCell.GetHashCode();
+            hash = hash * 397 ^ (MultiSourceLabelHeader?.GetHashCode() ?? 0);
             return hash;
         }
     }
@@ -474,6 +479,7 @@ internal enum PropertyKind
     Callout,
     Breakdown,
     MetricChange,
+    MultiSource,
     CompositeCell,
     Other
 }

@@ -34,6 +34,9 @@ internal sealed class KnownTypeSymbols
     private INamedTypeSymbol? _metricChange;
     private bool _metricChangeResolved;
 
+    private INamedTypeSymbol? _multiSourceRow;
+    private bool _multiSourceRowResolved;
+
     private INamedTypeSymbol? _markoutCell;
     private bool _markoutCellResolved;
 
@@ -72,6 +75,7 @@ internal sealed class KnownTypeSymbols
     public INamedTypeSymbol? Callout => Resolve(ref _callout, ref _calloutResolved, "Markout.Callout");
     public INamedTypeSymbol? Breakdown => Resolve(ref _breakdown, ref _breakdownResolved, "Markout.Breakdown");
     public INamedTypeSymbol? MetricChange => Resolve(ref _metricChange, ref _metricChangeResolved, "Markout.MetricChange`1");
+    public INamedTypeSymbol? MultiSourceRow => Resolve(ref _multiSourceRow, ref _multiSourceRowResolved, "Markout.MultiSourceRow");
     public INamedTypeSymbol? IMarkoutCell => Resolve(ref _markoutCell, ref _markoutCellResolved, "Markout.IMarkoutCell");
     public INamedTypeSymbol? MarkoutDeltaAttribute => Resolve(ref _markoutDeltaAttribute, ref _markoutDeltaAttributeResolved, "Markout.MarkoutDeltaAttribute");
     public INamedTypeSymbol? MarkoutUnitAttribute => Resolve(ref _markoutUnitAttribute, ref _markoutUnitAttributeResolved, "Markout.MarkoutUnitAttribute");
