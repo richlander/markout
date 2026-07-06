@@ -22,4 +22,12 @@ public readonly record struct MarkoutCellFormat(Delta Delta = Delta.None, string
     /// defaults to <c>0</c> (exact).
     /// </summary>
     public double Noise { get; init; }
+
+    /// <summary>
+    /// An optional caller-supplied noun rendered on the signed absolute delta in dense Markdown
+    /// (e.g. <c>[MarkoutDeltaNoun("solved")]</c> → <c>4 → 6 (+2 solved)</c>). Markdown-only; structured
+    /// output is unaffected. Applies to scalar <see cref="Change{V}"/> and composites implementing
+    /// <see cref="IDeltaCountable"/> (<see cref="Fraction"/> → count, <see cref="Share"/> → value).
+    /// </summary>
+    public string? DeltaNoun { get; init; }
 }

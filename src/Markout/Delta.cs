@@ -13,5 +13,12 @@ public enum Delta
     Percent,
 
     /// <summary>Append the signed absolute difference: <c>After − Before</c>.</summary>
-    Absolute
+    Absolute,
+
+    /// <summary>
+    /// Append the multiplicative factor between the two values with a direction word:
+    /// <c>15 → 5 (3× fewer)</c>, <c>5 → 15 (3× more)</c>. The factor is <c>max/min</c> of the
+    /// magnitudes; a zero endpoint (no finite multiple) renders the placeholder.
+    /// </summary>
+    Multiple
 }

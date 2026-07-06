@@ -155,7 +155,7 @@ public readonly record struct Slice(string Category, int Count);
 public readonly record struct Breakdown(string Label, Slice[] Slices);
 
 // Composite cells — data-only cells that render densely and decompose into typed columns.
-// The type picks the rendering; [MarkoutDelta]/[MarkoutUnit]/[MarkoutGoal] configure derivation/format.
+// The type picks the rendering; [MarkoutDelta]/[MarkoutUnit]/[MarkoutGoal]/[MarkoutDeltaNoun] configure derivation/format.
 public readonly record struct Change<V>(V Before, V After);        // before → after (+ derived delta)
 public readonly record struct Fraction(double Count, double Total); // 24/24
 public readonly record struct Share(double Value, double Whole);    // 5056 (24%)
@@ -169,7 +169,9 @@ public readonly record struct Segments(params Segment[] Parts);     // 21/171/23
 // Change<Share|Percent|Fraction|Segments> derive from IGoalMagnitude (Share→Value, Percent/Fraction→ratio, Segments→sum of parts).
 public enum Goal { Context, Higher, Lower }                         // which direction is "good"
 public enum Direction { Unchanged, Increased, Decreased, Introduced, Resolved }; // structural, goal-neutral
-public interface IGoalMagnitude { double GoalMagnitude { get; } }   // composite cell's comparable magnitude
+public enum Delta { None, Percent, Absolute, Multiple }             // derived-change suffix mode (Multiple: 3× fewer/more)
+public interface IGoalMagnitude { double GoalMagnitude { get; } }   // composite cell's comparable magnitude (goal)
+public interface IDeltaCountable { double DeltaCount { get; } }     // composite cell's count for [MarkoutDeltaNoun] (Fraction→count, Share→value)
 
 // Card shapes — list-shapes that render as multi-format cards (Markdown table + typed JSONL/TSV).
 public readonly record struct MetricChange<T>(string Name, T Before, T After,

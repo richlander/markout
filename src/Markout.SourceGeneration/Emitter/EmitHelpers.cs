@@ -349,6 +349,7 @@ internal static class EmitHelpers
     {
         MarkoutDeltaKind.Percent => "global::Markout.Delta.Percent",
         MarkoutDeltaKind.Absolute => "global::Markout.Delta.Absolute",
+        MarkoutDeltaKind.Multiple => "global::Markout.Delta.Multiple",
         _ => "global::Markout.Delta.None"
     };
 
@@ -379,11 +380,15 @@ internal static class EmitHelpers
 
     /// <summary>
     /// Emits the full <c>MarkoutCellFormat</c> initializer for a composite cell property — delta and unit
-    /// as constructor args, goal and noise as object-initializer members. The single source of truth for
-    /// every composite-cell rendering path (dense field layouts, table columns, composite-card rows).
+    /// as constructor args, goal/noise/delta-noun as object-initializer members. The single source of truth
+    /// for every composite-cell rendering path (dense field layouts, table columns, composite-card rows).
     /// </summary>
     public static string CompositeCellFormatLiteral(PropertyMetadata prop)
-        => $"new global::Markout.MarkoutCellFormat({DeltaLiteral(prop)}, {UnitLiteral(prop)}) {{ Goal = {GoalLiteral(prop)}, Noise = {NoiseLiteral(prop)} }}";
+        => $"new global::Markout.MarkoutCellFormat({DeltaLiteral(prop)}, {UnitLiteral(prop)}) {{ Goal = {GoalLiteral(prop)}, Noise = {NoiseLiteral(prop)}, DeltaNoun = {DeltaNounLiteral(prop)} }}";
+
+    /// <summary>Emits the delta-noun string literal (or <c>null</c>) for a composite cell property.</summary>
+    public static string DeltaNounLiteral(PropertyMetadata prop)
+        => prop.DeltaNoun == null ? "null" : $"\"{EscapeString(prop.DeltaNoun)}\"";
 
     public static bool IsScalarKind(PropertyKind kind)
     {

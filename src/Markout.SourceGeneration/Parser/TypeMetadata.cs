@@ -185,6 +185,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? Unit { get; }
     public MarkoutGoalKind Goal { get; }
     public double Noise { get; }
+    public string? DeltaNoun { get; }
     public bool IsReferenceTypeCell { get; }
     public string? MultiSourceLabelHeader { get; }
 
@@ -240,7 +241,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         bool isReferenceTypeCell = false,
         string? multiSourceLabelHeader = null,
         MarkoutGoalKind goal = MarkoutGoalKind.Context,
-        double noise = 0)
+        double noise = 0,
+        string? deltaNoun = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -292,6 +294,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         Unit = unit;
         Goal = goal;
         Noise = noise;
+        DeltaNoun = deltaNoun;
         IsReferenceTypeCell = isReferenceTypeCell;
         MultiSourceLabelHeader = multiSourceLabelHeader;
     }
@@ -349,6 +352,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                Unit == other.Unit &&
                Goal == other.Goal &&
                Noise.Equals(other.Noise) &&
+               DeltaNoun == other.DeltaNoun &&
                IsReferenceTypeCell == other.IsReferenceTypeCell &&
                MultiSourceLabelHeader == other.MultiSourceLabelHeader &&
                SequenceEqual(ElementProperties, other.ElementProperties);
@@ -391,6 +395,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (Unit?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (int)Goal;
             hash = hash * 397 ^ Noise.GetHashCode();
+            hash = hash * 397 ^ (DeltaNoun?.GetHashCode() ?? 0);
             hash = hash * 397 ^ IsReferenceTypeCell.GetHashCode();
             hash = hash * 397 ^ (MultiSourceLabelHeader?.GetHashCode() ?? 0);
             return hash;
@@ -506,7 +511,8 @@ internal enum MarkoutDeltaKind
 {
     None = 0,
     Percent = 1,
-    Absolute = 2
+    Absolute = 2,
+    Multiple = 3
 }
 
 /// <summary>

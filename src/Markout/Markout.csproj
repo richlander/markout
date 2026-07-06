@@ -9,7 +9,7 @@
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.21.0</Version>
-    <PackageReleaseNotes>Segments aggregate goal magnitude: Segments now implements IGoalMagnitude as the sum of its parts' values, so a Change&lt;Segments&gt; with a Goal derives a total-based direction/status (e.g. 14/7 → 0/0 with Goal.Lower is resolved/good) while still decomposing each part. Opt-in via MarkoutCellFormat.Goal — Goal.Context (default) derives nothing, so a purely compositional breakdown declines by not setting a goal; a constant-sum breakdown reads as Unchanged. Dense Markdown shows the inline word for free through the 0.20 IGoalMagnitude seam.</PackageReleaseNotes>
+    <PackageReleaseNotes>Goal-aware annotation follow-ups (all in 0.21.0): (1) Segments implements IGoalMagnitude as the sum of its parts, so a Change&lt;Segments&gt; with a Goal derives a total-based direction/status while still decomposing each part (opt-in via Goal; constant-sum reads Unchanged). (2) Delta.Multiple renders a multiplicative factor with a direction word — 15 → 5 (3× fewer), 5 → 15 (3× more); a zero endpoint renders the placeholder; decomposes to a deltaMultiple field. (3) [MarkoutDeltaNoun("solved")] renders a caller noun on the signed absolute delta — 4/6 → 6/6 (+2 solved) — the sibling of [MarkoutUnit]; composites use IDeltaCountable (Fraction → count, Share → value); Markdown-only. All annotations merge into the single 0.20 parenthetical: 4/6 → 6/6 (+2 solved, good).</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

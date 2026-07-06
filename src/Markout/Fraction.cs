@@ -6,11 +6,14 @@ namespace Markout;
 /// </summary>
 /// <param name="Count">The numerator.</param>
 /// <param name="Total">The denominator.</param>
-public readonly record struct Fraction(double Count, double Total) : IMarkoutCell, IGoalMagnitude
+public readonly record struct Fraction(double Count, double Total) : IMarkoutCell, IGoalMagnitude, IDeltaCountable
 {
     /// <summary>The count-over-total rate drives goal derivation (not the raw count); an undefined rate
     /// (zero total) yields <see cref="double.NaN"/> so no direction is derived.</summary>
     double IGoalMagnitude.GoalMagnitude => Total == 0 ? double.NaN : Count / Total;
+
+    /// <summary>The numerator carries the delta noun (e.g. <c>4/6 → 6/6</c> → <c>(+2 solved)</c>).</summary>
+    double IDeltaCountable.DeltaCount => Count;
 
     /// <inheritdoc/>
     public void FormatInline(TextWriter writer, in MarkoutCellFormat format)

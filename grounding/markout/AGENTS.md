@@ -71,7 +71,11 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
 
 - `Change<V>` — a `before → after` change (NOT `Comparison`, which collides with `System.Comparison<T>`).
   `[MarkoutDelta(Delta.Percent)]` on a numeric `Change<V>` appends the signed change, e.g.
-  `98555 → 61190 (−38%)`; `Delta.Absolute` appends the signed difference.
+  `98555 → 61190 (−38%)`; `Delta.Absolute` appends the signed difference; `Delta.Multiple` appends a
+  multiplicative factor with a direction word, e.g. `15 → 5 (3× fewer)` / `5 → 15 (3× more)` (a zero
+  endpoint renders `—`). `[MarkoutDeltaNoun("solved")]` renders a caller noun on the signed delta —
+  `4/6 → 6/6 (+2 solved)` (sibling of `[MarkoutUnit]`; composites use `IDeltaCountable`: `Fraction`→count,
+  `Share`→value; Markdown-only).
   `[MarkoutGoal(Goal.Higher)]` / `[MarkoutGoal(Goal.Lower)]` on a numeric `Change<V>` makes Markout
   derive two decomposed fields — a structural `direction`
   (`increased`/`decreased`/`introduced` (0→N)/`resolved` (N→0)/`unchanged`) and a goal-applied polarity
