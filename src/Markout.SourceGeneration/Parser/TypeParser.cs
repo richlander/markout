@@ -736,6 +736,17 @@ internal static class TypeParser
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
                             typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>")
                         {
+                            // MetricChange<T> is scalar-only; the T:struct constraint can't exclude composite
+                            // shapes (Segments etc. are structs), so enforce a numeric allow-list here.
+                            var typeArg = metricChangeElement.TypeArguments.Length == 1 ? metricChangeElement.TypeArguments[0] : null;
+                            if (typeArg != null && !IsNumericScalarType(typeArg) && diagnostics != null && propertyName != null)
+                            {
+                                diagnostics.Add(new DiagnosticInfo(
+                                    DiagnosticDescriptors.MetricChangeNonScalarType,
+                                    propertyLocation,
+                                    propertyName,
+                                    typeArg.ToDisplayString()));
+                            }
                             return (PropertyKind.MetricChange, null, null, false, null, null, true, FieldLayoutKind.Table, false);
                         }
                     }
@@ -781,6 +792,15 @@ internal static class TypeParser
 
         return (PropertyKind.Other, null, null, false, null, null, true, FieldLayoutKind.Table, false);
     }
+
+    private static bool IsNumericScalarType(ITypeSymbol type) => type.SpecialType switch
+    {
+        SpecialType.System_Int32 or SpecialType.System_Int64 or SpecialType.System_Int16 or
+        SpecialType.System_Byte or SpecialType.System_SByte or SpecialType.System_UInt16 or
+        SpecialType.System_UInt32 or SpecialType.System_UInt64 or SpecialType.System_Double or
+        SpecialType.System_Single or SpecialType.System_Decimal => true,
+        _ => false
+    };
 
     private static bool HasNestedContent(IReadOnlyList<PropertyMetadata>? props)
     {
