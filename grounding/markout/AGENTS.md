@@ -83,6 +83,26 @@ JSONL decomposition is **heterogeneous** (each record holds only its own keys); 
 column union (absent cells blank). Set `MarkoutWriterOptions.JsonTypedValues = true` to emit numeric
 columns as JSON numbers instead of strings.
 
+## Card shapes (declare a list; the generator picks the layout)
+
+Two list-shapes render as multi-format cards from a `[MarkoutSerializable]` model — Markdown table +
+flat typed JSONL/TSV — with no imperative writer calls:
+
+- `List<MetricChange<T>>` — a gated scalar metric per row. `MetricChange<T>(Name, Before, After,
+  Target? = null, TargetLabel? = null, Status = GateStatus.Unknown, StatusLabel? = null)` where
+  `T : struct`. Markdown = `Metric | Change | Target | Status`; JSONL = flat `before`/`after`/optional
+  `target`/`target_label`/`status`. `Status` is caller-supplied (Markout never derives it).
+- `List<MultiSourceRow>` — a role matrix: `MultiSourceRow(label, params Source[])`,
+  `Source(role, IMarkoutCell? value, format = default)`. Roles pivot to **columns** in Markdown
+  (caller-supplied order; absent role → `-`); JSONL emits one flat record per row with
+  `{role}_{side}_{field}` keys. Values are any `IMarkoutCell` incl. nested `Change<Share>` etc. Set
+  the label column header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`).
+- `Verdict(GateStatus Status, string? Label = null)` — a first-class verdict cell (typed polarity
+  `GateStatus` + optional caller label); use as a `Source` value for a verdict row.
+
+Decomposition keys are `snake_case_lower` (a fused role like `claude-opus-4.8` becomes
+`claude_opus_4_8_...`). Put `[MarkoutIgnoreInTable]` on these lists only when nested inside a table.
+
 ## Other output formats (still Markdown by default)
 
 Pass a formatter to change output: `new MarkdownFormatter()` (default), `PlainTextFormatter`,
