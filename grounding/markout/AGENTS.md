@@ -73,7 +73,9 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
   `[MarkoutDelta(Delta.Percent)]` on a numeric `Change<V>` appends the signed change, e.g.
   `98555 → 61190 (−38%)`; `Delta.Absolute` appends the signed difference; `Delta.Multiple` appends a
   multiplicative factor with a direction word, e.g. `15 → 5 (3× fewer)` / `5 → 15 (3× more)` (a zero
-  endpoint renders `—`). `[MarkoutDeltaNoun("solved")]` renders a caller noun on the signed delta —
+  endpoint renders `—`). With a goal, an aligned `Delta.Multiple` word omits the redundant status word
+  (`15 → 5 (3× fewer)` under `Goal.Lower`); a conflicting one keeps it (`5 → 15 (3× more, bad)`).
+  `[MarkoutDeltaNoun("solved")]` renders a caller noun on the signed delta —
   `4/6 → 6/6 (+2 solved)` (sibling of `[MarkoutUnit]`; composites use `IDeltaCountable`: `Fraction`→count,
   `Share`→value; Markdown-only).
   `[MarkoutGoal(Goal.Higher)]` / `[MarkoutGoal(Goal.Lower)]` on a numeric `Change<V>` makes Markout

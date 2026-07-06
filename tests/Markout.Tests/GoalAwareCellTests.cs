@@ -493,10 +493,39 @@ public class GoalAwareCellTests
     }
 
     [Fact]
-    public void Change_DeltaMultiple_MergesWithGoalStatus()
+    public void Change_DeltaMultiple_AlignedGoal_SuppressesRedundantStatus()
     {
-        Assert.Equal("15 \u2192 5 (3\u00d7 fewer, good)",
+        // fewer/more already conveys the aligned (good) polarity -> omit "good" (#141).
+        Assert.Equal("15 \u2192 5 (3\u00d7 fewer)",
             Inline(new Change<long>(15, 5), new MarkoutCellFormat(Delta.Multiple) { Goal = Goal.Lower }));
+        Assert.Equal("5 \u2192 15 (3\u00d7 more)",
+            Inline(new Change<long>(5, 15), new MarkoutCellFormat(Delta.Multiple) { Goal = Goal.Higher }));
+    }
+
+    [Fact]
+    public void Change_DeltaMultiple_ConflictingGoal_KeepsStatus()
+    {
+        // The word conflicts with the goal -> keep "bad" (it adds information).
+        Assert.Equal("5 \u2192 15 (3\u00d7 more, bad)",
+            Inline(new Change<long>(5, 15), new MarkoutCellFormat(Delta.Multiple) { Goal = Goal.Lower }));
+        Assert.Equal("15 \u2192 5 (3\u00d7 fewer, bad)",
+            Inline(new Change<long>(15, 5), new MarkoutCellFormat(Delta.Multiple) { Goal = Goal.Higher }));
+    }
+
+    [Fact]
+    public void Change_DeltaMultiple_ZeroEndpoint_KeepsStatus_NoWord()
+    {
+        // No rendered multiple phrase (placeholder) -> keep the status word.
+        Assert.Equal("15 \u2192 0 (\u2014, good)",
+            Inline(new Change<long>(15, 0), new MarkoutCellFormat(Delta.Multiple) { Goal = Goal.Lower }));
+    }
+
+    [Fact]
+    public void Change_NonMultipleDelta_KeepsGoalStatus()
+    {
+        // Suppression is specific to Delta.Multiple; Absolute/Percent still show the status word.
+        Assert.Equal("15 \u2192 5 (-10, good)",
+            Inline(new Change<long>(15, 5), new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower }));
     }
 
     [Fact]
@@ -504,6 +533,16 @@ public class GoalAwareCellTests
     {
         var fields = Decompose(new Change<long>(15, 5), new MarkoutCellFormat(Delta.Multiple));
         Assert.Equal("3", fields.Single(f => f.Key == "deltaMultiple").Value);
+    }
+
+    [Fact]
+    public void Change_DeltaMultiple_AlignedGoal_KeepsStructuredStatus()
+    {
+        // #141 suppresses only the Markdown status word; structured output keeps direction/status.
+        var fields = Decompose(new Change<long>(15, 5), new MarkoutCellFormat(Delta.Multiple) { Goal = Goal.Lower });
+        Assert.Equal("3", fields.Single(f => f.Key == "deltaMultiple").Value);
+        Assert.Equal("decreased", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", fields.Single(f => f.Key == "status").Value);
     }
 
     // --- Delta-noun (slice 3) ---
