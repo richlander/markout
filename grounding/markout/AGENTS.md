@@ -91,14 +91,17 @@ flat typed JSONL/TSV — with no imperative writer calls:
 - `List<MetricChange<T>>` — a gated scalar metric per row. `MetricChange<T>(Name, Before, After,
   Target? = null, TargetLabel? = null, Status = GateStatus.Unknown, StatusLabel? = null)` where
   `T : struct`. Markdown = `Metric | Change | Target | Status`; JSONL = flat `before`/`after`/optional
-  `target`/`target_label`/`status`. `Status` is caller-supplied (Markout never derives it).
+  `target`/`target_label`/`status`. `Status` is caller-supplied (Markout never derives it). `T` must be
+  a numeric scalar (int/long/double/decimal/...); a composite `T` (e.g. `Segments`) is a compile error
+  (`MARKOUT005`).
 - `List<MultiSourceRow>` — a role matrix: `MultiSourceRow(label, params Source[])`,
   `Source(role, IMarkoutCell? value, format = default)`. Roles pivot to **columns** in Markdown
   (caller-supplied order; absent role → `-`); JSONL emits one flat record per row with
-  `{role}_{side}_{field}` keys. Values are any `IMarkoutCell` incl. nested `Change<Share>` etc. Set
-  the label column header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`).
+  `{role}_{side}_{field}` keys. Values are any `IMarkoutCell` incl. nested `Change<Share>` etc.;
+  **scalars work too** — `new Source("baseline", 2)` (int/long/double/decimal/string) decomposes to a
+  single `{role}` field. Set the label column header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`).
 - `Verdict(GateStatus Status, string? Label = null)` — a first-class verdict cell (typed polarity
-  `GateStatus` + optional caller label); use as a `Source` value for a verdict row.
+  `GateStatus` + optional caller label); use as a `Source` value for a verdict row (decomposes to `{role}`).
 
 Decomposition keys are `snake_case_lower` (a fused role like `claude-opus-4.8` becomes
 `claude_opus_4_8_...`). Put `[MarkoutIgnoreInTable]` on these lists only when nested inside a table.
