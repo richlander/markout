@@ -124,5 +124,8 @@ e.g. TSV: `MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter()
   strings (badges/icons) before rendering.
 - **`[MarkoutSection(GroupBy = nameof(Milestone))]`** on a `List<T>` -> groups the items under a
   `###` sub-heading per distinct `Milestone` value, instead of one flat table.
+  `[MarkoutSection(ShowWhenProperty = nameof(HasErrors))]` renders the section only when that `bool`
+  is true (else the whole section is omitted). `[MarkoutUnwrap]` on a collection renders it INLINE
+  with no `##` heading (members flow into the parent).
 - Also: `[MarkoutMaxItems(n)]` (truncate a list), `[MarkoutDisplayFormat("{0:N0}")]` (numeric
   format), `[MarkoutSkipNull]` / `[MarkoutSkipDefault]` (hide empty/default values).
