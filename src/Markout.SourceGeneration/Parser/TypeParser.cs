@@ -734,8 +734,7 @@ internal static class TypeParser
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
-                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
-                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>")
                         {
                             return (PropertyKind.MetricChange, null, null, false, null, null, true, FieldLayoutKind.Table, false);
                         }
@@ -747,8 +746,7 @@ internal static class TypeParser
                     {
                         var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
                         if (typeDisplayString == "System.Collections.Generic.List<T>" ||
-                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
-                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>")
                         {
                             return (PropertyKind.MultiSource, null, null, false, null, null, true, FieldLayoutKind.Table, false);
                         }

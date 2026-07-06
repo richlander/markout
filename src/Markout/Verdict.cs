@@ -16,7 +16,7 @@ public readonly record struct Verdict(GateStatus Status, string? Label = null) :
 
     /// <inheritdoc/>
     public void Decompose(ICollection<MarkoutField> fields, string? side, in MarkoutCellFormat format)
-        => fields.Add(new MarkoutField(CellText.SideKey(side, "status"), Text));
+        => fields.Add(new MarkoutField(side ?? "status", Text));
 
     private string Text => string.IsNullOrEmpty(Label) ? GateStatusText.Slug(Status) : Label!;
 }

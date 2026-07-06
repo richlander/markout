@@ -99,10 +99,10 @@ public class MultiSourceTableTests
         Assert.Equal("75", tools.GetProperty("opus_after_bash").GetString());
         Assert.Equal("5", tools.GetProperty("gpt5_after_web").GetString());
 
-        // Row 2: Verdict -> {role}_status
+        // Row 2: Verdict -> {role} (flat, no _status suffix)
         var verdict = JsonDocument.Parse(lines[2]).RootElement;
-        Assert.Equal("BETTER", verdict.GetProperty("opus_status").GetString());
-        Assert.Equal("BETTER", verdict.GetProperty("gpt5_status").GetString());
+        Assert.Equal("BETTER", verdict.GetProperty("opus").GetString());
+        Assert.Equal("BETTER", verdict.GetProperty("gpt5").GetString());
     }
 
     [Fact]
@@ -143,6 +143,38 @@ public class MultiSourceTableTests
         Assert.Equal("metric", headers[0]);
         Assert.Contains("opus_before_value", headers);
         Assert.Contains("gpt5_before_web", headers);
-        Assert.Contains("opus_status", headers);
+        Assert.Contains("opus", headers);
+    }
+
+    // ── Scalar role values (leak-triage shape): baseline/current/budget + verdict ──
+
+    [Fact]
+    public void ScalarSources_RenderAndDecomposeByRole()
+    {
+        MultiSourceRow[] rows =
+        [
+            new("arraypool-rent-not-returned",
+                new Source("baseline", 2),
+                new Source("current", 5),
+                new Source("budget", 0),
+                new Source("verdict", new Verdict(GateStatus.Bad, "REGRESSION"))),
+        ];
+
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Metric", rows);
+        Assert.Contains("| Metric | baseline | current | budget | verdict |", writer.ToString());
+        Assert.Contains("| arraypool-rent-not-returned | 2 | 5 | 0 | REGRESSION |", writer.ToString());
+
+        var sw = new StringWriter();
+        var jsonl = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        jsonl.WriteMultiSourceTable("Metric", rows);
+        var rec = JsonDocument.Parse(sw.ToString().ReplaceLineEndings("\n").Trim()).RootElement;
+
+        Assert.Equal("arraypool-rent-not-returned", rec.GetProperty("metric").GetString());
+        Assert.Equal(2, rec.GetProperty("baseline").GetInt32());   // typed number
+        Assert.Equal(5, rec.GetProperty("current").GetInt32());
+        Assert.Equal(0, rec.GetProperty("budget").GetInt32());
+        Assert.Equal("REGRESSION", rec.GetProperty("verdict").GetString());
     }
 }
