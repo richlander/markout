@@ -72,4 +72,21 @@ public class MetricChangeTableTests
         Assert.Equal(JsonValueKind.String, failures.GetProperty("metric").ValueKind);
         Assert.Equal("regression", failures.GetProperty("status").GetString());
     }
+
+    [Fact]
+    public void Jsonl_StructuredSection_PrependsSectionColumn()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        writer.WriteMetricChangeTable(Rows(), structuredSection: "Baseline metric changes");
+        var line0 = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+
+        // Leading, stable section column; identity columns stay strings; typed numbers still work.
+        Assert.StartsWith("{\"section\":\"Baseline metric changes\",\"metric\":\"Failures\"", line0);
+        var rec = JsonDocument.Parse(line0).RootElement;
+        Assert.Equal(JsonValueKind.String, rec.GetProperty("section").ValueKind);
+        Assert.Equal(JsonValueKind.String, rec.GetProperty("metric").ValueKind);
+        Assert.Equal(7, rec.GetProperty("after").GetInt32());
+    }
 }

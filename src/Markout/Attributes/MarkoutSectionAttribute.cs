@@ -61,6 +61,15 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// </summary>
     public bool Headless { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether decomposed (TSV/JSONL) rows for this section include a leading
+    /// <c>section</c> column carrying the section <see cref="Name"/>. Lets a tool multiplex several
+    /// sectioned card shapes into one structured stream and route rows by section. Off by default;
+    /// Markdown output is unaffected (the section is already its heading). Applies to list shapes that
+    /// decompose to typed rows (<c>List&lt;MetricChange&lt;T&gt;&gt;</c>, <c>List&lt;MultiSourceRow&gt;</c>).
+    /// </summary>
+    public bool IncludeSectionInStructuredRows { get; set; }
+
     /// Gets or sets fallback text rendered as a paragraph when the section's collection is
     /// non-null but empty. The section heading is still emitted, followed by this text in place
     /// of the table or list. When the collection is null the section is omitted entirely, so the

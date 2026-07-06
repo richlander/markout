@@ -152,6 +152,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? SectionShowWhenProperty { get; }
     public string? SectionGroupByProperty { get; }
     public bool SectionHeadless { get; }
+    public bool SectionIncludeInStructuredRows { get; }
     public MarkoutFieldOrderKind SectionFieldOrder { get; }
     public IReadOnlyList<(string MethodName, string ColumnName)>? SectionIgnoreColumnWhen { get; }
     public string? ElementTypeName { get; }
@@ -203,6 +204,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? sectionShowWhenProperty = null,
         string? sectionGroupByProperty = null,
         bool sectionHeadless = false,
+        bool sectionIncludeInStructuredRows = false,
         MarkoutFieldOrderKind sectionFieldOrder = MarkoutFieldOrderKind.Input,
         IReadOnlyList<(string MethodName, string ColumnName)>? sectionIgnoreColumnWhen = null,
         string? elementTypeName = null,
@@ -253,6 +255,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionShowWhenProperty = sectionShowWhenProperty;
         SectionGroupByProperty = sectionGroupByProperty;
         SectionHeadless = sectionHeadless;
+        SectionIncludeInStructuredRows = sectionIncludeInStructuredRows;
         SectionFieldOrder = sectionFieldOrder;
         SectionIgnoreColumnWhen = sectionIgnoreColumnWhen;
         ElementTypeName = elementTypeName;
@@ -308,6 +311,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionShowWhenProperty == other.SectionShowWhenProperty &&
                SectionGroupByProperty == other.SectionGroupByProperty &&
                SectionHeadless == other.SectionHeadless &&
+               SectionIncludeInStructuredRows == other.SectionIncludeInStructuredRows &&
                SectionFieldOrder == other.SectionFieldOrder &&
                IgnoreColumnWhenEqual(SectionIgnoreColumnWhen, other.SectionIgnoreColumnWhen) &&
                ElementTypeName == other.ElementTypeName &&
@@ -365,6 +369,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionShowWhenProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (SectionGroupByProperty?.GetHashCode() ?? 0);
             hash = hash * 397 ^ SectionHeadless.GetHashCode();
+            hash = hash * 397 ^ SectionIncludeInStructuredRows.GetHashCode();
             hash = hash * 397 ^ (int)SectionFieldOrder;
             hash = hash * 397 ^ (SectionIgnoreColumnWhen?.Count ?? 0);
             hash = hash * 397 ^ (ValueFormatterTypeName?.GetHashCode() ?? 0);

@@ -88,3 +88,53 @@ public class GeneratedMetricChangeArrayTests
         Assert.Contains("| Failures | 0 \u2192 7 | allowed failures: 0 | regression |", md);
     }
 }
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class GeneratedSectionRowsCard
+{
+    [MarkoutIgnore] public string Title => "IL Diff";
+
+    [MarkoutSection(Name = "Baseline metric changes", IncludeSectionInStructuredRows = true)]
+    public List<MetricChange<int>> Baseline { get; set; } = new();
+
+    [MarkoutSection(Name = "Plain metrics")]
+    public List<MetricChange<int>> Plain { get; set; } = new();
+}
+
+[MarkoutContext(typeof(GeneratedSectionRowsCard))]
+public partial class GeneratedSectionRowsCardContext : MarkoutSerializerContext
+{
+}
+
+public class GeneratedSectionRowsTests
+{
+    [Fact]
+    public void Generated_IncludeSectionInStructuredRows_AddsSectionOnlyToFlaggedSection()
+    {
+        var card = new GeneratedSectionRowsCard
+        {
+            Baseline = [new("Failures", 0, 7, 0, "max failures", GateStatus.Bad, "regression")],
+            Plain = [new("Changed bodies", 45, 46, Status: GateStatus.Warning, StatusLabel: "drift")],
+        };
+
+        // Markdown is unaffected — the section is the heading, no section column in the table.
+        var md = MarkoutSerializer.Serialize(card, GeneratedSectionRowsCardContext.Default);
+        Assert.Contains("## Baseline metric changes", md);
+        Assert.DoesNotContain("| section |", md);
+
+        var sw = new StringWriter();
+        MarkoutSerializer.Serialize(card, sw, new TableFormatter(), GeneratedSectionRowsCardContext.Default,
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        var records = sw.ToString().ReplaceLineEndings("\n")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => JsonDocument.Parse(l).RootElement)
+            .ToList();
+
+        var failures = records.First(e => e.GetProperty("metric").GetString() == "Failures");
+        Assert.Equal("Baseline metric changes", failures.GetProperty("section").GetString());
+
+        // The un-flagged section's rows carry no section discriminator.
+        var changed = records.First(e => e.GetProperty("metric").GetString() == "Changed bodies");
+        Assert.False(changed.TryGetProperty("section", out _));
+    }
+}

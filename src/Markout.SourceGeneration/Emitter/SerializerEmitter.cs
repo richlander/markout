@@ -655,10 +655,11 @@ internal static class SerializerEmitter
         }
         else if (prop.Kind == PropertyKind.MetricChange)
         {
+            var sectionArg = prop.SectionIncludeInStructuredRows ? $", \"{EmitHelpers.EscapeString(sectionName)}\"" : "";
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
-            sb.AppendLine($"{indent}    writer.WriteMetricChangeTable({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteMetricChangeTable({propAccess}{sectionArg});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
             EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
@@ -666,10 +667,11 @@ internal static class SerializerEmitter
         else if (prop.Kind == PropertyKind.MultiSource)
         {
             var labelHeader = EmitHelpers.EscapeString(prop.MultiSourceLabelHeader ?? "Field");
+            var sectionArg = prop.SectionIncludeInStructuredRows ? $", \"{EmitHelpers.EscapeString(sectionName)}\"" : "";
             sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
-            sb.AppendLine($"{indent}    writer.WriteMultiSourceTable(\"{labelHeader}\", {propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteMultiSourceTable(\"{labelHeader}\", {propAccess}{sectionArg});");
             sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
             sb.AppendLine($"{indent}}}");
             EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
