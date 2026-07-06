@@ -617,6 +617,19 @@ internal static class TypeParser
             if (elementType.SpecialType == SpecialType.System_String)
                 return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.Table, true);
 
+            // MetricChange<T>[] / MultiSourceRow[] — same card shapes as the List<T> forms (arrays
+            // satisfy IReadOnlyList<T>); IsArray=true so the emitter guards on .Length not .Count.
+            if (knownTypes.MetricChange is not null &&
+                elementType is INamedTypeSymbol metricChangeArrayElement &&
+                SymbolEqualityComparer.Default.Equals(metricChangeArrayElement.OriginalDefinition, knownTypes.MetricChange))
+            {
+                ReportIfNonScalarMetricChange(metricChangeArrayElement, diagnostics, propertyName, propertyLocation);
+                return (PropertyKind.MetricChange, null, null, false, null, null, true, FieldLayoutKind.Table, true);
+            }
+
+            if (SymbolEqualityComparer.Default.Equals(elementType, knownTypes.MultiSourceRow))
+                return (PropertyKind.MultiSource, null, null, false, null, null, true, FieldLayoutKind.Table, true);
+
             var elementSettings = GetElementTypeSettings(elementType);
             var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes, elementSettings.NamingPolicy, elementSettings.SkipNullByDefault);
             var hasNested = HasNestedContent(elementProps);
@@ -738,15 +751,7 @@ internal static class TypeParser
                         {
                             // MetricChange<T> is scalar-only; the T:struct constraint can't exclude composite
                             // shapes (Segments etc. are structs), so enforce a numeric allow-list here.
-                            var typeArg = metricChangeElement.TypeArguments.Length == 1 ? metricChangeElement.TypeArguments[0] : null;
-                            if (typeArg != null && !IsNumericScalarType(typeArg) && diagnostics != null && propertyName != null)
-                            {
-                                diagnostics.Add(new DiagnosticInfo(
-                                    DiagnosticDescriptors.MetricChangeNonScalarType,
-                                    propertyLocation,
-                                    propertyName,
-                                    typeArg.ToDisplayString()));
-                            }
+                            ReportIfNonScalarMetricChange(metricChangeElement, diagnostics, propertyName, propertyLocation);
                             return (PropertyKind.MetricChange, null, null, false, null, null, true, FieldLayoutKind.Table, false);
                         }
                     }
@@ -801,6 +806,21 @@ internal static class TypeParser
         SpecialType.System_Single or SpecialType.System_Decimal => true,
         _ => false
     };
+
+    // Emits MARKOUT005 when a MetricChange<T> element has a non-numeric-scalar T (e.g. a composite shape).
+    private static void ReportIfNonScalarMetricChange(
+        INamedTypeSymbol metricChangeElement, List<DiagnosticInfo>? diagnostics, string? propertyName, Location? propertyLocation)
+    {
+        var typeArg = metricChangeElement.TypeArguments.Length == 1 ? metricChangeElement.TypeArguments[0] : null;
+        if (typeArg != null && !IsNumericScalarType(typeArg) && diagnostics != null && propertyName != null)
+        {
+            diagnostics.Add(new DiagnosticInfo(
+                DiagnosticDescriptors.MetricChangeNonScalarType,
+                propertyLocation,
+                propertyName,
+                typeArg.ToDisplayString()));
+        }
+    }
 
     private static bool HasNestedContent(IReadOnlyList<PropertyMetadata>? props)
     {

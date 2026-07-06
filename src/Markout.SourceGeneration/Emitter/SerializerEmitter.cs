@@ -655,7 +655,7 @@ internal static class SerializerEmitter
         }
         else if (prop.Kind == PropertyKind.MetricChange)
         {
-            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             sb.AppendLine($"{indent}    writer.WriteMetricChangeTable({propAccess});");
@@ -666,7 +666,7 @@ internal static class SerializerEmitter
         else if (prop.Kind == PropertyKind.MultiSource)
         {
             var labelHeader = EmitHelpers.EscapeString(prop.MultiSourceLabelHeader ?? "Field");
-            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
             sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
             sb.AppendLine($"{indent}    writer.WriteMultiSourceTable(\"{labelHeader}\", {propAccess});");
@@ -827,12 +827,12 @@ internal static class SerializerEmitter
                 break;
 
             case PropertyKind.MetricChange:
-                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
                 sb.AppendLine($"{indent}    writer.WriteMetricChangeTable({propAccess});");
                 break;
 
             case PropertyKind.MultiSource:
-                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.{(prop.IsArray ? "Length" : "Count")} > 0)");
                 sb.AppendLine($"{indent}    writer.WriteMultiSourceTable(\"{EmitHelpers.EscapeString(prop.MultiSourceLabelHeader ?? "Field")}\", {propAccess});");
                 break;
 

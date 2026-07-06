@@ -58,3 +58,33 @@ public class GeneratedMetricChangeTests
         Assert.Equal("regression", failures.GetProperty("status").GetString());
     }
 }
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class GeneratedArrayCard
+{
+    [MarkoutIgnore] public string Title => "Arr";
+
+    [MarkoutSection(Name = "Metrics")]
+    public MetricChange<int>[] Metrics { get; set; } = [];
+}
+
+[MarkoutContext(typeof(GeneratedArrayCard))]
+public partial class GeneratedArrayCardContext : MarkoutSerializerContext
+{
+}
+
+public class GeneratedMetricChangeArrayTests
+{
+    [Fact]
+    public void Generated_MetricChangeArray_RendersCardNotComplexArray()
+    {
+        var card = new GeneratedArrayCard
+        {
+            Metrics = [new("Failures", 0, 7, 0, "allowed failures", GateStatus.Bad, "regression")],
+        };
+        var md = MarkoutSerializer.Serialize(card, GeneratedArrayCardContext.Default);
+
+        Assert.Contains("| Metric | Change | Target | Status |", md);
+        Assert.Contains("| Failures | 0 \u2192 7 | allowed failures: 0 | regression |", md);
+    }
+}

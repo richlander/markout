@@ -177,4 +177,28 @@ public class MultiSourceTableTests
         Assert.Equal(0, rec.GetProperty("budget").GetInt32());
         Assert.Equal("REGRESSION", rec.GetProperty("verdict").GetString());
     }
+
+    // ── Colliding composed keys are disambiguated (no silent data loss) ──
+
+    [Fact]
+    public void Jsonl_CollidingComposedKeys_AreDisambiguated()
+    {
+        // role "a" + segment "b_c" and role "a_b" + segment "c" both compose to "a_b_c".
+        MultiSourceRow[] rows =
+        [
+            new("row",
+                new Source("a", new Segments(new Segment("b_c", 1))),
+                new Source("a_b", new Segments(new Segment("c", 2)))),
+        ];
+
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+        writer.WriteMultiSourceTable("Metric", rows);
+        var rec = JsonDocument.Parse(sw.ToString().ReplaceLineEndings("\n").Trim()).RootElement;
+
+        // Both values survive; the second colliding key is disambiguated.
+        Assert.Equal("1", rec.GetProperty("a_b_c").GetString());
+        Assert.Equal("2", rec.GetProperty("a_b_c_2").GetString());
+    }
 }

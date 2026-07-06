@@ -594,6 +594,28 @@ public class MarkoutWriter
             perRow[r] = tagged;
         }
 
+        // Guard against silent overwrite when two sources in the SAME row compose the same flat key
+        // (e.g. role "a" + field "b_c" vs role "a_b" + field "c" → both "a_b_c"). Disambiguate the
+        // later collision deterministically so no value is dropped.
+        foreach (var tagged in perRow)
+        {
+            var seenInRow = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var (_, fields) in tagged)
+            {
+                for (int i = 0; i < fields.Count; i++)
+                {
+                    var key = fields[i].Key;
+                    if (!seenInRow.Add(key))
+                    {
+                        int suffix = 2;
+                        string candidate;
+                        do { candidate = key + "_" + suffix++; } while (!seenInRow.Add(candidate));
+                        fields[i] = new MarkoutField(candidate, fields[i].Value);
+                    }
+                }
+            }
+        }
+
         var keyOrder = new List<string>();
         var seenKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var role in roleOrder)
