@@ -229,6 +229,16 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactNoiseBand_InclusiveAtLargeIntegerBoundary()
+    {
+        // Exact delta exactly equal to a large integer tolerance is within the inclusive band.
+        var fields = Decompose(new Change<long>(0L, 9007199254740991L),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 9007199254740991d });
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_Goal_SmallValues_UnchangedBehaviorPreserved()
     {
         // The exact path must match the double path for ordinary values.

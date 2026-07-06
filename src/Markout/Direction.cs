@@ -123,7 +123,7 @@ internal static class GoalDerivation
             var tolerance = noise >= 0 ? noise : 0;   // NaN/negative -> exact, matching Classify
             // Compare in the exact decimal domain so the tolerance boundary isn't rounded back to
             // double. A tolerance beyond decimal range (incl. +Infinity) is always within tolerance.
-            direction = tolerance >= (double)decimal.MaxValue || Math.Abs(exact) <= (decimal)tolerance
+            direction = tolerance >= (double)decimal.MaxValue || Math.Abs(exact) <= ToleranceDecimal(tolerance)
                 ? Direction.Unchanged
                 : ClassifyFromSign(Math.Sign(exact), b == 0, a == 0);
             status = Polarity(direction, goal);
@@ -147,4 +147,14 @@ internal static class GoalDerivation
             return Direction.Resolved;
         return sign > 0 ? Direction.Increased : Direction.Decreased;
     }
+
+    /// <summary>
+    /// Converts a finite non-negative tolerance to <see cref="decimal"/> for the exact noise-band check.
+    /// An integer-valued tolerance within <see cref="long"/> range converts through <c>long</c> so a large
+    /// integer boundary isn't shrunk — a direct <c>(decimal)double</c> cast rounds to 15 significant digits.
+    /// </summary>
+    private static decimal ToleranceDecimal(double tolerance)
+        => tolerance == Math.Floor(tolerance) && tolerance < 1e18
+            ? (decimal)(long)tolerance
+            : (decimal)tolerance;
 }
