@@ -76,6 +76,32 @@ public partial class ReconstructedCardContext : MarkoutSerializerContext
 {
 }
 
+// Pathological naming: a scalar column whose name equals a composite column's decomposed subkey
+// ("Score" -> "Score_before"). Guards that both survive as distinct columns (no silent overwrite).
+public class CollisionRow
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutDelta(Delta.Percent)]
+    public Change<long> Score { get; set; }
+
+    public long Score_before { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class CollisionCard
+{
+    [MarkoutIgnore] public string Title => "Rows";
+
+    [MarkoutSection(Name = "Rows")]
+    public List<CollisionRow> Rows { get; set; } = new();
+}
+
+[MarkoutContext(typeof(CollisionCard))]
+public partial class CollisionCardContext : MarkoutSerializerContext
+{
+}
+
 public class DecomposedElementTableTests
 {
     private static DecomposedElementCard Card() => new()
@@ -156,6 +182,26 @@ public class DecomposedElementTableTests
         var row = JsonDocument.Parse(sw.ToString().Trim()).RootElement;
         Assert.Equal("x", row.GetProperty("name").GetString());
         Assert.Equal(3, row.GetProperty("count").GetInt32());
+    }
+
+    [Fact]
+    public void CompositeSubkeyCollidingWithScalarColumn_KeepsBothColumns()
+    {
+        // The composite "Score" decomposes to "score_before"; a sibling scalar column is also named
+        // "Score_before". Both must survive: the later one is disambiguated to "score_before_2" rather
+        // than silently overwriting the first (which would violate the reconstructable-JSON contract).
+        var card = new CollisionCard
+        {
+            Rows = [new CollisionRow { Name = "a", Score = new(100, 50), Score_before = 999 }],
+        };
+
+        var sw = new StringWriter();
+        MarkoutSerializer.Serialize(card, sw, new TableFormatter(), CollisionCardContext.Default,
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        var row = JsonDocument.Parse(sw.ToString().Trim()).RootElement;
+
+        Assert.Equal(100, row.GetProperty("score_before").GetInt64());
+        Assert.Equal(999, row.GetProperty("score_before_2").GetInt64());
     }
 
     [Fact]

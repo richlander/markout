@@ -755,10 +755,31 @@ public class MarkoutWriter
 
         var keyOrder = new List<string>();
         var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        // Resolve each row's fields to columns. Keys that repeat WITHIN a row (e.g. a scalar column named
+        // "x_before" colliding with composite column "x"'s "x_before" subfield) get distinct columns so no
+        // field is silently dropped; the raw key stays the display header (snake_case dedupe below makes the
+        // emitted column names distinct). Heterogeneous rows with unique keys are unaffected.
+        var resolvedRows = new List<(int Col, string Value)[]>(rows.Count);
         foreach (var row in rows)
-            foreach (var field in row)
-                if (keyIndex.TryAdd(field.Key, keyOrder.Count))
+        {
+            var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+            var resolved = new (int, string)[row.Count];
+            for (int i = 0; i < row.Count; i++)
+            {
+                var field = row[i];
+                int occurrence = seen.TryGetValue(field.Key, out var c) ? c + 1 : 1;
+                seen[field.Key] = occurrence;
+                var resolvedKey = occurrence == 1 ? field.Key : field.Key + "\0" + occurrence;
+                if (!keyIndex.TryGetValue(resolvedKey, out var col))
+                {
+                    col = keyOrder.Count;
+                    keyIndex[resolvedKey] = col;
                     keyOrder.Add(field.Key);
+                }
+                resolved[i] = (col, field.Value);
+            }
+            resolvedRows.Add(resolved);
+        }
 
         var headers = new string[keyOrder.Count];
         var headerNames = new string[keyOrder.Count];
@@ -780,14 +801,13 @@ public class MarkoutWriter
         }
 
         var outRows = new List<string[]>(rows.Count);
-        foreach (var row in rows)
+        foreach (var resolved in resolvedRows)
         {
             var values = new string[keyOrder.Count];
             for (int i = 0; i < values.Length; i++)
                 values[i] = "";
-            foreach (var field in row)
-                if (keyIndex.TryGetValue(field.Key, out var idx))
-                    values[idx] = field.Value;
+            foreach (var (col, value) in resolved)
+                values[col] = value;
             outRows.Add(values);
         }
 
