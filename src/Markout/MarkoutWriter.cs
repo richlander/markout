@@ -503,9 +503,9 @@ public class MarkoutWriter
     /// <param name="labelHeader">The header/identity-column name for the row labels.</param>
     /// <param name="rows">The multi-source rows.</param>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
-    public bool WriteMultiSourceTable(string labelHeader, params ReadOnlySpan<MultiSourceRow> rows)
+    public bool WriteMultiSourceTable(string labelHeader, IReadOnlyList<MultiSourceRow> rows)
     {
-        if (_sectionExcluded || rows.Length == 0)
+        if (_sectionExcluded || rows.Count == 0)
             return true;
 
         if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
@@ -534,14 +534,14 @@ public class MarkoutWriter
 
     // Document formatters: one column per role; each cell the dense render of that role's value.
     private bool WriteDenseMultiSourceTable(
-        string labelHeader, ReadOnlySpan<MultiSourceRow> rows, List<string> roleOrder, Dictionary<string, int> roleIndex)
+        string labelHeader, IReadOnlyList<MultiSourceRow> rows, List<string> roleOrder, Dictionary<string, int> roleIndex)
     {
         var headers = new string[roleOrder.Count + 1];
         headers[0] = labelHeader;
         for (int i = 0; i < roleOrder.Count; i++)
             headers[i + 1] = roleOrder[i];
 
-        var outRows = new List<string[]>(rows.Length);
+        var outRows = new List<string[]>(rows.Count);
         foreach (var row in rows)
         {
             var values = new string[roleOrder.Count + 1];
@@ -569,13 +569,13 @@ public class MarkoutWriter
 
     // Decomposing formatters (TSV/JSONL): one flat record per row, {role}_{field} columns.
     private bool WriteDecomposedMultiSourceTable(
-        string labelHeader, ReadOnlySpan<MultiSourceRow> rows, List<string> roleOrder)
+        string labelHeader, IReadOnlyList<MultiSourceRow> rows, List<string> roleOrder)
     {
         // Decompose each source with side = role, tagging fields with their owning role so the
         // column union can be ordered role-major (caller role order), then field order within a role.
-        var perRow = new List<(string Role, List<MarkoutField> Fields)>[rows.Length];
-        var labels = new string[rows.Length];
-        for (int r = 0; r < rows.Length; r++)
+        var perRow = new List<(string Role, List<MarkoutField> Fields)>[rows.Count];
+        var labels = new string[rows.Count];
+        for (int r = 0; r < rows.Count; r++)
         {
             var row = rows[r];
             labels[r] = row.Label;
@@ -685,9 +685,9 @@ public class MarkoutWriter
     /// structured output.
     /// </summary>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
-    public bool WriteMetricChangeTable<T>(params ReadOnlySpan<MetricChange<T>> rows) where T : struct
+    public bool WriteMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows) where T : struct
     {
-        if (_sectionExcluded || rows.Length == 0)
+        if (_sectionExcluded || rows.Count == 0)
             return true;
 
         if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
@@ -696,21 +696,21 @@ public class MarkoutWriter
         if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
             return WriteDecomposedMetricChangeTable(rows);
 
-        var outRows = new List<string[]>(rows.Length);
+        var outRows = new List<string[]>(rows.Count);
         foreach (var metric in rows)
             outRows.Add([metric.Name, ChangeText(metric), TargetText(metric), StatusText(metric)]);
 
         return WriteTable(["Metric", "Change", "Target", "Status"], outRows);
     }
 
-    private bool WriteDecomposedMetricChangeTable<T>(ReadOnlySpan<MetricChange<T>> rows) where T : struct
+    private bool WriteDecomposedMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows) where T : struct
     {
-        var labels = new string[rows.Length];
-        var perRow = new List<MarkoutField>[rows.Length];
+        var labels = new string[rows.Count];
+        var perRow = new List<MarkoutField>[rows.Count];
         var keyOrder = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        for (int r = 0; r < rows.Length; r++)
+        for (int r = 0; r < rows.Count; r++)
         {
             var metric = rows[r];
             labels[r] = metric.Name;

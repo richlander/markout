@@ -473,6 +473,7 @@ internal enum PropertyKind
     CodeSection,
     Callout,
     Breakdown,
+    MetricChange,
     CompositeCell,
     Other
 }

@@ -713,6 +713,22 @@ internal static class TypeParser
                         }
                     }
 
+                    // Check for IReadOnlyList<MetricChange<T>> / List<MetricChange<T>> - renders as a
+                    // gated-metric table (Metric | Change | Target | Status). MetricChange is generic,
+                    // so compare the element's original definition against the open generic symbol.
+                    if (knownTypes.MetricChange is not null &&
+                        elementType is INamedTypeSymbol metricChangeElement &&
+                        SymbolEqualityComparer.Default.Equals(metricChangeElement.OriginalDefinition, knownTypes.MetricChange))
+                    {
+                        var typeDisplayString = namedType.OriginalDefinition.ToDisplayString();
+                        if (typeDisplayString == "System.Collections.Generic.List<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IReadOnlyList<T>" ||
+                            typeDisplayString == "System.Collections.Generic.IList<T>")
+                        {
+                            return (PropertyKind.MetricChange, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+                        }
+                    }
+
                     if (elementType.SpecialType == SpecialType.System_String)
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.Table, false);
 
@@ -753,6 +769,7 @@ internal static class TypeParser
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
              p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
+             p.Kind == PropertyKind.MetricChange ||
              (p.Kind == PropertyKind.StringArray && p.JoinSeparator == null)));
     }
 
