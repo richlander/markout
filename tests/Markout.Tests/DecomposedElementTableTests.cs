@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json;
 using Markout;
 
@@ -125,6 +126,39 @@ public class NullableCollisionCard
 
 [MarkoutContext(typeof(NullableCollisionCard))]
 public partial class NullableCollisionCardContext : MarkoutSerializerContext
+{
+}
+
+// Element table combining [MarkoutIgnoreColumnWhen] (dynamic-ignore path) with composite columns:
+// composite columns must still decompose for structured formatters while dynamic hidden columns drop out.
+public class DynIgnoreRow
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutDelta(Delta.Percent)]
+    public Change<long> Score { get; set; }
+
+    [MarkoutGoal(Goal.Lower)]
+    public Change<int> Bugs { get; set; }
+
+    public string Note { get; set; } = "";
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class DynIgnoreCard
+{
+    [MarkoutIgnore] public string Title => "Rows";
+
+    [MarkoutSection(Name = "Rows")]
+    [MarkoutIgnoreColumnWhen(nameof(NoteIsUniform), "Note")]
+    public List<DynIgnoreRow> Rows { get; set; } = new();
+
+    public static bool NoteIsUniform(List<DynIgnoreRow> rows)
+        => rows.Select(r => r.Note).Distinct().Count() <= 1;
+}
+
+[MarkoutContext(typeof(DynIgnoreCard))]
+public partial class DynIgnoreCardContext : MarkoutSerializerContext
 {
 }
 
@@ -262,6 +296,67 @@ public class DecomposedElementTableTests
         bool row0HasCompositeValue = r0.TryGetProperty("score_before_2", out var v)
             && v.ValueKind is JsonValueKind.Number;
         Assert.False(row0HasCompositeValue, "row 0 must not carry a composite before value");
+    }
+
+    [Fact]
+    public void DynamicIgnoreTable_DecomposesCompositesAndDropsHiddenColumn()
+    {
+        // Uniform Note -> the "Note" column is dynamically ignored. Composite columns must still decompose
+        // (Score/Bugs -> typed sub-fields) in structured output, and Markdown stays dense with Note dropped.
+        var card = new DynIgnoreCard
+        {
+            Rows =
+            [
+                new DynIgnoreRow { Name = "a", Score = new(100, 50), Bugs = new(7, 0), Note = "x" },
+                new DynIgnoreRow { Name = "b", Score = new(40, 60), Bugs = new(2, 5), Note = "x" },
+            ],
+        };
+
+        var md = MarkoutSerializer.Serialize(card, DynIgnoreCardContext.Default);
+        Assert.Contains("| Name | Score | Bugs |", md);          // Note dropped (uniform)
+        Assert.Contains("| a | 100 \u2192 50 (-50%) | 7 \u2192 0 (good) |", md);
+
+        var sw = new StringWriter();
+        MarkoutSerializer.Serialize(card, sw, new TableFormatter(), DynIgnoreCardContext.Default,
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        var r0 = JsonDocument.Parse(sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries)[0]).RootElement;
+
+        // Composites decomposed, not dense strings.
+        Assert.Equal(100, r0.GetProperty("score_before").GetInt64());
+        Assert.Equal(50, r0.GetProperty("score_after").GetInt64());
+        Assert.Equal(-50, r0.GetProperty("score_delta_pct").GetInt32());
+        Assert.Equal(7, r0.GetProperty("bugs_before").GetInt32());
+        Assert.Equal(0, r0.GetProperty("bugs_after").GetInt32());
+        Assert.Equal("good", r0.GetProperty("bugs_status").GetString());
+        Assert.False(r0.TryGetProperty("score", out _), "composite must not leak a dense 'score' field");
+        // Hidden column absent from structured output too.
+        Assert.False(r0.TryGetProperty("note", out _), "uniform Note column must be dropped");
+    }
+
+    [Fact]
+    public void DynamicIgnoreTable_KeepsVaryingColumnAlongsideDecomposedComposites()
+    {
+        // Note varies -> the column is kept; composites still decompose.
+        var card = new DynIgnoreCard
+        {
+            Rows =
+            [
+                new DynIgnoreRow { Name = "a", Score = new(100, 50), Bugs = new(7, 0), Note = "x" },
+                new DynIgnoreRow { Name = "b", Score = new(40, 60), Bugs = new(2, 5), Note = "y" },
+            ],
+        };
+
+        var md = MarkoutSerializer.Serialize(card, DynIgnoreCardContext.Default);
+        Assert.Contains("| Name | Score | Bugs | Note |", md);
+
+        var sw = new StringWriter();
+        MarkoutSerializer.Serialize(card, sw, new TableFormatter(), DynIgnoreCardContext.Default,
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true });
+        var r0 = JsonDocument.Parse(sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries)[0]).RootElement;
+
+        Assert.Equal(100, r0.GetProperty("score_before").GetInt64());
+        Assert.Equal("good", r0.GetProperty("bugs_status").GetString());
+        Assert.Equal("x", r0.GetProperty("note").GetString());
     }
 
     [Fact]

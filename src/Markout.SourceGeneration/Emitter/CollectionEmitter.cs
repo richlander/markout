@@ -135,65 +135,112 @@ internal static class CollectionEmitter
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
         var dynamicLookup = dynamicIgnoreColumns.ToDictionary(d => d.ColumnName, d => d.ConditionVar);
 
-        // Build headers dynamically
-        sb.AppendLine($"{indent}var __headers = new global::System.Collections.Generic.List<string>();");
-        sb.AppendLine($"{indent}var __headerNames = new global::System.Collections.Generic.List<string>();");
-        foreach (var p in visibleProps)
+        // Resolve the dynamic-ignore condition variable (loop-invariant) for a column, if any.
+        bool TryDynamicCond(PropertyMetadata p, out string condVar)
         {
-            var headerStr = p.Name == prop.SectionFormatProperty && prop.SectionColumnName != null
-                ? $"\"{EmitHelpers.EscapeString(prop.SectionColumnName)}\""
-                : $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
-            var headerNameStr = $"\"{EmitHelpers.EscapeString(p.Name)}\"";
-
             var dynamicKey = dynamicLookup.ContainsKey(p.Name) ? p.Name : p.DisplayName;
-            if (dynamicLookup.TryGetValue(dynamicKey, out var condVar))
-            {
-                sb.AppendLine($"{indent}if (!{condVar})");
-                sb.AppendLine($"{indent}{{");
-                sb.AppendLine($"{indent}    __headers.Add({headerStr});");
-                sb.AppendLine($"{indent}    __headerNames.Add({headerNameStr});");
-                sb.AppendLine($"{indent}}}");
-            }
-            else
-            {
-                sb.AppendLine($"{indent}__headers.Add({headerStr});");
-                sb.AppendLine($"{indent}__headerNames.Add({headerNameStr});");
-            }
+            return dynamicLookup.TryGetValue(dynamicKey, out condVar!);
         }
-        sb.AppendLine($"{indent}writer.WriteTableStart(__headers.ToArray(), __headerNames.ToArray());");
 
-        // Instantiate formatter if configured
-        if (prop.SectionFormatterTypeName != null)
-            sb.AppendLine($"{indent}var __fmt = new {prop.SectionFormatterTypeName}();");
-
-        // Build rows dynamically
-        sb.AppendLine($"{indent}foreach (var {itemVar} in {propAccess})");
-        sb.AppendLine($"{indent}{{");
-        sb.AppendLine($"{indent}    var __row = new global::System.Collections.Generic.List<string>();");
-
-        foreach (var elemProp in visibleProps)
+        // Dense cell string for a column (formatted-property override, else the cell value).
+        string ScalarValue(PropertyMetadata p)
         {
-            string value;
-            if (elemProp.Name == prop.SectionFormatProperty && prop.SectionFormatterTypeName != null)
+            if (p.Name == prop.SectionFormatProperty && prop.SectionFormatterTypeName != null)
             {
-                var access = $"{itemVar}.{elemProp.Name}";
-                value = $"{access} != null ? __fmt.Format({access}) : \"\"";
+                var access = $"{itemVar}.{p.Name}";
+                return $"{access} != null ? __fmt.Format({access}) : \"\"";
             }
-            else
-            {
-                value = EmitHelpers.GetTableCellValue(elemProp, itemVar);
-            }
-
-            var dynamicKey = dynamicLookup.ContainsKey(elemProp.Name) ? elemProp.Name : elemProp.DisplayName;
-            if (dynamicLookup.TryGetValue(dynamicKey, out var condVar))
-                sb.AppendLine($"{indent}    if (!{condVar}) __row.Add({value});");
-            else
-                sb.AppendLine($"{indent}    __row.Add({value});");
+            return EmitHelpers.GetTableCellValue(p, itemVar);
         }
 
-        sb.AppendLine($"{indent}    writer.WriteTableRow(__row.ToArray());");
-        sb.AppendLine($"{indent}}}");
-        sb.AppendLine($"{indent}writer.WriteTableEnd();");
+        void EmitDense(string ind)
+        {
+            sb.AppendLine($"{ind}var __headers = new global::System.Collections.Generic.List<string>();");
+            sb.AppendLine($"{ind}var __headerNames = new global::System.Collections.Generic.List<string>();");
+            foreach (var p in visibleProps)
+            {
+                var headerStr = p.Name == prop.SectionFormatProperty && prop.SectionColumnName != null
+                    ? $"\"{EmitHelpers.EscapeString(prop.SectionColumnName)}\""
+                    : $"\"{EmitHelpers.EscapeString(p.DisplayName)}\"";
+                var headerNameStr = $"\"{EmitHelpers.EscapeString(p.Name)}\"";
+
+                if (TryDynamicCond(p, out var condVar))
+                {
+                    sb.AppendLine($"{ind}if (!{condVar})");
+                    sb.AppendLine($"{ind}{{");
+                    sb.AppendLine($"{ind}    __headers.Add({headerStr});");
+                    sb.AppendLine($"{ind}    __headerNames.Add({headerNameStr});");
+                    sb.AppendLine($"{ind}}}");
+                }
+                else
+                {
+                    sb.AppendLine($"{ind}__headers.Add({headerStr});");
+                    sb.AppendLine($"{ind}__headerNames.Add({headerNameStr});");
+                }
+            }
+            sb.AppendLine($"{ind}writer.WriteTableStart(__headers.ToArray(), __headerNames.ToArray());");
+            if (prop.SectionFormatterTypeName != null)
+                sb.AppendLine($"{ind}var __fmt = new {prop.SectionFormatterTypeName}();");
+            sb.AppendLine($"{ind}foreach (var {itemVar} in {propAccess})");
+            sb.AppendLine($"{ind}{{");
+            sb.AppendLine($"{ind}    var __row = new global::System.Collections.Generic.List<string>();");
+            foreach (var elemProp in visibleProps)
+            {
+                var value = ScalarValue(elemProp);
+                if (TryDynamicCond(elemProp, out var condVar))
+                    sb.AppendLine($"{ind}    if (!{condVar}) __row.Add({value});");
+                else
+                    sb.AppendLine($"{ind}    __row.Add({value});");
+            }
+            sb.AppendLine($"{ind}    writer.WriteTableRow(__row.ToArray());");
+            sb.AppendLine($"{ind}}}");
+            sb.AppendLine($"{ind}writer.WriteTableEnd();");
+        }
+
+        // Decomposing formatters: same dynamic-hidden-column rules, but composite columns emit typed
+        // sub-fields. A hidden column contributes an empty source column (kept so column indices stay stable).
+        void EmitDecompose(string ind)
+        {
+            if (prop.SectionFormatterTypeName != null)
+                sb.AppendLine($"{ind}var __fmt = new {prop.SectionFormatterTypeName}();");
+            sb.AppendLine($"{ind}var __drows = new global::System.Collections.Generic.List<global::System.Collections.Generic.List<global::System.Collections.Generic.List<global::Markout.MarkoutField>>>();");
+            sb.AppendLine($"{ind}foreach (var {itemVar} in {propAccess})");
+            sb.AppendLine($"{ind}{{");
+            sb.AppendLine($"{ind}    var __cols = new global::System.Collections.Generic.List<global::System.Collections.Generic.List<global::Markout.MarkoutField>>();");
+            foreach (var p in visibleProps)
+            {
+                sb.AppendLine($"{ind}    {{");
+                sb.AppendLine($"{ind}        var __c = new global::System.Collections.Generic.List<global::Markout.MarkoutField>();");
+                var fill = p.Kind == PropertyKind.CompositeCell
+                    ? $"((global::Markout.IMarkoutCell?){itemVar}.{p.Name})?.Decompose(__c, \"{EmitHelpers.EscapeString(p.Name)}\", {EmitHelpers.CompositeCellFormatLiteral(p)});"
+                    : $"__c.Add(new global::Markout.MarkoutField(\"{EmitHelpers.EscapeString(p.Name)}\", {ScalarValue(p)}));";
+                if (TryDynamicCond(p, out var condVar))
+                    sb.AppendLine($"{ind}        if (!{condVar}) {fill}");
+                else
+                    sb.AppendLine($"{ind}        {fill}");
+                sb.AppendLine($"{ind}        __cols.Add(__c);");
+                sb.AppendLine($"{ind}    }}");
+            }
+            sb.AppendLine($"{ind}    __drows.Add(__cols);");
+            sb.AppendLine($"{ind}}}");
+            sb.AppendLine($"{ind}writer.WriteDecomposedRows(__drows);");
+        }
+
+        if (visibleProps.Any(p => p.Kind == PropertyKind.CompositeCell))
+        {
+            sb.AppendLine($"{indent}if (writer.DecomposesCompositeCells)");
+            sb.AppendLine($"{indent}{{");
+            EmitDecompose(indent + "    ");
+            sb.AppendLine($"{indent}}}");
+            sb.AppendLine($"{indent}else");
+            sb.AppendLine($"{indent}{{");
+            EmitDense(indent + "    ");
+            sb.AppendLine($"{indent}}}");
+        }
+        else
+        {
+            EmitDense(indent);
+        }
     }
 
     public static void EmitSubsectionPerItemSerialization(
