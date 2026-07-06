@@ -484,6 +484,15 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_DeltaMultiple_NonFinite_RendersPlaceholderWithoutWord()
+    {
+        var s = Inline(new Change<double>(double.PositiveInfinity, 5), new MarkoutCellFormat(Delta.Multiple));
+        Assert.EndsWith("(\u2014)", s);
+        Assert.DoesNotContain("\u00d7", s);   // no "—× fewer"
+        Assert.DoesNotContain("fewer", s);
+    }
+
+    [Fact]
     public void Change_DeltaMultiple_MergesWithGoalStatus()
     {
         Assert.Equal("15 \u2192 5 (3\u00d7 fewer, good)",
@@ -535,6 +544,22 @@ public class GoalAwareCellTests
     {
         var s = Inline(new Change<Share>(new Share(10, 20), new Share(7, 20)), new MarkoutCellFormat { DeltaNoun = "tokens" });
         Assert.EndsWith("(-3 tokens)", s);
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_Scalar_ExactForLargeIntegers()
+    {
+        // 2^53 and 2^53+1 are indistinguishable as double; the exact delta path keeps them apart.
+        var s = Inline(new Change<long>(9007199254740992L, 9007199254740993L), new MarkoutCellFormat { DeltaNoun = "solved" });
+        Assert.EndsWith("(+1 solved)", s);
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_NonFinite_OmitsNoun()
+    {
+        var s = Inline(new Change<Fraction>(new Fraction(double.NaN, 6), new Fraction(6, 6)),
+            new MarkoutCellFormat { DeltaNoun = "solved" });
+        Assert.DoesNotContain("solved", s);   // no "— solved"
     }
 
     [Fact]

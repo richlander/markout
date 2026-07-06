@@ -26,7 +26,10 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
             // word (from IGoalMagnitude), merged into one parenthetical.
             string? compositeFirst = null;
             if (format.DeltaNoun is not null && Before is IDeltaCountable beforeCount && After is IDeltaCountable afterCount)
-                compositeFirst = CellText.SignedNumber(afterCount.DeltaCount - beforeCount.DeltaCount) + " " + format.DeltaNoun;
+            {
+                var nounDelta = CellText.SignedNumber(afterCount.DeltaCount - beforeCount.DeltaCount);
+                compositeFirst = nounDelta == CellText.Placeholder ? CellText.Placeholder : nounDelta + " " + format.DeltaNoun;
+            }
             string? compositeStatus = null;
             if (format.Goal != Goal.Context && Before is IGoalMagnitude beforeMag && After is IGoalMagnitude afterMag &&
                 GoalDerivation.TryDerive(beforeMag.GoalMagnitude, afterMag.GoalMagnitude, format.Goal, format.Noise, out _, out var compositeGate))
@@ -56,9 +59,9 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
 
     private string NounText(string noun)
     {
-        if (!CellText.TryScalarDouble(Before, out var before) || !CellText.TryScalarDouble(After, out var after))
-            return CellText.Placeholder;
-        return CellText.SignedNumber(after - before) + " " + noun;
+        // Reuse the exact (decimal) delta path so large long/decimal changes don't lose precision.
+        var delta = CellText.AbsoluteDelta(Before, After, signed: true);
+        return delta == CellText.Placeholder ? CellText.Placeholder : delta + " " + noun;
     }
 
     private static void WriteParenGroup(TextWriter writer, string? first, string? second)
@@ -147,6 +150,8 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
     private string MultipleText(bool withWord)
     {
         if (!CellText.TryScalarDouble(Before, out var before) || !CellText.TryScalarDouble(After, out var after))
+            return CellText.Placeholder;
+        if (!double.IsFinite(before) || !double.IsFinite(after))
             return CellText.Placeholder;
         var magBefore = Math.Abs(before);
         var magAfter = Math.Abs(after);
