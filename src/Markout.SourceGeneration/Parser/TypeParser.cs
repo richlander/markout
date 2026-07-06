@@ -34,6 +34,7 @@ internal static class TypeParser
     private const string MarkoutIgnoreColumnWhenAttribute = "Markout.MarkoutIgnoreColumnWhenAttribute";
     private const string MarkoutDeltaAttribute = "Markout.MarkoutDeltaAttribute";
     private const string MarkoutUnitAttribute = "Markout.MarkoutUnitAttribute";
+    private const string MarkoutGoalAttribute = "Markout.MarkoutGoalAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -466,6 +467,22 @@ internal static class TypeParser
             unit = unitValue;
         }
 
+        // Parse [MarkoutGoal] — optimization goal (+ optional noise) for a numeric Change<> cell
+        MarkoutGoalKind goal = MarkoutGoalKind.Context;
+        double noise = 0;
+        var goalAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutGoalAttribute);
+        if (goalAttr != null && goalAttr.ConstructorArguments.Length > 0 &&
+            goalAttr.ConstructorArguments[0].Value is int goalValue)
+        {
+            goal = (MarkoutGoalKind)goalValue;
+            if (goalAttr.ConstructorArguments.Length > 1 &&
+                goalAttr.ConstructorArguments[1].Value is double noiseValue)
+            {
+                noise = noiseValue;
+            }
+        }
+
         // Parse [MarkoutLabelHeader] — label/identity column header for a List<MultiSourceRow> card
         string? multiSourceLabelHeader = null;
         var labelHeaderAttr = prop.GetAttributes()
@@ -557,7 +574,9 @@ internal static class TypeParser
             deltaMode,
             unit,
             isReferenceTypeCell,
-            multiSourceLabelHeader);
+            multiSourceLabelHeader,
+            goal,
+            noise);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.18.0</Version>
-    <PackageReleaseNotes>Section-aware structured rows: [MarkoutSection(IncludeSectionInStructuredRows = true)] on a List&lt;MetricChange&lt;T&gt;&gt; or List&lt;MultiSourceRow&gt; section prepends a leading "section" column (the section name) to decomposed TSV/JSONL rows, so a tool can multiplex several sectioned card shapes into one structured stream and route by section. Markdown output is unchanged.</PackageReleaseNotes>
+    <Version>0.19.0</Version>
+    <PackageReleaseNotes>Goal-aware cells: [MarkoutGoal(Goal.Higher|Lower)] on a numeric Change&lt;T&gt; property (and a Goal on MetricChange&lt;T&gt; / MarkoutCellFormat for runtime rows) makes Markout derive a structural "direction" (increased/decreased/introduced/resolved/unchanged) and a goal-applied polarity "status" (good/bad/neutral), replacing hand-coded ceiling/floor/drift helpers. The two axes decompose as separate direction/status fields; a caller-supplied Status still overrides the derived polarity. An optional noise tolerance treats sub-threshold movement as unchanged. Goal.Context (default) leaves behavior unchanged.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

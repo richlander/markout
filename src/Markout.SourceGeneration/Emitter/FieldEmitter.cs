@@ -348,7 +348,7 @@ internal static class FieldEmitter
         string rowsVar,
         string indent)
     {
-        var format = $"new global::Markout.MarkoutCellFormat({EmitHelpers.DeltaLiteral(prop)}, {EmitHelpers.UnitLiteral(prop)})";
+        var format = $"new global::Markout.MarkoutCellFormat({EmitHelpers.DeltaLiteral(prop)}, {EmitHelpers.UnitLiteral(prop)}) {{ Goal = {EmitHelpers.GoalLiteral(prop)}, Noise = {EmitHelpers.NoiseLiteral(prop)} }}";
 
         string RowAdd(string cellExpr) =>
             $"{rowsVar}.Add(new global::Markout.MarkoutCompositeRow(\"{EmitHelpers.EscapeString(prop.DisplayName)}\", {cellExpr}, {format}));";

@@ -43,6 +43,15 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         {
             (Before as IMarkoutCell)?.Decompose(fields, CellText.SideKey(side, "before"), format);
             (After as IMarkoutCell)?.Decompose(fields, CellText.SideKey(side, "after"), format);
+
+            // Composite shapes derive goal direction/status from their comparable magnitude
+            // (a scalar Change<T> does this in the branch below).
+            if (format.Goal != Goal.Context && Before is IGoalMagnitude beforeMag && After is IGoalMagnitude afterMag &&
+                GoalDerivation.TryDerive(beforeMag.GoalMagnitude, afterMag.GoalMagnitude, format.Goal, format.Noise, out var compositeDir, out var compositeStatus))
+            {
+                fields.Add(new MarkoutField(CellText.SideKey(side, "direction"), DirectionText.Slug(compositeDir)));
+                fields.Add(new MarkoutField(CellText.SideKey(side, "status"), GateStatusText.Slug(compositeStatus)));
+            }
             return;
         }
 
@@ -53,6 +62,13 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
             fields.Add(new MarkoutField(CellText.SideKey(side, "deltaPct"), DeltaValue(Delta.Percent)));
         else if (format.Delta == Delta.Absolute)
             fields.Add(new MarkoutField(CellText.SideKey(side, "deltaAbs"), DeltaValue(Delta.Absolute)));
+
+        if (format.Goal != Goal.Context &&
+            GoalDerivation.TryDerive(Before, After, format.Goal, format.Noise, out var direction, out var status))
+        {
+            fields.Add(new MarkoutField(CellText.SideKey(side, "direction"), DirectionText.Slug(direction)));
+            fields.Add(new MarkoutField(CellText.SideKey(side, "status"), GateStatusText.Slug(status)));
+        }
     }
 
     private string DeltaSuffix(Delta mode)

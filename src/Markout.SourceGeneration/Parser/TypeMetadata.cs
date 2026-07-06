@@ -183,6 +183,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? SectionEmptyText { get; }
     public MarkoutDeltaKind DeltaMode { get; }
     public string? Unit { get; }
+    public MarkoutGoalKind Goal { get; }
+    public double Noise { get; }
     public bool IsReferenceTypeCell { get; }
     public string? MultiSourceLabelHeader { get; }
 
@@ -236,7 +238,9 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         MarkoutDeltaKind deltaMode = MarkoutDeltaKind.None,
         string? unit = null,
         bool isReferenceTypeCell = false,
-        string? multiSourceLabelHeader = null)
+        string? multiSourceLabelHeader = null,
+        MarkoutGoalKind goal = MarkoutGoalKind.Context,
+        double noise = 0)
     {
         Name = name;
         DisplayName = displayName;
@@ -286,6 +290,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         SectionEmptyText = sectionEmptyText;
         DeltaMode = deltaMode;
         Unit = unit;
+        Goal = goal;
+        Noise = noise;
         IsReferenceTypeCell = isReferenceTypeCell;
         MultiSourceLabelHeader = multiSourceLabelHeader;
     }
@@ -341,6 +347,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                SectionEmptyText == other.SectionEmptyText &&
                DeltaMode == other.DeltaMode &&
                Unit == other.Unit &&
+               Goal == other.Goal &&
+               Noise.Equals(other.Noise) &&
                IsReferenceTypeCell == other.IsReferenceTypeCell &&
                MultiSourceLabelHeader == other.MultiSourceLabelHeader &&
                SequenceEqual(ElementProperties, other.ElementProperties);
@@ -381,6 +389,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (SectionEmptyText?.GetHashCode() ?? 0);
             hash = hash * 397 ^ (int)DeltaMode;
             hash = hash * 397 ^ (Unit?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ (int)Goal;
+            hash = hash * 397 ^ Noise.GetHashCode();
             hash = hash * 397 ^ IsReferenceTypeCell.GetHashCode();
             hash = hash * 397 ^ (MultiSourceLabelHeader?.GetHashCode() ?? 0);
             return hash;
@@ -497,4 +507,14 @@ internal enum MarkoutDeltaKind
     None = 0,
     Percent = 1,
     Absolute = 2
+}
+
+/// <summary>
+/// Internal representation of Markout.Goal. Values mirror the runtime enum.
+/// </summary>
+internal enum MarkoutGoalKind
+{
+    Context = 0,
+    Higher = 1,
+    Lower = 2
 }

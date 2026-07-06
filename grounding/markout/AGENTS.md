@@ -72,6 +72,14 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
 - `Change<V>` — a `before → after` change (NOT `Comparison`, which collides with `System.Comparison<T>`).
   `[MarkoutDelta(Delta.Percent)]` on a numeric `Change<V>` appends the signed change, e.g.
   `98555 → 61190 (−38%)`; `Delta.Absolute` appends the signed difference.
+  `[MarkoutGoal(Goal.Higher)]` / `[MarkoutGoal(Goal.Lower)]` on a numeric `Change<V>` makes Markout
+  derive two decomposed fields — a structural `direction`
+  (`increased`/`decreased`/`introduced` (0→N)/`resolved` (N→0)/`unchanged`) and a goal-applied polarity
+  `status` (`good`/`bad`/`neutral`) — instead of the caller hand-coding ceiling/floor/drift. Optional
+  noise, `[MarkoutGoal(Goal.Higher, 0.001)]`, treats sub-threshold movement as `unchanged`. `Goal.Context`
+  (default) derives nothing. Composite `Change<Share|Percent|Fraction>` also derive `direction`/`status`
+  from a single comparable magnitude (`Share` → raw `Value`; `Percent`/`Fraction` → their ratio);
+  `Change<Segments>` has no single magnitude, so it derives nothing.
 - `Fraction(count, total)` → `24/24`; `Share(value, whole)` → `5056 (24%)`
   (`[MarkoutUnit("s")]` → `103s (93%)`); `Percent(part, whole)` → `93%`;
   `Segments(new Segment(label, value), ...)` → `21/171/236` (labels become column names).
@@ -91,9 +99,11 @@ flat typed JSONL/TSV — with no imperative writer calls:
 - `List<MetricChange<T>>` — a gated scalar metric per row. `MetricChange<T>(Name, Before, After,
   Target? = null, TargetLabel? = null, Status = GateStatus.Unknown, StatusLabel? = null)` where
   `T : struct`. Markdown = `Metric | Change | Target | Status`; JSONL = flat `before`/`after`/optional
-  `target`/`target_label`/`status`. `Status` is caller-supplied (Markout never derives it). `T` must be
-  a numeric scalar (int/long/double/decimal/...); a composite `T` (e.g. `Segments`) is a compile error
-  (`MARKOUT005`).
+  `target`/`target_label`/`status`. `Status` is caller-supplied. Set `{ Goal = Goal.Higher|Lower }`
+  (init property; optionally `Noise`) to derive the `direction`/`status` axes from `Before → After` —
+  the derived polarity fills the `Status` column and a `direction` field, and a caller-supplied `Status`
+  still overrides it. `T` must be a numeric scalar (int/long/double/decimal/...); a composite `T` (e.g.
+  `Segments`) is a compile error (`MARKOUT005`).
 - `[MarkoutSection(Name = "...", IncludeSectionInStructuredRows = true)]` on a `List<MetricChange<T>>`
   or `List<MultiSourceRow>` section prepends a leading `section` column (the section name) to TSV/JSONL
   rows — for multiplexing several sectioned card shapes into one structured stream. Markdown is unchanged.

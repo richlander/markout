@@ -6,8 +6,12 @@ namespace Markout;
 /// </summary>
 /// <param name="Count">The numerator.</param>
 /// <param name="Total">The denominator.</param>
-public readonly record struct Fraction(double Count, double Total) : IMarkoutCell
+public readonly record struct Fraction(double Count, double Total) : IMarkoutCell, IGoalMagnitude
 {
+    /// <summary>The count-over-total rate drives goal derivation (not the raw count); an undefined rate
+    /// (zero total) yields <see cref="double.NaN"/> so no direction is derived.</summary>
+    double IGoalMagnitude.GoalMagnitude => Total == 0 ? double.NaN : Count / Total;
+
     /// <inheritdoc/>
     public void FormatInline(TextWriter writer, in MarkoutCellFormat format)
     {

@@ -155,13 +155,21 @@ public readonly record struct Slice(string Category, int Count);
 public readonly record struct Breakdown(string Label, Slice[] Slices);
 
 // Composite cells — data-only cells that render densely and decompose into typed columns.
-// The type picks the rendering; [MarkoutDelta]/[MarkoutUnit] configure derivation/format.
+// The type picks the rendering; [MarkoutDelta]/[MarkoutUnit]/[MarkoutGoal] configure derivation/format.
 public readonly record struct Change<V>(V Before, V After);        // before → after (+ derived delta)
 public readonly record struct Fraction(double Count, double Total); // 24/24
 public readonly record struct Share(double Value, double Whole);    // 5056 (24%)
 public readonly record struct Percent(double Part, double Whole);   // 93%
 public readonly record struct Segment(string Label, double Value);
 public readonly record struct Segments(params Segment[] Parts);     // 21/171/236
+
+// Goal-aware derivation — [MarkoutGoal] (or a Goal on MetricChange<T>/MarkoutCellFormat) derives a
+// structural Direction and a goal-applied GateStatus polarity from a numeric Change<V>, as separate
+// direction/status fields. A caller-supplied Status overrides the derived polarity. Composite
+// Change<Share|Percent|Fraction> derive from IGoalMagnitude (Share→Value, Percent/Fraction→ratio).
+public enum Goal { Context, Higher, Lower }                         // which direction is "good"
+public enum Direction { Unchanged, Increased, Decreased, Introduced, Resolved }; // structural, goal-neutral
+public interface IGoalMagnitude { double GoalMagnitude { get; } }   // composite cell's comparable magnitude
 
 // Card shapes — list-shapes that render as multi-format cards (Markdown table + typed JSONL/TSV).
 public readonly record struct MetricChange<T>(string Name, T Before, T After,

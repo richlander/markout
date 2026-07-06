@@ -7,8 +7,11 @@ namespace Markout;
 /// </summary>
 /// <param name="Value">The value shown before the derived percent.</param>
 /// <param name="Whole">The whole the value is a share of. A zero renders the placeholder.</param>
-public readonly record struct Share(double Value, double Whole) : IMarkoutCell
+public readonly record struct Share(double Value, double Whole) : IMarkoutCell, IGoalMagnitude
 {
+    /// <summary>The raw value drives goal derivation (the share percent is secondary context).</summary>
+    double IGoalMagnitude.GoalMagnitude => Value;
+
     /// <inheritdoc/>
     public void FormatInline(TextWriter writer, in MarkoutCellFormat format)
     {

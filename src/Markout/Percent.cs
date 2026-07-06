@@ -7,8 +7,12 @@ namespace Markout;
 /// </summary>
 /// <param name="Part">The part.</param>
 /// <param name="Whole">The whole. A zero renders the placeholder.</param>
-public readonly record struct Percent(double Part, double Whole) : IMarkoutCell
+public readonly record struct Percent(double Part, double Whole) : IMarkoutCell, IGoalMagnitude
 {
+    /// <summary>The part-over-whole ratio drives goal derivation; an undefined ratio (zero whole,
+    /// which renders as the placeholder) yields <see cref="double.NaN"/> so no direction is derived.</summary>
+    double IGoalMagnitude.GoalMagnitude => Whole == 0 ? double.NaN : Part / Whole;
+
     /// <inheritdoc/>
     public void FormatInline(TextWriter writer, in MarkoutCellFormat format)
         => writer.Write(Whole == 0 ? CellText.Placeholder : CellText.Percent(Part / Whole * 100));
