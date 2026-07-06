@@ -27,6 +27,29 @@ public partial class GoalAttrCardContext : MarkoutSerializerContext
 {
 }
 
+// Table-column path: a [MarkoutGoal] Change<T> as a column of a generated element table.
+public class GoalTableRow
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutGoal(Goal.Lower)]
+    public Change<int> Failures { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class GoalTableCard
+{
+    [MarkoutIgnore] public string Title => "Goal table";
+
+    [MarkoutSection(Name = "Rows")]
+    public List<GoalTableRow> Rows { get; set; } = new();
+}
+
+[MarkoutContext(typeof(GoalTableCard))]
+public partial class GoalTableCardContext : MarkoutSerializerContext
+{
+}
+
 public class GoalAwareCellTests
 {
     private static List<MarkoutField> Decompose(IMarkoutCell cell, MarkoutCellFormat format)
@@ -394,5 +417,16 @@ public class GoalAwareCellTests
         var changed = records.First(e => e.GetProperty("field").GetString() == "Changed bodies");
         Assert.False(changed.TryGetProperty("direction", out _));
         Assert.False(changed.TryGetProperty("status", out _));
+    }
+
+    [Fact]
+    public void Generated_MarkoutGoal_TableColumn_RendersInlineWord()
+    {
+        // A [MarkoutGoal] Change<T> rendered as a generated element-table column must also carry
+        // the dense goal word (the table-cell path, not just the composite-card path).
+        var card = new GoalTableCard { Rows = [new GoalTableRow { Name = "raise", Failures = new(0, 7) }] };
+        var md = MarkoutSerializer.Serialize(card, GoalTableCardContext.Default);
+
+        Assert.Contains("0 \u2192 7 (bad)", md);
     }
 }

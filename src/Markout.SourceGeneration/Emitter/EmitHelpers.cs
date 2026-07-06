@@ -134,7 +134,7 @@ internal static class EmitHelpers
     {
         // Composite cell in a table column renders its dense form (no per-column decomposition).
         if (prop.Kind == PropertyKind.CompositeCell)
-            return $"global::Markout.MarkoutCell.ToInlineString({propAccess}, {DeltaLiteral(prop)}, {UnitLiteral(prop)})";
+            return $"global::Markout.MarkoutCell.ToInlineString({propAccess}, new global::Markout.MarkoutCellFormat({DeltaLiteral(prop)}, {UnitLiteral(prop)}) {{ Goal = {GoalLiteral(prop)}, Noise = {NoiseLiteral(prop)} }})";
 
         if (prop.IsNullableValueType)
         {
