@@ -79,7 +79,8 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
   noise, `[MarkoutGoal(Goal.Higher, 0.001)]`, treats sub-threshold movement as `unchanged`. `Goal.Context`
   (default) derives nothing. Composite `Change<Share|Percent|Fraction>` also derive `direction`/`status`
   from a single comparable magnitude (`Share` → raw `Value`; `Percent`/`Fraction` → their ratio);
-  `Change<Segments>` has no single magnitude, so it derives nothing.
+  `Change<Segments>` has no single magnitude, so it derives nothing. In dense Markdown the polarity word
+  renders inline, merged with any delta suffix into one group: `0 → 7 (bad)`, `98555 → 61190 (−38%, good)`.
 - `Fraction(count, total)` → `24/24`; `Share(value, whole)` → `5056 (24%)`
   (`[MarkoutUnit("s")]` → `103s (93%)`); `Percent(part, whole)` → `93%`;
   `Segments(new Segment(label, value), ...)` → `21/171/236` (labels become column names).
@@ -98,12 +99,15 @@ flat typed JSONL/TSV — with no imperative writer calls:
 
 - `List<MetricChange<T>>` — a gated scalar metric per row. `MetricChange<T>(Name, Before, After,
   Target? = null, TargetLabel? = null, Status = GateStatus.Unknown, StatusLabel? = null)` where
-  `T : struct`. Markdown = `Metric | Change | Target | Status`; JSONL = flat `before`/`after`/optional
-  `target`/`target_label`/`status`. `Status` is caller-supplied. Set `{ Goal = Goal.Higher|Lower }`
-  (init property; optionally `Noise`) to derive the `direction`/`status` axes from `Before → After` —
-  the derived polarity fills the `Status` column and a `direction` field, and a caller-supplied `Status`
-  still overrides it. `T` must be a numeric scalar (int/long/double/decimal/...); a composite `T` (e.g.
-  `Segments`) is a compile error (`MARKOUT005`).
+  `T : struct`. Set `{ Goal = Goal.Higher|Lower }` (init property; optionally `Noise`) to derive the
+  `direction`/`status` axes from `Before → After`; a caller-supplied `Status` overrides the derived
+  polarity. **Dense Markdown (default):** `Metric | Change | Target` with the status word inlined
+  (`0 → 7 (bad)` — caller `StatusLabel` wins over the slug) and a goal marker on the label
+  (`Failures (-)` / `Fully raised (+)`); the `Status` column is dropped. Set
+  `MarkoutWriterOptions.InlineGoalStatus = false` for the legacy `Metric | Change | Target | Status`.
+  JSONL/TSV are unaffected: flat `before`/`after`/optional `target`/`target_label`/`direction`/`status`.
+  `T` must be a numeric scalar (int/long/double/decimal/...); a composite `T` (e.g. `Segments`) is a
+  compile error (`MARKOUT005`).
 - `[MarkoutSection(Name = "...", IncludeSectionInStructuredRows = true)]` on a `List<MetricChange<T>>`
   or `List<MultiSourceRow>` section prepends a leading `section` column (the section name) to TSV/JSONL
   rows — for multiplexing several sectioned card shapes into one structured stream. Markdown is unchanged.

@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.19.0</Version>
-    <PackageReleaseNotes>Goal-aware cells: [MarkoutGoal(Goal.Higher|Lower)] on a numeric Change&lt;T&gt; property (and a Goal on MetricChange&lt;T&gt; / MarkoutCellFormat for runtime rows) makes Markout derive a structural "direction" (increased/decreased/introduced/resolved/unchanged) and a goal-applied polarity "status" (good/bad/neutral), replacing hand-coded ceiling/floor/drift helpers. The two axes decompose as separate direction/status fields; a caller-supplied Status still overrides the derived polarity. An optional noise tolerance treats sub-threshold movement as unchanged. Goal.Context (default) leaves behavior unchanged.</PackageReleaseNotes>
+    <Version>0.20.0</Version>
+    <PackageReleaseNotes>Goal-aware dense Markdown rendering: a MetricChange&lt;T&gt; table now inlines the status word into the Change cell (0 → 7 (bad)), appends a goal marker to the metric label ((-) for Goal.Lower, (+) for Goal.Higher), and drops the separate Status column; a caller StatusLabel stays the inline word. [MarkoutGoal] Change&lt;T&gt; properties (scalar and composite Share/Percent/Fraction) render the same inline word, merged with any [MarkoutDelta] suffix into one group (0 → 7 (+40%, bad)). Set MarkoutWriterOptions.InlineGoalStatus = false to keep the legacy Metric | Change | Target | Status layout. Structured (TSV/JSONL) output is unchanged (separate direction/status fields).</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

@@ -21,6 +21,20 @@ public static class MarkoutCell
         cell.FormatInline(sw, new MarkoutCellFormat(delta, unit));
         return sw.ToString();
     }
+
+    /// <summary>
+    /// Renders a cell's dense inline form using a full <see cref="MarkoutCellFormat"/> (carrying
+    /// <see cref="MarkoutCellFormat.Goal"/>/<see cref="MarkoutCellFormat.Noise"/> in addition to delta/unit),
+    /// so goal-aware status words render in generated table columns as well as composite-card rows.
+    /// </summary>
+    public static string ToInlineString(IMarkoutCell? cell, in MarkoutCellFormat format)
+    {
+        if (cell is null)
+            return string.Empty;
+        var sw = new StringWriter();
+        cell.FormatInline(sw, format);
+        return sw.ToString();
+    }
 }
 
 /// <summary>

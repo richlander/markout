@@ -27,6 +27,29 @@ public partial class GoalAttrCardContext : MarkoutSerializerContext
 {
 }
 
+// Table-column path: a [MarkoutGoal] Change<T> as a column of a generated element table.
+public class GoalTableRow
+{
+    public string Name { get; set; } = "";
+
+    [MarkoutGoal(Goal.Lower)]
+    public Change<int> Failures { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class GoalTableCard
+{
+    [MarkoutIgnore] public string Title => "Goal table";
+
+    [MarkoutSection(Name = "Rows")]
+    public List<GoalTableRow> Rows { get; set; } = new();
+}
+
+[MarkoutContext(typeof(GoalTableCard))]
+public partial class GoalTableCardContext : MarkoutSerializerContext
+{
+}
+
 public class GoalAwareCellTests
 {
     private static List<MarkoutField> Decompose(IMarkoutCell cell, MarkoutCellFormat format)
@@ -34,6 +57,62 @@ public class GoalAwareCellTests
         var fields = new List<MarkoutField>();
         cell.Decompose(fields, null, format);
         return fields;
+    }
+
+    private static string Inline(IMarkoutCell cell, MarkoutCellFormat format)
+    {
+        var sw = new StringWriter();
+        cell.FormatInline(sw, format);
+        return sw.ToString();
+    }
+
+    // --- Dense inline rendering (Change<V>.FormatInline) ---
+
+    [Fact]
+    public void Change_FormatInline_AppendsGoalStatusWord()
+    {
+        Assert.Equal("10 \u2192 3 (good)", Inline(new Change<long>(10, 3), new MarkoutCellFormat { Goal = Goal.Lower }));
+        Assert.Equal("10 \u2192 3 (bad)", Inline(new Change<long>(10, 3), new MarkoutCellFormat { Goal = Goal.Higher }));
+        Assert.Equal("5 \u2192 5 (neutral)", Inline(new Change<long>(5, 5), new MarkoutCellFormat { Goal = Goal.Higher }));
+    }
+
+    [Fact]
+    public void Change_FormatInline_MergesDeltaAndGoalIntoSingleParen()
+    {
+        Assert.Equal("10 \u2192 3 (-7, good)", Inline(new Change<long>(10, 3), new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower }));
+    }
+
+    [Fact]
+    public void Change_FormatInline_ContextGoal_LeavesRenderingUnchanged()
+    {
+        Assert.Equal("10 \u2192 3", Inline(new Change<long>(10, 3), new MarkoutCellFormat { Goal = Goal.Context }));
+        Assert.Equal("10 \u2192 3 (-7)", Inline(new Change<long>(10, 3), new MarkoutCellFormat(Delta.Absolute)));
+    }
+
+    [Fact]
+    public void Change_FormatInline_Composite_AppendsGoalStatusWord()
+    {
+        // Share magnitude = raw Value: 5056 -> 3129 decreased, Lower -> good.
+        var s = Inline(new Change<Share>(new Share(5056, 21067), new Share(3129, 13037)),
+            new MarkoutCellFormat { Goal = Goal.Lower });
+        Assert.StartsWith("5056", s);
+        Assert.EndsWith(" (good)", s);
+    }
+
+    [Fact]
+    public void MultiSourceRow_CompositeCell_RendersGoalWordInPivotedMarkdown()
+    {
+        var rows = new[]
+        {
+            new MultiSourceRow("output tok",
+                new Source("opus", new Change<Share>(new Share(5056, 21067), new Share(3129, 13037)),
+                    new MarkoutCellFormat { Goal = Goal.Lower })),
+        };
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Metric", rows);
+        var md = writer.ToString();
+
+        Assert.Contains("(good)", md);
     }
 
     // --- Direct-cell derivation matrix (structural direction × goal-applied polarity) ---
@@ -102,20 +181,38 @@ public class GoalAwareCellTests
     // --- MetricChange<T> runtime path ---
 
     [Fact]
-    public void MetricChange_Goal_DerivesStatusInMarkdownColumn()
+    public void MetricChange_Goal_RendersDenseMarkdown_MarkerAndInlineStatus()
     {
         var writer = new MarkoutWriter(new MarkdownFormatter());
         writer.WriteMetricChangeTable(new[]
         {
             new MetricChange<int>("Failures", 0, 7) { Goal = Goal.Lower },
             new MetricChange<int>("Fully raised", 40, 55) { Goal = Goal.Higher },
-            new MetricChange<int>("Changed bodies", 45, 46), // Context -> no derived status
+            new MetricChange<int>("Changed bodies", 45, 46), // Context -> no marker, no status
+        });
+        var md = writer.ToString();
+
+        // Goal marker on the label; derived polarity inline in the Change cell; no Status column.
+        Assert.Contains("| Metric | Change | Target |", md);
+        Assert.Contains("| Failures (-) | 0 \u2192 7 (bad) | - |", md);
+        Assert.Contains("| Fully raised (+) | 40 \u2192 55 (good) | - |", md);
+        Assert.Contains("| Changed bodies | 45 \u2192 46 | - |", md);
+    }
+
+    [Fact]
+    public void MetricChange_Goal_InlineDisabled_DerivedStatusInLegacyColumn()
+    {
+        var writer = new MarkoutWriter(new MarkdownFormatter(),
+            new MarkoutWriterOptions { InlineGoalStatus = false });
+        writer.WriteMetricChangeTable(new[]
+        {
+            new MetricChange<int>("Failures", 0, 7) { Goal = Goal.Lower },
+            new MetricChange<int>("Fully raised", 40, 55) { Goal = Goal.Higher },
         });
         var md = writer.ToString();
 
         Assert.Contains("| Failures | 0 \u2192 7 | - | bad |", md);
         Assert.Contains("| Fully raised | 40 \u2192 55 | - | good |", md);
-        Assert.Contains("| Changed bodies | 45 \u2192 46 | - | - |", md);
     }
 
     [Fact]
@@ -320,5 +417,31 @@ public class GoalAwareCellTests
         var changed = records.First(e => e.GetProperty("field").GetString() == "Changed bodies");
         Assert.False(changed.TryGetProperty("direction", out _));
         Assert.False(changed.TryGetProperty("status", out _));
+    }
+
+    [Fact]
+    public void Generated_MarkoutGoal_TableColumn_RendersInlineWord()
+    {
+        // A [MarkoutGoal] Change<T> rendered as a generated element-table column must also carry
+        // the dense goal word (the table-cell path, not just the composite-card path).
+        var card = new GoalTableCard { Rows = [new GoalTableRow { Name = "raise", Failures = new(0, 7) }] };
+        var md = MarkoutSerializer.Serialize(card, GoalTableCardContext.Default);
+
+        Assert.Contains("0 \u2192 7 (bad)", md);
+    }
+
+    [Fact]
+    public void Generated_MarkoutGoal_CardProperty_RendersInlineWord()
+    {
+        // The composite-card (field-layout) path also renders the dense goal word in Markdown.
+        var card = new GoalAttrCard
+        {
+            Failures = new(0, 7),       // Lower: introduced -> bad
+            FullyRaised = new(40, 55),  // Higher: increased -> good
+        };
+        var md = MarkoutSerializer.Serialize(card, GoalAttrCardContext.Default);
+
+        Assert.Contains("0 \u2192 7 (bad)", md);
+        Assert.Contains("40 \u2192 55 (good)", md);
     }
 }

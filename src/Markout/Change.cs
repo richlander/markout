@@ -21,6 +21,12 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
             (Before as IMarkoutCell)?.FormatInline(writer, format);
             writer.Write(CellText.Arrow);
             (After as IMarkoutCell)?.FormatInline(writer, format);
+
+            // Composite cells (e.g. Change<Share>) append the goal status word densely, deriving from
+            // the shape's comparable magnitude (matching the structured direction/status).
+            if (format.Goal != Goal.Context && Before is IGoalMagnitude beforeMag && After is IGoalMagnitude afterMag &&
+                GoalDerivation.TryDerive(beforeMag.GoalMagnitude, afterMag.GoalMagnitude, format.Goal, format.Noise, out _, out var compositeStatus))
+                WriteParenGroup(writer, null, GateStatusText.Slug(compositeStatus));
             return;
         }
 
@@ -28,11 +34,28 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         writer.Write(CellText.Arrow);
         writer.Write(CellText.Scalar(After));
 
-        if (format.Delta == Delta.None)
-            return;
+        // Merge an optional derived-change suffix and an optional goal status word into a single
+        // parenthetical: "(+40%)", "(bad)", or "(+40%, bad)".
+        var deltaPart = format.Delta == Delta.None ? null : DeltaSuffix(format.Delta);
+        string? statusPart = null;
+        if (format.Goal != Goal.Context &&
+            GoalDerivation.TryDerive(Before, After, format.Goal, format.Noise, out _, out var status))
+            statusPart = GateStatusText.Slug(status);
 
+        WriteParenGroup(writer, deltaPart, statusPart);
+    }
+
+    private static void WriteParenGroup(TextWriter writer, string? first, string? second)
+    {
+        if (first is null && second is null)
+            return;
         writer.Write(" (");
-        writer.Write(DeltaSuffix(format.Delta));
+        if (first is not null)
+            writer.Write(first);
+        if (first is not null && second is not null)
+            writer.Write(", ");
+        if (second is not null)
+            writer.Write(second);
         writer.Write(')');
     }
 

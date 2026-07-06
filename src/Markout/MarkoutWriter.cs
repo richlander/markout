@@ -759,11 +759,43 @@ public class MarkoutWriter
         if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
             return WriteDecomposedMetricChangeTable(rows, structuredSection);
 
+        if (_options.InlineGoalStatus)
+        {
+            var denseRows = new List<string[]>(rows.Count);
+            foreach (var metric in rows)
+                denseRows.Add([MetricLabelText(metric), DenseChangeText(metric), TargetText(metric)]);
+
+            return WriteTable(["Metric", "Change", "Target"], denseRows);
+        }
+
         var outRows = new List<string[]>(rows.Count);
         foreach (var metric in rows)
             outRows.Add([metric.Name, ChangeText(metric), TargetText(metric), StatusText(metric)]);
 
         return WriteTable(["Metric", "Change", "Target", "Status"], outRows);
+    }
+
+    /// <summary>The metric label with a goal marker appended: <c>(-)</c> for <see cref="Goal.Lower"/>,
+    /// <c>(+)</c> for <see cref="Goal.Higher"/>, nothing for <see cref="Goal.Context"/>.</summary>
+    private static string MetricLabelText<T>(in MetricChange<T> metric) where T : struct
+    {
+        var marker = metric.Goal switch
+        {
+            Goal.Lower => " (-)",
+            Goal.Higher => " (+)",
+            _ => ""
+        };
+        return metric.Name + marker;
+    }
+
+    /// <summary>The Change cell with the status word inlined: <c>0 → 7 (bad)</c>. The word is the
+    /// caller <see cref="MetricChange{T}.StatusLabel"/>, else the caller/derived polarity slug; when
+    /// there is no status (an ungated, un-annotated row) only the bare change renders.</summary>
+    private static string DenseChangeText<T>(in MetricChange<T> metric) where T : struct
+    {
+        var change = MarkoutCell.ToInlineString(new Change<T>(metric.Before, metric.After));
+        var (_, status) = Resolve(metric);
+        return status is null ? change : change + " (" + status + ")";
     }
 
     private bool WriteDecomposedMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows, string? structuredSection) where T : struct
