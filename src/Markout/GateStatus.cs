@@ -26,3 +26,16 @@ public enum GateStatus
     /// <summary>A negative outcome (regression / violation / failure).</summary>
     Bad
 }
+
+/// <summary>Shared slug text for <see cref="GateStatus"/> polarity values.</summary>
+internal static class GateStatusText
+{
+    public static string Slug(GateStatus status) => status switch
+    {
+        GateStatus.Good => "good",
+        GateStatus.Neutral => "neutral",
+        GateStatus.Warning => "warning",
+        GateStatus.Bad => "bad",
+        _ => "unknown"
+    };
+}

@@ -595,18 +595,39 @@ public class MarkoutWriter
         }
 
         var keyOrder = new List<string>();
-        var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        var seenKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var role in roleOrder)
             foreach (var tagged in perRow)
                 foreach (var (owner, fields) in tagged)
                     if (owner == role)
                         foreach (var field in fields)
-                            if (keyIndex.TryAdd(field.Key, keyOrder.Count))
+                            if (seenKeys.Add(field.Key))
                                 keyOrder.Add(field.Key);
 
-        // Leading identity column (from labelHeader) + one column per union key. Stable header
-        // names are snake-cased and de-duped, mirroring WriteDecomposedCompositeTable, because
-        // TableWriter re-applies ToSnakeCase to header keys for TSV/JSONL.
+        // Flatten the role-tagged fields into one list per row for the shared emitter.
+        var perRowFlat = new List<MarkoutField>[perRow.Length];
+        for (int r = 0; r < perRow.Length; r++)
+        {
+            var flat = new List<MarkoutField>();
+            foreach (var (_, fields) in perRow[r])
+                flat.AddRange(fields);
+            perRowFlat[r] = flat;
+        }
+
+        return WriteDecomposedFieldTable(labelHeader, labels, perRowFlat, keyOrder);
+    }
+
+    // Shared emitter for flat decomposed record tables (multi-source, metric-change): a leading
+    // identity column (from labelHeader) plus one column per key in keyOrder. Stable header names
+    // are snake-cased and de-duped because TableWriter re-applies ToSnakeCase to header keys for
+    // TSV/JSONL; the leading identity column stays a JSON string.
+    private bool WriteDecomposedFieldTable(
+        string labelHeader, IReadOnlyList<string> labels, IReadOnlyList<List<MarkoutField>> perRowFields, IReadOnlyList<string> keyOrder)
+    {
+        var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < keyOrder.Count; i++)
+            keyIndex[keyOrder[i]] = i;
+
         var headers = new string[keyOrder.Count + 1];
         var headerNames = new string[keyOrder.Count + 1];
         headers[0] = labelHeader;
@@ -632,16 +653,16 @@ public class MarkoutWriter
             headerNames[i + 1] = stable;
         }
 
-        var outRows = new List<string[]>(perRow.Length);
-        for (int r = 0; r < perRow.Length; r++)
+        var outRows = new List<string[]>(perRowFields.Count);
+        for (int r = 0; r < perRowFields.Count; r++)
         {
             var values = new string[keyOrder.Count + 1];
             values[0] = labels[r];
             for (int i = 1; i < values.Length; i++)
                 values[i] = "";
-            foreach (var (_, fields) in perRow[r])
-                foreach (var field in fields)
-                    values[keyIndex[field.Key] + 1] = field.Value;
+            foreach (var field in perRowFields[r])
+                if (keyIndex.TryGetValue(field.Key, out var idx))
+                    values[idx + 1] = field.Value;
             outRows.Add(values);
         }
 
@@ -654,6 +675,81 @@ public class MarkoutWriter
         {
             _pendingJsonIdentityColumns = 0;
         }
+    }
+
+    /// <summary>
+    /// Writes a gated-metric table from <see cref="MetricChange{T}"/> rows: document formatters
+    /// render fixed <c>Metric | Change | Target | Status</c> columns; decomposing formatters
+    /// (TSV/JSONL) emit flat typed fields (<c>before</c>, <c>after</c>, optional <c>target</c>/
+    /// <c>target_label</c>, <c>status</c>). Absent targets render <c>-</c> and are omitted from
+    /// structured output.
+    /// </summary>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteMetricChangeTable<T>(params ReadOnlySpan<MetricChange<T>> rows) where T : struct
+    {
+        if (_sectionExcluded || rows.Length == 0)
+            return true;
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
+        if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
+            return WriteDecomposedMetricChangeTable(rows);
+
+        var outRows = new List<string[]>(rows.Length);
+        foreach (var metric in rows)
+            outRows.Add([metric.Name, ChangeText(metric), TargetText(metric), StatusText(metric)]);
+
+        return WriteTable(["Metric", "Change", "Target", "Status"], outRows);
+    }
+
+    private bool WriteDecomposedMetricChangeTable<T>(ReadOnlySpan<MetricChange<T>> rows) where T : struct
+    {
+        var labels = new string[rows.Length];
+        var perRow = new List<MarkoutField>[rows.Length];
+        var keyOrder = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        for (int r = 0; r < rows.Length; r++)
+        {
+            var metric = rows[r];
+            labels[r] = metric.Name;
+            var fields = new List<MarkoutField>();
+            new Change<T>(metric.Before, metric.After).Decompose(fields, null, default);
+            if (metric.Target is not null)
+            {
+                fields.Add(new MarkoutField("target", CellText.Scalar(metric.Target.Value)));
+                if (!string.IsNullOrEmpty(metric.TargetLabel))
+                    fields.Add(new MarkoutField("targetLabel", metric.TargetLabel!));
+            }
+            if (metric.Status != GateStatus.Unknown || !string.IsNullOrEmpty(metric.StatusLabel))
+                fields.Add(new MarkoutField("status", StatusText(metric)));
+
+            perRow[r] = fields;
+            foreach (var field in fields)
+                if (seen.Add(field.Key))
+                    keyOrder.Add(field.Key);
+        }
+
+        return WriteDecomposedFieldTable("Metric", labels, perRow, keyOrder);
+    }
+
+    private static string ChangeText<T>(in MetricChange<T> metric) where T : struct
+        => MarkoutCell.ToInlineString(new Change<T>(metric.Before, metric.After));
+
+    private static string TargetText<T>(in MetricChange<T> metric) where T : struct
+    {
+        if (metric.Target is null)
+            return "-";
+        var value = CellText.Scalar(metric.Target.Value);
+        return string.IsNullOrEmpty(metric.TargetLabel) ? value : metric.TargetLabel + ": " + value;
+    }
+
+    private static string StatusText<T>(in MetricChange<T> metric) where T : struct
+    {
+        if (!string.IsNullOrEmpty(metric.StatusLabel))
+            return metric.StatusLabel!;
+        return metric.Status == GateStatus.Unknown ? "-" : GateStatusText.Slug(metric.Status);
     }
 
     /// <summary>
