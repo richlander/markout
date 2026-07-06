@@ -54,7 +54,7 @@ public class GoalAwareCellTests
     [InlineData(5, 5, "higher", "unchanged", "neutral")]
     public void Change_WithGoal_DerivesDirectionAndPolarity(int before, int after, string goal, string direction, string status)
     {
-        var format = new MarkoutCellFormat(Goal: goal == "lower" ? Goal.Lower : Goal.Higher);
+        var format = new MarkoutCellFormat { Goal = goal == "lower" ? Goal.Lower : Goal.Higher };
         var fields = Decompose(new Change<long>(before, after), format);
 
         Assert.Equal(direction, fields.Single(f => f.Key == "direction").Value);
@@ -64,7 +64,7 @@ public class GoalAwareCellTests
     [Fact]
     public void Change_ContextGoal_EmitsNeitherDirectionNorStatus()
     {
-        var fields = Decompose(new Change<long>(45, 46), new MarkoutCellFormat(Goal: Goal.Context));
+        var fields = Decompose(new Change<long>(45, 46), new MarkoutCellFormat { Goal = Goal.Context });
         Assert.DoesNotContain(fields, f => f.Key is "direction" or "status");
     }
 
@@ -72,7 +72,7 @@ public class GoalAwareCellTests
     public void Change_NoiseTolerance_ClassifiesSubThresholdAsUnchanged()
     {
         // 87.30% -> 87.31% with a 0.001 tolerance is within noise -> unchanged/neutral.
-        var format = new MarkoutCellFormat(Goal: Goal.Higher, Noise: 0.001);
+        var format = new MarkoutCellFormat { Goal = Goal.Higher, Noise = 0.001 };
         var fields = Decompose(new Change<double>(0.8730, 0.8731), format);
 
         Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
@@ -82,7 +82,7 @@ public class GoalAwareCellTests
     [Fact]
     public void Change_GoalAndDelta_EmitBothDerivedAxesAndDelta()
     {
-        var format = new MarkoutCellFormat(Delta.Absolute, Goal: Goal.Lower);
+        var format = new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower };
         var fields = Decompose(new Change<long>(10, 3), format);
 
         Assert.Equal("10", fields[0].Value); // before
