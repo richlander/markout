@@ -493,6 +493,170 @@ public class MarkoutWriter
     }
 
     /// <summary>
+    /// Writes a multi-source pivot table: each <see cref="MultiSourceRow"/> carries named-role
+    /// cells. Formatters that decompose composites (<see cref="Formatting.ICompositeCellFormatter"/>,
+    /// i.e. TSV/JSONL) emit one flat record per row with <c>{role}_{field}</c> columns (each cell
+    /// decomposed with its role as the side); all others render a wide table with one column per
+    /// role — caller-supplied role order (first appearance across rows), a role absent from a row
+    /// rendered as <c>-</c>, and each cell the dense render of that role's value.
+    /// </summary>
+    /// <param name="labelHeader">The header/identity-column name for the row labels.</param>
+    /// <param name="rows">The multi-source rows.</param>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteMultiSourceTable(string labelHeader, params ReadOnlySpan<MultiSourceRow> rows)
+    {
+        if (_sectionExcluded || rows.Length == 0)
+            return true;
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
+        // Column axis = roles in caller (first-appearance) order across the whole row collection.
+        var roleOrder = new List<string>();
+        var roleIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            if (row.Sources is null)
+                continue;
+            foreach (var source in row.Sources)
+                if (source.Role is not null && roleIndex.TryAdd(source.Role, roleOrder.Count))
+                    roleOrder.Add(source.Role);
+        }
+
+        if (roleOrder.Count == 0)
+            return true;
+
+        if (_formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true })
+            return WriteDecomposedMultiSourceTable(labelHeader, rows, roleOrder);
+
+        return WriteDenseMultiSourceTable(labelHeader, rows, roleOrder, roleIndex);
+    }
+
+    // Document formatters: one column per role; each cell the dense render of that role's value.
+    private bool WriteDenseMultiSourceTable(
+        string labelHeader, ReadOnlySpan<MultiSourceRow> rows, List<string> roleOrder, Dictionary<string, int> roleIndex)
+    {
+        var headers = new string[roleOrder.Count + 1];
+        headers[0] = labelHeader;
+        for (int i = 0; i < roleOrder.Count; i++)
+            headers[i + 1] = roleOrder[i];
+
+        var outRows = new List<string[]>(rows.Length);
+        foreach (var row in rows)
+        {
+            var values = new string[roleOrder.Count + 1];
+            values[0] = row.Label;
+            for (int i = 1; i < values.Length; i++)
+                values[i] = "-";
+
+            if (row.Sources is not null)
+            {
+                foreach (var source in row.Sources)
+                {
+                    if (source.Role is null || source.Value is null || !roleIndex.TryGetValue(source.Role, out var idx))
+                        continue;
+                    var sw = new StringWriter();
+                    source.Value.FormatInline(sw, source.Format);
+                    values[idx + 1] = sw.ToString();
+                }
+            }
+
+            outRows.Add(values);
+        }
+
+        return WriteTable(headers, outRows);
+    }
+
+    // Decomposing formatters (TSV/JSONL): one flat record per row, {role}_{field} columns.
+    private bool WriteDecomposedMultiSourceTable(
+        string labelHeader, ReadOnlySpan<MultiSourceRow> rows, List<string> roleOrder)
+    {
+        // Decompose each source with side = role, tagging fields with their owning role so the
+        // column union can be ordered role-major (caller role order), then field order within a role.
+        var perRow = new List<(string Role, List<MarkoutField> Fields)>[rows.Length];
+        var labels = new string[rows.Length];
+        for (int r = 0; r < rows.Length; r++)
+        {
+            var row = rows[r];
+            labels[r] = row.Label;
+            var tagged = new List<(string, List<MarkoutField>)>();
+            if (row.Sources is not null)
+            {
+                foreach (var source in row.Sources)
+                {
+                    if (source.Role is null || source.Value is null)
+                        continue;
+                    var fields = new List<MarkoutField>();
+                    source.Value.Decompose(fields, source.Role, source.Format);
+                    tagged.Add((source.Role, fields));
+                }
+            }
+            perRow[r] = tagged;
+        }
+
+        var keyOrder = new List<string>();
+        var keyIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var role in roleOrder)
+            foreach (var tagged in perRow)
+                foreach (var (owner, fields) in tagged)
+                    if (owner == role)
+                        foreach (var field in fields)
+                            if (keyIndex.TryAdd(field.Key, keyOrder.Count))
+                                keyOrder.Add(field.Key);
+
+        // Leading identity column (from labelHeader) + one column per union key. Stable header
+        // names are snake-cased and de-duped, mirroring WriteDecomposedCompositeTable, because
+        // TableWriter re-applies ToSnakeCase to header keys for TSV/JSONL.
+        var headers = new string[keyOrder.Count + 1];
+        var headerNames = new string[keyOrder.Count + 1];
+        headers[0] = labelHeader;
+        var labelKey = Formatting.FormatHelper.ToSnakeCase(labelHeader);
+        if (string.IsNullOrEmpty(labelKey))
+            labelKey = "field";
+        headerNames[0] = labelKey;
+        var usedStableKeys = new HashSet<string>(StringComparer.Ordinal) { labelKey };
+
+        for (int i = 0; i < keyOrder.Count; i++)
+        {
+            headers[i + 1] = keyOrder[i];
+            var stable = Formatting.FormatHelper.ToSnakeCase(keyOrder[i]);
+            if (string.IsNullOrEmpty(stable))
+                stable = "column";
+            if (!usedStableKeys.Add(stable))
+            {
+                int suffix = 2;
+                string candidate;
+                do { candidate = stable + "_" + suffix++; } while (!usedStableKeys.Add(candidate));
+                stable = candidate;
+            }
+            headerNames[i + 1] = stable;
+        }
+
+        var outRows = new List<string[]>(perRow.Length);
+        for (int r = 0; r < perRow.Length; r++)
+        {
+            var values = new string[keyOrder.Count + 1];
+            values[0] = labels[r];
+            for (int i = 1; i < values.Length; i++)
+                values[i] = "";
+            foreach (var (_, fields) in perRow[r])
+                foreach (var field in fields)
+                    values[keyIndex[field.Key] + 1] = field.Value;
+            outRows.Add(values);
+        }
+
+        _pendingJsonIdentityColumns = 1;
+        try
+        {
+            return WriteTable(headers, headerNames, outRows);
+        }
+        finally
+        {
+            _pendingJsonIdentityColumns = 0;
+        }
+    }
+
+    /// <summary>
     /// Writes a single bullet list item.
     /// </summary>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support lists.</returns>
