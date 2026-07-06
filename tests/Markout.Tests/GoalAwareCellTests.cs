@@ -572,12 +572,26 @@ public class GoalAwareCellTests
     }
 
     [Fact]
-    public void Change_DeltaNoun_IsMarkdownOnly_DecomposeUnaffected()
+    public void Change_DeltaNoun_DecomposesToCountAndNoun()
     {
+        // Delta-noun is now structured too (reconstructable contract): scalar count delta + the noun.
         var fields = Decompose(new Change<long>(4, 6), new MarkoutCellFormat { DeltaNoun = "solved" });
-        Assert.DoesNotContain(fields, f => f.Value.Contains("solved"));
         Assert.Equal("4", fields.Single(f => f.Key == "before").Value);
         Assert.Equal("6", fields.Single(f => f.Key == "after").Value);
+        Assert.Equal("2", fields.Single(f => f.Key == "deltaCount").Value);
+        Assert.Equal("solved", fields.Single(f => f.Key == "deltaNoun").Value);
+    }
+
+    [Fact]
+    public void Change_DeltaNoun_Fraction_DecomposesCountDeltaAndNoun()
+    {
+        // Composite delta-noun: count delta from IDeltaCountable + the noun, alongside the parts.
+        var fields = Decompose(new Change<Fraction>(new Fraction(4, 6), new Fraction(6, 6)),
+            new MarkoutCellFormat { DeltaNoun = "solved" });
+        Assert.Equal("4", fields.Single(f => f.Key == "before_count").Value);
+        Assert.Equal("6", fields.Single(f => f.Key == "after_count").Value);
+        Assert.Equal("2", fields.Single(f => f.Key == "deltaCount").Value);
+        Assert.Equal("solved", fields.Single(f => f.Key == "deltaNoun").Value);
     }
 
     // --- Attribute path (source generator) ---
