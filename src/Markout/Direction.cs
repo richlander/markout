@@ -120,10 +120,17 @@ internal static class GoalDerivation
         // b == 0 / a == 0 zero-crossing checks stay valid in double.
         if (CellText.TryExactDelta(before, after, out var exact))
         {
-            var tolerance = noise >= 0 ? noise : 0;   // NaN/negative -> exact, matching Classify
-            // Compare in the exact decimal domain so the tolerance boundary isn't rounded back to
-            // double. A tolerance beyond decimal range (incl. +Infinity) is always within tolerance.
-            direction = tolerance >= (double)decimal.MaxValue || Math.Abs(exact) <= ToleranceDecimal(tolerance)
+            var tol = noise >= 0 ? noise : 0;   // NaN/negative -> exact, matching Classify
+            var mag = Math.Abs(exact);
+            // For |delta| < 2^53 the delta is exactly representable as double, so the noise check is done
+            // in double — identical to Classify, and correct for any (even non-round) tolerance. For a
+            // larger delta the double subtraction would be lossy, so compare exactly in decimal; a
+            // tolerance large enough to include such a delta is necessarily an integer (doubles >= 2^52
+            // have no fractional part), which ToleranceDecimal reconstructs exactly.
+            bool within = mag < 9007199254740992m
+                ? (double)mag <= tol
+                : tol >= (double)decimal.MaxValue || mag <= ToleranceDecimal(tol);
+            direction = within
                 ? Direction.Unchanged
                 : ClassifyFromSign(Math.Sign(exact), b == 0, a == 0);
             status = Polarity(direction, goal);

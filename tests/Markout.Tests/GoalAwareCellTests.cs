@@ -278,6 +278,16 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactNoiseBand_SmallNonRoundTolerance()
+    {
+        // A small tolerance that is a double just below 2 must not round up to 2: delta 2 exceeds it.
+        var fields = Decompose(new Change<long>(0L, 2L),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 1.9999999999999998d });
+        Assert.Equal("introduced", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("good", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_GoalAndDelta_EmitBothDerivedAxesAndDelta()
     {
         var format = new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower };
