@@ -1,0 +1,7 @@
+# These fixture directories are eval test INPUTS, but their names collide with
+# the .NET build-output ignore patterns in the repo-root .gitignore
+# ([Rr]elease/ and **/[Pp]ackages/*). Force-track them here.
+!release/
+!release/**
+!packages/
+!packages/**

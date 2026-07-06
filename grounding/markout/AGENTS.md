@@ -27,7 +27,6 @@ public class Report
     public int Count { get; set; }
     [MarkoutSection(Name = "Items")]                    // -> "## Items" heading
     public List<Row>? Items { get; set; }              // List<T> -> a table
-    [MarkoutIgnoreInTable] public Callout Alert { get; set; } // ONE scalar Callout per alert -> "> [!WARNING]"; a List<Callout> renders a table
 }
 
 [MarkoutSerializable]
@@ -50,82 +49,98 @@ MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 - **Register every type.** A model used in output but missing `[MarkoutSerializable]` +
   `[MarkoutContext(typeof(T))]` will not serialize. The context class MUST be `partial`.
 - **Attributes are Markout's, not System.Text.Json's:** `[MarkoutSerializable]` (not
-  `[JsonSerializable]`), `[MarkoutContext]`, `[MarkoutSection(Name=...)]`, `TitleProperty` (H1) /
-  `DescriptionProperty` (intro paragraph under the heading), `[MarkoutPropertyName]`, `[MarkoutIgnore]`. Do not use `Json*` attributes.
+  `[JsonSerializable]`), `[MarkoutContext]`, `[MarkoutSection(Name=...)]`, `TitleProperty`,
+  `[MarkoutPropertyName]`, `[MarkoutIgnore]`. Do not use `Json*` attributes.
 - **Rendering is driven by type, not markup:** `List<T>` -> table; scalar (`string`/`int`/`bool`) ->
   a `Field | Value` row; `[MarkoutSection(Name="X")]` -> a `## X` heading above the property.
+- **Conditional sections:** `[MarkoutSection(ShowWhenProperty = nameof(HasErrors))]` renders the
+  section only when that `bool` property is true (else the whole section is omitted).
 - **Put `[MarkoutIgnoreInTable]` on non-tabular list properties** (`List<Metric>`, `List<Breakdown>`,
-  `List<TreeNode>`, `List<Description>`) — and on a **scalar** `Callout` (one per alert, never a list) — or they get mistreated as table columns.
+  `List<TreeNode>`, `List<Description>`, `Callout`) or they get mistreated as table columns.
 
 ## Built-in shape types (use as model properties for rich output)
 
-`Metric` (measurement — `| label | value |` table in Markdown, bar chart in Unicode/ANSI), `Breakdown`/`Segment` (stacked bar), `Callout` (alert; `CalloutSeverity.Warning/Caution/Note/Tip/Important`), `TreeNode`
+`Metric` (bar chart), `Breakdown`/`Slice` (stacked bar), `Callout` (alert), `TreeNode`
 (hierarchy), `Description` (term + text), `CodeSection` (code block). e.g. `new Metric("Build", 4.2)`.
+Pass children as a list/array/collection expression, never as trailing arguments:
+`new TreeNode("root", [new TreeNode("leaf")])`. `Badge` is an optional property:
+`new TreeNode("root") { Badge = "📁" }`.
 
-## Shape Library (data relationship -> rendering)
+## Composite table cells (dense Markdown + decomposed columns from one model)
 
-Each property maps to a data relationship, not a visual element; the renderer decides presentation.
+Composite cells are data-only scalar properties: `FieldLayout.Table` renders a dense Markdown
+value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from one declaration.
 
-| Relationship | C# type | Means | Markdown |
-|---|---|---|---|
-| Identity | `string`/`int`/`bool` | named value | `Key: value` |
-| Enumeration | `string[]` | sequence of items | `- item` |
-| Tabulation | `List<T>` | uniform records | `\| col \| col \|` |
-| Section | `[MarkoutSection]` | logical grouping | `## Heading` |
-| Description | `List<Description>` | terms + explanations | `- **Term:** text` |
-| Measurement | `List<Metric>` | comparative quantities | `\| label \| value \|` table (bars in Unicode/ANSI) |
-| Composition | `List<Breakdown>` | parts of a whole | stacked bar |
-| Hierarchy | `List<TreeNode>` | parent-child | `├── node` |
-| Quotation | `CodeSection` | verbatim content | code block |
-| Attention | `Callout` | important message | `> [!WARNING]` |
+- `Change<V>` — a `before → after` change (NOT `Comparison`, which collides with `System.Comparison<T>`).
+  `[MarkoutDelta(Delta.Percent)]` on a numeric `Change<V>` appends the signed change, e.g.
+  `98555 → 61190 (−38%)`; `Delta.Absolute` appends the signed difference; `Delta.Multiple` appends a
+  multiplicative factor with a direction word, e.g. `15 → 5 (3× fewer)` / `5 → 15 (3× more)` (a zero
+  endpoint renders `—`). With a goal, an aligned `Delta.Multiple` word omits the redundant status word
+  (`15 → 5 (3× fewer)` under `Goal.Lower`); a conflicting one keeps it (`5 → 15 (3× more, bad)`).
+  `[MarkoutDeltaNoun("solved")]` renders a caller noun on the signed delta —
+  `4/6 → 6/6 (+2 solved)` (sibling of `[MarkoutUnit]`; composites use `IDeltaCountable`: `Fraction`→count,
+  `Share`→value; Markdown-only).
+  `[MarkoutGoal(Goal.Higher)]` / `[MarkoutGoal(Goal.Lower)]` on a numeric `Change<V>` makes Markout
+  derive two decomposed fields — a structural `direction`
+  (`increased`/`decreased`/`introduced` (0→N)/`resolved` (N→0)/`unchanged`) and a goal-applied polarity
+  `status` (`good`/`bad`/`neutral`) — instead of the caller hand-coding ceiling/floor/drift. Optional
+  noise, `[MarkoutGoal(Goal.Higher, 0.001)]`, treats sub-threshold movement as `unchanged`. `Goal.Context`
+  (default) derives nothing. Composite `Change<Share|Percent|Fraction>` also derive `direction`/`status`
+  from a single comparable magnitude (`Share` → raw `Value`; `Percent`/`Fraction` → their ratio;
+  `Segments` → the **sum** of its parts' values, i.e. the breakdown total). In dense Markdown the polarity word
+  renders inline, merged with any delta suffix into one group: `0 → 7 (bad)`, `98555 → 61190 (−38%, good)`.
+- `Fraction(count, total)` → `24/24`; `Share(value, whole)` → `5056 (24%)`
+  (`[MarkoutUnit("s")]` → `103s (93%)`); `Percent(part, whole)` → `93%`;
+  `Segments(new Segment(label, value), ...)` → `21/171/236` (labels become column names).
+- `Change<V>` nests over composites: `Change<Fraction>`, `Change<Share>`, `Change<Segments>`.
+  A zero denominator renders `—` rather than `NaN`/`Inf`. e.g.
+  `[MarkoutPropertyName("Session IET"), MarkoutDelta(Delta.Percent)] public Change<long> SessionIet { get; init; }`.
 
-Record-type constructors (named for what the data *is*):
+JSONL decomposition is **heterogeneous** (each record holds only its own keys); TSV keeps a uniform
+column union (absent cells blank). Set `MarkoutWriterOptions.JsonTypedValues = true` to emit numeric
+columns as JSON numbers instead of strings.
 
-```csharp
-new Metric("Build Time", 4.2)                                    // measurement
-new Description("dotnet-inspect", "API surface inspection tool")  // term + explanation
-new Breakdown("Jan 2025", [new("Critical", 1), new("High", 3)])  // proportional composition
-new Callout(CalloutSeverity.Warning, "3 vulnerabilities found")  // attention
-new CodeSection("csharp", "public class Foo { }")                // verbatim content
-new TreeNode("app", [new TreeNode("Serilog", [new TreeNode("Serilog.Sinks.Console")])]) // hierarchy (nests via children)
-```
+When a composite cell (`Change<V>`, etc.) is a **column of an element table** (`List<T>` where `T` has a
+composite property), structured formatters (TSV/JSONL) **decompose it into typed `{column}_{sub}` columns**
+— `score_before`/`score_after`/`score_delta_pct`, `bugs_direction`/`bugs_status`, `tasks_delta_count`/
+`tasks_delta_noun` — so the card is reconstructable from the data. Markdown keeps the dense cell
+(`100 → 50 (-50%)`). Scalar columns and Markdown are unchanged. `[MarkoutIgnoreColumnWhen]` columns that
+are hidden for the table are dropped from the decomposed output too.
 
-## Renderers (swap the formatter, change the output)
+## Card shapes (declare a list; the generator picks the layout)
 
-Serialize writes through a formatter; pass a different one to change output.
+Two list-shapes render as multi-format cards from a `[MarkoutSerializable]` model — Markdown table +
+flat typed JSONL/TSV — with no imperative writer calls:
 
-| Formatter | Output | Use |
-|---|---|---|
-| `MarkdownFormatter` | GitHub-Flavored Markdown (default) | reports, tool output |
-| `PlainTextFormatter` | plain text, no markup | minimal output |
-| `UnicodeFormatter` | box-drawing chars | bordered tables |
-| `TableFormatter` | tables / lists / fields | compact summaries, TSV/JSONL rows |
-| `DiagramFormatter` | box/branch tree diagrams | alt tree style (Markdown already renders `List<TreeNode>` as a tree) |
+- `List<MetricChange<T>>` — a gated scalar metric per row. `MetricChange<T>(Name, Before, After,
+  Target? = null, TargetLabel? = null, Status = GateStatus.Unknown, StatusLabel? = null)` where
+  `T : struct`. Set `{ Goal = Goal.Higher|Lower }` (init property; optionally `Noise`) to derive the
+  `direction`/`status` axes from `Before → After`; a caller-supplied `Status` overrides the derived
+  polarity. **Dense Markdown (default):** `Metric | Change | Target` with the status word inlined
+  (`0 → 7 (bad)` — caller `StatusLabel` wins over the slug) and a goal marker on the label
+  (`Failures (-)` / `Fully raised (+)`); the `Status` column is dropped. Set
+  `MarkoutWriterOptions.InlineGoalStatus = false` for the legacy `Metric | Change | Target | Status`.
+  JSONL/TSV are unaffected: flat `before`/`after`/optional `target`/`target_label`/`direction`/`status`.
+  `T` must be a numeric scalar (int/long/double/decimal/...); a composite `T` (e.g. `Segments`) is a
+  compile error (`MARKOUT005`).
+- `[MarkoutSection(Name = "...", IncludeSectionInStructuredRows = true)]` on a `List<MetricChange<T>>`
+  or `List<MultiSourceRow>` section prepends a leading `section` column (the section name) to TSV/JSONL
+  rows — for multiplexing several sectioned card shapes into one structured stream. Markdown is unchanged.
+- `List<MultiSourceRow>` — a role matrix: `MultiSourceRow(label, params Source[])`,
+  `Source(role, IMarkoutCell? value, format = default)`. Roles pivot to **columns** in Markdown
+  (caller-supplied order; absent role → `-`); JSONL emits one flat record per row with
+  `{role}_{side}_{field}` keys. Values are any `IMarkoutCell` incl. nested `Change<Share>` etc.;
+  **scalars work too** — `new Source("baseline", 2)` (int/long/double/decimal) and `Source.Text(role, s)`
+  decompose to a single `{role}` field; `new Source(role, null)` is an absent cell. Set the label column
+  header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`).
+- `Verdict(GateStatus Status, string? Label = null)` — a first-class verdict cell (typed polarity
+  `GateStatus` + optional caller label); use as a `Source` value for a verdict row (decomposes to `{role}`).
 
-`TableFormatter` + `MarkoutWriterOptions.TableMode`:
-- `Tsv` — stable snake_case headers; never emits embedded tabs/newlines in cells.
-- `Jsonl` — stable snake_case names; one JSON object per row.
-- `Pretty` — same projection as TSV with each column at a uniform position.
+Decomposition keys are `snake_case_lower` (a fused role like `claude-opus-4.8` becomes
+`claude_opus_4_8_...`). Put `[MarkoutIgnoreInTable]` on these lists only when nested inside a table.
 
-e.g. TSV: `MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ReportContext.Default, new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });`
+## Other output formats (still Markdown by default)
 
-## Advanced attributes (layout, links, badges, grouping)
-
-- **`[MarkoutSection(Level = 3)]`** sets that section's heading level (default `2` = `##`), e.g.
-  `Level = 3` -> `### Heading`. `Name` / `Level` / `GroupBy` all combine on the one attribute.
-- **`[MarkoutSerializable(FieldLayout = FieldLayout.Bulleted)]`** picks how a type's scalar fields
-  render: `FieldLayout.{Table (default), Inline, Bulleted, Numbered, Plain}` — `Bulleted` -> `- Env: prod`
-  instead of a `| Field | Value |` table. `AutoFields = false` on the same attribute drops the field block.
-- **`[MarkoutBoolFormat("✓", "✗")]`** on a `bool` -> renders true/false as those strings
-  (e.g. `| Passed | ✓ |`), not `True`/`False`.
-- **`[MarkoutLink(TextProperty = nameof(Title))]`** on a URL/string property -> renders it as
-  `[Title](url)` (the `TextProperty` supplies the link text; the annotated property is the href).
-- **`[MarkoutValueMap("open=✗", "closed=✓", ...)]`** -> maps a property's raw values to display
-  strings (badges/icons) before rendering.
-- **`[MarkoutSection(GroupBy = nameof(Milestone))]`** on a `List<T>` -> groups the items under a
-  `###` sub-heading per distinct `Milestone` value, instead of one flat table.
-  `[MarkoutSection(ShowWhenProperty = nameof(HasErrors))]` renders the section only when that `bool`
-  is true (else the whole section is omitted). `[MarkoutUnwrap]` on a collection renders it INLINE
-  with no `##` heading (members flow into the parent).
-- Also: `[MarkoutMaxItems(n)]` (truncate a list), `[MarkoutDisplayFormat("{0:N0}")]` (numeric
-  format), `[MarkoutSkipNull]` / `[MarkoutSkipDefault]` (hide empty/default values).
+Pass a formatter to change output: `new MarkdownFormatter()` (default), `PlainTextFormatter`,
+`UnicodeFormatter`, `TableFormatter` (compact/TSV/JSONL via `MarkoutWriterOptions.TableMode`).
+e.g. `MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ReportContext.Default);`
