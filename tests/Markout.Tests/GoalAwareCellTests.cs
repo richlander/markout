@@ -255,6 +255,35 @@ public class GoalAwareCellTests
         Assert.False(row.TryGetProperty("opus_status", out _));
     }
 
+    [Fact]
+    public void MultiSourceRow_UndefinedRatioComposite_OmitsDirectionAndStatus()
+    {
+        // A zero-denominator Percent/Fraction renders — ; its magnitude is undefined (NaN),
+        // so no direction/status is derived (rather than a synthetic 0).
+        var rows = new[]
+        {
+            new MultiSourceRow("pct",
+                new Source("opus", new Change<Percent>(new Percent(5, 0), new Percent(1, 2)),
+                    new MarkoutCellFormat { Goal = Goal.Higher })),
+            new MultiSourceRow("frac",
+                new Source("opus", new Change<Fraction>(new Fraction(3, 0), new Fraction(2, 4)),
+                    new MarkoutCellFormat { Goal = Goal.Higher })),
+        };
+
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, OmitEmptyJsonFields = true });
+        writer.WriteMultiSourceTable("Metric", rows);
+        var lines = sw.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var line in lines)
+        {
+            var row = JsonDocument.Parse(line).RootElement;
+            Assert.False(row.TryGetProperty("opus_direction", out _));
+            Assert.False(row.TryGetProperty("opus_status", out _));
+        }
+    }
+
     // --- Attribute path (source generator) ---
 
     [Fact]
