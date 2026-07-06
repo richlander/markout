@@ -563,6 +563,15 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_DeltaNoun_PositiveInfinity_OmitsNoun()
+    {
+        // +Infinity delta must render the bare placeholder, never "+— solved".
+        var s = Inline(new Change<double>(5, double.PositiveInfinity), new MarkoutCellFormat { DeltaNoun = "solved" });
+        Assert.DoesNotContain("solved", s);
+        Assert.DoesNotContain("+\u2014", s);
+    }
+
+    [Fact]
     public void Change_DeltaNoun_IsMarkdownOnly_DecomposeUnaffected()
     {
         var fields = Decompose(new Change<long>(4, 6), new MarkoutCellFormat { DeltaNoun = "solved" });
