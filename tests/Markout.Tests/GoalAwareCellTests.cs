@@ -288,6 +288,16 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactNoiseBand_FractionalDecimalDelta()
+    {
+        // A fractional decimal delta just above a large integer tolerance must not round into the band.
+        var fields = Decompose(new Change<decimal>(0m, 9007199254740991.1m),
+            new MarkoutCellFormat { Goal = Goal.Lower, Noise = 9007199254740991d });
+        Assert.Equal("introduced", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("bad", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_GoalAndDelta_EmitBothDerivedAxesAndDelta()
     {
         var format = new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower };

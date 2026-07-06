@@ -115,21 +115,13 @@ internal static class GoalDerivation
             return false;
 
         // Exact path: classify large long/ulong/decimal from their exact decimal delta so adjacent
-        // values beyond double's 2^53 range aren't collapsed to Unchanged. Applies at any tolerance
-        // (the noise band is checked against the exact delta). Zero is exactly representable, so the
-        // b == 0 / a == 0 zero-crossing checks stay valid in double.
+        // values beyond double's 2^53 range aren't collapsed to Unchanged. The noise band is checked
+        // exactly (rational comparison of the decimal delta and the double tolerance), and the zero
+        // checks stay valid in double since zero is exactly representable.
         if (CellText.TryExactDelta(before, after, out var exact))
         {
             var tol = noise >= 0 ? noise : 0;   // NaN/negative -> exact, matching Classify
-            var mag = Math.Abs(exact);
-            // For |delta| < 2^53 the delta is exactly representable as double, so the noise check is done
-            // in double — identical to Classify, and correct for any (even non-round) tolerance. For a
-            // larger delta the double subtraction would be lossy, so compare exactly in decimal; a
-            // tolerance large enough to include such a delta is necessarily an integer (doubles >= 2^52
-            // have no fractional part), which ToleranceDecimal reconstructs exactly.
-            bool within = mag < 9007199254740992m
-                ? (double)mag <= tol
-                : tol >= (double)decimal.MaxValue || mag <= ToleranceDecimal(tol);
+            var within = double.IsPositiveInfinity(tol) || WithinTolerance(Math.Abs(exact), tol);
             direction = within
                 ? Direction.Unchanged
                 : ClassifyFromSign(Math.Sign(exact), b == 0, a == 0);
@@ -156,25 +148,47 @@ internal static class GoalDerivation
     }
 
     /// <summary>
-    /// Converts a finite non-negative tolerance to <see cref="decimal"/> for the exact noise-band check.
-    /// A large tolerance (integer or fractional) is reconstructed exactly from its IEEE-754
-    /// significand/exponent — a direct <c>(decimal)double</c> cast rounds to 15 significant digits, which
-    /// would move the inclusive boundary. Small (&lt; 15-digit) tolerances cast directly (already exact).
+    /// Exact test of <c>delta &lt;= tolerance</c> (both non-negative, <paramref name="tolerance"/> finite),
+    /// comparing the <see cref="decimal"/> delta and the <see cref="double"/> tolerance as exact rationals
+    /// so neither is rounded. This keeps the inclusive noise boundary exact for arbitrarily large or
+    /// non-round tolerances, where a <c>decimal</c>↔<c>double</c> conversion would round.
     /// </summary>
-    private static decimal ToleranceDecimal(double tolerance)
+    private static bool WithinTolerance(decimal delta, double tolerance)
     {
-        if (tolerance < 1e15)
-            return (decimal)tolerance;
+        if (tolerance == 0)
+            return delta == 0;
 
-        var bits = BitConverter.DoubleToInt64Bits(tolerance);
-        var exponent = (int)((bits >> 52) & 0x7FF) - 1075;               // unbias, minus 52 mantissa bits
-        var result = (decimal)((bits & 0xFFFFFFFFFFFFFL) | 0x10000000000000L); // mantissa + implicit bit
-        if (exponent >= 0)
-            for (var i = 0; i < exponent; i++)
-                result *= 2m;
+        // delta = deltaUnscaled / 10^deltaScale
+        var bits = decimal.GetBits(delta);
+        var deltaUnscaled = (new System.Numerics.BigInteger((uint)bits[2]) << 64)
+            + (new System.Numerics.BigInteger((uint)bits[1]) << 32)
+            + (uint)bits[0];
+        var deltaScale = (bits[3] >> 16) & 0xFF;
+
+        // tolerance = tMantissa * 2^tExp
+        var t = BitConverter.DoubleToInt64Bits(tolerance);
+        var expField = (int)((t >> 52) & 0x7FF);
+        var tMantissa = new System.Numerics.BigInteger(t & 0xFFFFFFFFFFFFFL);
+        int tExp;
+        if (expField == 0)
+        {
+            tExp = -1074;                       // subnormal: no implicit leading bit
+        }
         else
-            for (var i = 0; i < -exponent; i++)
-                result /= 2m;
-        return result;
+        {
+            tMantissa += 0x10000000000000L;     // implicit leading bit
+            tExp = expField - 1075;
+        }
+
+        // delta <= tolerance  <=>  deltaUnscaled / 10^deltaScale <= tMantissa * 2^tExp
+        //   left = deltaUnscaled, right = tMantissa * 10^deltaScale, then absorb 2^tExp on the right
+        //   (or 2^-tExp on the left) to keep both sides integral.
+        var left = deltaUnscaled;
+        var right = tMantissa * System.Numerics.BigInteger.Pow(10, deltaScale);
+        if (tExp >= 0)
+            right *= System.Numerics.BigInteger.Pow(2, tExp);
+        else
+            left *= System.Numerics.BigInteger.Pow(2, -tExp);
+        return left <= right;
     }
 }
