@@ -11,7 +11,7 @@ public readonly record struct Segment(string Label, double Value);
 /// <summary>
 /// A set of independent labeled parts with no shared denominator, rendered slash-joined as
 /// <c>21/171/236</c>. Each label becomes a decomposed field (as <c>{label}</c>, or
-/// <c>{label}_{side}</c> when nested in a <see cref="Change{V}"/>).
+/// <c>{side}_{label}</c> when nested in a <see cref="Change{V}"/>).
 /// </summary>
 /// <param name="Parts">The labeled parts, rendered left-to-right in order.</param>
 public readonly record struct Segments(params Segment[] Parts) : IMarkoutCell
@@ -35,6 +35,6 @@ public readonly record struct Segments(params Segment[] Parts) : IMarkoutCell
         if (Parts is null)
             return;
         foreach (var part in Parts)
-            fields.Add(new MarkoutField(CellText.LabelKey(part.Label, side), CellText.Number(part.Value)));
+            fields.Add(new MarkoutField(CellText.SideKey(side, part.Label), CellText.Number(part.Value)));
     }
 }

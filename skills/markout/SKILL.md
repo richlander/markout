@@ -207,7 +207,7 @@ MarkoutSerializer.Serialize(card, Console.Out, QualityCardContext.Default);
 var jsonl = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, JsonTypedValues = true };
 MarkoutSerializer.Serialize(card, Console.Out, new TableFormatter(), QualityCardContext.Default, jsonl);
 // {"field":"Session IET","before":98555,"after":61190,"delta_pct":-38}
-// {"field":"tool calls: web / bash / other","web_before":21,"bash_before":171,"other_before":236, ...}
+// {"field":"tool calls: web / bash / other","before_web":21,"before_bash":171,"before_other":236, ...}
 ```
 
 JSONL records are **heterogeneous** — each object contains only the keys its own cell produces.
