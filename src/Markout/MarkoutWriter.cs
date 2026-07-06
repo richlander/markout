@@ -191,21 +191,23 @@ public class MarkoutWriter
             return true;
 
         ReadOnlySpan<MarkoutField> field = [new(key, value)];
-        var projected = ProjectFields(field);
-        if (projected.Length == 0)
+        ReadOnlySpan<MarkoutField> toRender = field;
+        if (NeedsFieldProjection)
+            toRender = ProjectFields(field);
+        if (toRender.Length == 0)
             return true;
 
         // Cascade: IFieldFormatter → ITableFormatter → IStreamingTableFormatter
         if (_formatter is IFieldFormatter ff)
         {
             EnsureBlankLineIfNeeded();
-            ff.FormatFieldName(_writer, projected[0].Key, _options.BoldFieldNames);
-            _writer.WriteLine(projected[0].Value);
+            ff.FormatFieldName(_writer, toRender[0].Key, _options.BoldFieldNames);
+            _writer.WriteLine(toRender[0].Value);
             _hasContent = true;
             return true;
         }
 
-        return RenderFieldsAsTable(projected);
+        return RenderFieldsAsTable(toRender);
     }
 
     /// <summary>
@@ -217,21 +219,23 @@ public class MarkoutWriter
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        var projected = ProjectFields(fields);
-        if (projected.Length == 0)
+        ReadOnlySpan<MarkoutField> toRender = fields;
+        if (NeedsFieldProjection)
+            toRender = ProjectFields(fields);
+        if (toRender.Length == 0)
             return true;
 
         // Cascade: IFieldFormatter → ITableFormatter → IStreamingTableFormatter
         if (_formatter is IFieldFormatter ff)
         {
             EnsureBlankLineIfNeeded();
-            ff.FormatFields(_writer, projected, _options.BoldFieldNames);
+            ff.FormatFields(_writer, toRender, _options.BoldFieldNames);
             _needsBlankLine = true;
             _hasContent = true;
             return true;
         }
 
-        return RenderFieldsAsTable(projected);
+        return RenderFieldsAsTable(toRender);
     }
 
     /// <summary>
@@ -244,8 +248,10 @@ public class MarkoutWriter
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        var projected = ProjectFields(fields);
-        if (projected.Length == 0)
+        ReadOnlySpan<MarkoutField> toRender = fields;
+        if (NeedsFieldProjection)
+            toRender = ProjectFields(fields);
+        if (toRender.Length == 0)
             return true;
 
         // Cascade: IFieldFormatter (inline) → ITableFormatter → IStreamingTableFormatter
@@ -253,12 +259,12 @@ public class MarkoutWriter
         {
             EnsureBlankLineIfNeeded();
 
-            for (int i = 0; i < projected.Length; i++)
+            for (int i = 0; i < toRender.Length; i++)
             {
                 if (i > 0)
                     _writer.Write(" | ");
-                ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
-                _writer.Write(projected[i].Value);
+                ff.FormatFieldName(_writer, toRender[i].Key, _options.BoldFieldNames);
+                _writer.Write(toRender[i].Value);
             }
 
             _writer.WriteLine();
@@ -267,7 +273,7 @@ public class MarkoutWriter
             return true;
         }
 
-        return RenderFieldsAsTable(projected);
+        return RenderFieldsAsTable(toRender);
     }
 
     /// <summary>
@@ -280,8 +286,10 @@ public class MarkoutWriter
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        var projected = ProjectFields(fields);
-        if (projected.Length == 0)
+        ReadOnlySpan<MarkoutField> toRender = fields;
+        if (NeedsFieldProjection)
+            toRender = ProjectFields(fields);
+        if (toRender.Length == 0)
             return true;
 
         // Cascade: IFieldFormatter (bulleted) → ITableFormatter → IStreamingTableFormatter
@@ -289,11 +297,11 @@ public class MarkoutWriter
         {
             EnsureBlankLineIfNeeded();
 
-            for (int i = 0; i < projected.Length; i++)
+            for (int i = 0; i < toRender.Length; i++)
             {
                 _writer.Write("- ");
-                ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
-                _writer.WriteLine(projected[i].Value);
+                ff.FormatFieldName(_writer, toRender[i].Key, _options.BoldFieldNames);
+                _writer.WriteLine(toRender[i].Value);
             }
 
             _needsBlankLine = true;
@@ -301,7 +309,7 @@ public class MarkoutWriter
             return true;
         }
 
-        return RenderFieldsAsTable(projected);
+        return RenderFieldsAsTable(toRender);
     }
 
     /// <summary>
@@ -314,8 +322,10 @@ public class MarkoutWriter
         if (_sectionExcluded || fields.Length == 0)
             return true;
 
-        var projected = ProjectFields(fields);
-        if (projected.Length == 0)
+        ReadOnlySpan<MarkoutField> toRender = fields;
+        if (NeedsFieldProjection)
+            toRender = ProjectFields(fields);
+        if (toRender.Length == 0)
             return true;
 
         // Cascade: IFieldFormatter (numbered) → ITableFormatter → IStreamingTableFormatter
@@ -323,12 +333,12 @@ public class MarkoutWriter
         {
             EnsureBlankLineIfNeeded();
 
-            for (int i = 0; i < projected.Length; i++)
+            for (int i = 0; i < toRender.Length; i++)
             {
                 _writer.Write(i + 1);
                 _writer.Write(". ");
-                ff.FormatFieldName(_writer, projected[i].Key, _options.BoldFieldNames);
-                _writer.WriteLine(projected[i].Value);
+                ff.FormatFieldName(_writer, toRender[i].Key, _options.BoldFieldNames);
+                _writer.WriteLine(toRender[i].Value);
             }
 
             _needsBlankLine = true;
@@ -336,7 +346,7 @@ public class MarkoutWriter
             return true;
         }
 
-        return RenderFieldsAsTable(projected);
+        return RenderFieldsAsTable(toRender);
     }
 
     /// <summary>
@@ -348,13 +358,15 @@ public class MarkoutWriter
         if (fields.Length == 0)
             return true;
 
-        var projected = ProjectFields(fields);
-        if (projected.Length == 0)
+        ReadOnlySpan<MarkoutField> toRender = fields;
+        if (NeedsFieldProjection)
+            toRender = ProjectFields(fields);
+        if (toRender.Length == 0)
             return true;
 
         var headers = new[] { "Field", "Value" };
-        var rows = new List<string[]>(projected.Length);
-        foreach (var field in projected)
+        var rows = new List<string[]>(toRender.Length);
+        foreach (var field in toRender)
             rows.Add([field.Key, field.Value]);
 
         return WriteTable(headers, ["Field", "Value"], rows);
@@ -1557,6 +1569,14 @@ public class MarkoutWriter
         return true;
     }
 
+    /// <summary>
+    /// Whether a field-level projection (include/exclude) is configured. When <c>false</c>, the
+    /// field-render paths iterate the caller's span directly and skip the <see cref="ProjectFields"/>
+    /// array copy.
+    /// </summary>
+    private bool NeedsFieldProjection
+        => _options.Projection is { } p && (p.IncludeFields != null || p.ExcludeFields != null);
+
     private MarkoutField[] ProjectFields(ReadOnlySpan<MarkoutField> fields)
     {
         var projection = _options.Projection;
@@ -1646,7 +1666,7 @@ public class MarkoutWriter
     /// <summary>
     /// Cascade fallback: renders fields as a 2-column Field/Value table.
     /// </summary>
-    private bool RenderFieldsAsTable(MarkoutField[] fields)
+    private bool RenderFieldsAsTable(ReadOnlySpan<MarkoutField> fields)
     {
         if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
             return false;

@@ -27,7 +27,7 @@ public class FieldWriter(TextWriter writer, IFieldFormatter formatter, MarkoutWr
     public void WriteFields(params ReadOnlySpan<MarkoutField> fields)
     {
         if (fields.Length == 0) return;
-        formatter.FormatFields(writer, fields.ToArray(), _options.BoldFieldNames);
+        formatter.FormatFields(writer, fields, _options.BoldFieldNames);
     }
 
     /// <summary>
