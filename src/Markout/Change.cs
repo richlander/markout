@@ -104,6 +104,14 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
                 fields.Add(new MarkoutField(CellText.SideKey(side, "direction"), DirectionText.Slug(compositeDir)));
                 fields.Add(new MarkoutField(CellText.SideKey(side, "status"), GateStatusText.Slug(compositeStatus)));
             }
+
+            // Caller delta-noun decomposes to a typed count + the noun word (caller metadata that is not
+            // derivable downstream), keeping structured output reconstructable.
+            if (format.DeltaNoun is not null && Before is IDeltaCountable beforeCount && After is IDeltaCountable afterCount)
+            {
+                fields.Add(new MarkoutField(CellText.SideKey(side, "deltaCount"), CellText.Number(afterCount.DeltaCount - beforeCount.DeltaCount)));
+                fields.Add(new MarkoutField(CellText.SideKey(side, "deltaNoun"), format.DeltaNoun));
+            }
             return;
         }
 
@@ -122,6 +130,12 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         {
             fields.Add(new MarkoutField(CellText.SideKey(side, "direction"), DirectionText.Slug(direction)));
             fields.Add(new MarkoutField(CellText.SideKey(side, "status"), GateStatusText.Slug(status)));
+        }
+
+        if (format.DeltaNoun is not null && CellText.TryScalarDouble(Before, out _) && CellText.TryScalarDouble(After, out _))
+        {
+            fields.Add(new MarkoutField(CellText.SideKey(side, "deltaCount"), CellText.AbsoluteDelta(Before, After, signed: false)));
+            fields.Add(new MarkoutField(CellText.SideKey(side, "deltaNoun"), format.DeltaNoun));
         }
     }
 

@@ -63,6 +63,14 @@ public class MarkoutWriter
     public MarkoutWriterOptions Options => _options;
 
     /// <summary>
+    /// Whether the active formatter decomposes composite cells into typed columns (TSV/JSONL). Element-table
+    /// serialization uses this to decompose composite columns into typed sub-columns for structured output
+    /// while keeping the dense string for document formatters.
+    /// </summary>
+    public bool DecomposesCompositeCells
+        => _formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true };
+
+    /// <summary>
     /// Gets whether descriptions should be included in output.
     /// </summary>
     public bool IncludeDescription => _options.IncludeDescription;
@@ -730,7 +738,90 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Writes a gated-metric table from <see cref="MetricChange{T}"/> rows: document formatters
+    /// Writes an element table whose columns are already decomposed into typed fields (used by the
+    /// generated element-table path for decomposing formatters). Each row is a list of <em>source
+    /// columns</em>, and each source column is the list of fields it contributed (a composite column
+    /// decomposes into <c>{column}_{sub}</c> fields; a scalar column contributes a single field; a null
+    /// composite contributes none). Output columns are identified by <c>(source-column index, field key)</c>
+    /// so a scalar column whose key collides with a composite subfield keeps its own column regardless of
+    /// whether the composite is present in a given row. Columns appear in first-appearance order across rows;
+    /// a row that omits a column renders blank. Display headers are the raw field keys, snake_cased and
+    /// de-duplicated.
+    /// </summary>
+    /// <param name="rows">Per-row source columns, each source column being its decomposed fields.</param>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteDecomposedRows(IReadOnlyList<IReadOnlyList<IReadOnlyList<MarkoutField>>> rows)
+    {
+        if (_sectionExcluded || rows.Count == 0)
+            return true;
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
+
+        var keyOrder = new List<string>();
+        var keyIndex = new Dictionary<(int Column, string Key), int>();
+        // Column identity is (source-column index, field key), not the raw key alone. The source-column
+        // index is stable across rows (every row emits the same source columns in order, even when a
+        // nullable composite contributes no fields), so a scalar column whose key collides with a composite
+        // subfield keeps its own output column in every row. Within a source column, keys are unique.
+        var resolvedRows = new List<(int Col, string Value)[]>(rows.Count);
+        foreach (var row in rows)
+        {
+            var count = 0;
+            foreach (var column in row)
+                count += column.Count;
+            var resolved = new (int, string)[count];
+            var n = 0;
+            for (int ci = 0; ci < row.Count; ci++)
+            {
+                foreach (var field in row[ci])
+                {
+                    var id = (ci, field.Key);
+                    if (!keyIndex.TryGetValue(id, out var col))
+                    {
+                        col = keyOrder.Count;
+                        keyIndex[id] = col;
+                        keyOrder.Add(field.Key);
+                    }
+                    resolved[n++] = (col, field.Value);
+                }
+            }
+            resolvedRows.Add(resolved);
+        }
+
+        var headers = new string[keyOrder.Count];
+        var headerNames = new string[keyOrder.Count];
+        var usedStableKeys = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < keyOrder.Count; i++)
+        {
+            headers[i] = keyOrder[i];
+            var stable = Formatting.FormatHelper.ToSnakeCase(keyOrder[i]);
+            if (string.IsNullOrEmpty(stable))
+                stable = "column";
+            if (!usedStableKeys.Add(stable))
+            {
+                int suffix = 2;
+                string candidate;
+                do { candidate = stable + "_" + suffix++; } while (!usedStableKeys.Add(candidate));
+                stable = candidate;
+            }
+            headerNames[i] = stable;
+        }
+
+        var outRows = new List<string[]>(rows.Count);
+        foreach (var resolved in resolvedRows)
+        {
+            var values = new string[keyOrder.Count];
+            for (int i = 0; i < values.Length; i++)
+                values[i] = "";
+            foreach (var (col, value) in resolved)
+                values[col] = value;
+            outRows.Add(values);
+        }
+
+        return WriteTable(headers, headerNames, outRows);
+    }
+
     /// render fixed <c>Metric | Change | Target | Status</c> columns; decomposing formatters
     /// (TSV/JSONL) emit flat typed fields (<c>before</c>, <c>after</c>, optional <c>target</c>/
     /// <c>target_label</c>, <c>status</c>). Absent targets render <c>-</c> and are omitted from

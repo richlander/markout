@@ -98,6 +98,13 @@ JSONL decomposition is **heterogeneous** (each record holds only its own keys); 
 column union (absent cells blank). Set `MarkoutWriterOptions.JsonTypedValues = true` to emit numeric
 columns as JSON numbers instead of strings.
 
+When a composite cell (`Change<V>`, etc.) is a **column of an element table** (`List<T>` where `T` has a
+composite property), structured formatters (TSV/JSONL) **decompose it into typed `{column}_{sub}` columns**
+— `score_before`/`score_after`/`score_delta_pct`, `bugs_direction`/`bugs_status`, `tasks_delta_count`/
+`tasks_delta_noun` — so the card is reconstructable from the data. Markdown keeps the dense cell
+(`100 → 50 (-50%)`). Scalar columns and Markdown are unchanged. `[MarkoutIgnoreColumnWhen]` columns that
+are hidden for the table are dropped from the decomposed output too.
+
 ## Card shapes (declare a list; the generator picks the layout)
 
 Two list-shapes render as multi-format cards from a `[MarkoutSerializable]` model — Markdown table +
