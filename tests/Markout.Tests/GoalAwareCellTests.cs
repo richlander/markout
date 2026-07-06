@@ -239,6 +239,16 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_Goal_ExactNoiseBand_InclusiveAboveE18()
+    {
+        // Integer tolerance above 1e18 (still within long range) stays exact and inclusive.
+        var fields = Decompose(new Change<long>(0L, 1000000000000000128L),
+            new MarkoutCellFormat { Goal = Goal.Higher, Noise = 1000000000000000128d });
+        Assert.Equal("unchanged", fields.Single(f => f.Key == "direction").Value);
+        Assert.Equal("neutral", fields.Single(f => f.Key == "status").Value);
+    }
+
+    [Fact]
     public void Change_Goal_SmallValues_UnchangedBehaviorPreserved()
     {
         // The exact path must match the double path for ordinary values.

@@ -154,7 +154,7 @@ internal static class GoalDerivation
     /// integer boundary isn't shrunk — a direct <c>(decimal)double</c> cast rounds to 15 significant digits.
     /// </summary>
     private static decimal ToleranceDecimal(double tolerance)
-        => tolerance == Math.Floor(tolerance) && tolerance < 1e18
+        => tolerance == Math.Floor(tolerance) && tolerance < (double)long.MaxValue
             ? (decimal)(long)tolerance
             : (decimal)tolerance;
 }
