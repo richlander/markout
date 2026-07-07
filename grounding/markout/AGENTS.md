@@ -53,6 +53,9 @@ MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
   `[MarkoutPropertyName]`, `[MarkoutIgnore]`. Do not use `Json*` attributes.
 - **Rendering is driven by type, not markup:** `List<T>` -> table; scalar (`string`/`int`/`bool`) ->
   a `Field | Value` row; `[MarkoutSection(Name="X")]` -> a `## X` heading above the property.
+- **Suppress the auto field table:** scalar properties auto-render as a `Field | Value` table by
+  default; set `[MarkoutSerializable(AutoFields = false)]` to turn that off so only
+  sections/collections render.
 - **Conditional sections:** `[MarkoutSection(ShowWhenProperty = nameof(HasErrors))]` renders the
   section only when that `bool` property is true (else the whole section is omitted).
 - **Put `[MarkoutIgnoreInTable]` on non-tabular list properties** (`List<Metric>`, `List<Breakdown>`,
