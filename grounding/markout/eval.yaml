@@ -148,7 +148,8 @@ scenarios:
   - name: "CT05: one model, two output formats (Markdown + plain text)"
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain
-      ReleaseReport. Using the serializer, print the SAME report twice from ONE model definition: first as
+      ReleaseReport. Using the serializer, print the SAME report twice from ONE model definition, giving each
+      report an H1 heading taken from the release version: first as
       GitHub-flavored Markdown, then as plain text — ASCII, space-aligned columns, no pipe tables and no
       box-drawing characters (the library ships a dedicated plain-text formatter for exactly this). Do not
       hand-write either rendering or define two models. Build and run to confirm both are printed.

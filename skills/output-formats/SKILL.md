@@ -40,6 +40,7 @@ var opts = new MarkoutWriterOptions
     IncludeDescription = false,
     IncludeSections = new HashSet<string> { "Results" },
     JsonTypedValues = true,                    // JSONL/TSV: emit numbers as numbers, not quoted
+    MaxItems = 3,                              // cap rows; appends a "... and {N} more" notice
 };
 MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ctx, opts);
 ```
@@ -47,6 +48,9 @@ MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ctx, opts
 - `MarkoutTableMode.Pretty` — columns aligned to a uniform start position.
 - `MarkoutTableMode.Tsv` — stable `snake_case` headers; never emits embedded tabs/newlines in cells.
 - `MarkoutTableMode.Jsonl` — one record per row (heterogeneous keys; see composite-cells-cards).
+- `MaxItems = N` caps EVERY table to N rows and appends `... and {count} more`; works with any formatter,
+  so a Markdown view can show the first N rows while TSV/JSONL export them all. (Or per-property:
+  `[MarkoutMaxItems(3)]`, with an optional `EllipsisFormat`.)
 
 ## Central multi-format dispatch (the CLI `--format` pattern)
 
@@ -58,7 +62,8 @@ static void Render<TView, TJson>(TView view, OutputFormat fmt, MarkoutSerializer
     switch (fmt)
     {
         case OutputFormat.Text:  MarkoutSerializer.Serialize(view, Console.Out, new PlainTextFormatter(), ctx); break;
-        case OutputFormat.Md:    MarkoutSerializer.Serialize(view, Console.Out, new MarkdownFormatter(), ctx); break;
+        case OutputFormat.Md:    MarkoutSerializer.Serialize(view, Console.Out, new MarkdownFormatter(), ctx,
+                                     new MarkoutWriterOptions { MaxItems = 3 }); break;   // first 3 rows + "... and N more"
         case OutputFormat.Table: MarkoutSerializer.Serialize(view, Console.Out, new TableFormatter(), ctx); break;
         case OutputFormat.Tsv:   MarkoutSerializer.Serialize(view, Console.Out, new TableFormatter(), ctx,
                                      new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv }); break;

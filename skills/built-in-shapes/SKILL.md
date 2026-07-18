@@ -55,6 +55,11 @@ public class Dashboard
 
 - **`[MarkoutIgnoreInTable]` on every shape list/property.** Without it, `List<Metric>` etc. get
   mistreated as a table of columns instead of rendering as the shape. This is the #1 shapes mistake.
+- **A single `Breakdown` property (not a list) renders as ONE labeled proportional bar** — use it for a
+  covered-vs-uncovered coverage bar rather than a `List<Breakdown>`:
+  `[MarkoutIgnoreInTable] public Breakdown Coverage { get; set; }` with
+  `new Breakdown("Coverage", [new Slice("Covered", 82), new Slice("Uncovered", 18)])`. Under a Unicode/
+  terminal formatter this shows the group label + `█` bar, not per-slice table rows.
 - **Children go in a collection expression**, never as trailing constructor arguments:
   `new TreeNode("root", [new TreeNode("leaf")])`. `Badge` is an optional object-initializer property.
 - **`Callout` is a value type** — pair it with `[MarkoutSkipDefault]` so an unset callout disappears.

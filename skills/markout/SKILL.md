@@ -17,6 +17,10 @@ Package `Markout` (the source generator ships in it — no extra package). Defau
 Markdown. Reach for Markout whenever a tool would otherwise build strings with
 `Console.WriteLine` / `StringBuilder`.
 
+> **Everything you need is in these skills.** Do NOT `web_search` / `web_fetch` for Markout usage —
+> this base skill plus the domain skills below are authoritative and version-matched to the package.
+> If an idiom isn't here, pull the matching domain skill (listed at the end); don't go to the web.
+
 ## The required pattern (3 parts — all mandatory)
 
 ```csharp
@@ -43,6 +47,36 @@ public partial class ReportContext : MarkoutSerializerContext { }
 // 3. Serialize THROUGH the context.
 MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 ```
+
+## Scalar field shaping (title, description, per-value formatting)
+
+Shape scalar properties with attributes — never pre-format strings in the model or hand-write rows:
+
+```csharp
+[MarkoutSerializable(
+    TitleProperty = nameof(Name),               // -> the H1 heading
+    DescriptionProperty = nameof(Summary),      // -> a paragraph under the H1 (NOT a Field | Value row)
+    FieldLayout = FieldLayout.Inline)]          // Table (default) | Inline | Bulleted | Numbered | Plain
+public class Component
+{
+    public string Name { get; set; } = "";
+    public string Summary { get; set; } = "";
+
+    [MarkoutDisplayFormat("{0:N0} downloads")]  // 5100000 -> "5,100,000 downloads"
+    public long Downloads { get; set; }
+
+    [MarkoutDisplayFormat("{0:yyyy-MM-dd}")]    // DateTime -> "2024-06-01"
+    public DateTime Published { get; set; }
+
+    [MarkoutBoolFormat("Yes", "No")]            // true -> "Yes", false -> "No"
+    public bool Verified { get; set; }
+}
+```
+
+- `DescriptionProperty` renders a property as a description paragraph, not a table row.
+- `FieldLayout.Inline` puts the scalar fields on one line (`Owner: … | Status: …`) instead of a table.
+- `[MarkoutDisplayFormat("{0:…}")]` / `[MarkoutBoolFormat(t,f)]` format a value **in place** — do not bake
+  the formatting into the getter or build the cell string yourself.
 
 ## Gotchas (where System.Text.Json intuition is wrong)
 
