@@ -399,7 +399,7 @@ scenarios:
     assertions:
       - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
       - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rqE --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty|IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
       - { type: file_not_contains, path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
         command_to_run: "dotnet"
@@ -408,7 +408,7 @@ scenarios:
         expected_std_output_matches: "(?=[\\s\\S]*logging)(?=^(?:(?!## Dependencies)[\\s\\S])*## Dependencies(?:(?!## Dependencies)[\\s\\S])*$)(?=^(?:(?!## Tags)[\\s\\S])*## Tags(?:(?!## Tags)[\\s\\S])*$)"
         command_timeout: 120
     rubric:
-      - "Declares the detail sections once, each gated by a verbosity flag via ShowWhenProperty"
+      - "Declares the detail sections once, each gated by a verbosity flag (via ShowWhenProperty or IncludeSections)"
       - "Renders the same model twice: quiet omits both; verbose includes each exactly once"
       - "Does not fork into two models or hand-write the sections"
     timeout: 900
