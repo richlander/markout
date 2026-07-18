@@ -8,7 +8,8 @@ description: >-
   source-gen but the rules differ (NO reflection fallback), so it needs a generated
   MarkoutSerializerContext and Markout-specific attributes. Start here for the required
   pattern; branch to the domain skills for conditional reports, multi-view/verbosity,
-  output formats, built-in shapes, and composite cells/cards.
+  output formats, built-in shapes, and composite cells/cards. Don't decompile the Markout
+  assembly or web-search its API — every idiom you need is in these skills.
 ---
 
 # Markout — structured output from objects

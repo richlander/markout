@@ -7,6 +7,7 @@ description: >-
   and goal polarity — or when building metric / role-matrix / verdict cards from one model
   (Change<V>, Fraction, Share, Percent, Segments, Delta/Goal, MetricChange<T>, MultiSourceRow,
   Verdict). This is Markout's most advanced tier. Requires the base `markout` pattern.
+  Don't decompile the assembly or web-search the API — these composite types are here.
 ---
 
 # Composite cells & cards — one declaration, dense cell + decomposed columns

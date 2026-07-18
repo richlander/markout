@@ -6,6 +6,7 @@ description: >-
   (Spectre), pretty aligned tables, or TSV/JSONL exports — or when one model must serve several
   formats from a single render path (a CLI `--format` switch). Pick the format with a formatter
   + MarkoutWriterOptions; never hand-build TSV/JSONL. Requires the base `markout` pattern.
+  Don't decompile the assembly or web-search the API — the TSV/JSONL/formatter idioms are all here.
 ---
 
 # Output formats — one model, many formats

@@ -6,7 +6,8 @@ description: >-
   columns that are empty/uniform, filter output to a chosen set of sections, or render one
   model into several shapes ("one model, many views"). This is Markout's highest-value idiom:
   declare the conditions with attributes instead of hand-writing if/else + StringBuilder.
-  Requires the base `markout` pattern (model + context + Serialize).
+  Requires the base `markout` pattern (model + context + Serialize). Don't decompile the
+  assembly or web-search the API — the conditional idioms are here.
 ---
 
 # Conditional composition — one model, many views

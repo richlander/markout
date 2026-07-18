@@ -7,7 +7,7 @@ description: >-
   collecting only the data the requested sections actually need ("verbosity backpressure").
   Markout has no "verbosity" attribute; you implement it by composing section gating +
   IncludeSections + field-layout choices. Requires the base `markout` pattern and pairs with
-  conditional-composition.
+  conditional-composition. Don't decompile the assembly or web-search the API — the verbosity/gating idioms are here.
 ---
 
 # Multi-view & verbosity — summary/detail from one model
