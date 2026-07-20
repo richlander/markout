@@ -1,0 +1,147 @@
+<svg viewBox="0 0 760 684" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect width="760" height="684" fill="#ffffff"/>
+  <text x="382" y="30" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">LIET curve — markout (claude-opus-4.8)</text>
+  <line x1="100" y1="380" x2="664" y2="380" stroke="#334155" stroke-width="1.5"/>
+  <line x1="100" y1="380" x2="100" y2="64" stroke="#334155" stroke-width="1.5"/>
+  <text x="92" y="384" text-anchor="end" font-size="10.5" fill="#64748b">0</text>
+  <line x1="100" y1="301" x2="664" y2="301" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="305" text-anchor="end" font-size="10.5" fill="#64748b">100k</text>
+  <line x1="100" y1="222" x2="664" y2="222" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="226" text-anchor="end" font-size="10.5" fill="#64748b">200k</text>
+  <line x1="100" y1="143" x2="664" y2="143" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="147" text-anchor="end" font-size="10.5" fill="#64748b">300k</text>
+  <line x1="100" y1="64" x2="664" y2="64" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="68" text-anchor="end" font-size="10.5" fill="#64748b">400k</text>
+  <text x="382" y="438" text-anchor="middle" font-size="12" fill="#334155">rung (difficulty) →</text>
+  <text x="46" y="222" text-anchor="middle" font-size="12" fill="#334155" transform="rotate(-90 46 222)">IET per correct answer (tokens) →</text>
+  <line x1="100" y1="327.5" x2="664" y2="327.5" stroke="#22c55e" stroke-width="1.4" stroke-dasharray="6 5" opacity="0.7"/>
+  <text x="106" y="323.5" font-size="10" fill="#16a34a">floor 66.5k</text>
+  <g font-size="11" fill="#475569">
+    <line x1="112" y1="72" x2="134" y2="72" stroke="#dc2626" stroke-width="2.5"/><text x="140" y="76">baseline (archaeology only)</text>
+    <line x1="112" y1="88" x2="134" y2="88" stroke="#2563eb" stroke-width="2.5"/><text x="140" y="92">SKILL.md</text>
+  </g>
+  <g font-size="11" fill="#64748b" text-anchor="middle">
+    <text x="100" y="398">03</text>
+    <text x="124" y="398">21</text>
+    <text x="149" y="398">11</text>
+    <text x="173" y="398">06</text>
+    <text x="198" y="398">01</text>
+    <text x="222" y="398">04</text>
+    <text x="247" y="398">05</text>
+    <text x="271" y="398">20</text>
+    <text x="296" y="398">16</text>
+    <text x="320" y="398">08</text>
+    <text x="345" y="398">18</text>
+    <text x="369" y="398">14</text>
+    <text x="394" y="398">19</text>
+    <text x="418" y="398">07</text>
+    <text x="443" y="398">15</text>
+    <text x="467" y="398">02</text>
+    <text x="492" y="398">09</text>
+    <text x="516" y="398">10</text>
+    <text x="541" y="398">13</text>
+    <text x="565" y="398">12</text>
+    <text x="590" y="398">24</text>
+    <text x="614" y="398">22</text>
+    <text x="639" y="398">17</text>
+    <text x="664" y="398">23</text>
+  </g>
+  <polyline points="100,329.6 124,328.8 149,328.5 173,327.9 198,325.8 222,324.3 247,322.6 271,320.1 296,318.1 320,307.1 345,299 369,298.7 394,283 418,282.3 443,278.7 467,274.1 492,270.3 516,254 541,248.7 565,245.2 590,186.7 614,122.7" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="100" cy="329.6" r="3.5" fill="#dc2626"/>
+  <circle cx="124" cy="328.8" r="3.5" fill="#dc2626"/>
+  <circle cx="149" cy="328.5" r="3.5" fill="#dc2626"/>
+  <circle cx="173" cy="327.9" r="3.5" fill="#dc2626"/>
+  <circle cx="198" cy="325.8" r="3.5" fill="#dc2626"/>
+  <circle cx="222" cy="324.3" r="3.5" fill="#dc2626"/>
+  <circle cx="247" cy="322.6" r="3.5" fill="#dc2626"/>
+  <circle cx="271" cy="320.1" r="3.5" fill="#dc2626"/>
+  <circle cx="296" cy="318.1" r="3.5" fill="#dc2626"/>
+  <circle cx="320" cy="307.1" r="3.5" fill="#dc2626"/>
+  <circle cx="345" cy="299" r="3.5" fill="#dc2626"/>
+  <circle cx="369" cy="298.7" r="3.5" fill="#dc2626"/>
+  <circle cx="394" cy="283" r="3.5" fill="#dc2626"/>
+  <circle cx="418" cy="282.3" r="3.5" fill="#dc2626"/>
+  <circle cx="443" cy="278.7" r="3.5" fill="#dc2626"/>
+  <circle cx="467" cy="274.1" r="3.5" fill="#dc2626"/>
+  <circle cx="492" cy="270.3" r="3.5" fill="#dc2626"/>
+  <circle cx="516" cy="254" r="3.5" fill="#dc2626"/>
+  <circle cx="541" cy="248.7" r="3.5" fill="#dc2626"/>
+  <circle cx="565" cy="245.2" r="3.5" fill="#dc2626"/>
+  <circle cx="590" cy="186.7" r="3.5" fill="#dc2626"/>
+  <circle cx="614" cy="122.7" r="3.5" fill="#dc2626"/>
+  <text x="610" y="114.7" text-anchor="end" font-size="11.5" font-weight="700" fill="#dc2626">baseline</text>
+  <polyline points="100,346 124,338.2 149,340.8 173,347.1 198,342.7 222,346.3 247,339.5 271,335.8 296,330.2 320,333.4 345,329.3 369,339.7 394,317.3 418,330.8 443,324.3 467,346.1 492,333.6 516,267.2 541,328 565,254 590,302.7 614,192.3 639,320.9 664,333.1" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <circle cx="100" cy="346" r="4" fill="#2563eb"/>
+  <circle cx="124" cy="338.2" r="4" fill="#2563eb"/>
+  <circle cx="149" cy="340.8" r="4" fill="#2563eb"/>
+  <circle cx="173" cy="347.1" r="4" fill="#2563eb"/>
+  <circle cx="198" cy="342.7" r="4" fill="#2563eb"/>
+  <circle cx="222" cy="346.3" r="4" fill="#2563eb"/>
+  <circle cx="247" cy="339.5" r="4" fill="#2563eb"/>
+  <circle cx="271" cy="335.8" r="4" fill="#2563eb"/>
+  <circle cx="296" cy="330.2" r="4" fill="#2563eb"/>
+  <circle cx="320" cy="333.4" r="4" fill="#2563eb"/>
+  <circle cx="345" cy="329.3" r="4" fill="#2563eb"/>
+  <circle cx="369" cy="339.7" r="4" fill="#2563eb"/>
+  <circle cx="394" cy="317.3" r="4" fill="#2563eb"/>
+  <circle cx="418" cy="330.8" r="4" fill="#2563eb"/>
+  <circle cx="443" cy="324.3" r="4" fill="#2563eb"/>
+  <circle cx="467" cy="346.1" r="4" fill="#2563eb"/>
+  <circle cx="492" cy="333.6" r="4" fill="#2563eb"/>
+  <circle cx="516" cy="267.2" r="4" fill="#2563eb"/>
+  <circle cx="541" cy="328" r="4" fill="#2563eb"/>
+  <circle cx="565" cy="254" r="4" fill="#2563eb"/>
+  <circle cx="590" cy="302.7" r="4" fill="#2563eb"/>
+  <circle cx="614" cy="192.3" r="4" fill="#2563eb"/>
+  <circle cx="639" cy="320.9" r="4" fill="#2563eb"/>
+  <circle cx="664" cy="333.1" r="4" fill="#2563eb"/>
+  <text x="660" y="325.1" text-anchor="end" font-size="11.5" font-weight="700" fill="#2563eb">SKILL.md</text>
+  <g font-size="8" font-weight="700" fill="#0891b2" text-anchor="middle">
+    <text x="100" y="359">M</text>
+    <text x="124" y="351.2">M 2</text>
+    <text x="149" y="353.8">M 2</text>
+    <text x="173" y="360.1">M</text>
+    <text x="198" y="355.7">M</text>
+    <text x="222" y="359.3">M</text>
+    <text x="247" y="352.5">M 5</text>
+    <text x="271" y="348.8">M 1</text>
+    <text x="296" y="343.2">M 2</text>
+    <text x="320" y="346.4">M 3</text>
+    <text x="345" y="342.3">M 4</text>
+    <text x="369" y="352.7">M 5</text>
+    <text x="394" y="330.3">M 5</text>
+    <text x="418" y="343.8">M 3</text>
+    <text x="443" y="337.3">M 1 5</text>
+    <text x="467" y="359.1">M</text>
+    <text x="492" y="346.6">M 5</text>
+    <text x="516" y="280.2">M 1 5</text>
+    <text x="541" y="341">M 3 4</text>
+    <text x="565" y="267">M 3</text>
+    <text x="590" y="315.7">M 3 4</text>
+    <text x="614" y="205.3">M 3</text>
+    <text x="639" y="333.9">M 3</text>
+    <text x="664" y="346.1">M 2 5</text>
+  </g>
+  <g font-size="10.5" fill="#475569">
+    <circle cx="112" cy="462" r="4" fill="none" stroke="#2563eb" stroke-width="2"/><text x="122" y="466">SKILL over ceiling (harm)</text>
+    <circle cx="290" cy="462" r="4" fill="#2563eb"/><text x="300" y="466">SKILL under ceiling (pays its way)</text>
+    <text x="540" y="466" font-style="italic">failed rungs not plotted</text>
+  </g>
+  <text x="112" y="484" font-size="9.5" font-weight="700" fill="#0891b2">skills pulled (id under each SKILL dot):</text>
+  <g font-size="9.5" fill="#0891b2">
+    <text x="120" y="498">• <tspan font-weight="700">M</tspan> = markout (×24)</text>
+    <text x="120" y="512">• <tspan font-weight="700">1</tspan> = built-in-shapes (exp ×3 · pull ×3)</text>
+    <text x="120" y="526">• <tspan font-weight="700">2</tspan> = composite-cells-cards (exp ×3 · pull ×4)</text>
+    <text x="120" y="540">• <tspan font-weight="700">3</tspan> = conditional-composition (exp ×4 · pull ×7)</text>
+    <text x="120" y="554">• <tspan font-weight="700">4</tspan> = multi-view-verbosity (exp ×4 · pull ×3)</text>
+    <text x="120" y="568">• <tspan font-weight="700">5</tspan> = output-formats (exp ×4 · pull ×7)</text>
+  </g>
+  <text x="112" y="588" font-size="9.5" font-weight="700" fill="#334155">Metrics:</text>
+  <g font-size="9.5" fill="#334155">
+    <text x="120" y="602">• Correct answers: 22→24/24</text>
+    <text x="120" y="616">• Floor LIET: 66.5k</text>
+    <text x="120" y="630">• LIET: 61k→8k (Δ −53k)</text>
+    <text x="120" y="644">• Archaeology operations: 91.6→3.6 (-96%)</text>
+    <text x="120" y="658">• Expected skill pulled: 23/24</text>
+  </g>
+</svg>

@@ -1,0 +1,138 @@
+<svg viewBox="0 0 760 684" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect width="760" height="684" fill="#ffffff"/>
+  <text x="382" y="30" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">LIET curve — markout (claude-haiku-4.5)</text>
+  <line x1="100" y1="380" x2="664" y2="380" stroke="#334155" stroke-width="1.5"/>
+  <line x1="100" y1="380" x2="100" y2="64" stroke="#334155" stroke-width="1.5"/>
+  <text x="92" y="384" text-anchor="end" font-size="10.5" fill="#64748b">0</text>
+  <line x1="100" y1="301" x2="664" y2="301" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="305" text-anchor="end" font-size="10.5" fill="#64748b">100k</text>
+  <line x1="100" y1="222" x2="664" y2="222" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="226" text-anchor="end" font-size="10.5" fill="#64748b">200k</text>
+  <line x1="100" y1="143" x2="664" y2="143" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="147" text-anchor="end" font-size="10.5" fill="#64748b">300k</text>
+  <line x1="100" y1="64" x2="664" y2="64" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="68" text-anchor="end" font-size="10.5" fill="#64748b">400k</text>
+  <text x="382" y="438" text-anchor="middle" font-size="12" fill="#334155">rung (difficulty) →</text>
+  <text x="46" y="222" text-anchor="middle" font-size="12" fill="#334155" transform="rotate(-90 46 222)">IET per correct answer (tokens) →</text>
+  <line x1="100" y1="323.7" x2="664" y2="323.7" stroke="#22c55e" stroke-width="1.4" stroke-dasharray="6 5" opacity="0.7"/>
+  <text x="106" y="319.7" font-size="10" fill="#16a34a">floor 71.2k</text>
+  <g font-size="11" fill="#475569">
+    <line x1="112" y1="72" x2="134" y2="72" stroke="#dc2626" stroke-width="2.5"/><text x="140" y="76">baseline (archaeology only)</text>
+    <line x1="112" y1="88" x2="134" y2="88" stroke="#2563eb" stroke-width="2.5"/><text x="140" y="92">SKILL.md</text>
+  </g>
+  <g font-size="11" fill="#64748b" text-anchor="middle">
+    <text x="100" y="398">06</text>
+    <text x="124" y="398">04</text>
+    <text x="149" y="398">03</text>
+    <text x="173" y="398">01</text>
+    <text x="198" y="398">08</text>
+    <text x="222" y="398">20</text>
+    <text x="247" y="398">10</text>
+    <text x="271" y="398">05</text>
+    <text x="296" y="398">24</text>
+    <text x="320" y="398">15</text>
+    <text x="345" y="398">16</text>
+    <text x="369" y="398">21</text>
+    <text x="394" y="398">19</text>
+    <text x="418" y="398">14</text>
+    <text x="443" y="398">09</text>
+    <text x="467" y="398">02</text>
+    <text x="492" y="398">07</text>
+    <text x="516" y="398">11</text>
+    <text x="541" y="398">12</text>
+    <text x="565" y="398">13</text>
+    <text x="590" y="398">17</text>
+    <text x="614" y="398">18</text>
+    <text x="639" y="398">22</text>
+    <text x="664" y="398">23</text>
+  </g>
+  <rect x="219" y="296.6" width="56" height="83.4" fill="#bbf7d0" opacity="0.4"/>
+  <rect x="219" y="64" width="56" height="232.6" fill="#fecaca" opacity="0.4"/>
+  <line x1="219" y1="296.6" x2="275" y2="296.6" stroke="#b45309" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="247" y="424" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1d4ed8">SKILL ✗</text>
+  <polyline points="100,342.3 124,331 149,330 173,327.2 198,312.9 222,298.9 247,296.6 271,294.4 296,272.4 320,267.1 345,262.5 369,261.3 394,225.6 418,143.3 443,141.7" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="100" cy="342.3" r="3.5" fill="#dc2626"/>
+  <circle cx="124" cy="331" r="3.5" fill="#dc2626"/>
+  <circle cx="149" cy="330" r="3.5" fill="#dc2626"/>
+  <circle cx="173" cy="327.2" r="3.5" fill="#dc2626"/>
+  <circle cx="198" cy="312.9" r="3.5" fill="#dc2626"/>
+  <circle cx="222" cy="298.9" r="3.5" fill="#dc2626"/>
+  <circle cx="247" cy="296.6" r="3.5" fill="#dc2626"/>
+  <circle cx="271" cy="294.4" r="3.5" fill="#dc2626"/>
+  <circle cx="296" cy="272.4" r="3.5" fill="#dc2626"/>
+  <circle cx="320" cy="267.1" r="3.5" fill="#dc2626"/>
+  <circle cx="345" cy="262.5" r="3.5" fill="#dc2626"/>
+  <circle cx="369" cy="261.3" r="3.5" fill="#dc2626"/>
+  <circle cx="394" cy="225.6" r="3.5" fill="#dc2626"/>
+  <circle cx="418" cy="143.3" r="3.5" fill="#dc2626"/>
+  <circle cx="443" cy="141.7" r="3.5" fill="#dc2626"/>
+  <text x="439" y="133.7" text-anchor="end" font-size="11.5" font-weight="700" fill="#dc2626">baseline</text>
+  <polyline points="100,352.2 124,352.7 149,350.3 173,346.1 198,343.7 222,347.3" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <polyline points="271,347.8 296,339.6 320,332.8 345,345.7 369,336.6 394,336.4 418,331.9 443,330.5 467,349.8 492,337.4 516,348.2" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <polyline points="565,320.5 590,338" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <circle cx="100" cy="352.2" r="4" fill="#2563eb"/>
+  <circle cx="124" cy="352.7" r="4" fill="#2563eb"/>
+  <circle cx="149" cy="350.3" r="4" fill="#2563eb"/>
+  <circle cx="173" cy="346.1" r="4" fill="#2563eb"/>
+  <circle cx="198" cy="343.7" r="4" fill="#2563eb"/>
+  <circle cx="222" cy="347.3" r="4" fill="#2563eb"/>
+  <circle cx="271" cy="347.8" r="4" fill="#2563eb"/>
+  <circle cx="296" cy="339.6" r="4" fill="#2563eb"/>
+  <circle cx="320" cy="332.8" r="4" fill="#2563eb"/>
+  <circle cx="345" cy="345.7" r="4" fill="#2563eb"/>
+  <circle cx="369" cy="336.6" r="4" fill="#2563eb"/>
+  <circle cx="394" cy="336.4" r="4" fill="#2563eb"/>
+  <circle cx="418" cy="331.9" r="4" fill="#2563eb"/>
+  <circle cx="443" cy="330.5" r="4" fill="#2563eb"/>
+  <circle cx="467" cy="349.8" r="4" fill="#2563eb"/>
+  <circle cx="492" cy="337.4" r="4" fill="#2563eb"/>
+  <circle cx="516" cy="348.2" r="4" fill="#2563eb"/>
+  <circle cx="565" cy="320.5" r="4" fill="#2563eb"/>
+  <circle cx="590" cy="338" r="4" fill="#2563eb"/>
+  <circle cx="664" cy="341.2" r="4" fill="#2563eb"/>
+  <text x="660" y="333.2" text-anchor="end" font-size="11.5" font-weight="700" fill="#2563eb">SKILL.md</text>
+  <g font-size="8" font-weight="700" fill="#0891b2" text-anchor="middle">
+    <text x="100" y="365.2">M</text>
+    <text x="124" y="365.7">M</text>
+    <text x="149" y="363.3">M</text>
+    <text x="173" y="359.1">M</text>
+    <text x="198" y="356.7">M 3 4</text>
+    <text x="222" y="360.3">M 1</text>
+    <text x="271" y="360.8">M 5</text>
+    <text x="296" y="352.6">M 3 4</text>
+    <text x="320" y="345.8">M 1 5</text>
+    <text x="345" y="358.7">M 2</text>
+    <text x="369" y="349.6">M 2</text>
+    <text x="394" y="349.4">M 5</text>
+    <text x="418" y="344.9">M 5</text>
+    <text x="443" y="343.5">M 5</text>
+    <text x="467" y="362.8">M</text>
+    <text x="492" y="350.4">M 3</text>
+    <text x="516" y="361.2">M 2</text>
+    <text x="565" y="333.5">M 3 4</text>
+    <text x="590" y="351">M 3</text>
+    <text x="664" y="354.2">M 2 5</text>
+  </g>
+  <g font-size="10.5" fill="#475569">
+    <circle cx="112" cy="462" r="4" fill="none" stroke="#2563eb" stroke-width="2"/><text x="122" y="466">SKILL over ceiling (harm)</text>
+    <circle cx="290" cy="462" r="4" fill="#2563eb"/><text x="300" y="466">SKILL under ceiling (pays its way)</text>
+    <text x="540" y="466" font-style="italic">failed rungs not plotted</text>
+  </g>
+  <text x="112" y="484" font-size="9.5" font-weight="700" fill="#0891b2">skills pulled (id under each SKILL dot):</text>
+  <g font-size="9.5" fill="#0891b2">
+    <text x="120" y="498">• <tspan font-weight="700">M</tspan> = markout (×24)</text>
+    <text x="120" y="512">• <tspan font-weight="700">1</tspan> = built-in-shapes (exp ×3 · pull ×4)</text>
+    <text x="120" y="526">• <tspan font-weight="700">2</tspan> = composite-cells-cards (exp ×3 · pull ×4)</text>
+    <text x="120" y="540">• <tspan font-weight="700">3</tspan> = conditional-composition (exp ×4 · pull ×8)</text>
+    <text x="120" y="554">• <tspan font-weight="700">4</tspan> = multi-view-verbosity (exp ×4 · pull ×4)</text>
+    <text x="120" y="568">• <tspan font-weight="700">5</tspan> = output-formats (exp ×4 · pull ×7)</text>
+  </g>
+  <text x="112" y="588" font-size="9.5" font-weight="700" fill="#334155">Metrics:</text>
+  <g font-size="9.5" fill="#334155">
+    <text x="120" y="602">• Correct answers: 15→20/24</text>
+    <text x="120" y="616">• Floor LIET: 71.2k</text>
+    <text x="120" y="630">• LIET: 161.7k→-7.5k (Δ −169.3k)</text>
+    <text x="120" y="644">• Archaeology operations: 141.2→0.2 (-100%)</text>
+    <text x="120" y="658">• Expected skill pulled: 24/24</text>
+  </g>
+</svg>

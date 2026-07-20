@@ -1,0 +1,129 @@
+<svg viewBox="0 0 760 520" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect width="760" height="520" fill="#ffffff"/>
+  <text x="382" y="30" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">Archaeology — markout (claude-haiku-4.5)</text>
+  <line x1="100" y1="380" x2="664" y2="380" stroke="#334155" stroke-width="1.5"/>
+  <line x1="100" y1="380" x2="100" y2="64" stroke="#334155" stroke-width="1.5"/>
+  <text x="92" y="384" text-anchor="end" font-size="10.5" fill="#64748b">0</text>
+  <line x1="100" y1="274.7" x2="664" y2="274.7" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="278.7" text-anchor="end" font-size="10.5" fill="#64748b">5</text>
+  <line x1="100" y1="169.3" x2="664" y2="169.3" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="173.3" text-anchor="end" font-size="10.5" fill="#64748b">10</text>
+  <line x1="100" y1="64" x2="664" y2="64" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="68" text-anchor="end" font-size="10.5" fill="#64748b">15</text>
+  <text x="382" y="430" text-anchor="middle" font-size="12" fill="#334155">rung (difficulty) →</text>
+  <text x="46" y="222" text-anchor="middle" font-size="12" fill="#334155" transform="rotate(-90 46 222)">archaeology tool calls →</text>
+  <g font-size="11" fill="#64748b" text-anchor="middle">
+    <text x="100" y="398">06</text>
+    <text x="124" y="398">04</text>
+    <text x="149" y="398">03</text>
+    <text x="173" y="398">01</text>
+    <text x="198" y="398">08</text>
+    <text x="222" y="398">20</text>
+    <text x="247" y="398">10</text>
+    <text x="271" y="398">05</text>
+    <text x="296" y="398">24</text>
+    <text x="320" y="398">15</text>
+    <text x="345" y="398">16</text>
+    <text x="369" y="398">21</text>
+    <text x="394" y="398">19</text>
+    <text x="418" y="398">14</text>
+    <text x="443" y="398">09</text>
+    <text x="467" y="398">02</text>
+    <text x="492" y="398">07</text>
+    <text x="516" y="398">11</text>
+    <text x="541" y="398">12</text>
+    <text x="565" y="398">13</text>
+    <text x="590" y="398">17</text>
+    <text x="614" y="398">18</text>
+    <text x="639" y="398">22</text>
+    <text x="664" y="398">23</text>
+  </g>
+  <polyline points="100,321 124,304.2 149,304.2 173,337.9 198,304.2 222,253.6 247,262 271,299.9 296,236.7 320,190.4 345,316.8 369,283.1 394,80.9 418,194.6 443,278.9 467,101.9 492,278.9 516,283.1 541,182 565,266.2 590,304.2 614,321 639,198.8 664,241" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="100" cy="321" r="3.8" fill="#dc2626"/>
+  <circle cx="124" cy="304.2" r="3.8" fill="#dc2626"/>
+  <circle cx="149" cy="304.2" r="3.8" fill="#dc2626"/>
+  <circle cx="173" cy="337.9" r="3.8" fill="#dc2626"/>
+  <circle cx="198" cy="304.2" r="3.8" fill="#dc2626"/>
+  <circle cx="222" cy="253.6" r="3.8" fill="#dc2626"/>
+  <circle cx="247" cy="262" r="3.8" fill="#dc2626"/>
+  <circle cx="271" cy="299.9" r="3.8" fill="#dc2626"/>
+  <circle cx="296" cy="236.7" r="3.8" fill="#dc2626"/>
+  <circle cx="320" cy="190.4" r="3.8" fill="#dc2626"/>
+  <circle cx="345" cy="316.8" r="3.8" fill="#dc2626"/>
+  <circle cx="369" cy="283.1" r="3.8" fill="#dc2626"/>
+  <circle cx="394" cy="80.9" r="3.8" fill="#dc2626"/>
+  <circle cx="418" cy="194.6" r="3.8" fill="#dc2626"/>
+  <circle cx="443" cy="278.9" r="3.8" fill="#dc2626"/>
+  <circle cx="467" cy="101.9" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="492" cy="278.9" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="516" cy="283.1" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="541" cy="182" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="565" cy="266.2" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="590" cy="304.2" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="614" cy="321" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="639" cy="198.8" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="664" cy="241" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <polyline points="100,380 124,380 149,380 173,375.8 198,380 222,380 247,380 271,380 296,380 320,380 345,380 369,380 394,380 418,380 443,380 467,380 492,380 516,380 541,380 565,380 590,380 614,380 639,380 664,380" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <circle cx="100" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="105" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
+  <circle cx="124" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="129" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
+  <circle cx="149" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="154" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
+  <circle cx="173" cy="375.8" r="3.8" fill="#2563eb"/>
+  <text x="178" y="370.8" font-size="8" font-weight="700" fill="#0891b2">1</text>
+  <circle cx="198" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="203" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="222" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="227" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="247" cy="380" r="3.8" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <text x="252" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="271" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="276" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="296" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="301" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="320" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="325" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="345" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="350" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="369" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="374" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="394" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="399" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="418" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="423" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="443" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="448" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="467" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="472" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
+  <circle cx="492" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="497" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="516" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="521" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="541" cy="380" r="3.8" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <text x="546" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="565" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="570" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="590" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="595" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="614" cy="380" r="3.8" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <text x="619" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="639" cy="380" r="3.8" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <text x="644" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="664" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="669" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <g font-size="11" fill="#475569">
+    <line x1="112" y1="72" x2="134" y2="72" stroke="#dc2626" stroke-width="2.5"/><text x="140" y="76">baseline (archaeology only)</text>
+    <line x1="112" y1="88" x2="134" y2="88" stroke="#2563eb" stroke-width="2.5"/><text x="140" y="92">SKILL.md</text>
+  </g>
+  <g font-size="10.5" fill="#475569">
+    <circle cx="120" cy="442" r="3.8" fill="#64748b"/><text x="130" y="446">passed</text>
+    <circle cx="196" cy="442" r="3.8" fill="#ffffff" stroke="#64748b" stroke-width="2"/><text x="206" y="446">failed</text>
+    <text x="268" y="446"><tspan font-weight="700" fill="#0891b2">ⁿ</tspan> = skills pulled on the SKILL line</text>
+  </g>
+  <text x="120" y="466" font-size="9.5" font-weight="700" fill="#334155">Metrics:</text>
+  <g font-size="9.5" fill="#334155">
+    <text x="128" y="480">• Archaeology operations: 141.2→0.2 (-100%)</text>
+    <text x="128" y="494">• Correct answers: 15→20/24</text>
+  </g>
+</svg>
