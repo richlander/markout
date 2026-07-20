@@ -775,3 +775,95 @@ scenarios:
       - "Diagnostics appears in both the targeted render and the detailed render (>= twice); Dependencies appears only in the detailed render (exactly once total)"
       - "Section selection uses IncludeSections; omitted sections are never hand-written"
     timeout: 1200
+
+  - name: "CT25: flag-driven collect-less (quiet skips the expensive scan)"
+    expected_skill: multi-view-verbosity   # methodology prior: backpressure = gate what you COLLECT
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj).
+      Program.cs holds one plain PackageReport with scalar fields and a Diagnostics detail section.
+      Gathering Diagnostics is the EXPENSIVE step: the provided ScanDiagnostics() stands in for a deep
+      scan and announces itself on stderr ("SCAN:diagnostics") whenever it runs. Using the serializer,
+      render `report` from ONE model + one render path for the mode named in args[0]:
+        - "quiet":  the title + scalar fields only. Do NOT gather Diagnostics (do not call ScanDiagnostics).
+        - "detail": additionally render a "## Diagnostics" section, gathering it via ScanDiagnostics().
+      Select rendered sections with IncludeSections; gate what you COLLECT on the mode so quiet stays
+      cheap — the expensive scan must not run in quiet. Do not hand-write omitted sections. Build and
+      run to confirm.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT25/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT25/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build -- quiet"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*Serilog)^(?:(?!## Diagnostics)[\\s\\S])*$"
+        command_timeout: 120
+      # CRUX: quiet must SKIP the expensive scan (marker absent on stderr -> grep exit 1)
+      - { type: run_command_and_assert, command_to_run: "bash", command_arguments: "-c \"dotnet run --no-build -- quiet 2>&1 | grep -q SCAN:diagnostics\"", expected_exit_code: 1, command_timeout: 120 }
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build -- detail"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*## Diagnostics)[\\s\\S]*transitive version conflict"
+        command_timeout: 120
+      # detail renders the section AND runs the scan (marker present -> grep exit 0)
+      - { type: run_command_and_assert, command_to_run: "bash", command_arguments: "-c \"dotnet run --no-build -- detail 2>&1 | grep -q SCAN:diagnostics\"", expected_exit_code: 0, command_timeout: 120 }
+    rubric:
+      - "The quiet mode renders scalars only and does NOT run the expensive Diagnostics scan (no SCAN:diagnostics on stderr)"
+      - "The detail mode renders the Diagnostics section and gathers it via the scan"
+      - "Collection is gated on the mode (verbosity backpressure), not just section rendering; selection uses IncludeSections"
+    timeout: 1200
+
+  - name: "CT26: section-targeted promotion collects only the requested scan"
+    expected_skill: multi-view-verbosity   # methodology prior: promote collection per requested section
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj).
+      Program.cs holds one plain PackageReport with scalar fields and two detail sections
+      (Dependencies, Diagnostics). Each section is EXPENSIVE to gather: ScanDependencies() and
+      ScanDiagnostics() stand in for deep scans and each announces itself on stderr
+      ("SCAN:dependencies" / "SCAN:diagnostics") whenever it runs. Using the serializer, render
+      `report` from ONE model + one render path for the selector named in args[0]:
+        - "quiet":       the title + scalar fields only; gather NEITHER section.
+        - "Diagnostics": render ONLY "## Diagnostics" — promote collection to gather it, but do NOT
+                         gather Dependencies.
+        - "all":         render BOTH "## Dependencies" and "## Diagnostics", gathering both.
+      Select rendered sections with IncludeSections; gate what you COLLECT on the selector so a narrow
+      request runs only the scan it renders. Do not hand-write omitted sections. Build and run to confirm.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT26/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT26/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build -- Diagnostics"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*## Diagnostics)^(?:(?!## Dependencies)[\\s\\S])*$"
+        command_timeout: 120
+      # CRUX: a Diagnostics-only request runs the diagnostics scan (exit 0) ...
+      - { type: run_command_and_assert, command_to_run: "bash", command_arguments: "-c \"dotnet run --no-build -- Diagnostics 2>&1 | grep -q SCAN:diagnostics\"", expected_exit_code: 0, command_timeout: 120 }
+      # ... but must NOT run the dependencies scan (marker absent -> grep exit 1)
+      - { type: run_command_and_assert, command_to_run: "bash", command_arguments: "-c \"dotnet run --no-build -- Diagnostics 2>&1 | grep -q SCAN:dependencies\"", expected_exit_code: 1, command_timeout: 120 }
+      # quiet gathers NEITHER scan (no SCAN marker at all -> grep exit 1)
+      - { type: run_command_and_assert, command_to_run: "bash", command_arguments: "-c \"dotnet run --no-build -- quiet 2>&1 | grep -qE 'SCAN:(dependencies|diagnostics)'\"", expected_exit_code: 1, command_timeout: 120 }
+      - type: run_command_and_assert
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build -- all"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*## Dependencies)(?=[\\s\\S]*## Diagnostics)"
+        command_timeout: 120
+    rubric:
+      - "A Diagnostics-only request renders that section and runs ONLY its scan; the Dependencies scan does not run"
+      - "The quiet selector gathers neither section (no scans run)"
+      - "The all selector renders and gathers both; collection is gated per requested section (backpressure), selection uses IncludeSections"
+    timeout: 1200
