@@ -222,7 +222,7 @@ imperative string-building. Build and run to confirm.
 
 ## CT08: render a section subset with IncludeSections
 
-- Target skill: multi-view-verbosity
+- Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
 
 ```text
@@ -369,7 +369,7 @@ or imperatively build the table. Build and run to confirm.
 
 ## CT13: verbosity-gated detail sections (quiet vs verbose)
 
-- Target skill: multi-view-verbosity
+- Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
 
 ```text
@@ -518,7 +518,7 @@ serializer; do not hand-write the heading or branch with imperative string-build
 
 ## CT18: one model rendered at three verbosity levels
 
-- Target skill: multi-view-verbosity
+- Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
 
 ```text

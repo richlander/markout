@@ -244,7 +244,7 @@ scenarios:
     timeout: 900
 
   - name: "CT08: render a section subset with IncludeSections"
-    expected_skill: multi-view-verbosity   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain ServiceStatus
       with scalar fields and two list sections (Incidents, Metrics). Using the serializer, print the SAME model
