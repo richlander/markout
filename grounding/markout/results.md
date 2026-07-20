@@ -23,6 +23,7 @@ discovery is organic.
 | output tok (% of IET) (−) | 9916 (28%) → **3579 (25%)** | 6788 (26%) → **3794 (24%)** |
 | tool-call turns (% of total) (−) | 27 (95%) → **10 (88%)** | 12 (91%) → **8 (86%)** |
 | Session turns (−) | 28 → **11** | 13 → **9** |
+| Session wall-clock, end-to-end (−) | 150 → **49s (−67%)** | 124 → **69s (−45%)** |
 | Total IET (−) | 172277 → **66491 (−61%)** | 122442 → **73860 (−40%)** |
 | ↳ Grounding IET (doc) | 0 → 4210 | 0 → 3915 |
 | ↳ Work IET (agent) (−) | 172277 → **62282** | 122442 → **69946** |
@@ -37,6 +38,11 @@ yet be BETTER on efficiency.
 - **haiku `FAIL / BETTER`** — doesn't clear the gate (20/24; the gap is execution, not discovery —
   the skill activated **24/24**), but improves every efficiency axis: **+5 correct**, archaeology → **0**,
   turns 28→11, Total IET **−61%**.
+
+> **On wall-clock:** end-to-end wall-clock (150→49s haiku, 124→69s opus) tracks the turn/IET drop but
+> is machine- and load-dependent (it includes `dotnet build`/restore wait and parallelism), so it's an
+> **informative** signal, not the normative gate — IET is the machine-independent cost metric. The
+> numbers above were all measured on one host in the same run.
 
 **Skills pulled** (self-select from shelf, ×scenarios):
 
