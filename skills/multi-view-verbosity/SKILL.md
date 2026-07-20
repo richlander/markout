@@ -2,12 +2,14 @@
 name: multi-view-verbosity
 version: 0.22.0
 description: >-
-  Use when one data model must feed several verbosity levels or summaries from a single
-  source — a quiet/normal/detail (`-v`) switch, a compact summary vs a full report, or
-  collecting only the data the requested sections actually need ("verbosity backpressure").
-  Markout has no "verbosity" attribute; you implement it by composing section gating +
-  IncludeSections + field-layout choices. Requires the base `markout` pattern and pairs with
-  conditional-composition. Don't decompile the assembly or web-search the API — the verbosity/gating idioms are here.
+  Use when lower verbosity must do less work, not just show less — "verbosity backpressure": a
+  quiet/normal/detail (`-v`) switch where the quiet path skips expensive scans or collection, or a
+  compact field layout traded for a full one from the same model. Owns the collect-less-at-lower-
+  detail decision and the summary-vs-detail field layout. Choosing *which sections* render —
+  show/hide, IncludeSections, one-model-many-views — belongs to conditional-composition; reach for
+  this only when the verbosity level also changes what you gather. Requires the base `markout`
+  pattern and builds on conditional-composition. Don't decompile the assembly or web-search the API
+  — the verbosity idioms are here.
 ---
 
 # Multi-view & verbosity — summary/detail from one model

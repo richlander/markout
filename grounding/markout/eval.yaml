@@ -396,7 +396,7 @@ scenarios:
     timeout: 900
 
   - name: "CT13: verbosity-gated detail sections (quiet vs verbose)"
-    expected_skill: multi-view-verbosity   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
       (scalars plus Dependencies and Tags collections). Using the serializer, print BOTH a quiet and a verbose
@@ -550,7 +550,7 @@ scenarios:
     timeout: 900
 
   - name: "CT18: one model rendered at three verbosity levels"
-    expected_skill: multi-view-verbosity   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
       with scalar fields and two list sections (Dependencies, Diagnostics). Using the serializer, print the SAME
