@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.22.0</Version>
-    <PackageReleaseNotes>Quality follow-ups to the 0.21.0 goal-aware annotations: (1) [#139] Composite columns of an element table (List&lt;T&gt; with a Change&lt;V&gt; or other composite property) now decompose into typed {column}_{sub} fields for structured formatters (TSV/JSONL) — score_before/score_after/score_delta_pct, bugs_direction/bugs_status, tasks_delta_count/tasks_delta_noun — so the card is reconstructable from the data; Markdown keeps the dense cell (100 → 50 (-50%)). [MarkoutDeltaNoun] now also decomposes (deltaCount/deltaNoun), and [MarkoutIgnoreColumnWhen] hidden columns drop from the decomposed output too. (2) [#140] Goal direction/status derivation uses an exact numeric path, so adjacent large integral values past 2^53 classify correctly and the noise tolerance is an exact rational comparison. (3) [#141] When a Delta.Multiple aligns with its goal, the redundant inline status word is suppressed (dense Markdown only); a conflicting status is kept. (4) [#115] MarkoutWriter field-render methods take a zero-allocation fast path when no field projection is configured.</PackageReleaseNotes>
+    <Version>0.23.0</Version>
+    <PackageReleaseNotes>[#150] A lone scalar Metric/Breakdown property (not a List&lt;T&gt;/array) now renders as its bar shape, the same as the collection forms. Previously a single Breakdown/Metric fell through to the generic complex-object renderer, producing a Field/Value + Slices table plus MARKOUT001 and CS8073 warnings instead of the bar the shape implies. Non-nullable and nullable (Metric?/Breakdown?) forms are supported; unset/default shapes render nothing.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
