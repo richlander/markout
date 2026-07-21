@@ -63,21 +63,21 @@
   <line x1="219" y1="296.6" x2="275" y2="296.6" stroke="#b45309" stroke-width="2" stroke-dasharray="5 4"/>
   <text x="247" y="424" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1d4ed8">SKILL ✗</text>
   <polyline points="100,347.6 124,340.5 149,335.8 173,333.4 198,313.6 222,307.3 247,308.9 271,299.4 296,274.9 320,278.9 345,263.9 369,278.1 394,241.8 418,199.9 443,162 467,175.4 492,299.4 516,187.2 541,146.2 565,225.2 590,328.7 614,297.1 639,124 664,215.7" fill="none" stroke="#c4a484" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.85"/>
-  <circle cx="100" cy="347.6" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="124" cy="340.5" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="149" cy="335.8" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="173" cy="333.4" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="198" cy="313.6" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="222" cy="307.3" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="247" cy="308.9" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="271" cy="299.4" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="296" cy="274.9" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="320" cy="278.9" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="345" cy="263.9" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="369" cy="278.1" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="394" cy="241.8" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="418" cy="199.9" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="443" cy="162" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
+  <circle cx="100" cy="347.6" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="124" cy="340.5" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="149" cy="335.8" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="173" cy="333.4" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="198" cy="313.6" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="222" cy="307.3" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="247" cy="308.9" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="271" cy="299.4" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="296" cy="274.9" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="320" cy="278.9" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="345" cy="263.9" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="369" cy="278.1" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="394" cy="241.8" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="418" cy="199.9" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="443" cy="162" r="2" fill="#c4a484" opacity="0.85"/>
   <circle cx="467" cy="175.4" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
   <circle cx="492" cy="299.4" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
   <circle cx="516" cy="187.2" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
@@ -89,30 +89,30 @@
   <circle cx="664" cy="215.7" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
   <text x="660" y="209.7" text-anchor="end" font-size="10" font-style="italic" fill="#c4a484">baseline time</text>
   <polyline points="100,357.9 124,360.3 149,357.1 173,354.7 198,351.6 222,357.1 247,345.2 271,357.1 296,353.9 320,346.8 345,354.7 369,348.4 394,350 418,346 443,339.7 467,360.3 492,346 516,359.5 541,256.8 565,337.3 590,347.6 614,346.8 639,203.8 664,353.9" fill="none" stroke="#5eaaa8" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.85"/>
-  <circle cx="100" cy="357.9" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="124" cy="360.3" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="149" cy="357.1" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="173" cy="354.7" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="198" cy="351.6" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="222" cy="357.1" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
+  <circle cx="100" cy="357.9" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="124" cy="360.3" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="149" cy="357.1" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="173" cy="354.7" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="198" cy="351.6" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="222" cy="357.1" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="247" cy="345.2" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="271" cy="357.1" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="296" cy="353.9" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="320" cy="346.8" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="345" cy="354.7" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="369" cy="348.4" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="394" cy="350" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="418" cy="346" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="443" cy="339.7" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="467" cy="360.3" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="492" cy="346" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="516" cy="359.5" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
+  <circle cx="271" cy="357.1" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="296" cy="353.9" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="320" cy="346.8" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="345" cy="354.7" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="369" cy="348.4" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="394" cy="350" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="418" cy="346" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="443" cy="339.7" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="467" cy="360.3" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="492" cy="346" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="516" cy="359.5" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="541" cy="256.8" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="565" cy="337.3" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="590" cy="347.6" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
+  <circle cx="565" cy="337.3" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="590" cy="347.6" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="614" cy="346.8" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
   <circle cx="639" cy="203.8" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="664" cy="353.9" r="2" fill="white" stroke="#5eaaa8" stroke-width="1.2" opacity="0.85"/>
+  <circle cx="664" cy="353.9" r="2" fill="#5eaaa8" opacity="0.85"/>
   <text x="660" y="347.9" text-anchor="end" font-size="10" font-style="italic" fill="#5eaaa8">SKILL time</text>
   <polyline points="100,342.3 124,331 149,330 173,327.2 198,312.9 222,298.9 247,296.6 271,294.4 296,272.4 320,267.1 345,262.5 369,261.3 394,225.6 418,143.3 443,141.7" fill="none" stroke="#dc2626" stroke-width="2.5"/>
   <circle cx="100" cy="342.3" r="3.5" fill="#dc2626"/>
