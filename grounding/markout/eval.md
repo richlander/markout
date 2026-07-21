@@ -1,4 +1,4 @@
-# Markout CT-24 Eval Guide
+# Markout CT Eval Guide (24 scenarios)
 
 A reviewer-oriented rendering of 24 CT scenarios from eval.yaml for Markout 0.22.0.
 
@@ -10,6 +10,7 @@ A reviewer-oriented rendering of 24 CT scenarios from eval.yaml for Markout 0.22
 
 - Target skill: markout
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT01/Report.csproj](fixtures/ct/CT01/Report.csproj), [CT01/Program.cs](fixtures/ct/CT01/Program.cs)
 
 ```text
 This console project references a source-generated .NET serializer that projects annotated objects into Markdown (see the package reference in the .csproj). Program.cs holds
@@ -21,8 +22,8 @@ Markdown. Build and run the project to confirm it prints the expected report.
 
 ### Rubric
 
-- Registers the model on a partial MarkoutSerializerContext and drives output through MarkoutSerializer.Serialize
-- Uses TitleProperty for the H1 and lets scalars render as Field | Value rows — does NOT hand-write headings or tables
+- Registers the model on a partial `MarkoutSerializerContext` and drives output through `MarkoutSerializer.Serialize`
+- Uses `TitleProperty` for the H1 and lets scalars render as Field | Value rows — does NOT hand-write headings or tables
 - Builds and prints the report
 
 ### Checks
@@ -39,6 +40,7 @@ Markdown. Build and run the project to confirm it prints the expected report.
 
 - Target skill: markout
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT02/Report.csproj](fixtures/ct/CT02/Report.csproj), [CT02/Program.cs](fixtures/ct/CT02/Program.cs)
 
 ```text
 This console project references a source-generated Markdown serializer (see the .csproj).
@@ -56,7 +58,7 @@ not hand-write Markdown. Build and run to confirm.
 
 ### Rubric
 
-- Produces the Downloads cell (thousands-separated value + the word "downloads") through a declarative formatter — any of [MarkoutDisplayFormat("{0:N0} downloads")], [MarkoutFormat] with a literal-section numeric format, or a custom IMarkoutCell + [MarkoutUnit] — plus [MarkoutBoolFormat("Yes","No")] for the flag and a format for the ISO date
+- Produces the Downloads cell (thousands-separated value + the word "downloads") through a declarative formatter — any of `[MarkoutDisplayFormat("{0:N0} downloads")]`, `[MarkoutFormat]` with a literal-section numeric format, or a custom `IMarkoutCell` + `[MarkoutUnit]` — plus `[MarkoutBoolFormat("Yes","No")]` for the flag and a format for the ISO date
 - Formatting lives on the view via attributes — does NOT inline ToString/string.Format/ternary
 - Drives output through the serializer; builds and prints the formatted table
 
@@ -74,6 +76,7 @@ not hand-write Markdown. Build and run to confirm.
 
 - Target skill: markout
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT03/Report.csproj](fixtures/ct/CT03/Report.csproj), [CT03/Program.cs](fixtures/ct/CT03/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain TestRun
@@ -85,7 +88,7 @@ the data or hand-write the table. Drive output through the serializer. Build and
 
 ### Rubric
 
-- Uses [MarkoutPropertyName("Total")] to rename and [MarkoutIgnore] to hide the id field
+- Uses `[MarkoutPropertyName("Total")]` to rename and `[MarkoutIgnore]` to hide the id field
 - Output shows 'Total' (not 'TotalTests') and no InternalRunId row
 - Drives output through the serializer; does NOT hand-write the table
 
@@ -104,6 +107,7 @@ the data or hand-write the table. Drive output through the serializer. Build and
 
 - Target skill: markout
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT04/Report.csproj](fixtures/ct/CT04/Report.csproj), [CT04/Program.cs](fixtures/ct/CT04/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain
@@ -115,7 +119,7 @@ table. Build and run to confirm.
 
 ### Rubric
 
-- Uses [MarkoutSection(Name = "Dependencies")] on the List<T> so it renders as a titled table
+- Uses `[MarkoutSection(Name = "Dependencies")]` on the List<T> so it renders as a titled table
 - Registers the element type on the context; both rows render
 - Drives output through the serializer; does NOT hand-write the heading or table
 
@@ -133,6 +137,7 @@ table. Build and run to confirm.
 
 - Target skill: markout
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT05/Report.csproj](fixtures/ct/CT05/Report.csproj), [CT05/Program.cs](fixtures/ct/CT05/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain
@@ -145,7 +150,7 @@ hand-write either rendering or define two models. Build and run to confirm both 
 
 ### Rubric
 
-- Renders ONE model twice, passing a PlainTextFormatter for the second (ASCII, space-aligned) rendering
+- Renders ONE model twice, passing a `PlainTextFormatter` for the second (ASCII, space-aligned) rendering
 - Markdown output uses '#'/pipe tables; plain-text output is space-aligned with ASCII rules (no pipe table, no Unicode box-drawing)
 - Drives both through the serializer; does NOT hand-write either format
 
@@ -163,6 +168,7 @@ hand-write either rendering or define two models. Build and run to confirm both 
 
 - Target skill: markout
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT06/Report.csproj](fixtures/ct/CT06/Report.csproj), [CT06/Program.cs](fixtures/ct/CT06/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain Component
@@ -175,7 +181,7 @@ and field layout. Drive output through the serializer. Build and run to confirm.
 
 ### Rubric
 
-- Uses TitleProperty, DescriptionProperty, and FieldLayout = FieldLayout.Inline on [MarkoutSerializable]
+- Uses `TitleProperty`, `DescriptionProperty`, and `FieldLayout` = `FieldLayout`.Inline on `[MarkoutSerializable]`
 - Summary is a paragraph; Owner/Status render inline, NOT as a Field | Value table
 - Drives output through the serializer
 
@@ -194,6 +200,7 @@ and field layout. Drive output through the serializer. Build and run to confirm.
 
 - Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT07/Report.csproj](fixtures/ct/CT07/Report.csproj), [CT07/Program.cs](fixtures/ct/CT07/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageInfo
@@ -206,7 +213,7 @@ imperative string-building. Build and run to confirm.
 
 ### Rubric
 
-- Defines ONE view with [MarkoutSection(ShowWhenProperty = ...)] that both packages flow through
+- Defines ONE view with `[MarkoutSection(ShowWhenProperty = ...)]` that both packages flow through
 - The Deprecations section renders for the deprecated package and is omitted for the clean one (appears exactly once total)
 - Uses the declarative gate — does NOT hand-write or imperatively gate the section
 
@@ -224,6 +231,7 @@ imperative string-building. Build and run to confirm.
 
 - Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT08/Report.csproj](fixtures/ct/CT08/Report.csproj), [CT08/Program.cs](fixtures/ct/CT08/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain ServiceStatus
@@ -236,7 +244,7 @@ Build and run to confirm.
 
 ### Rubric
 
-- Renders one model twice, using MarkoutWriterOptions.IncludeSections to select which sections appear
+- Renders one model twice, using `MarkoutWriterOptions.IncludeSections` to select which sections appear
 - Quiet omits both sections; full includes each exactly once (each heading appears exactly once total)
 - Does not fork into two models or hand-write sections
 
@@ -254,6 +262,7 @@ Build and run to confirm.
 
 - Target skill: output-formats
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT09/Report.csproj](fixtures/ct/CT09/Report.csproj), [CT09/Program.cs](fixtures/ct/CT09/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain Roster with a
@@ -264,7 +273,7 @@ Do not hand-build the TSV strings. Build and run to confirm.
 
 ### Rubric
 
-- Uses a TableFormatter with MarkoutWriterOptions.TableMode = MarkoutTableMode.Tsv
+- Uses a TableFormatter with `MarkoutWriterOptions.TableMode` = `MarkoutTableMode.Tsv`
 - Output is tab-delimited with a header row; no Markdown pipe table
 - Does NOT hand-build the TSV
 
@@ -282,6 +291,7 @@ Do not hand-build the TSV strings. Build and run to confirm.
 
 - Target skill: built-in-shapes
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT10/Report.csproj](fixtures/ct/CT10/Report.csproj), [CT10/Program.cs](fixtures/ct/CT10/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PerfReport
@@ -293,7 +303,7 @@ and the breakdown rather than hand-built rows. Build and run to confirm.
 
 ### Rubric
 
-- Uses Metric (and Breakdown/Slice) shape types as model properties, rendered via a UnicodeFormatter
+- Uses Metric (and Breakdown/Slice) shape types as model properties, rendered via a `UnicodeFormatter`
 - Terminal output shows the timing metric bars (block glyphs) and the coverage rendered as a proportional breakdown bar (Unicode breakdown shows the group label + bar, not per-slice text labels)
 - Does NOT hand-build the bars/rows
 
@@ -311,6 +321,7 @@ and the breakdown rather than hand-built rows. Build and run to confirm.
 
 - Target skill: composite-cells-cards
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT11/Report.csproj](fixtures/ct/CT11/Report.csproj), [CT11/Program.cs](fixtures/ct/CT11/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain
@@ -322,7 +333,7 @@ change cells so the absolute delta is appended. Do not hand-format the arrows/de
 
 ### Rubric
 
-- Models each value as a Change<int> cell with [MarkoutDelta(Delta.Absolute)]
+- Models each value as a Change<int> cell with `[MarkoutDelta(Delta.Absolute)]`
 - Output shows 'before → after (signed delta)' for each row
 - Does NOT hand-format the arrow or delta
 
@@ -340,6 +351,7 @@ change cells so the absolute delta is appended. Do not hand-format the arrows/de
 
 - Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT12/Report.csproj](fixtures/ct/CT12/Report.csproj), [CT12/Program.cs](fixtures/ct/CT12/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageDeps
@@ -353,7 +365,7 @@ or imperatively build the table. Build and run to confirm.
 
 ### Rubric
 
-- Applies [MarkoutIgnoreColumnWhen(nameof(<predicate>), "Optional")] with a static bool predicate that hides the column when values are uniform
+- Applies [`MarkoutIgnoreColumnWhen`(nameof(<predicate>), "Optional")] with a static bool predicate that hides the column when values are uniform
 - Optional column is absent for the all-required package and present for the mixed one (appears exactly once total)
 - Does NOT hand-write or imperatively gate the column
 
@@ -371,6 +383,7 @@ or imperatively build the table. Build and run to confirm.
 
 - Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT13/Report.csproj](fixtures/ct/CT13/Report.csproj), [CT13/Program.cs](fixtures/ct/CT13/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
@@ -383,7 +396,7 @@ hand-write the omitted sections). Drive output through the serializer. Build and
 
 ### Rubric
 
-- Declares the detail sections once, each gated by a verbosity flag (via ShowWhenProperty or IncludeSections)
+- Declares the detail sections once, each gated by a verbosity flag (via `ShowWhenProperty` or `IncludeSections`)
 - Renders the same model twice: quiet omits both; verbose includes each exactly once
 - Does not fork into two models or hand-write the sections
 
@@ -401,6 +414,7 @@ hand-write the omitted sections). Drive output through the serializer. Build and
 
 - Target skill: output-formats
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT14/Report.csproj](fixtures/ct/CT14/Report.csproj), [CT14/Program.cs](fixtures/ct/CT14/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain BenchReport
@@ -412,7 +426,7 @@ Build and run to confirm.
 
 ### Rubric
 
-- Uses TableFormatter with TableMode = MarkoutTableMode.Jsonl and MarkoutWriterOptions.JsonTypedValues = true
+- Uses TableFormatter with `TableMode` = `MarkoutTableMode.Jsonl` and `MarkoutWriterOptions.JsonTypedValues` = true
 - Numeric columns are emitted as JSON numbers (unquoted); one object per line
 - Does NOT hand-build the JSON
 
@@ -430,6 +444,7 @@ Build and run to confirm.
 
 - Target skill: built-in-shapes
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT15/Report.csproj](fixtures/ct/CT15/Report.csproj), [CT15/Program.cs](fixtures/ct/CT15/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain DependencyTree
@@ -441,7 +456,7 @@ hand-built indentation. Build and run to confirm.
 
 ### Rubric
 
-- Renders the TreeNode hierarchy via a UnicodeFormatter (branch connectors like └─/├─)
+- Renders the TreeNode hierarchy via a `UnicodeFormatter` (branch connectors like └─/├─)
 - Nested children render under their parents and badges appear next to nodes
 - Uses the tree shape — does NOT hand-build indentation
 
@@ -459,6 +474,7 @@ hand-built indentation. Build and run to confirm.
 
 - Target skill: composite-cells-cards
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT16/Report.csproj](fixtures/ct/CT16/Report.csproj), [CT16/Program.cs](fixtures/ct/CT16/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain QualityGate
@@ -490,6 +506,7 @@ than computing status by hand. Build and run to confirm.
 
 - Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT17/Report.csproj](fixtures/ct/CT17/Report.csproj), [CT17/Program.cs](fixtures/ct/CT17/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageInfo
@@ -502,7 +519,7 @@ serializer; do not hand-write the heading or branch with imperative string-build
 
 ### Rubric
 
-- Declares TWO sections with the same Name = "Signals" and mutually-exclusive ShowWhenProperty gates
+- Declares TWO sections with the same Name = "Signals" and mutually-exclusive `ShowWhenProperty` gates
 - Each package shows exactly one Signals variant (API table for one, types table for the other)
 - Uses declarative gates — does NOT hand-write headings or imperatively branch the output
 
@@ -520,6 +537,7 @@ serializer; do not hand-write the heading or branch with imperative string-build
 
 - Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT18/Report.csproj](fixtures/ct/CT18/Report.csproj), [CT18/Program.cs](fixtures/ct/CT18/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
@@ -532,7 +550,7 @@ output through the serializer. Build and run to confirm.
 
 ### Rubric
 
-- Renders one model at three levels via MarkoutWriterOptions.IncludeSections (progressively adding sections)
+- Renders one model at three levels via `MarkoutWriterOptions.IncludeSections` (progressively adding sections)
 - Diagnostics appears only in the detailed render (exactly once total); Dependencies appears in normal and detailed
 - Does not define separate models or hand-write sections
 
@@ -550,6 +568,7 @@ output through the serializer. Build and run to confirm.
 
 - Target skill: output-formats
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT19/Report.csproj](fixtures/ct/CT19/Report.csproj), [CT19/Program.cs](fixtures/ct/CT19/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain SearchReport
@@ -562,7 +581,7 @@ run to confirm.
 
 ### Rubric
 
-- One reusable dispatch selects formatter + MarkoutWriterOptions per format (Markdown/TSV/JSONL) for one model
+- One reusable dispatch selects formatter + `MarkoutWriterOptions` per format (Markdown/TSV/JSONL) for one model
 - Markdown render is capped via MaxItems (shows a truncation notice); TSV is tab-delimited; JSONL is one object per line
 - Does NOT hand-build any format or duplicate the model
 
@@ -581,6 +600,7 @@ run to confirm.
 
 - Target skill: built-in-shapes
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT20/Report.csproj](fixtures/ct/CT20/Report.csproj), [CT20/Program.cs](fixtures/ct/CT20/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain Advisory with
@@ -593,7 +613,7 @@ confirm.
 
 ### Rubric
 
-- Uses Callout, CodeSection, and Description shape types as model properties (with MarkoutIgnoreInTable on the non-tabular list)
+- Uses Callout, CodeSection, and Description shape types as model properties (with `MarkoutIgnoreInTable` on the non-tabular list)
 - Callout renders as a GitHub alert, repro as a fenced csharp code block, terms as a definition list
 - Does NOT hand-write the alert/code fence/definitions
 
@@ -611,6 +631,7 @@ confirm.
 
 - Target skill: composite-cells-cards
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT21/Report.csproj](fixtures/ct/CT21/Report.csproj), [CT21/Program.cs](fixtures/ct/CT21/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain ModelComparison
@@ -641,6 +662,7 @@ hand-built table. Build and run to confirm.
 
 - Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT22/Report.csproj](fixtures/ct/CT22/Report.csproj), [CT22/Program.cs](fixtures/ct/CT22/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageInfo.
@@ -659,7 +681,7 @@ hand-write headings or tables. Build and run to confirm.
 ### Rubric
 
 - Composes all four sections in order through ONE view: formatted fields, conditional Deprecations, Dependencies with a conditional Optional column, and a polymorphic Signals section
-- Uses declarative attributes throughout (formatters, ShowWhenProperty, IgnoreColumnWhen, same-name Signals gates)
+- Uses declarative attributes throughout (formatters, `ShowWhenProperty`, IgnoreColumnWhen, same-name Signals gates)
 - Does NOT hand-write headings or tables; builds and prints the composed report
 
 ### Checks
@@ -677,6 +699,7 @@ hand-write headings or tables. Build and run to confirm.
 
 - Target skill: output-formats
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT23/Report.csproj](fixtures/ct/CT23/Report.csproj), [CT23/Program.cs](fixtures/ct/CT23/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain BenchReport
@@ -689,7 +712,7 @@ percent. Do not hand-build any format. Build and run to confirm.
 
 ### Rubric
 
-- Models the change as a Change<V> cell with [MarkoutDelta(Delta.Percent)]; Markdown shows the dense cell
+- Models the change as a Change<V> cell with `[MarkoutDelta(Delta.Percent)]`; Markdown shows the dense cell
 - TSV/JSONL decompose the cell into {col}_before / {col}_after / {col}_delta_pct columns from one declaration
 - Does NOT hand-build any of the three formats
 
@@ -707,6 +730,7 @@ percent. Do not hand-build any format. Build and run to confirm.
 
 - Target skill: multi-view-verbosity
 - Tool restriction: No web search / fetch allowed.
+- Fixtures: [CT24/Report.csproj](fixtures/ct/CT24/Report.csproj), [CT24/Program.cs](fixtures/ct/CT24/Program.cs)
 
 ```text
 This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
@@ -724,7 +748,7 @@ sections. Build and run to confirm.
 
 - A section-targeted request renders ONLY the requested section while promoting verbosity to collect it
 - Diagnostics appears in both the targeted render and the detailed render (>= twice); Dependencies appears only in the detailed render (exactly once total)
-- Section selection uses IncludeSections; omitted sections are never hand-written
+- Section selection uses `IncludeSections`; omitted sections are never hand-written
 
 ### Checks
 
