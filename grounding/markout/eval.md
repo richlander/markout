@@ -726,7 +726,7 @@ percent. Do not hand-build any format. Build and run to confirm.
 | No hand-written Markdown tables | Program.cs: &#124; --- |
 | Rendered output matches the expected structure | dotnet run --no-build |
 
-## CT24: section-targeted verbosity backpressure (-D / -S)
+## CT24: section-targeted verbosity views from one model (-D / -S)
 
 - Target skill: multi-view-verbosity
 - Tool restriction: No web search / fetch allowed.
@@ -737,8 +737,8 @@ This console project references a source-generated .NET Markdown serializer (see
 with scalar fields and two detail sections (Dependencies, Diagnostics), where Diagnostics is the
 deepest/most expensive detail. Using the serializer, print THREE reports from ONE model definition:
   1. a quiet report (title + scalars only, no detail sections);
-  2. a report that targets ONLY the Diagnostics section by name — it must PROMOTE the effective
-     verbosity so Diagnostics is collected, yet render Diagnostics and NOT Dependencies;
+  2. a report that targets ONLY the Diagnostics section by name — render Diagnostics and NOT
+     Dependencies;
   3. a detailed report that includes both Dependencies and Diagnostics.
 Select the rendered sections at serialize time (IncludeSections). Do not hand-write omitted
 sections. Build and run to confirm.
@@ -746,7 +746,7 @@ sections. Build and run to confirm.
 
 ### Rubric
 
-- A section-targeted request renders ONLY the requested section while promoting verbosity to collect it
+- A section-targeted request renders ONLY the requested section
 - Diagnostics appears in both the targeted render and the detailed render (>= twice); Dependencies appears only in the detailed render (exactly once total)
 - Section selection uses `IncludeSections`; omitted sections are never hand-written
 

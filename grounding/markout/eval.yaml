@@ -742,15 +742,15 @@ scenarios:
       - "Does NOT hand-build any of the three formats"
     timeout: 1200
 
-  - name: "CT24: section-targeted verbosity backpressure (-D / -S)"
+  - name: "CT24: section-targeted verbosity views from one model (-D / -S)"
     expected_skill: multi-view-verbosity   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
       with scalar fields and two detail sections (Dependencies, Diagnostics), where Diagnostics is the
       deepest/most expensive detail. Using the serializer, print THREE reports from ONE model definition:
         1. a quiet report (title + scalars only, no detail sections);
-        2. a report that targets ONLY the Diagnostics section by name — it must PROMOTE the effective
-           verbosity so Diagnostics is collected, yet render Diagnostics and NOT Dependencies;
+        2. a report that targets ONLY the Diagnostics section by name — render Diagnostics and NOT
+           Dependencies;
         3. a detailed report that includes both Dependencies and Diagnostics.
       Select the rendered sections at serialize time (IncludeSections). Do not hand-write omitted
       sections. Build and run to confirm.
@@ -771,7 +771,7 @@ scenarios:
         expected_std_output_matches: "(?=[\\s\\S]*transitive version conflict)(?=[\\s\\S]*## Diagnostics[\\s\\S]*## Diagnostics)^(?:(?!## Dependencies)[\\s\\S])*## Dependencies(?:(?!## Dependencies)[\\s\\S])*$"
         command_timeout: 120
     rubric:
-      - "A section-targeted request renders ONLY the requested section while promoting verbosity to collect it"
+      - "A section-targeted request renders ONLY the requested section"
       - "Diagnostics appears in both the targeted render and the detailed render (>= twice); Dependencies appears only in the detailed render (exactly once total)"
       - "Section selection uses IncludeSections; omitted sections are never hand-written"
     timeout: 1200
