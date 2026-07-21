@@ -728,7 +728,7 @@ percent. Do not hand-build any format. Build and run to confirm.
 
 ## CT24: section-targeted verbosity views from one model (-D / -S)
 
-- Target skill: multi-view-verbosity
+- Target skill: conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT24/Report.csproj](fixtures/ct/CT24/Report.csproj), [CT24/Program.cs](fixtures/ct/CT24/Program.cs)
 

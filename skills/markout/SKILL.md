@@ -104,7 +104,6 @@ Author declaratively — describe the data, let the type/attributes drive output
 
 - **conditional-composition** — show/hide sections & columns from the data; filter to sections;
   one model, many shapes (`ShowWhenProperty`, `IgnoreColumnWhen`, `IncludeSections`, same-name sections).
-- **multi-view-verbosity** — quiet/detail/`-v` levels and summary-vs-full from one model.
 - **output-formats** — plain text, ANSI/Spectre, pretty tables, TSV/JSONL, multi-format dispatch.
 - **built-in-shapes** — `Metric`, `Breakdown`, `Callout`, `TreeNode`, `Description`, `CodeSection`.
 - **composite-cells-cards** — dense-Markdown-cell ↔ decomposed-column data (`Change<V>`, `Fraction`,

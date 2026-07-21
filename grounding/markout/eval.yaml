@@ -1,9 +1,9 @@
 # Markout — CT-24 workflow ladder (Markout 0.22.0)
 #
-# 24 workflow/user-problem scenarios that exercise the base "markout" skill plus five domain
+# 24 workflow/user-problem scenarios that exercise the base "markout" skill plus four domain
 # workflow skills. First 6 are the basics (floor); the remaining 18 rise in difficulty across
-# the five domains (conditional-composition, multi-view-verbosity, output-formats,
-# built-in-shapes, composite-cells-cards), four difficulty rounds A<B<C<D.
+# the four domains (conditional-composition, output-formats, built-in-shapes,
+# composite-cells-cards), four difficulty rounds A<B<C<D.
 #
 # DESIGN: each fixture ships a BARE domain model (plain POCOs) + populated data + a TODO. The
 # agent authors ONLY the rendering (Markout attributes + serializer call). This isolates the
@@ -743,7 +743,7 @@ scenarios:
     timeout: 1200
 
   - name: "CT24: section-targeted verbosity views from one model (-D / -S)"
-    expected_skill: multi-view-verbosity   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
       with scalar fields and two detail sections (Dependencies, Diagnostics), where Diagnostics is the
@@ -776,6 +776,11 @@ scenarios:
       - "Section selection uses IncludeSections; omitted sections are never hand-written"
     timeout: 1200
 
+  # ── CT25/CT26: HELD OUT of the shipped 24-scenario benchmark. They target multi-view-verbosity,
+  #    which is currently NOT on the shelf (skills/multi-view-verbosity was deleted — on the 24-ladder
+  #    it self-selected ×1, below the keep threshold). These two collect-less "backpressure"
+  #    discriminators (marginal +0.42 in the n=5 haiku ablation) are what justify MVV; re-add
+  #    skills/multi-view-verbosity and fold CT25/CT26 into the benchmark when it grows past 24. ──
   - name: "CT25: flag-driven collect-less (quiet skips the expensive scan)"
     expected_skill: multi-view-verbosity   # methodology prior: backpressure = gate what you COLLECT
     prompt: |

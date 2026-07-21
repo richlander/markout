@@ -67,7 +67,7 @@ MarkoutSerializer.Serialize(report, Console.Out, new MarkdownFormatter(), ctx, o
 ```
 
 `IncludeSections` renders only the named sections — the caller-side lever for "just show me X"
-without a second model. (See **multi-view-verbosity** for driving this from a verbosity level.)
+without a second model, and the declarative way to drive quiet/detail/verbosity views from one model.
 
 ## One model, many shapes: same-name section variants
 

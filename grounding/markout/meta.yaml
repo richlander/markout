@@ -1,10 +1,10 @@
 # Harness-only metadata for the markout grounding unit. This unit ships NO AGENTS.md
 # (SKILL.md-only methodology): the graded artifact is skills/markout/SKILL.md plus the
-# five domain workflow skills. name/description here supply the SKILL wrapper metadata the
+# four domain workflow skills. name/description here supply the SKILL wrapper metadata the
 # harness needs for the baseline (--source none) and readme arms; package pins the NuGet id.
 name: markout
 package: Markout
 description: >-
   Markout workflow grounding: a compact base skill (title + scalar fields + simple
-  sections + formatter choice) plus five domain workflow skills (conditional-composition,
-  multi-view-verbosity, output-formats, built-in-shapes, composite-cells-cards).
+  sections + formatter choice) plus four domain workflow skills (conditional-composition,
+  output-formats, built-in-shapes, composite-cells-cards).
