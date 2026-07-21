@@ -166,6 +166,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public string? BoolFalseValue { get; }
     public bool IsNullableValueType { get; }
     public bool IsArray { get; }
+    // A lone Metric/Breakdown property (not a List<T>) that still renders as its bar shape.
+    public bool IsScalarShape { get; }
     public string? CustomFormat { get; }
     public string? JoinSeparator { get; }
     public bool SkipWhenDefault { get; }
@@ -242,7 +244,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         string? multiSourceLabelHeader = null,
         MarkoutGoalKind goal = MarkoutGoalKind.Context,
         double noise = 0,
-        string? deltaNoun = null)
+        string? deltaNoun = null,
+        bool isScalarShape = false)
     {
         Name = name;
         DisplayName = displayName;
@@ -275,6 +278,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         BoolFalseValue = boolFalseValue;
         IsNullableValueType = isNullableValueType;
         IsArray = isArray;
+        IsScalarShape = isScalarShape;
         CustomFormat = customFormat;
         JoinSeparator = joinSeparator;
         SkipWhenDefault = skipWhenDefault;
@@ -333,6 +337,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                BoolFalseValue == other.BoolFalseValue &&
                IsNullableValueType == other.IsNullableValueType &&
                IsArray == other.IsArray &&
+               IsScalarShape == other.IsScalarShape &&
                CustomFormat == other.CustomFormat &&
                JoinSeparator == other.JoinSeparator &&
                SkipWhenDefault == other.SkipWhenDefault &&
@@ -396,6 +401,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ (int)Goal;
             hash = hash * 397 ^ Noise.GetHashCode();
             hash = hash * 397 ^ (DeltaNoun?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ IsScalarShape.GetHashCode();
             hash = hash * 397 ^ IsReferenceTypeCell.GetHashCode();
             hash = hash * 397 ^ (MultiSourceLabelHeader?.GetHashCode() ?? 0);
             return hash;

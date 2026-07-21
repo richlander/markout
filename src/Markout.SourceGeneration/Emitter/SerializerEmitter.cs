@@ -625,12 +625,25 @@ internal static class SerializerEmitter
         }
         else if (prop.Kind == PropertyKind.Metric)
         {
-            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-            sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
-            sb.AppendLine($"{indent}    writer.WriteMetrics({propAccess});");
-            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
-            sb.AppendLine($"{indent}}}");
+            if (prop.IsScalarShape)
+            {
+                var (guard, value) = ScalarShapeAccess(prop, propAccess);
+                sb.AppendLine($"{indent}if ({guard})");
+                sb.AppendLine($"{indent}{{");
+                sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+                sb.AppendLine($"{indent}    writer.WriteMetrics(new[] {{ {value} }});");
+                sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+                sb.AppendLine($"{indent}}}");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}{{");
+                sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+                sb.AppendLine($"{indent}    writer.WriteMetrics({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+                sb.AppendLine($"{indent}}}");
+            }
             EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.Description)
@@ -645,12 +658,25 @@ internal static class SerializerEmitter
         }
         else if (prop.Kind == PropertyKind.Breakdown)
         {
-            sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-            sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
-            sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
-            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
-            sb.AppendLine($"{indent}}}");
+            if (prop.IsScalarShape)
+            {
+                var (guard, value) = ScalarShapeAccess(prop, propAccess);
+                sb.AppendLine($"{indent}if ({guard})");
+                sb.AppendLine($"{indent}{{");
+                sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+                sb.AppendLine($"{indent}    writer.WriteBreakdown(new[] {{ {value} }});");
+                sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+                sb.AppendLine($"{indent}}}");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                sb.AppendLine($"{indent}{{");
+                sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+                sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
+                sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+                sb.AppendLine($"{indent}}}");
+            }
             EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
         else if (prop.Kind == PropertyKind.MetricChange)
@@ -752,6 +778,19 @@ internal static class SerializerEmitter
         return name;
     }
 
+    // Builds the (guard, value) pair for a scalar Metric/Breakdown property so it renders as its
+    // bar shape via the single-item list overload. Nullable value types guard on HasValue and read
+    // .Value; the shape guard skips a default/empty struct (avoids CS8073 value-type null checks).
+    private static (string Guard, string Value) ScalarShapeAccess(PropertyMetadata prop, string propAccess)
+    {
+        var value = prop.IsNullableValueType ? $"{propAccess}.Value" : propAccess;
+        var shapeGuard = prop.Kind == PropertyKind.Breakdown
+            ? $"{value}.Slices is not null && {value}.Slices.Length > 0"
+            : $"{value}.Label is not null";
+        var guard = prop.IsNullableValueType ? $"{propAccess}.HasValue && {shapeGuard}" : shapeGuard;
+        return (guard, value);
+    }
+
     private static void EmitSectionEmptyFallback(
         StringBuilder sb,
         PropertyMetadata prop,
@@ -800,8 +839,17 @@ internal static class SerializerEmitter
                 break;
 
             case PropertyKind.Metric:
-                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteMetrics({propAccess});");
+                if (prop.IsScalarShape)
+                {
+                    var (mGuard, mValue) = ScalarShapeAccess(prop, propAccess);
+                    sb.AppendLine($"{indent}if ({mGuard})");
+                    sb.AppendLine($"{indent}    writer.WriteMetrics(new[] {{ {mValue} }});");
+                }
+                else
+                {
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                    sb.AppendLine($"{indent}    writer.WriteMetrics({propAccess});");
+                }
                 break;
 
             case PropertyKind.Description:
@@ -824,8 +872,17 @@ internal static class SerializerEmitter
                 break;
 
             case PropertyKind.Breakdown:
-                sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
-                sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
+                if (prop.IsScalarShape)
+                {
+                    var (bGuard, bValue) = ScalarShapeAccess(prop, propAccess);
+                    sb.AppendLine($"{indent}if ({bGuard})");
+                    sb.AppendLine($"{indent}    writer.WriteBreakdown(new[] {{ {bValue} }});");
+                }
+                else
+                {
+                    sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
+                    sb.AppendLine($"{indent}    writer.WriteBreakdown({propAccess});");
+                }
                 break;
 
             case PropertyKind.MetricChange:
