@@ -196,7 +196,8 @@
     <text x="120" y="602">• Correct answers: 15→20/24</text>
     <text x="120" y="616">• Floor LIET: 71.2k</text>
     <text x="120" y="630">• LIET: 161.7k→-7.5k (Δ −169.3k)</text>
-    <text x="120" y="644">• Archaeology operations: 141.2→0.2 (-100%)</text>
-    <text x="120" y="658">• Expected skill pulled: 24/24</text>
+    <text x="120" y="644">• Levelized duration: 137.9s→-23.1s (Δ −161s)</text>
+    <text x="120" y="658">• Archaeology operations: 141.2→0.2 (-100%)</text>
+    <text x="120" y="672">• Expected skill pulled: 24/24</text>
   </g>
 </svg>
