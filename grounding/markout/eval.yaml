@@ -782,6 +782,7 @@ scenarios:
   #    discriminators (marginal +0.42 in the n=5 haiku ablation) are what justify MVV; re-add
   #    skills/multi-view-verbosity and fold CT25/CT26 into the benchmark when it grows past 24. ──
   - name: "CT25: flag-driven collect-less (quiet skips the expensive scan)"
+    held_out: true                         # authored but NOT in the shipped 24-scenario benchmark
     expected_skill: multi-view-verbosity   # methodology prior: backpressure = gate what you COLLECT
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj).
@@ -826,6 +827,7 @@ scenarios:
     timeout: 1200
 
   - name: "CT26: section-targeted promotion collects only the requested scan"
+    held_out: true                         # authored but NOT in the shipped 24-scenario benchmark
     expected_skill: multi-view-verbosity   # methodology prior: promote collection per requested section
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj).
