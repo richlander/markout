@@ -5,7 +5,7 @@ What the skill shelf buys a consuming agent, measured on the [CT-24 workflow lad
 only the Markout rendering. Prompts describe the library functionally and never name it, so skill
 discovery is organic.
 
-- **Harness:** `richlander/dotnet-package-grounding@957185d` + `skill-validator@de363a5` (two-axis verdict + IET decomposition, `analyze --view card`).
+- **Harness:** `richlander/dotnet-package-grounding@898f21f` + `skill-validator@de363a5` (two-axis verdict + IET decomposition, `analyze --view card`).
 - **Package:** Markout `0.23.0`; shelf `skills/markout-consumer@634b53c` (MVV-free).
 - **Arms:** `baseline` (no grounding) → `SKILL.md` (the shelf, agent self-selects). **Eval mode:** holistic (baseline vs plugin; isolated arm skipped). IET model `anthropic`.
 - **Judge:** `claude-haiku-4.5`. **Runs:** n=5 per scenario (position-swapped).
@@ -16,24 +16,24 @@ discovery is organic.
 | --- | ---: | ---: |
 | tasks correct (+) | 9/24 → 21/24 | 20/24 → 24/24 |
 | func passed (assertions) (+) | 103/126 → 123/126 | 122/126 → 126/126 |
-| relied on grounding: tasks (+) | 0/24 → 13/24 | 0/24 → 18/24 |
-| expected skill pulled (target) (context) | 18/24 | 21/24 |
-| unique skills used (of shelf) (context) | — → 5 | — → 5 |
+| relied on skills: tasks (+) | 0/24 → 13/24 | 0/24 → 18/24 |
+| ↳ expected skill pulled (target) (context) | 18/24 | 21/24 |
+| ↳ unique skills used (of shelf) (context) | — → 5 | — → 5 |
 | relied on archaeology, fallback: cache / nuget.org (-) | 20 / 3 → 6 / 0 | 83 / 0 → 3 / 0 |
-| tool calls: web / bash / other (context) | 4/172/217 → 1/103/197 | 0/197/192 → 0/51/181 |
+| ↳ tool calls: web / bash / other (context) | 4/172/217 → 1/103/197 | 0/197/192 → 0/51/181 |
 | Total IET (-) | 85254 → 66280 (-22%) | 91164 → 51727 (-43%) |
 | ↳ Grounding IET (doc) (-) | 0 → 2255 | 0 → 2609 |
 | ↳ Work IET (agent) (-) | 85254 → 64025 | 91164 → 49118 |
-| ↳ grounding load (tok) (context) | 0 → 1036 | 0 → 1434 |
+| ↳ skill load (tok) (context) | 0 → 1036 | 0 → 1434 |
+| ↳ output tok (% of IET) (-) | 5905 (34%) → 4096 (30%) | 5790 (31%) → 2730 (25%) |
+| ↳ tool-turn IET (% of turn IET) (-) | 92% → 92% | 93% → 90% |
 | LIET, IET per correct answer over floor (-) | 160.9k → 110.3k (Δ −50.6k) | 59.3k → 11.9k (Δ −47.3k) |
 | ↳ Floor LIET (context) | 24.9k | 41.8k |
-| output tok (% of IET) (-) | 5905 (34%) → 4096 (30%) | 5790 (31%) → 2730 (25%) |
-| tool-turn IET (% of turn IET) (-) | 92% → 92% | 93% → 90% |
 | Session turns (-) | 14 → 10 | 13 → 7 |
-| tool-call turns (% of total) (-) | 13 (87%) → 9 (86%) | 12 (90%) → 6 (83%) |
+| ↳ tool-call turns (% of total) (-) | 13 (87%) → 9 (86%) | 12 (90%) → 6 (83%) |
 | Session wall-clock (end-to-end) (-) | 72s → 51s (-29%) | 162s → 47s (-71%) |
-| tool-turn secs (% of turn time) (-) | 67s (88%) → 46s (87%) | 155s (93%) → 41s (86%) |
-| Levelized duration per correct answer (-) | 139.1s → 83s (Δ −56.1s) | 143.2s → 5.7s (Δ −137.6s) |
+| ↳ tool-turn secs (% of turn time) (-) | 67s (88%) → 46s (87%) | 155s (93%) → 41s (86%) |
+| ↳ Levelized duration per correct answer (-) | 139.1s → 83s (Δ −56.1s) | 143.2s → 5.7s (Δ −137.6s) |
 | **verdict** | **FAIL / BETTER** | **PASS / BETTER** |
 
 **Two axes** (independent). **Gate** (correctness): **PASS** = 100% of the tier correct, **FAIL** =
