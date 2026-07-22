@@ -1,4 +1,4 @@
-# Markout — CT-24 workflow ladder (Markout 0.22.0)
+# Markout — CT-24 workflow ladder (Markout 0.23.0)
 #
 # 24 workflow/user-problem scenarios that exercise the base "markout" skill plus four domain
 # workflow skills. First 6 are the basics (floor); the remaining 18 rise in difficulty across
@@ -13,7 +13,7 @@
 #   - CODE conformance: the declarative attribute under test is present (a hand-roller never
 #     emits it), output is driven through MarkoutSerializer.Serialize, and the source contains
 #     no hand-written Markdown table pipes ("| ---" — Markout generates all table formatting).
-#   - OUTPUT conformance: a regex over the REAL rendered output (verified against Markout 0.22.0)
+#   - OUTPUT conformance: a regex over the REAL rendered output (verified against Markout 0.23.0)
 #     asserts the exact structure — sections present/absent, columns hidden/shown, values
 #     formatted, order — so an imperative over-/under-render fails while the declarative idiom lands.
 config:

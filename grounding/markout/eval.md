@@ -1,9 +1,9 @@
 # Markout CT Eval Guide (24 scenarios)
 
-A reviewer-oriented rendering of 24 CT scenarios from eval.yaml for Markout 0.22.0.
+A reviewer-oriented rendering of 24 CT scenarios from eval.yaml for Markout 0.23.0.
 
 - Scenario count: 24
-- Package: Markout 0.22.0
+- Package: Markout 0.23.0
 - Prompt note: Prompts describe the library functionally and never name it.
 
 ## CT01: minimal report — title + scalar field table
