@@ -49,12 +49,12 @@
     <text x="516" y="398">23</text>
     <text x="541" y="398">14</text>
     <text x="565" y="398">02</text>
-    <text x="590" y="398">07</text>
-    <text x="614" y="398">13</text>
+    <text x="590" y="398">13</text>
+    <text x="614" y="398">07</text>
     <text x="639" y="398">17</text>
     <text x="664" y="398">22</text>
   </g>
-  <polyline points="100,365.8 124,366.8 149,366.3 173,366.8 198,343.7 222,284.7 247,320 271,273.6 296,264.7 320,334.2 345,326.8 369,337.3 394,182 418,332.1 443,314.7 467,211.5 492,288.9 516,180.4 541,288.4 565,239.4 590,346.8 614,239.4 639,341 664,163.5" fill="none" stroke="#c4a484" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.85"/>
+  <polyline points="100,365.8 124,366.8 149,366.3 173,366.8 198,343.7 222,284.7 247,320 271,273.6 296,264.7 320,334.2 345,326.8 369,337.3 394,182 418,332.1 443,314.7 467,211.5 492,288.9 516,180.4 541,288.4 565,239.4 590,239.4 614,346.8 639,341 664,163.5" fill="none" stroke="#c4a484" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.85"/>
   <circle cx="100" cy="365.8" r="2" fill="#c4a484" opacity="0.85"/>
   <circle cx="124" cy="366.8" r="2" fill="#c4a484" opacity="0.85"/>
   <circle cx="149" cy="366.3" r="2" fill="#c4a484" opacity="0.85"/>
@@ -75,12 +75,12 @@
   <circle cx="516" cy="180.4" r="2" fill="#c4a484" opacity="0.85"/>
   <circle cx="541" cy="288.4" r="2" fill="#c4a484" opacity="0.85"/>
   <circle cx="565" cy="239.4" r="2" fill="#c4a484" opacity="0.85"/>
-  <circle cx="590" cy="346.8" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
-  <circle cx="614" cy="239.4" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
+  <circle cx="590" cy="239.4" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
+  <circle cx="614" cy="346.8" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
   <circle cx="639" cy="341" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
   <circle cx="664" cy="163.5" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
   <text x="660" y="157.5" text-anchor="end" font-size="10" font-style="italic" fill="#c4a484">baseline time</text>
-  <polyline points="100,366.3 124,368.4 149,367.4 173,367.4 198,366.8 222,363.7 247,357.9 271,365.3 296,365.8 320,363.1 345,344.7 369,361 394,357.9 418,345.2 443,365.3 467,360 492,330 516,362.1 541,364.7 565,313.1 590,357.4 614,360 639,351.6 664,302.6" fill="none" stroke="#5eaaa8" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.85"/>
+  <polyline points="100,366.3 124,368.4 149,367.4 173,367.4 198,366.8 222,363.7 247,357.9 271,365.3 296,365.8 320,363.1 345,344.7 369,361 394,357.9 418,345.2 443,365.3 467,360 492,330 516,362.1 541,364.7 565,313.1 590,360 614,357.4 639,351.6 664,302.6" fill="none" stroke="#5eaaa8" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.85"/>
   <circle cx="100" cy="366.3" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="124" cy="368.4" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="149" cy="367.4" r="2" fill="#5eaaa8" opacity="0.85"/>
@@ -101,8 +101,8 @@
   <circle cx="516" cy="362.1" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="541" cy="364.7" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="565" cy="313.1" r="2" fill="#5eaaa8" opacity="0.85"/>
-  <circle cx="590" cy="357.4" r="2" fill="#5eaaa8" opacity="0.85"/>
-  <circle cx="614" cy="360" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="590" cy="360" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="614" cy="357.4" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="639" cy="351.6" r="2" fill="#5eaaa8" opacity="0.85"/>
   <circle cx="664" cy="302.6" r="2" fill="#5eaaa8" opacity="0.85"/>
   <text x="660" y="296.6" text-anchor="end" font-size="10" font-style="italic" fill="#5eaaa8">SKILL time</text>
@@ -128,7 +128,7 @@
   <circle cx="541" cy="82.7" r="3.5" fill="#dc2626"/>
   <circle cx="565" cy="75.9" r="3.5" fill="#dc2626"/>
   <text x="561" y="67.9" text-anchor="end" font-size="11.5" font-weight="700" fill="#dc2626">baseline</text>
-  <polyline points="100,308.6 124,313.1 149,310.7 173,301.1 198,303.2 222,299.4 247,281.1 271,301 296,297.1 320,286.4 345,241.5 369,286.4 394,270.3 418,240.6 443,294.4 467,280.5 492,184.1 516,288.1 541,288.9 565,199 590,277.5 614,281.3 639,253.1 664,117.5" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <polyline points="100,308.6 124,313.1 149,310.7 173,301.1 198,303.2 222,299.4 247,281.1 271,301 296,297.1 320,286.4 345,241.5 369,286.4 394,270.3 418,240.6 443,294.4 467,280.5 492,184.1 516,288.1 541,288.9 565,199 590,281.3 614,277.5 639,253.1 664,117.5" fill="none" stroke="#2563eb" stroke-width="2.5"/>
   <circle cx="100" cy="308.6" r="4" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
   <circle cx="124" cy="313.1" r="4" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
   <circle cx="149" cy="310.7" r="4" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
@@ -149,8 +149,8 @@
   <circle cx="516" cy="288.1" r="4" fill="#2563eb"/>
   <circle cx="541" cy="288.9" r="4" fill="#2563eb"/>
   <circle cx="565" cy="199" r="4" fill="#2563eb"/>
-  <circle cx="590" cy="277.5" r="4" fill="#2563eb"/>
-  <circle cx="614" cy="281.3" r="4" fill="#2563eb"/>
+  <circle cx="590" cy="281.3" r="4" fill="#2563eb"/>
+  <circle cx="614" cy="277.5" r="4" fill="#2563eb"/>
   <circle cx="639" cy="253.1" r="4" fill="#2563eb"/>
   <circle cx="664" cy="117.5" r="4" fill="#2563eb"/>
   <text x="660" y="109.5" text-anchor="end" font-size="11.5" font-weight="700" fill="#2563eb">SKILL.md</text>
@@ -173,8 +173,8 @@
     <text x="516" y="301.1">2</text>
     <text x="541" y="301.9">4</text>
     <text x="565" y="212">M</text>
-    <text x="590" y="290.5">M 3</text>
-    <text x="614" y="294.3">M 3</text>
+    <text x="590" y="294.3">M 3</text>
+    <text x="614" y="290.5">M 3</text>
     <text x="639" y="266.1">M 3</text>
     <text x="664" y="130.5">M 2 3</text>
   </g>

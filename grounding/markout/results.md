@@ -5,7 +5,7 @@ What the skill shelf buys a consuming agent, measured on the [CT-24 workflow lad
 only the Markout rendering. Prompts describe the library functionally and never name it, so skill
 discovery is organic.
 
-- **Harness:** `richlander/dotnet-package-grounding@691e0a3` + `skill-validator@de363a5` (two-axis verdict + IET decomposition, `analyze --view card`).
+- **Harness:** `richlander/dotnet-package-grounding@7b6e834` + `skill-validator@de363a5` (two-axis verdict + IET decomposition, `analyze --view card`).
 - **Package:** Markout `0.23.0`; shelf `skills/markout-consumer@634b53c` (MVV-free).
 - **Arms:** `baseline` (no grounding) → `SKILL.md` (the shelf, agent self-selects). **Eval mode:** holistic (baseline vs plugin; isolated arm skipped). IET model `anthropic`.
 - **Judge:** `claude-haiku-4.5`. **Runs:** n=5 per scenario (position-swapped).

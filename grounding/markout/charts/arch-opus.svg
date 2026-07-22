@@ -35,12 +35,12 @@
     <text x="516" y="398">23</text>
     <text x="541" y="398">14</text>
     <text x="565" y="398">02</text>
-    <text x="590" y="398">07</text>
-    <text x="614" y="398">13</text>
+    <text x="590" y="398">13</text>
+    <text x="614" y="398">07</text>
     <text x="639" y="398">17</text>
     <text x="664" y="398">22</text>
   </g>
-  <polyline points="100,380 124,380 149,380 173,380 198,253.6 222,241 247,297.8 271,291.5 296,291.5 320,297.8 345,329.4 369,285.2 394,266.2 418,285.2 443,278.9 467,101.9 492,203 516,241 541,114.6 565,241 590,304.2 614,222 639,316.8 664,114.6" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+  <polyline points="100,380 124,380 149,380 173,380 198,253.6 222,241 247,297.8 271,291.5 296,291.5 320,297.8 345,329.4 369,285.2 394,266.2 418,285.2 443,278.9 467,101.9 492,203 516,241 541,114.6 565,241 590,222 614,304.2 639,316.8 664,114.6" fill="none" stroke="#dc2626" stroke-width="2.5"/>
   <circle cx="100" cy="380" r="3.8" fill="#dc2626"/>
   <circle cx="124" cy="380" r="3.8" fill="#dc2626"/>
   <circle cx="149" cy="380" r="3.8" fill="#dc2626"/>
@@ -61,8 +61,8 @@
   <circle cx="516" cy="241" r="3.8" fill="#dc2626"/>
   <circle cx="541" cy="114.6" r="3.8" fill="#dc2626"/>
   <circle cx="565" cy="241" r="3.8" fill="#dc2626"/>
-  <circle cx="590" cy="304.2" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
-  <circle cx="614" cy="222" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="590" cy="222" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="614" cy="304.2" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
   <circle cx="639" cy="316.8" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
   <circle cx="664" cy="114.6" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
   <polyline points="100,380 124,380 149,380 173,380 198,380 222,380 247,380 271,380 296,380 320,380 345,373.7 369,380 394,380 418,348.4 443,380 467,380 492,380 516,380 541,380 565,335.8 590,380 614,380 639,380 664,354.7" fill="none" stroke="#2563eb" stroke-width="2.5"/>
