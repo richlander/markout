@@ -15,61 +15,61 @@
   <text x="382" y="430" text-anchor="middle" font-size="12" fill="#334155">rung (difficulty) →</text>
   <text x="46" y="222" text-anchor="middle" font-size="12" fill="#334155" transform="rotate(-90 46 222)">archaeology tool calls →</text>
   <g font-size="11" fill="#64748b" text-anchor="middle">
-    <text x="100" y="398">04</text>
-    <text x="124" y="398">03</text>
-    <text x="149" y="398">05</text>
+    <text x="100" y="398">05</text>
+    <text x="124" y="398">04</text>
+    <text x="149" y="398">03</text>
     <text x="173" y="398">01</text>
-    <text x="198" y="398">06</text>
-    <text x="222" y="398">11</text>
-    <text x="247" y="398">24</text>
-    <text x="271" y="398">17</text>
+    <text x="198" y="398">11</text>
+    <text x="222" y="398">06</text>
+    <text x="247" y="398">08</text>
+    <text x="271" y="398">16</text>
     <text x="296" y="398">20</text>
-    <text x="320" y="398">08</text>
-    <text x="345" y="398">18</text>
-    <text x="369" y="398">16</text>
-    <text x="394" y="398">13</text>
-    <text x="418" y="398">15</text>
+    <text x="320" y="398">10</text>
+    <text x="345" y="398">15</text>
+    <text x="369" y="398">18</text>
+    <text x="394" y="398">24</text>
+    <text x="418" y="398">19</text>
     <text x="443" y="398">21</text>
-    <text x="467" y="398">23</text>
-    <text x="492" y="398">19</text>
-    <text x="516" y="398">12</text>
-    <text x="541" y="398">09</text>
+    <text x="467" y="398">12</text>
+    <text x="492" y="398">09</text>
+    <text x="516" y="398">23</text>
+    <text x="541" y="398">14</text>
     <text x="565" y="398">02</text>
-    <text x="590" y="398">14</text>
-    <text x="614" y="398">10</text>
-    <text x="639" y="398">22</text>
-    <text x="664" y="398">07</text>
+    <text x="590" y="398">07</text>
+    <text x="614" y="398">13</text>
+    <text x="639" y="398">17</text>
+    <text x="664" y="398">22</text>
   </g>
-  <polyline points="100,380 124,380 149,380 173,380 198,297.8 222,291.5 247,285.2 271,335.8 296,297.8 320,253.6 345,291.5 369,259.9 394,278.9 418,304.2 443,272.6 467,222 492,278.9 516,76.6 541,228.3 565,253.6 590,184.1 614,108.2 639,203 664,316.8" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+  <polyline points="100,380 124,380 149,380 173,380 198,253.6 222,241 247,297.8 271,291.5 296,291.5 320,297.8 345,329.4 369,285.2 394,266.2 418,285.2 443,278.9 467,101.9 492,203 516,241 541,114.6 565,241 590,304.2 614,222 639,316.8 664,114.6" fill="none" stroke="#dc2626" stroke-width="2.5"/>
   <circle cx="100" cy="380" r="3.8" fill="#dc2626"/>
   <circle cx="124" cy="380" r="3.8" fill="#dc2626"/>
   <circle cx="149" cy="380" r="3.8" fill="#dc2626"/>
   <circle cx="173" cy="380" r="3.8" fill="#dc2626"/>
-  <circle cx="198" cy="297.8" r="3.8" fill="#dc2626"/>
-  <circle cx="222" cy="291.5" r="3.8" fill="#dc2626"/>
-  <circle cx="247" cy="285.2" r="3.8" fill="#dc2626"/>
-  <circle cx="271" cy="335.8" r="3.8" fill="#dc2626"/>
-  <circle cx="296" cy="297.8" r="3.8" fill="#dc2626"/>
-  <circle cx="320" cy="253.6" r="3.8" fill="#dc2626"/>
-  <circle cx="345" cy="291.5" r="3.8" fill="#dc2626"/>
-  <circle cx="369" cy="259.9" r="3.8" fill="#dc2626"/>
-  <circle cx="394" cy="278.9" r="3.8" fill="#dc2626"/>
-  <circle cx="418" cy="304.2" r="3.8" fill="#dc2626"/>
-  <circle cx="443" cy="272.6" r="3.8" fill="#dc2626"/>
-  <circle cx="467" cy="222" r="3.8" fill="#dc2626"/>
-  <circle cx="492" cy="278.9" r="3.8" fill="#dc2626"/>
-  <circle cx="516" cy="76.6" r="3.8" fill="#dc2626"/>
-  <circle cx="541" cy="228.3" r="3.8" fill="#dc2626"/>
-  <circle cx="565" cy="253.6" r="3.8" fill="#dc2626"/>
-  <circle cx="590" cy="184.1" r="3.8" fill="#dc2626"/>
-  <circle cx="614" cy="108.2" r="3.8" fill="#dc2626"/>
-  <circle cx="639" cy="203" r="3.8" fill="#dc2626"/>
-  <circle cx="664" cy="316.8" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
-  <polyline points="100,380 124,380 149,380 173,380 198,380 222,380 247,380 271,380 296,380 320,380 345,380 369,380 394,380 418,380 443,380 467,380 492,348.4 516,380 541,380 565,354.7 590,380 614,361 639,380 664,380" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <circle cx="198" cy="253.6" r="3.8" fill="#dc2626"/>
+  <circle cx="222" cy="241" r="3.8" fill="#dc2626"/>
+  <circle cx="247" cy="297.8" r="3.8" fill="#dc2626"/>
+  <circle cx="271" cy="291.5" r="3.8" fill="#dc2626"/>
+  <circle cx="296" cy="291.5" r="3.8" fill="#dc2626"/>
+  <circle cx="320" cy="297.8" r="3.8" fill="#dc2626"/>
+  <circle cx="345" cy="329.4" r="3.8" fill="#dc2626"/>
+  <circle cx="369" cy="285.2" r="3.8" fill="#dc2626"/>
+  <circle cx="394" cy="266.2" r="3.8" fill="#dc2626"/>
+  <circle cx="418" cy="285.2" r="3.8" fill="#dc2626"/>
+  <circle cx="443" cy="278.9" r="3.8" fill="#dc2626"/>
+  <circle cx="467" cy="101.9" r="3.8" fill="#dc2626"/>
+  <circle cx="492" cy="203" r="3.8" fill="#dc2626"/>
+  <circle cx="516" cy="241" r="3.8" fill="#dc2626"/>
+  <circle cx="541" cy="114.6" r="3.8" fill="#dc2626"/>
+  <circle cx="565" cy="241" r="3.8" fill="#dc2626"/>
+  <circle cx="590" cy="304.2" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="614" cy="222" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="639" cy="316.8" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="664" cy="114.6" r="3.8" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+  <polyline points="100,380 124,380 149,380 173,380 198,380 222,380 247,380 271,380 296,380 320,380 345,373.7 369,380 394,380 418,348.4 443,380 467,380 492,380 516,380 541,380 565,335.8 590,380 614,380 639,380 664,354.7" fill="none" stroke="#2563eb" stroke-width="2.5"/>
   <circle cx="100" cy="380" r="3.8" fill="#2563eb"/>
   <circle cx="124" cy="380" r="3.8" fill="#2563eb"/>
   <circle cx="149" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="154" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <text x="154" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
   <circle cx="173" cy="380" r="3.8" fill="#2563eb"/>
   <text x="178" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
   <circle cx="198" cy="380" r="3.8" fill="#2563eb"/>
@@ -79,39 +79,39 @@
   <circle cx="247" cy="380" r="3.8" fill="#2563eb"/>
   <text x="252" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
   <circle cx="271" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="276" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <text x="276" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
   <circle cx="296" cy="380" r="3.8" fill="#2563eb"/>
   <text x="301" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
   <circle cx="320" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="325" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
-  <circle cx="345" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="350" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <text x="325" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="345" cy="373.7" r="3.8" fill="#2563eb"/>
+  <text x="350" y="368.7" font-size="8" font-weight="700" fill="#0891b2">3</text>
   <circle cx="369" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="374" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
+  <text x="374" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
   <circle cx="394" cy="380" r="3.8" fill="#2563eb"/>
   <text x="399" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
-  <circle cx="418" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="423" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="418" cy="348.4" r="3.8" fill="#2563eb"/>
+  <text x="423" y="343.4" font-size="8" font-weight="700" fill="#0891b2">2</text>
   <circle cx="443" cy="380" r="3.8" fill="#2563eb"/>
   <text x="448" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
   <circle cx="467" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="472" y="375" font-size="8" font-weight="700" fill="#0891b2">3</text>
-  <circle cx="492" cy="348.4" r="3.8" fill="#2563eb"/>
-  <text x="497" y="343.4" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <text x="472" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="492" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="497" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
   <circle cx="516" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="521" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <text x="521" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
   <circle cx="541" cy="380" r="3.8" fill="#2563eb"/>
   <text x="546" y="375" font-size="8" font-weight="700" fill="#0891b2">1</text>
-  <circle cx="565" cy="354.7" r="3.8" fill="#2563eb"/>
-  <text x="570" y="349.7" font-size="8" font-weight="700" fill="#0891b2">1</text>
+  <circle cx="565" cy="335.8" r="3.8" fill="#2563eb"/>
+  <text x="570" y="330.8" font-size="8" font-weight="700" fill="#0891b2">1</text>
   <circle cx="590" cy="380" r="3.8" fill="#2563eb"/>
   <text x="595" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
-  <circle cx="614" cy="361" r="3.8" fill="#2563eb"/>
-  <text x="619" y="356" font-size="8" font-weight="700" fill="#0891b2">3</text>
+  <circle cx="614" cy="380" r="3.8" fill="#2563eb"/>
+  <text x="619" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
   <circle cx="639" cy="380" r="3.8" fill="#2563eb"/>
   <text x="644" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
-  <circle cx="664" cy="380" r="3.8" fill="#2563eb"/>
-  <text x="669" y="375" font-size="8" font-weight="700" fill="#0891b2">2</text>
+  <circle cx="664" cy="354.7" r="3.8" fill="#2563eb"/>
+  <text x="669" y="349.7" font-size="8" font-weight="700" fill="#0891b2">3</text>
   <g font-size="11" fill="#475569">
     <line x1="112" y1="72" x2="134" y2="72" stroke="#dc2626" stroke-width="2.5"/><text x="140" y="76">baseline (archaeology only)</text>
     <line x1="112" y1="88" x2="134" y2="88" stroke="#2563eb" stroke-width="2.5"/><text x="140" y="92">SKILL.md</text>
@@ -123,7 +123,7 @@
   </g>
   <text x="120" y="466" font-size="9.5" font-weight="700" fill="#334155">Metrics:</text>
   <g font-size="9.5" fill="#334155">
-    <text x="128" y="480">• Archaeology operations: 81→2.4 (-97%)</text>
-    <text x="128" y="494">• Correct answers: 23→24/24</text>
+    <text x="128" y="480">• Archaeology operations: 83→3.4 (-96%)</text>
+    <text x="128" y="494">• Correct answers: 20→24/24</text>
   </g>
 </svg>
