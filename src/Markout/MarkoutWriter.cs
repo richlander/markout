@@ -398,7 +398,7 @@ public class MarkoutWriter
         foreach (var row in projected)
         {
             var sw = new StringWriter();
-            row.Cell?.FormatInline(sw, row.Format);
+            row.Cell?.FormatInline(sw, ApplyGlyphs(row.Format));
             denseRows.Add([row.Label, sw.ToString()]);
         }
 
@@ -568,6 +568,7 @@ public class MarkoutWriter
     private bool WriteDenseMultiSourceTable(
         string labelHeader, IReadOnlyList<MultiSourceRow> rows, List<string> roleOrder, Dictionary<string, int> roleIndex)
     {
+        var glyphs = SupportsGlyphs;
         var headers = new string[roleOrder.Count + 1];
         headers[0] = labelHeader;
         for (int i = 0; i < roleOrder.Count; i++)
@@ -577,9 +578,14 @@ public class MarkoutWriter
         foreach (var row in rows)
         {
             var values = new string[roleOrder.Count + 1];
-            values[0] = row.Label;
+            values[0] = glyphs ? LabelWithGoalGlyph(row.Label, row.Goal) : row.Label;
             for (int i = 1; i < values.Length; i++)
                 values[i] = "-";
+
+            // Track each column's raw scalar (by role index) so a pairwise polarity glyph can compare
+            // a cell to the previous populated scalar column under the row's goal.
+            var scalars = glyphs && row.Goal != Goal.Context ? new double?[roleOrder.Count] : null;
+            var emphasis = SupportsEmphasis ? row.Emphasis : null;
 
             if (row.Sources is not null)
             {
@@ -588,15 +594,56 @@ public class MarkoutWriter
                     if (source.Role is null || source.Value is null || !roleIndex.TryGetValue(source.Role, out var idx))
                         continue;
                     var sw = new StringWriter();
-                    source.Value.FormatInline(sw, source.Format);
-                    values[idx + 1] = sw.ToString();
+                    source.Value.FormatInline(sw, ApplyGlyphs(source.Format));
+                    var text = sw.ToString();
+
+                    double? scalar = source.Value is ScalarSourceCell cell && CellText.TryScalarDouble(cell.RawValue, out var d)
+                        ? d : null;
+                    // Emphasize the value before any pairwise glyph trails it, so "**5** ✓" reads bold-then-status.
+                    if (emphasis is not null && scalar is { } ev && emphasis.IsSatisfiedBy(ev))
+                        text = Emphasize(text);
+                    values[idx + 1] = text;
+                    if (scalars is not null && scalar is { } sv)
+                        scalars[idx] = sv;
                 }
             }
+
+            if (scalars is not null)
+                AppendPairwisePolarity(values, scalars, row.Goal, row.Noise);
 
             outRows.Add(values);
         }
 
         return WriteTable(headers, outRows);
+    }
+
+    /// <summary>Appends the row's goal glyph to a label; nothing for <see cref="Goal.Context"/>.</summary>
+    private string LabelWithGoalGlyph(string label, Goal goal)
+    {
+        if (goal == Goal.Context)
+            return label;
+        var glyph = _options.Glyphs.ForGoal(goal);
+        return Compose(GlyphSlot.GoalLabel, label, glyph, goal, GateStatus.Unknown);
+    }
+
+    /// <summary>Appends a pairwise polarity glyph to each populated scalar cell, comparing it to the
+    /// previous populated scalar column under <paramref name="goal"/>. The first populated column and
+    /// unchanged/neutral cells get no glyph.</summary>
+    private void AppendPairwisePolarity(string[] values, double?[] scalars, Goal goal, double noise)
+    {
+        double? previous = null;
+        for (int i = 0; i < scalars.Length; i++)
+        {
+            if (scalars[i] is not { } current)
+                continue;
+            if (previous is { } prev &&
+                GoalDerivation.TryDerive(prev, current, goal, noise, out _, out var status))
+            {
+                var glyph = _options.Glyphs.ForStatus(status);
+                values[i + 1] = Compose(GlyphSlot.MovementCell, values[i + 1], glyph, goal, status);
+            }
+            previous = current;
+        }
     }
 
     // Decomposing formatters (TSV/JSONL): one flat record per row, {role}_{field} columns.
@@ -864,9 +911,10 @@ public class MarkoutWriter
 
         if (_options.InlineGoalStatus)
         {
+            var glyphs = SupportsGlyphs;
             var denseRows = new List<string[]>(rows.Count);
             foreach (var metric in rows)
-                denseRows.Add([MetricLabelText(metric), DenseChangeText(metric), TargetText(metric)]);
+                denseRows.Add([MetricLabelText(metric, glyphs), DenseChangeText(metric, glyphs), TargetText(metric)]);
 
             return WriteTable(["Metric", "Change", "Target"], denseRows);
         }
@@ -878,27 +926,61 @@ public class MarkoutWriter
         return WriteTable(["Metric", "Change", "Target", "Status"], outRows);
     }
 
-    /// <summary>The metric label with a goal marker appended: <c>(-)</c> for <see cref="Goal.Lower"/>,
-    /// <c>(+)</c> for <see cref="Goal.Higher"/>, nothing for <see cref="Goal.Context"/>.</summary>
-    private static string MetricLabelText<T>(in MetricChange<T> metric) where T : struct
+    /// <summary>Whether the active formatter renders goal/polarity glyphs (opts into
+    /// <see cref="Formatting.IGlyphFormatter"/>) rather than the slug words.</summary>
+    private bool SupportsGlyphs => _formatter is Formatting.IGlyphFormatter;
+
+    /// <summary>Whether the active formatter renders emphasized cell values (opts into
+    /// <see cref="Formatting.IEmphasisFormatter"/>).</summary>
+    private bool SupportsEmphasis => _formatter is Formatting.IEmphasisFormatter;
+
+    /// <summary>Wraps a cell value in the formatter's emphasis; only call when <see cref="SupportsEmphasis"/>.</summary>
+    private string Emphasize(string text) => ((Formatting.IEmphasisFormatter)_formatter).Emphasize(text);
+
+    /// <summary>Composes a resolved glyph onto its base text via the caller's
+    /// <see cref="MarkoutWriterOptions.ComposeGlyph"/>, or the default append-with-space.</summary>
+    private string Compose(GlyphSlot slot, string text, string glyph, Goal goal, GateStatus status)
     {
-        var marker = metric.Goal switch
-        {
-            Goal.Lower => " (-)",
-            Goal.Higher => " (+)",
-            _ => ""
-        };
-        return metric.Name + marker;
+        var context = new GlyphContext(slot, text, glyph, goal, status);
+        return _options.ComposeGlyph is { } compose ? compose(context) : context.Combine();
     }
 
-    /// <summary>The Change cell with the status word inlined: <c>0 → 7 (bad)</c>. The word is the
-    /// caller <see cref="MetricChange{T}.StatusLabel"/>, else the caller/derived polarity slug; when
-    /// there is no status (an ungated, un-annotated row) only the bare change renders.</summary>
-    private static string DenseChangeText<T>(in MetricChange<T> metric) where T : struct
+    /// <summary>Augments a composite-cell format with the active glyph set + composer when the sink
+    /// renders glyphs, so <see cref="Change{V}"/> emits a polarity glyph instead of the status word.</summary>
+    internal MarkoutCellFormat ApplyGlyphs(in MarkoutCellFormat format)
+        => SupportsGlyphs ? format with { Glyphs = _options.Glyphs, Compose = _options.ComposeGlyph } : format;
+
+    /// <summary>The metric label with a goal marker appended. With glyphs, the configured goal glyph
+    /// (<c>↑</c>/<c>↓</c>); otherwise the ASCII marker <c>(-)</c>/<c>(+)</c>. Nothing for
+    /// <see cref="Goal.Context"/>.</summary>
+    private string MetricLabelText<T>(in MetricChange<T> metric, bool glyphs) where T : struct
+    {
+        if (metric.Goal == Goal.Context)
+            return metric.Name;
+        var marker = glyphs
+            ? _options.Glyphs.ForGoal(metric.Goal)
+            : (metric.Goal == Goal.Lower ? "(-)" : "(+)");
+        if (!glyphs)
+            return marker.Length == 0 ? metric.Name : metric.Name + " " + marker;
+        return Compose(GlyphSlot.GoalLabel, metric.Name, marker, metric.Goal, GateStatus.Unknown);
+    }
+
+    /// <summary>The Change cell with the goal state inlined. With glyphs, a polarity glyph is appended
+    /// (<c>0 → 7 ✗</c>) for a derived/enum <see cref="GateStatus"/>; a caller <see cref="MetricChange{T}.StatusLabel"/>
+    /// stays a parenthesized word (<c>0 → 7 (regression)</c>). Without glyphs, the status word is
+    /// parenthesized as before. An ungated, un-annotated row renders only the bare change.</summary>
+    private string DenseChangeText<T>(in MetricChange<T> metric, bool glyphs) where T : struct
     {
         var change = MarkoutCell.ToInlineString(new Change<T>(metric.Before, metric.After));
-        var (_, status) = Resolve(metric);
-        return status is null ? change : change + " (" + status + ")";
+        var (word, gate, custom) = ResolveStatus(metric);
+        if (word is null)
+            return change;
+        if (glyphs && !custom && gate is { } g)
+        {
+            var glyph = _options.Glyphs.ForStatus(g);
+            return Compose(GlyphSlot.MovementCell, change, glyph, metric.Goal, g);
+        }
+        return change + " (" + word + ")";
     }
 
     private bool WriteDecomposedMetricChangeTable<T>(IReadOnlyList<MetricChange<T>> rows, string? structuredSection) where T : struct
@@ -973,6 +1055,29 @@ public class MarkoutWriter
             status = null;
 
         return (direction is null ? null : DirectionText.Slug(direction.Value), status);
+    }
+
+    /// <summary>
+    /// Resolves the row's polarity for dense glyph rendering: the display <paramref name="Word"/>
+    /// (caller <see cref="MetricChange{T}.StatusLabel"/>, else the polarity slug), the underlying
+    /// <see cref="GateStatus"/> enum when the polarity is derived or caller-set (so a glyph can be
+    /// chosen), and whether the word is a caller-supplied custom label (which stays a word, not a glyph).
+    /// </summary>
+    private static (string? Word, GateStatus? Gate, bool Custom) ResolveStatus<T>(in MetricChange<T> metric) where T : struct
+    {
+        Direction? direction = null;
+        var derived = GateStatus.Neutral;
+        if (metric.Goal != Goal.Context &&
+            GoalDerivation.TryDerive(metric.Before, metric.After, metric.Goal, metric.Noise, out var d, out derived))
+            direction = d;
+
+        if (!string.IsNullOrEmpty(metric.StatusLabel))
+            return (metric.StatusLabel, null, true);
+        if (metric.Status != GateStatus.Unknown)
+            return (GateStatusText.Slug(metric.Status), metric.Status, false);
+        if (direction is not null)
+            return (GateStatusText.Slug(derived), derived, false);
+        return (null, null, false);
     }
 
     /// <summary>

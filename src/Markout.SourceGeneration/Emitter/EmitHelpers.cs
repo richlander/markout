@@ -15,7 +15,7 @@ internal static class EmitHelpers
 
         // Composite cell: render its dense, human-readable form
         if (prop.Kind == PropertyKind.CompositeCell)
-            return $"global::Markout.MarkoutCell.ToInlineString({access}, {CompositeCellFormatLiteral(prop)})";
+            return $"global::Markout.MarkoutCell.ToInlineString({access}, {CompositeCellFormatLiteral(prop)}, writer)";
 
         // Value formatter takes highest priority
         if (prop.ValueFormatterTypeName != null)
@@ -134,7 +134,7 @@ internal static class EmitHelpers
     {
         // Composite cell in a table column renders its dense form (no per-column decomposition).
         if (prop.Kind == PropertyKind.CompositeCell)
-            return $"global::Markout.MarkoutCell.ToInlineString({propAccess}, {CompositeCellFormatLiteral(prop)})";
+            return $"global::Markout.MarkoutCell.ToInlineString({propAccess}, {CompositeCellFormatLiteral(prop)}, writer)";
 
         if (prop.IsNullableValueType)
         {

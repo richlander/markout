@@ -25,6 +25,8 @@ public class MarkoutWriterOptions
     private IReadOnlySet<int>? _jsonIdentityColumnIndices;
     private int _headingLevelOffset;
     private bool _inlineGoalStatus = true;
+    private MarkoutGlyphs _glyphs = MarkoutGlyphs.Default;
+    private Func<GlyphContext, string>? _composeGlyph;
 
     /// <summary>Creates a new, writable options instance with default values.</summary>
     public MarkoutWriterOptions()
@@ -51,6 +53,8 @@ public class MarkoutWriterOptions
         _jsonIdentityColumnIndices = source._jsonIdentityColumnIndices;
         _headingLevelOffset = source._headingLevelOffset;
         _inlineGoalStatus = source._inlineGoalStatus;
+        _glyphs = source._glyphs;
+        _composeGlyph = source._composeGlyph;
     }
 
     /// <summary>
@@ -80,11 +84,13 @@ public class MarkoutWriterOptions
 
     /// <summary>
     /// Whether a <see cref="MetricChange{T}"/> Markdown table renders goal state <em>densely</em>:
-    /// the derived (or caller-supplied) status word is inlined into the Change cell
-    /// (<c>0 → 7 (bad)</c>), a goal marker is appended to the metric label (<c>Failures (-)</c> for
-    /// <see cref="Goal.Lower"/>, <c>(+)</c> for <see cref="Goal.Higher"/>), and the separate
-    /// <c>Status</c> column is dropped. Default is <c>true</c>. Set <c>false</c> to keep the legacy
-    /// <c>Metric | Change | Target | Status</c> layout. Structured (TSV/JSONL) output is unaffected.
+    /// the derived (or caller-supplied) polarity is inlined into the Change cell, a goal marker is
+    /// appended to the metric label, and the separate <c>Status</c> column is dropped. On rich sinks
+    /// (<see cref="Formatting.IGlyphFormatter"/>: Markdown/ANSI/Unicode) the marker and polarity are
+    /// the configured <see cref="Glyphs"/> (<c>Failures ↓</c>, <c>0 → 7 ✗</c>); on plain text they are
+    /// the ASCII <c>(-)</c>/<c>(+)</c> marker and the status word (<c>0 → 7 (bad)</c>). Default is
+    /// <c>true</c>. Set <c>false</c> to keep the legacy <c>Metric | Change | Target | Status</c> layout.
+    /// Structured (TSV/JSONL) output is unaffected and always keeps the <c>direction</c>/<c>status</c> words.
     /// </summary>
     public bool InlineGoalStatus
     {
@@ -93,6 +99,42 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _inlineGoalStatus = value;
+        }
+    }
+
+    /// <summary>
+    /// The glyph set used to render goal (<c>↑</c>/<c>↓</c>) and polarity (<c>✓</c>/<c>✗</c>) indicators
+    /// in rich document sinks (formatters implementing <see cref="Formatting.IGlyphFormatter"/>:
+    /// Markdown, ANSI, Unicode). Defaults to <see cref="MarkoutGlyphs.Default"/>. Plain text and
+    /// decomposing sinks (TSV/JSONL) ignore this and keep <c>direction</c>/<c>status</c> slug words.
+    /// </summary>
+    public MarkoutGlyphs Glyphs
+    {
+        get => _glyphs;
+        set
+        {
+            ThrowIfReadOnly();
+            _glyphs = value ?? MarkoutGlyphs.Default;
+        }
+    }
+
+    /// <summary>
+    /// An optional callback that composes the final rendered string for a goal/polarity indicator on
+    /// rich sinks (formatters implementing <see cref="Formatting.IGlyphFormatter"/>). It receives the
+    /// base <see cref="GlyphContext.Text"/> and the resolved <see cref="GlyphContext.Glyph"/> (from
+    /// <see cref="Glyphs"/>) and returns the combined text — letting a caller replace the glyph with a
+    /// word, integrate it into the text, or condition it on the <see cref="GlyphContext.Slot"/>/
+    /// <see cref="GlyphContext.Status"/>. Default is <c>null</c> (append the glyph with a space via
+    /// <see cref="GlyphContext.Combine"/>). Ignored by plain text and decomposing sinks (TSV/JSONL),
+    /// which keep the <c>direction</c>/<c>status</c> slug words.
+    /// </summary>
+    public Func<GlyphContext, string>? ComposeGlyph
+    {
+        get => _composeGlyph;
+        set
+        {
+            ThrowIfReadOnly();
+            _composeGlyph = value;
         }
     }
 
