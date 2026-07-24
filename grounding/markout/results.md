@@ -4,8 +4,11 @@ What the skill shelf buys a consuming agent, measured on the [CT-24 workflow lad
 24 bare-fixture scenarios (6 basics + 18 domain, four difficulty rounds) where the agent authors
 only the Markout rendering. Prompts describe the library functionally and never name it, so skill
 discovery is organic. Each scenario is run **k=5** times per arm; every run is graded independently
-on the **Fails → Satisfies → Delivers** ladder, so the unit of evidence is a *yield* (`K/k` delivered
-runs), not a single pass/fail.
+on an ascending three-rung ladder, so the unit of evidence is a *yield* (`K/k` delivering runs), not
+a single pass/fail. The rungs: **Fails < Satisfies < Delivers** — *Fails* = no working result;
+*Satisfies* = works and meets the verifiable requirements (right API, constraints hit), even if
+hand-rolled around the taught surface; *Delivers* = *Satisfies* **and** done the idiomatic taught way
+(the full-price rung yield counts; Stage 1 proxies `Delivers ≡ Satisfies` — see caveats).
 
 - **Harness:** `richlander/dotnet-package-grounding@6b7e6ea` + `skill-validator@cb9e32a` (per-run
   capture; graded-yield quality card via `analyze --view ladder` — beta-binomial posterior + nested
@@ -23,8 +26,9 @@ runs), not a single pass/fail.
 
 ## The quality card — baseline → `SKILL.md`, three models
 
-Two independent axes — **return** (how often it delivers, scored over *all* runs) and
-**efficiency** (the price *and* speed of a delivery, scored over *delivered* runs only) — plus two
+Two independent axes — **return** (how often it delivers, over **all k runs of each task** — a
+failed run stays in as a scored 0) and **efficiency** (the price *and* speed of a delivery, over
+**delivered runs only**) — plus two
 gates: do-no-harm and a ≥20% economic-materiality premium. Bands are 95% credible intervals from
 one seeded, finite-suite bootstrap (24 tasks held fixed, runs redrawn; beta-binomial posterior on
 yield, joint lognormal cost+duration redraw; `S*` recomputed per iteration). Directional goal:
@@ -35,7 +39,7 @@ yield, joint lognormal cost+duration redraw; `S*` recomputed per iteration). Dir
 | **Coverage** — both-productive `S` (·) | 19 | 23 | 24 |
 | ↳ grounded-only unlocks (↑) | **5** | 1 | 0 |
 | ↳ baseline-only regressions (↓) | 0 | 0 | 0 |
-| **Axis 1 — return (all runs).** mean yield `P` (↑) | 0.533 → 0.942 | 0.775 → 1.000 | 0.883 → 1.000 |
+| **Axis 1 — return (all k runs/task).** mean yield `P` (↑) | 0.533 → 0.942 | 0.775 → 1.000 | 0.883 → 1.000 |
 | ↳ ΔP\|both, C2 reliability [95% CrI] (↑) | +0.263 [+0.106, +0.307] | +0.191 [+0.052, +0.216] | +0.117 [−0.007, +0.144] |
 | ↳ prior robustness (uniform vs Jeffreys) | robust (both exclude 0) | robust (both exclude 0) | ⚠ prior-sensitive |
 | **Axis 2 — efficiency (delivered-only).** per-$ geo-mean IET `Lᵍ/Lᵇ` [95% CrI] (↓, **gate**) | ×0.20 [0.18, 0.33] | ×0.26 [0.23, 0.35] | ×0.40 [0.35, 0.52] |
