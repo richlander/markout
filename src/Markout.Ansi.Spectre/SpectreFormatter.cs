@@ -7,7 +7,7 @@ namespace Markout.Ansi.Spectre;
 /// A formatter that renders output as rich ANSI terminal text using Spectre.Console.
 /// </summary>
 public class SpectreFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter
+    IDocumentFormatter, IMetricsFormatter, IGlyphFormatter
 {
     private const int ColumnGap = 2;
     private readonly IAnsiConsole _console;

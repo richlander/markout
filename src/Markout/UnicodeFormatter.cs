@@ -8,7 +8,7 @@ namespace Markout;
 /// Uses ─│├└╭╮╰╯ for borders, █▆▄▂ for bars, and other Unicode decorations.
 /// </summary>
 public class UnicodeFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter
+    IDocumentFormatter, IMetricsFormatter, IGlyphFormatter
 {
     private const int ColumnGap = 2;
     private int _consoleWidth = 80;

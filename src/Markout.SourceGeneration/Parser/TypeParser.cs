@@ -519,6 +519,19 @@ internal static class TypeParser
         bool isJoinedArray = joinSeparator != null && (kind == PropertyKind.StringArray || kind == PropertyKind.ComplexArray);
         bool isUnsupportedInTable = !isIgnored && !isSection && !isUnwrapped && !IsScalarKind(kind) && !isJoinedArray && kind != PropertyKind.Formattable;
 
+        // A lone Metric/Breakdown property (not a List<T>/array) that still renders as its bar shape.
+        // The type arrives unwrapped of Nullable<T>, so compare against the unwrapped shape type.
+        var shapeType = prop.Type;
+        if (shapeType is INamedTypeSymbol shapeNullable &&
+            shapeNullable.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+        {
+            shapeType = shapeNullable.TypeArguments[0];
+        }
+        bool isScalarShape = !isArray &&
+            (kind == PropertyKind.Metric || kind == PropertyKind.Breakdown) &&
+            ((knownTypes.Metric is not null && SymbolEqualityComparer.Default.Equals(shapeType, knownTypes.Metric)) ||
+             (knownTypes.Breakdown is not null && SymbolEqualityComparer.Default.Equals(shapeType, knownTypes.Breakdown)));
+
         // Emit warning for unsupported properties without [MarkoutIgnoreInTable]
         if (isUnsupportedInTable && !isIgnoredInTable)
         {
@@ -588,7 +601,8 @@ internal static class TypeParser
             multiSourceLabelHeader,
             goal,
             noise,
-            deltaNoun);
+            deltaNoun,
+            isScalarShape);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)
@@ -630,6 +644,13 @@ internal static class TypeParser
         // Callout type - renders as admonition block
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.Callout))
             return (PropertyKind.Callout, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+
+        // Scalar Metric / Breakdown - a lone shape property renders as its bar, same as List<T>.
+        // (Nullable<T> is already unwrapped before we get here; the emitter guards on the shape.)
+        if (knownTypes.Metric is not null && SymbolEqualityComparer.Default.Equals(type, knownTypes.Metric))
+            return (PropertyKind.Metric, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+        if (knownTypes.Breakdown is not null && SymbolEqualityComparer.Default.Equals(type, knownTypes.Breakdown))
+            return (PropertyKind.Breakdown, null, null, false, null, null, true, FieldLayoutKind.Table, false);
 
         // Composite-cell shapes (Comparison<>, Fraction, Share, Percent, Segments) implement IMarkoutCell
         if (knownTypes.IMarkoutCell != null &&

@@ -169,6 +169,13 @@ public readonly record struct Segments(params Segment[] Parts);     // 21/171/23
 // Change<Share|Percent|Fraction|Segments> derive from IGoalMagnitude (Share→Value, Percent/Fraction→ratio, Segments→sum of parts).
 public enum Goal { Context, Higher, Lower }                         // which direction is "good"
 public enum Direction { Unchanged, Increased, Decreased, Introduced, Resolved }; // structural, goal-neutral
+// Goal/polarity render as glyphs on rich sinks (Markout.MarkoutGlyphs, IGlyphFormatter: Markdown/ANSI/Unicode):
+// the metric label carries a goal glyph (↑/↓) and a derived GateStatus a polarity glyph (✓/✗); a goal-annotated
+// standalone Change<V> (card row or element-table column) trails the glyph too; a MultiSourceRow with a Goal
+// adds pairwise polarity to each scalar column vs its predecessor. Plain text keeps the (-)/(+) marker + status
+// word; TSV/JSONL keep the direction/status slug words. Easy mode: MarkoutWriterOptions.Glyphs (defaults ↑/↓/✓/✗).
+// Advanced mode: MarkoutWriterOptions.ComposeGlyph (Func<GlyphContext,string>) composes each glyph onto its text —
+// replace with a word, integrate it, or condition on GlyphContext.Slot/GateStatus (GlyphContext.Combine() = default).
 public enum Delta { None, Percent, Absolute, Multiple }             // derived-change suffix mode (Multiple: 3× fewer/more)
 public interface IGoalMagnitude { double GoalMagnitude { get; } }   // composite cell's comparable magnitude (goal)
 public interface IDeltaCountable { double DeltaCount { get; } }     // composite cell's count for [MarkoutDeltaNoun] (Fraction→count, Share→value)
@@ -179,6 +186,10 @@ public readonly record struct MetricChange<T>(string Name, T Before, T After,
     GateStatus Status = GateStatus.Unknown, string? StatusLabel = null) where T : struct; // gated metric
 public readonly record struct Source(string Role, IMarkoutCell? Value, MarkoutCellFormat Format = default);
 public readonly struct MultiSourceRow(string label, params Source[] sources); // role matrix (roles → columns)
+// A MultiSourceRow { Emphasis = MarkoutEmphasis.AtLeast(cut) | AtMost(cut) } bolds (Markdown **…**) each
+// scalar cell clearing the threshold — declared "which numbers matter" (point at the bad side for an alarm);
+// scalar cells only, Markdown-only (IEmphasisFormatter), composes with the Goal glyph/polarity. Plain/TSV unstyled.
+public sealed record MarkoutEmphasis { EmphasisComparison Comparison; double Cut; } // AtLeast/AtMost factories
 public enum GateStatus { Unknown, Good, Neutral, Warning, Bad }    // verdict polarity
 public readonly record struct Verdict(GateStatus Status, string? Label = null); // first-class verdict cell
 

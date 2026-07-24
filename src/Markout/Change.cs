@@ -18,38 +18,51 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         // so a nullable composite side never leaks a struct ToString via the scalar path.
         if (Before is IMarkoutCell || After is IMarkoutCell)
         {
-            (Before as IMarkoutCell)?.FormatInline(writer, format);
-            writer.Write(CellText.Arrow);
-            (After as IMarkoutCell)?.FormatInline(writer, format);
+            // Buffer the core (halves + delta parenthetical) so a trailing polarity glyph can be
+            // composed onto the whole cell; write straight through in word mode.
+            var glyphMode = format.Glyphs is not null;
+            TextWriter core = glyphMode ? new StringWriter() : writer;
+
+            (Before as IMarkoutCell)?.FormatInline(core, format);
+            core.Write(CellText.Arrow);
+            (After as IMarkoutCell)?.FormatInline(core, format);
 
             // Composite cells append a dense delta-noun (from IDeltaCountable) and/or the goal status
-            // word (from IGoalMagnitude), merged into one parenthetical.
+            // (from IGoalMagnitude), merged into one parenthetical.
             string? compositeFirst = null;
             if (format.DeltaNoun is not null && Before is IDeltaCountable beforeCount && After is IDeltaCountable afterCount)
             {
                 var nounDelta = CellText.SignedNumber(afterCount.DeltaCount - beforeCount.DeltaCount);
                 compositeFirst = nounDelta == CellText.Placeholder ? CellText.Placeholder : nounDelta + " " + format.DeltaNoun;
             }
-            string? compositeStatus = null;
+            GateStatus? compositeStatus = null;
             if (format.Goal != Goal.Context && Before is IGoalMagnitude beforeMag && After is IGoalMagnitude afterMag &&
                 GoalDerivation.TryDerive(beforeMag.GoalMagnitude, afterMag.GoalMagnitude, format.Goal, format.Noise, out _, out var compositeGate))
-                compositeStatus = GateStatusText.Slug(compositeGate);
-            WriteParenGroup(writer, compositeFirst, compositeStatus);
+                compositeStatus = compositeGate;
+            WriteParenGroup(core, compositeFirst, glyphMode ? null : StatusWord(compositeStatus));
+
+            if (glyphMode)
+                writer.Write(ComposeStatusGlyph(format, core.ToString()!, compositeStatus));
             return;
         }
 
-        writer.Write(CellText.Scalar(Before));
-        writer.Write(CellText.Arrow);
-        writer.Write(CellText.Scalar(After));
+        // Buffer the scalar core when a trailing glyph will be composed onto it.
+        var scalarGlyphMode = format.Glyphs is not null;
+        TextWriter target = scalarGlyphMode ? new StringWriter() : writer;
 
-        // Merge an optional derived-change suffix (or a delta-noun) and an optional goal status word
-        // into a single parenthetical: "(+40%)", "(bad)", "(+2 solved)", or "(+40%, bad)".
+        target.Write(CellText.Scalar(Before));
+        target.Write(CellText.Arrow);
+        target.Write(CellText.Scalar(After));
+
+        // Merge an optional derived-change suffix (or a delta-noun) and an optional goal status into a
+        // single parenthetical in word mode: "(+40%)", "(bad)", "(+2 solved)", or "(+40%, bad)". In
+        // glyph mode the status leaves the parenthetical and trails as a composed glyph: "(+40%) ✗".
         string? deltaPart;
         if (format.DeltaNoun is not null)
             deltaPart = NounText(format.DeltaNoun);
         else
             deltaPart = format.Delta == Delta.None ? null : DeltaSuffix(format.Delta);
-        string? statusPart = null;
+        GateStatus? statusValue = null;
         if (format.Goal != Goal.Context &&
             GoalDerivation.TryDerive(Before, After, format.Goal, format.Noise, out _, out var status))
         {
@@ -61,10 +74,28 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
                 && status == GateStatus.Good
                 && deltaPart is not null && deltaPart != CellText.Placeholder;
             if (!multipleImpliesGood)
-                statusPart = GateStatusText.Slug(status);
+                statusValue = status;
         }
 
-        WriteParenGroup(writer, deltaPart, statusPart);
+        WriteParenGroup(target, deltaPart, scalarGlyphMode ? null : StatusWord(statusValue));
+
+        if (scalarGlyphMode)
+            writer.Write(ComposeStatusGlyph(format, target.ToString()!, statusValue));
+    }
+
+    /// <summary>The status slug word for a derived polarity, or <c>null</c> when there is none.</summary>
+    private static string? StatusWord(GateStatus? status)
+        => status is { } value ? GateStatusText.Slug(value) : null;
+
+    /// <summary>Composes a trailing polarity glyph onto the buffered cell <paramref name="text"/> via the
+    /// format's glyph set + composer (append-with-space by default). No status → text unchanged.</summary>
+    private static string ComposeStatusGlyph(in MarkoutCellFormat format, string text, GateStatus? status)
+    {
+        if (status is not { } value)
+            return text;
+        var glyph = format.Glyphs!.ForStatus(value);
+        var context = new GlyphContext(GlyphSlot.MovementCell, text, glyph, format.Goal, value);
+        return format.Compose is { } compose ? compose(context) : context.Combine();
     }
 
     private string NounText(string noun)

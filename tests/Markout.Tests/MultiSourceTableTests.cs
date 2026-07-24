@@ -75,8 +75,183 @@ public class MultiSourceTableTests
         Assert.Contains("| m1 | 1 \u2192 2 | - |", output);
     }
 
-    // ── Decomposed JSONL: one flat record per row, {role}_{side}_{field} keys ──
+    // ── n-column scalar series: goal glyph on label + pairwise polarity glyphs (issue #153) ──
 
+    private static MultiSourceRow[] WeeklySeries() =>
+    [
+        new MultiSourceRow("Alloc (bytes)",
+            new Source("W1", 100.0), new Source("W2", 110.0),
+            new Source("W3", 105.0), new Source("W4", 90.0)) { Goal = Goal.Lower },
+        new MultiSourceRow("Throughput",
+            new Source("W1", 50.0), new Source("W2", 55.0),
+            new Source("W3", 53.0), new Source("W4", 60.0)) { Goal = Goal.Higher },
+    ];
+
+    [Fact]
+    public void Markdown_ScalarSeries_GoalGlyphOnLabel_AndPairwisePolarity()
+    {
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Benchmark", WeeklySeries());
+        var output = writer.ToString();
+
+        // Goal glyph on the label; first column has no predecessor; cols 2+ carry pairwise polarity.
+        // Alloc lower-is-better: 100->110 up=bad, 110->105 down=good, 105->90 down=good.
+        Assert.Contains("| Alloc (bytes) \u2193 | 100 | 110 \u2717 | 105 \u2713 | 90 \u2713 |", output);
+        // Throughput higher-is-better: 50->55 up=good, 55->53 down=bad, 53->60 up=good.
+        Assert.Contains("| Throughput \u2191 | 50 | 55 \u2713 | 53 \u2717 | 60 \u2713 |", output);
+    }
+
+    [Fact]
+    public void Markdown_ScalarSeries_UnchangedCell_HasNoGlyph()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("Errors",
+                new Source("W1", 5.0), new Source("W2", 5.0), new Source("W3", 2.0)) { Goal = Goal.Lower },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Benchmark", rows);
+        var output = writer.ToString();
+
+        // 5->5 neutral (no glyph); 5->2 down=good.
+        Assert.Contains("| Errors \u2193 | 5 | 5 | 2 \u2713 |", output);
+    }
+
+    [Fact]
+    public void Markdown_ScalarSeries_ContextGoal_HasNoGlyphs()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("Count", new Source("W1", 10.0), new Source("W2", 20.0)),
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Benchmark", rows);
+        var output = writer.ToString();
+
+        Assert.Contains("| Count | 10 | 20 |", output);
+        Assert.DoesNotContain("\u2713", output);
+        Assert.DoesNotContain("\u2191", output);
+    }
+
+    [Fact]
+    public void Tsv_ScalarSeries_NoGlyphsRegardlessOfGoal()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });
+        writer.WriteMultiSourceTable("Benchmark", WeeklySeries());
+        var output = sw.ToString();
+
+        Assert.DoesNotContain("\u2713", output);
+        Assert.DoesNotContain("\u2717", output);
+        Assert.DoesNotContain("\u2193", output);
+        Assert.DoesNotContain("\u2191", output);
+        Assert.Contains("110", output);
+    }
+
+    // ── Conditional cell emphasis: declared threshold bolds scalar cells (issue #154) ──
+
+    [Fact]
+    public void Markdown_Emphasis_AtLeast_BoldsClearingCells()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("grounded-only unlocks",
+                new Source("mini", 5), new Source("mid", 1), new Source("frontier", 0))
+                { Goal = Goal.Higher, Emphasis = MarkoutEmphasis.AtLeast(2) },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        // Only cells >= 2 bold; the goal glyph and pairwise polarity compose with emphasis.
+        Assert.Contains("| grounded-only unlocks \u2191 | **5** | 1 \u2717 | 0 \u2717 |", output);
+    }
+
+    [Fact]
+    public void Markdown_Emphasis_AtMost_BoldsLowCells()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("latency ms",
+                new Source("a", 5.0), new Source("b", 40.0)) { Emphasis = MarkoutEmphasis.AtMost(10) },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        Assert.Contains("| latency ms | **5** | 40 |", output);
+    }
+
+    [Fact]
+    public void Markdown_Emphasis_Alarm_BoldsBadSideOnly()
+    {
+        // Point the comparison at the bad side to get an alarm: a gate cell bolds only when it fails.
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("do-no-harm gate",
+                new Source("mini", 0.0), new Source("mid", 0.02), new Source("frontier", 0.0))
+                { Emphasis = MarkoutEmphasis.AtLeast(0.01) },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        Assert.Contains("| do-no-harm gate | 0 | **0.02** | 0 |", output);
+    }
+
+    [Fact]
+    public void Emphasis_PlainText_RendersNoBold()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("unlocks",
+                new Source("mini", 5), new Source("mid", 1)) { Emphasis = MarkoutEmphasis.AtLeast(2) },
+        ];
+        var writer = new MarkoutWriter(new PlainTextFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        Assert.DoesNotContain("**", output);
+        Assert.Contains("5", output);
+    }
+
+    [Fact]
+    public void Emphasis_Tsv_RendersNoBold()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("unlocks",
+                new Source("mini", 5), new Source("mid", 1)) { Emphasis = MarkoutEmphasis.AtLeast(2) },
+        ];
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = sw.ToString();
+
+        Assert.DoesNotContain("**", output);
+        Assert.Contains("5", output);
+    }
+
+    [Fact]
+    public void Emphasis_IgnoresNonScalarAndAbsentCells()
+    {
+        // A composite cell and an absent role are never emphasized (only scalar values are eligible).
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("mix",
+                new Source("a", new Change<long>(1, 9)), new Source("b", 5)) { Emphasis = MarkoutEmphasis.AtLeast(2) },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        Assert.DoesNotContain("**1", output);       // composite half not bolded
+        Assert.Contains("| **5** |", output);        // scalar b bolds
+    }
+
+    // ── Decomposed JSONL: one flat record per row, {role}_{side}_{field} keys ──
     [Fact]
     public void Jsonl_DecomposesToRolePrefixedKeys()
     {

@@ -39,6 +39,9 @@ public readonly record struct Source(string Role, IMarkoutCell? Value, MarkoutCe
 /// </summary>
 internal sealed class ScalarSourceCell(object? value) : IMarkoutCell
 {
+    /// <summary>The wrapped scalar, exposed for pairwise goal derivation across a row's columns.</summary>
+    internal object? RawValue => value;
+
     public void FormatInline(TextWriter writer, in MarkoutCellFormat format)
         => writer.Write(CellText.Scalar(value));
 

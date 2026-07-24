@@ -30,4 +30,18 @@ public readonly record struct MarkoutCellFormat(Delta Delta = Delta.None, string
     /// <see cref="IDeltaCountable"/> (<see cref="Fraction"/> → count, <see cref="Share"/> → value).
     /// </summary>
     public string? DeltaNoun { get; init; }
+
+    /// <summary>
+    /// The active glyph set when the target sink renders glyphs (a formatter implementing
+    /// <see cref="Formatting.IGlyphFormatter"/>); <c>null</c> keeps the <c>good</c>/<c>bad</c> status
+    /// <em>word</em>. The writer injects this (with <see cref="Compose"/>) before formatting a
+    /// composite cell so a numeric <see cref="Change{V}"/> emits a trailing polarity glyph.
+    /// </summary>
+    internal MarkoutGlyphs? Glyphs { get; init; }
+
+    /// <summary>
+    /// The optional glyph composer (from <see cref="MarkoutWriterOptions.ComposeGlyph"/>) paired with
+    /// <see cref="Glyphs"/>; <c>null</c> uses the default append-with-space composition.
+    /// </summary>
+    internal Func<GlyphContext, string>? Compose { get; init; }
 }
