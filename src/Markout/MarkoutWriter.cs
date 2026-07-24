@@ -1329,10 +1329,52 @@ public class MarkoutWriter
         if (_sectionExcluded || _tableWriter == null)
             return;
 
-        if (_columnMap != null)
-            _tableWriter.WriteTableRow(MarkoutProjection.ProjectRow(values, _columnMap));
+        WriteTableRowCore(values);
+    }
+
+    /// <summary>
+    /// Writes a table row, optionally marking it as a <c>[MarkoutChild]</c> row. When
+    /// <paramref name="isChild"/> is <c>true</c> and the formatter supports glyphs, the row's first
+    /// cell is prefixed with the configurable child glyph (default <c>↳</c>). Non-glyph sinks
+    /// (TSV/JSONL, plain text) render the row unchanged.
+    /// </summary>
+    public void WriteTableRow(bool isChild, params ReadOnlySpan<string> values)
+    {
+        if (!_inTable)
+            throw new InvalidOperationException("Cannot write table row without starting a table first.");
+
+        if (_sectionExcluded || _tableWriter == null)
+            return;
+
+        if (isChild && SupportsGlyphs && values.Length > 0)
+        {
+            var prefixed = values.ToArray();
+            prefixed[0] = ChildLabel(prefixed[0]);
+            WriteTableRowCore(prefixed);
+        }
         else
-            _tableWriter.WriteTableRow(values);
+        {
+            WriteTableRowCore(values);
+        }
+    }
+
+    private void WriteTableRowCore(ReadOnlySpan<string> values)
+    {
+        if (_columnMap != null)
+            _tableWriter!.WriteTableRow(MarkoutProjection.ProjectRow(values, _columnMap));
+        else
+            _tableWriter!.WriteTableRow(values);
+    }
+
+    /// <summary>Prefixes a child row's first cell with the configurable child glyph. Unlike the
+    /// trailing goal/polarity glyphs, the child glyph <em>leads</em> the label as a nesting marker.
+    /// A custom <see cref="MarkoutWriterOptions.ComposeGlyph"/> composer takes full control.</summary>
+    private string ChildLabel(string label)
+    {
+        var glyph = _options.Glyphs.Child;
+        if (_options.ComposeGlyph is { } compose)
+            return compose(new GlyphContext(GlyphSlot.ChildRow, label, glyph, Goal.Context, GateStatus.Unknown));
+        return glyph.Length == 0 ? label : glyph + " " + label;
     }
 
     /// <summary>

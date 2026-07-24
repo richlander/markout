@@ -33,9 +33,11 @@ internal static class CollectionEmitter
             ? new HashSet<string>(prop.SectionIgnoreProperty.Split(',').Select(s => s.Trim()))
             : new HashSet<string>();
         var visibleProps = prop.ElementProperties
-            .Where(p => !p.IsIgnored && !ignoreNames.Contains(p.Name))
+            .Where(p => !p.IsIgnored && !p.IsChildFlag && !ignoreNames.Contains(p.Name))
             .ToList();
+        var childProp = prop.ElementProperties.FirstOrDefault(p => p.IsChildFlag);
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
+        var childRowArg = childProp != null ? $"{itemVar}.{childProp.Name}, " : "";
 
         // Build header array (with optional column name override for formatted property)
         var headers = string.Join(", ", visibleProps.Select(p =>
@@ -66,7 +68,7 @@ internal static class CollectionEmitter
             sb.AppendLine($"{ind}foreach (var {itemVar} in {propAccess})");
             sb.AppendLine($"{ind}{{");
             var values = visibleProps.Select(CellExpr).ToList();
-            sb.AppendLine($"{ind}    writer.WriteTableRow({string.Join(", ", values)});");
+            sb.AppendLine($"{ind}    writer.WriteTableRow({childRowArg}{string.Join(", ", values)});");
             sb.AppendLine($"{ind}}}");
             sb.AppendLine($"{ind}writer.WriteTableEnd();");
         }
@@ -130,9 +132,11 @@ internal static class CollectionEmitter
             ? new HashSet<string>(prop.SectionIgnoreProperty.Split(',').Select(s => s.Trim()))
             : new HashSet<string>();
         var visibleProps = prop.ElementProperties!
-            .Where(p => !p.IsIgnored && !ignoreNames.Contains(p.Name))
+            .Where(p => !p.IsIgnored && !p.IsChildFlag && !ignoreNames.Contains(p.Name))
             .ToList();
+        var childProp = prop.ElementProperties!.FirstOrDefault(p => p.IsChildFlag);
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
+        var childRowArg = childProp != null ? $"{itemVar}.{childProp.Name}, " : "";
         var dynamicLookup = dynamicIgnoreColumns.ToDictionary(d => d.ColumnName, d => d.ConditionVar);
 
         // Resolve the dynamic-ignore condition variable (loop-invariant) for a column, if any.
@@ -192,7 +196,7 @@ internal static class CollectionEmitter
                 else
                     sb.AppendLine($"{ind}    __row.Add({value});");
             }
-            sb.AppendLine($"{ind}    writer.WriteTableRow(__row.ToArray());");
+            sb.AppendLine($"{ind}    writer.WriteTableRow({childRowArg}__row.ToArray());");
             sb.AppendLine($"{ind}}}");
             sb.AppendLine($"{ind}writer.WriteTableEnd();");
         }
