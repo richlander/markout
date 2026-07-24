@@ -10,7 +10,7 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter
+    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];

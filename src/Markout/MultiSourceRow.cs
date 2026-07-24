@@ -28,4 +28,15 @@ public readonly struct MultiSourceRow
 
     /// <summary>The named-role cells for this row, in caller-supplied order.</summary>
     public IReadOnlyList<Source> Sources { get; }
+
+    /// <summary>
+    /// The optimization goal for this row's scalar series. When not <see cref="Markout.Goal.Context"/>,
+    /// rich sinks append the goal glyph to the row <see cref="Label"/> and a pairwise polarity glyph to
+    /// each scalar cell (comparing it to the previous populated scalar column). Set via object
+    /// initializer, e.g. <c>new MultiSourceRow("Alloc", w1, w2) { Goal = Goal.Lower }</c>.
+    /// </summary>
+    public Goal Goal { get; init; } = Goal.Context;
+
+    /// <summary>The tolerance (inclusive) under which a pairwise change is <see cref="Direction.Unchanged"/>; default exact.</summary>
+    public double Noise { get; init; }
 }

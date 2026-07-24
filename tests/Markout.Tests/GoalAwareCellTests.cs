@@ -313,7 +313,7 @@ public class GoalAwareCellTests
     // --- MetricChange<T> runtime path ---
 
     [Fact]
-    public void MetricChange_Goal_RendersDenseMarkdown_MarkerAndInlineStatus()
+    public void MetricChange_Goal_RendersDenseMarkdown_GoalAndPolarityGlyphs()
     {
         var writer = new MarkoutWriter(new MarkdownFormatter());
         writer.WriteMetricChangeTable(new[]
@@ -324,11 +324,65 @@ public class GoalAwareCellTests
         });
         var md = writer.ToString();
 
-        // Goal marker on the label; derived polarity inline in the Change cell; no Status column.
+        // Goal glyph on the label; derived polarity glyph inline in the Change cell; no Status column.
         Assert.Contains("| Metric | Change | Target |", md);
-        Assert.Contains("| Failures (-) | 0 \u2192 7 (bad) | - |", md);
-        Assert.Contains("| Fully raised (+) | 40 \u2192 55 (good) | - |", md);
+        Assert.Contains("| Failures \u2193 | 0 \u2192 7 \u2717 | - |", md);
+        Assert.Contains("| Fully raised \u2191 | 40 \u2192 55 \u2713 | - |", md);
         Assert.Contains("| Changed bodies | 45 \u2192 46 | - |", md);
+    }
+
+    [Fact]
+    public void MetricChange_Goal_ConfigurableGlyphs_Override()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Glyphs = new MarkoutGlyphs { GoalLower = "v", GoalHigher = "^", StatusGood = "OK", StatusBad = "X" },
+        };
+        var writer = new MarkoutWriter(new MarkdownFormatter(), options);
+        writer.WriteMetricChangeTable(new[]
+        {
+            new MetricChange<int>("Failures", 0, 7) { Goal = Goal.Lower },
+            new MetricChange<int>("Fully raised", 40, 55) { Goal = Goal.Higher },
+        });
+        var md = writer.ToString();
+
+        Assert.Contains("| Failures v | 0 \u2192 7 X | - |", md);
+        Assert.Contains("| Fully raised ^ | 40 \u2192 55 OK | - |", md);
+    }
+
+    [Fact]
+    public void MetricChange_Goal_NonGlyphFormatter_KeepsAsciiMarkerAndWord()
+    {
+        // PlainTextFormatter renders tables but is not IGlyphFormatter (and does not decompose),
+        // so it keeps the ASCII (-)/(+) label marker and the status word.
+        var writer = new MarkoutWriter(new PlainTextFormatter());
+        writer.WriteMetricChangeTable(new[]
+        {
+            new MetricChange<int>("Failures", 0, 7) { Goal = Goal.Lower },
+            new MetricChange<int>("Fully raised", 40, 55) { Goal = Goal.Higher },
+        });
+        var text = writer.ToString();
+
+        Assert.Contains("Failures (-)", text);
+        Assert.Contains("(bad)", text);
+        Assert.Contains("Fully raised (+)", text);
+        Assert.Contains("(good)", text);
+        Assert.DoesNotContain("\u2193", text);
+        Assert.DoesNotContain("\u2717", text);
+    }
+
+    [Fact]
+    public void MetricChange_CustomStatusLabel_StaysWordEvenWithGlyphs()
+    {
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMetricChangeTable(new[]
+        {
+            new MetricChange<int>("Failures", 0, 7) { Goal = Goal.Lower, StatusLabel = "regression" },
+        });
+        var md = writer.ToString();
+
+        // A caller-supplied custom label is not an enum polarity, so it stays a parenthesized word.
+        Assert.Contains("| Failures \u2193 | 0 \u2192 7 (regression) | - |", md);
     }
 
     [Fact]

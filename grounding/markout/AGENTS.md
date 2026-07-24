@@ -114,10 +114,13 @@ flat typed JSONL/TSV — with no imperative writer calls:
   Target? = null, TargetLabel? = null, Status = GateStatus.Unknown, StatusLabel? = null)` where
   `T : struct`. Set `{ Goal = Goal.Higher|Lower }` (init property; optionally `Noise`) to derive the
   `direction`/`status` axes from `Before → After`; a caller-supplied `Status` overrides the derived
-  polarity. **Dense Markdown (default):** `Metric | Change | Target` with the status word inlined
-  (`0 → 7 (bad)` — caller `StatusLabel` wins over the slug) and a goal marker on the label
-  (`Failures (-)` / `Fully raised (+)`); the `Status` column is dropped. Set
-  `MarkoutWriterOptions.InlineGoalStatus = false` for the legacy `Metric | Change | Target | Status`.
+  polarity. **Dense Markdown (default):** `Metric | Change | Target`. On rich sinks (Markdown/ANSI/
+  Unicode — `IGlyphFormatter`) the metric label carries a goal glyph (`Failures ↓` / `Fully raised ↑`)
+  and the Change cell a polarity glyph (`0 → 7 ✗`); a caller `StatusLabel` stays a parenthesized word
+  (`0 → 7 (regression)`). Plain text keeps the ASCII `(-)`/`(+)` marker + status word (`0 → 7 (bad)`).
+  Configure glyphs via `MarkoutWriterOptions.Glyphs` (defaults `↑`/`↓`/`✓`/`✗`); the `Status` column is
+  dropped. Set `MarkoutWriterOptions.InlineGoalStatus = false` for the legacy
+  `Metric | Change | Target | Status`.
   JSONL/TSV are unaffected: flat `before`/`after`/optional `target`/`target_label`/`direction`/`status`.
   `T` must be a numeric scalar (int/long/double/decimal/...); a composite `T` (e.g. `Segments`) is a
   compile error (`MARKOUT005`).
@@ -130,7 +133,10 @@ flat typed JSONL/TSV — with no imperative writer calls:
   `{role}_{side}_{field}` keys. Values are any `IMarkoutCell` incl. nested `Change<Share>` etc.;
   **scalars work too** — `new Source("baseline", 2)` (int/long/double/decimal) and `Source.Text(role, s)`
   decompose to a single `{role}` field; `new Source(role, null)` is an absent cell. Set the label column
-  header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`).
+  header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`). Set `{ Goal = Goal.Higher|Lower }`
+  on a row to add a goal glyph to the label and a **pairwise polarity glyph** to each scalar column
+  (compared to its previous populated scalar column) on rich sinks — a per-period trend over an
+  n-column series; TSV/plain are unaffected.
 - `Verdict(GateStatus Status, string? Label = null)` — a first-class verdict cell (typed polarity
   `GateStatus` + optional caller label); use as a `Source` value for a verdict row (decomposes to `{role}`).
 

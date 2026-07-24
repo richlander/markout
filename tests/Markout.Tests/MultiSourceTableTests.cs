@@ -75,8 +75,81 @@ public class MultiSourceTableTests
         Assert.Contains("| m1 | 1 \u2192 2 | - |", output);
     }
 
-    // ── Decomposed JSONL: one flat record per row, {role}_{side}_{field} keys ──
+    // ── n-column scalar series: goal glyph on label + pairwise polarity glyphs (issue #153) ──
 
+    private static MultiSourceRow[] WeeklySeries() =>
+    [
+        new MultiSourceRow("Alloc (bytes)",
+            new Source("W1", 100.0), new Source("W2", 110.0),
+            new Source("W3", 105.0), new Source("W4", 90.0)) { Goal = Goal.Lower },
+        new MultiSourceRow("Throughput",
+            new Source("W1", 50.0), new Source("W2", 55.0),
+            new Source("W3", 53.0), new Source("W4", 60.0)) { Goal = Goal.Higher },
+    ];
+
+    [Fact]
+    public void Markdown_ScalarSeries_GoalGlyphOnLabel_AndPairwisePolarity()
+    {
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Benchmark", WeeklySeries());
+        var output = writer.ToString();
+
+        // Goal glyph on the label; first column has no predecessor; cols 2+ carry pairwise polarity.
+        // Alloc lower-is-better: 100->110 up=bad, 110->105 down=good, 105->90 down=good.
+        Assert.Contains("| Alloc (bytes) \u2193 | 100 | 110 \u2717 | 105 \u2713 | 90 \u2713 |", output);
+        // Throughput higher-is-better: 50->55 up=good, 55->53 down=bad, 53->60 up=good.
+        Assert.Contains("| Throughput \u2191 | 50 | 55 \u2713 | 53 \u2717 | 60 \u2713 |", output);
+    }
+
+    [Fact]
+    public void Markdown_ScalarSeries_UnchangedCell_HasNoGlyph()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("Errors",
+                new Source("W1", 5.0), new Source("W2", 5.0), new Source("W3", 2.0)) { Goal = Goal.Lower },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Benchmark", rows);
+        var output = writer.ToString();
+
+        // 5->5 neutral (no glyph); 5->2 down=good.
+        Assert.Contains("| Errors \u2193 | 5 | 5 | 2 \u2713 |", output);
+    }
+
+    [Fact]
+    public void Markdown_ScalarSeries_ContextGoal_HasNoGlyphs()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("Count", new Source("W1", 10.0), new Source("W2", 20.0)),
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("Benchmark", rows);
+        var output = writer.ToString();
+
+        Assert.Contains("| Count | 10 | 20 |", output);
+        Assert.DoesNotContain("\u2713", output);
+        Assert.DoesNotContain("\u2191", output);
+    }
+
+    [Fact]
+    public void Tsv_ScalarSeries_NoGlyphsRegardlessOfGoal()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });
+        writer.WriteMultiSourceTable("Benchmark", WeeklySeries());
+        var output = sw.ToString();
+
+        Assert.DoesNotContain("\u2713", output);
+        Assert.DoesNotContain("\u2717", output);
+        Assert.DoesNotContain("\u2193", output);
+        Assert.DoesNotContain("\u2191", output);
+        Assert.Contains("110", output);
+    }
+
+    // ── Decomposed JSONL: one flat record per row, {role}_{side}_{field} keys ──
     [Fact]
     public void Jsonl_DecomposesToRolePrefixedKeys()
     {

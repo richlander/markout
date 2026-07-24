@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.23.0</Version>
-    <PackageReleaseNotes>[#150] A lone scalar Metric/Breakdown property (not a List&lt;T&gt;/array) now renders as its bar shape, the same as the collection forms. Previously a single Breakdown/Metric fell through to the generic complex-object renderer, producing a Field/Value + Slices table plus MARKOUT001 and CS8073 warnings instead of the bar the shape implies. Non-nullable and nullable (Metric?/Breakdown?) forms are supported; unset/default shapes render nothing.</PackageReleaseNotes>
+    <Version>0.24.0</Version>
+    <PackageReleaseNotes>[#153] Goal and polarity now render as configurable glyphs on rich sinks (Markdown/ANSI/Unicode). A MetricChange&lt;T&gt; metric label carries a goal glyph (↑ higher-is-better / ↓ lower-is-better) and its Change cell a derived polarity glyph (✓/✗) instead of the (+)/(-) marker and good/bad word. A MultiSourceRow with a Goal adds a pairwise polarity glyph to each scalar column (compared to its previous populated column) — a per-period trend over an n-column series — plus the goal glyph on the label. Glyphs are configurable via MarkoutWriterOptions.Glyphs (defaults ↑/↓/✓/✗); a caller StatusLabel stays a word. Plain text keeps the ASCII (-)/(+) marker and status word, and TSV/JSONL keep the direction/status slug words, so machine-readable and non-Unicode output are unchanged.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
