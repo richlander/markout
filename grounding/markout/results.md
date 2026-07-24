@@ -1,6 +1,7 @@
 # Markout CT-24 — grounding evidence (graded-yield model)
 
-What the skill shelf buys a consuming agent, measured on the [CT-24 workflow ladder](eval.yaml):
+What the skill shelf buys a consuming agent, measured on the [CT-24 workflow ladder](eval.yaml)
+(CT = **Complete Textbook**, the 24-task ladder that ramps from day-1 basics to day-100 niche):
 24 bare-fixture scenarios (6 basics + 18 domain, four difficulty rounds) where the agent authors
 only the Markout rendering. Prompts describe the library functionally and never name it, so skill
 discovery is organic. Each scenario is run **k=5** times per arm; every run is graded independently
