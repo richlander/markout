@@ -36,19 +36,19 @@ yield, joint lognormal cost+duration redraw; `S*` recomputed per iteration). Dir
 
 | quantity (goal) | `claude-haiku-4.5` (mini) | `claude-sonnet-5` (mid) | `claude-opus-4.8` (frontier) |
 | --- | ---: | ---: | ---: |
-| **Coverage** — both-productive `S` (·) | 19 | 23 | 24 |
+| **Coverage** — both-productive `S` = *shared success* (·) | 19 | 23 | 24 |
 | ↳ grounded-only unlocks (↑) | **5** | 1 | 0 |
 | ↳ baseline-only regressions (↓) | 0 | 0 | 0 |
 | **Axis 1 — return (all k runs/task).** mean yield `P` (↑) | 0.533 → 0.942 | 0.775 → 1.000 | 0.883 → 1.000 |
-| ↳ ΔP\|both, C2 reliability [95% CrI] (↑) | +0.263 [+0.106, +0.307] | +0.191 [+0.052, +0.216] | +0.117 [−0.007, +0.144] |
+| ↳ ΔP\|both — C2 reliability = *change in* `P` on `S` [95% CrI] (↑) | +0.263 [+0.106, +0.307] | +0.191 [+0.052, +0.216] | +0.117 [−0.007, +0.144] |
 | ↳ prior robustness (uniform vs Jeffreys) | robust (both exclude 0) | robust (both exclude 0) | ⚠ prior-sensitive |
 | **Axis 2 — efficiency (delivered-only).** per-$ geo-mean IET `Lᵍ/Lᵇ` [95% CrI] (↓, **gate**) | ×0.20 [0.18, 0.33] | ×0.26 [0.23, 0.35] | ×0.40 [0.35, 0.52] |
 | ↳ pooled `ΣLᵍ/ΣLᵇ` (Simpson guard) (↓) | ×0.11 | ×0.23 | ×0.32 |
 | ↳ per-day geo-mean duration `Lᵍ/Lᵇ` [95% CrI] (↓, co-headline) | ×0.28 [0.26, 0.38] | ×0.21 [0.18, 0.26] | ×0.38 [0.33, 0.44] |
-| ↳ Total on `S` — IET / duration (↓) | −75% / −77% | −64% / −79% | −56% / −71% |
+| ↳ Total on `S` (aggregate) — IET / duration (↓) | ×0.25 / ×0.23 | ×0.36 / ×0.21 | ×0.44 / ×0.29 |
 | **Economic gate** — per-$ CrI upper ≤ ×0.80 (certified ≥20% cut) | ×0.33 ✅ | ×0.35 ✅ | ×0.52 ✅ |
 | **C5** predictability `σ_g/σ_b` (↓) | 0.48 | 0.59 | 0.45 |
-| **Do-no-harm gate** — loss mass / null-95 (↓) | 0.000 / 3.200 | 0.000 / 2.200 | 0.000 / 1.200 |
+| **Do-no-harm gate** — loss mass ≤ null-95 (↓, clean) | 0.000 / 3.200 ✅ | 0.000 / 2.200 ✅ | 0.000 / 1.200 ✅ |
 | **verdict** | both gates · win | both gates · win | both gates · win |
 
 (C4 fidelity — the Delivers-vs-Satisfies rate — is **1.00 by construction** in this cut: Stage 1 uses
