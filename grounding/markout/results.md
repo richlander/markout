@@ -29,14 +29,16 @@ hand-rolled around the taught surface; *Delivers* = *Satisfies* **and** done the
 Two independent axes — **return** (how often it delivers, over **all k runs of each task** — a
 failed run stays in as a scored 0) and **efficiency** (the price *and* speed of a delivery, over
 **delivered runs only**) — plus two
-gates: do-no-harm and a ≥20% economic-materiality premium. Bands are 95% credible intervals from
+gates: do-no-harm and a ≥20% economic-materiality premium. Coverage first splits the tasks three
+ways: `S` = *shared success* (both arms deliver), grounded-only unlocks, and baseline-only
+regressions. Bands are 95% credible intervals from
 one seeded, finite-suite bootstrap (24 tasks held fixed, runs redrawn; beta-binomial posterior on
 yield, joint lognormal cost+duration redraw; `S*` recomputed per iteration). Directional goal:
 **↑** higher is better · **↓** lower is better.
 
 | quantity (goal) | `claude-haiku-4.5` (mini) | `claude-sonnet-5` (mid) | `claude-opus-4.8` (frontier) |
 | --- | ---: | ---: | ---: |
-| **Coverage** — both-productive `S` = *shared success* (·) | 19 | 23 | 24 |
+| **Coverage** — both-productive `S` (·) | 19 | 23 | 24 |
 | ↳ grounded-only unlocks (↑) | **5** | 1 | 0 |
 | ↳ baseline-only regressions (↓) | 0 | 0 | 0 |
 | **Axis 1 — return (all k runs/task).** mean yield `P` (↑) | 0.533 → 0.942 | 0.775 → 1.000 | 0.883 → 1.000 |
