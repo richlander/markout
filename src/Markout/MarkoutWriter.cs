@@ -585,6 +585,7 @@ public class MarkoutWriter
             // Track each column's raw scalar (by role index) so a pairwise polarity glyph can compare
             // a cell to the previous populated scalar column under the row's goal.
             var scalars = glyphs && row.Goal != Goal.Context ? new double?[roleOrder.Count] : null;
+            var emphasis = SupportsEmphasis ? row.Emphasis : null;
 
             if (row.Sources is not null)
             {
@@ -594,10 +595,16 @@ public class MarkoutWriter
                         continue;
                     var sw = new StringWriter();
                     source.Value.FormatInline(sw, ApplyGlyphs(source.Format));
-                    values[idx + 1] = sw.ToString();
-                    if (scalars is not null && source.Value is ScalarSourceCell scalar &&
-                        CellText.TryScalarDouble(scalar.RawValue, out var d))
-                        scalars[idx] = d;
+                    var text = sw.ToString();
+
+                    double? scalar = source.Value is ScalarSourceCell cell && CellText.TryScalarDouble(cell.RawValue, out var d)
+                        ? d : null;
+                    // Emphasize the value before any pairwise glyph trails it, so "**5** ✓" reads bold-then-status.
+                    if (emphasis is not null && scalar is { } ev && emphasis.IsSatisfiedBy(ev))
+                        text = Emphasize(text);
+                    values[idx + 1] = text;
+                    if (scalars is not null && scalar is { } sv)
+                        scalars[idx] = sv;
                 }
             }
 
@@ -922,6 +929,13 @@ public class MarkoutWriter
     /// <summary>Whether the active formatter renders goal/polarity glyphs (opts into
     /// <see cref="Formatting.IGlyphFormatter"/>) rather than the slug words.</summary>
     private bool SupportsGlyphs => _formatter is Formatting.IGlyphFormatter;
+
+    /// <summary>Whether the active formatter renders emphasized cell values (opts into
+    /// <see cref="Formatting.IEmphasisFormatter"/>).</summary>
+    private bool SupportsEmphasis => _formatter is Formatting.IEmphasisFormatter;
+
+    /// <summary>Wraps a cell value in the formatter's emphasis; only call when <see cref="SupportsEmphasis"/>.</summary>
+    private string Emphasize(string text) => ((Formatting.IEmphasisFormatter)_formatter).Emphasize(text);
 
     /// <summary>Composes a resolved glyph onto its base text via the caller's
     /// <see cref="MarkoutWriterOptions.ComposeGlyph"/>, or the default append-with-space.</summary>

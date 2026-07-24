@@ -149,6 +149,108 @@ public class MultiSourceTableTests
         Assert.Contains("110", output);
     }
 
+    // ── Conditional cell emphasis: declared threshold bolds scalar cells (issue #154) ──
+
+    [Fact]
+    public void Markdown_Emphasis_AtLeast_BoldsClearingCells()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("grounded-only unlocks",
+                new Source("mini", 5), new Source("mid", 1), new Source("frontier", 0))
+                { Goal = Goal.Higher, Emphasis = MarkoutEmphasis.AtLeast(2) },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        // Only cells >= 2 bold; the goal glyph and pairwise polarity compose with emphasis.
+        Assert.Contains("| grounded-only unlocks \u2191 | **5** | 1 \u2717 | 0 \u2717 |", output);
+    }
+
+    [Fact]
+    public void Markdown_Emphasis_AtMost_BoldsLowCells()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("latency ms",
+                new Source("a", 5.0), new Source("b", 40.0)) { Emphasis = MarkoutEmphasis.AtMost(10) },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        Assert.Contains("| latency ms | **5** | 40 |", output);
+    }
+
+    [Fact]
+    public void Markdown_Emphasis_Alarm_BoldsBadSideOnly()
+    {
+        // Point the comparison at the bad side to get an alarm: a gate cell bolds only when it fails.
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("do-no-harm gate",
+                new Source("mini", 0.0), new Source("mid", 0.02), new Source("frontier", 0.0))
+                { Emphasis = MarkoutEmphasis.AtLeast(0.01) },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        Assert.Contains("| do-no-harm gate | 0 | **0.02** | 0 |", output);
+    }
+
+    [Fact]
+    public void Emphasis_PlainText_RendersNoBold()
+    {
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("unlocks",
+                new Source("mini", 5), new Source("mid", 1)) { Emphasis = MarkoutEmphasis.AtLeast(2) },
+        ];
+        var writer = new MarkoutWriter(new PlainTextFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        Assert.DoesNotContain("**", output);
+        Assert.Contains("5", output);
+    }
+
+    [Fact]
+    public void Emphasis_Tsv_RendersNoBold()
+    {
+        var sw = new StringWriter();
+        var writer = MarkoutWriter.Create(sw, new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("unlocks",
+                new Source("mini", 5), new Source("mid", 1)) { Emphasis = MarkoutEmphasis.AtLeast(2) },
+        ];
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = sw.ToString();
+
+        Assert.DoesNotContain("**", output);
+        Assert.Contains("5", output);
+    }
+
+    [Fact]
+    public void Emphasis_IgnoresNonScalarAndAbsentCells()
+    {
+        // A composite cell and an absent role are never emphasized (only scalar values are eligible).
+        MultiSourceRow[] rows =
+        [
+            new MultiSourceRow("mix",
+                new Source("a", new Change<long>(1, 9)), new Source("b", 5)) { Emphasis = MarkoutEmphasis.AtLeast(2) },
+        ];
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteMultiSourceTable("quantity", rows);
+        var output = writer.ToString();
+
+        Assert.DoesNotContain("**1", output);       // composite half not bolded
+        Assert.Contains("| **5** |", output);        // scalar b bolds
+    }
+
     // ── Decomposed JSONL: one flat record per row, {role}_{side}_{field} keys ──
     [Fact]
     public void Jsonl_DecomposesToRolePrefixedKeys()

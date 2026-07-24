@@ -10,10 +10,15 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter
+    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
+
+    // ── IEmphasisFormatter ──
+
+    string IEmphasisFormatter.Emphasize(string text) => text.Length == 0 ? text : "**" + text + "**";
+
 
     // ── IHeadingFormatter ──
 

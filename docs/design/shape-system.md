@@ -186,6 +186,10 @@ public readonly record struct MetricChange<T>(string Name, T Before, T After,
     GateStatus Status = GateStatus.Unknown, string? StatusLabel = null) where T : struct; // gated metric
 public readonly record struct Source(string Role, IMarkoutCell? Value, MarkoutCellFormat Format = default);
 public readonly struct MultiSourceRow(string label, params Source[] sources); // role matrix (roles → columns)
+// A MultiSourceRow { Emphasis = MarkoutEmphasis.AtLeast(cut) | AtMost(cut) } bolds (Markdown **…**) each
+// scalar cell clearing the threshold — declared "which numbers matter" (point at the bad side for an alarm);
+// scalar cells only, Markdown-only (IEmphasisFormatter), composes with the Goal glyph/polarity. Plain/TSV unstyled.
+public sealed record MarkoutEmphasis { EmphasisComparison Comparison; double Cut; } // AtLeast/AtMost factories
 public enum GateStatus { Unknown, Good, Neutral, Warning, Bad }    // verdict polarity
 public readonly record struct Verdict(GateStatus Status, string? Label = null); // first-class verdict cell
 

@@ -142,7 +142,11 @@ flat typed JSONL/TSV — with no imperative writer calls:
   header with `[MarkoutLabelHeader("Metric")]` (defaults to `Field`). Set `{ Goal = Goal.Higher|Lower }`
   on a row to add a goal glyph to the label and a **pairwise polarity glyph** to each scalar column
   (compared to its previous populated scalar column) on rich sinks — a per-period trend over an
-  n-column series; TSV/plain are unaffected.
+  n-column series; TSV/plain are unaffected. Set `{ Emphasis = MarkoutEmphasis.AtLeast(cut) }` (or
+  `AtMost(cut)`) on a row to **bold** (Markdown `**…**`) each scalar cell whose value clears the
+  threshold — "which numbers matter" as a declared rule, not hand-bolding; point the comparison at the
+  bad side for an alarm (bold only when a cell fails). Emphasis composes with the goal glyph/polarity
+  (`**5** ✓`); it applies to scalar cells only and is Markdown-only (plain text and TSV/JSONL are unstyled).
 - `Verdict(GateStatus Status, string? Label = null)` — a first-class verdict cell (typed polarity
   `GateStatus` + optional caller label); use as a `Source` value for a verdict row (decomposes to `{role}`).
 

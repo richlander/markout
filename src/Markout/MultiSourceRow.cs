@@ -39,4 +39,13 @@ public readonly struct MultiSourceRow
 
     /// <summary>The tolerance (inclusive) under which a pairwise change is <see cref="Direction.Unchanged"/>; default exact.</summary>
     public double Noise { get; init; }
+
+    /// <summary>
+    /// An optional declared rule that emphasizes (bold in Markdown) each scalar cell of this row whose
+    /// value clears the threshold — making "which numbers matter" a property of the data rather than
+    /// hand-applied bolding. Applies to scalar cells only; ignored on plain text and structured (TSV/JSONL)
+    /// sinks. Set via object initializer, e.g.
+    /// <c>new MultiSourceRow("Unlocks", mini, mid, frontier) { Emphasis = MarkoutEmphasis.AtLeast(2) }</c>.
+    /// </summary>
+    public MarkoutEmphasis? Emphasis { get; init; }
 }
