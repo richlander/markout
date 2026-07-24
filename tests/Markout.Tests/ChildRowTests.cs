@@ -27,6 +27,51 @@ public partial class OrgCardContext : MarkoutSerializerContext
 {
 }
 
+// Degenerate row whose ONLY property is the child flag: the generator must still emit valid C#
+// (regression for a trailing-comma / empty-argument-list codegen bug). Declaring the context here is
+// the compile-time guard — if codegen were broken, this test project would not compile.
+public class ChildOnlyRow
+{
+    [MarkoutChild] public bool IsChild { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class ChildOnlyCard
+{
+    [MarkoutIgnore] public string Title => "Child only";
+
+    [MarkoutSection(Name = "Rows")]
+    public List<ChildOnlyRow> Rows { get; set; } = new();
+}
+
+[MarkoutContext(typeof(ChildOnlyCard))]
+public partial class ChildOnlyCardContext : MarkoutSerializerContext
+{
+}
+
+public class GroupedChildRow
+{
+    public string Group { get; set; } = "";
+    public string Name { get; set; } = "";
+    public int Count { get; set; }
+
+    [MarkoutChild] public bool IsChild { get; set; }
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class GroupedChildCard
+{
+    [MarkoutIgnore] public string Title => "Grouped";
+
+    [MarkoutSection(Name = "Teams", GroupBy = nameof(GroupedChildRow.Group))]
+    public List<GroupedChildRow> Rows { get; set; } = new();
+}
+
+[MarkoutContext(typeof(GroupedChildCard))]
+public partial class GroupedChildCardContext : MarkoutSerializerContext
+{
+}
+
 public class ChildRowTests
 {
     private static OrgCard Card() => new()
@@ -127,5 +172,60 @@ public class ChildRowTests
         Assert.DoesNotContain("\u21b3", jsonl);
         Assert.DoesNotContain("isChild", jsonl);
         Assert.DoesNotContain("child", jsonl);
+    }
+
+    [Fact]
+    public void Projection_Reorder_ChildGlyphMovesToFirstDisplayedCell()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["Count", "Name"] },
+        };
+        var md = MarkoutSerializer.Serialize(Card(), OrgCardContext.Default, options);
+
+        // Count is now the first displayed column; the child glyph leads it, not the (hidden-order) Name.
+        Assert.Contains("| \u21b3 5 | Runtime |", md);
+        Assert.Contains("| 12 | Platform |", md);
+    }
+
+    [Fact]
+    public void Projection_DropLabelColumn_ChildGlyphNotLost()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["Count"] },
+        };
+        var md = MarkoutSerializer.Serialize(Card(), OrgCardContext.Default, options);
+
+        // Even with the original first column projected away, the marker survives on the first
+        // displayed cell rather than vanishing.
+        Assert.Contains("| \u21b3 5 |", md);
+        Assert.Contains("| 12 |", md);
+    }
+
+    [Fact]
+    public void Grouped_ChildRow_GlyphPrefix_NoChildColumn()
+    {
+        var card = new GroupedChildCard
+        {
+            Rows =
+            {
+                new GroupedChildRow { Group = "East", Name = "Parent", Count = 1 },
+                new GroupedChildRow { Group = "East", Name = "Kid", Count = 2, IsChild = true },
+            },
+        };
+        var md = MarkoutSerializer.Serialize(card, GroupedChildCardContext.Default);
+
+        Assert.Contains("| Name | Count |", md);
+        Assert.DoesNotContain("IsChild", md);
+        Assert.Contains("| Parent | 1 |", md);
+        Assert.Contains("| \u21b3 Kid | 2 |", md);
+    }
+
+    [Fact]
+    public void ChildOnlyRow_GeneratesCompilableSerializer()
+    {
+        // The value is that this project compiles at all (see ChildOnlyCard); assert the context exists.
+        Assert.NotNull(ChildOnlyCardContext.Default);
     }
 }

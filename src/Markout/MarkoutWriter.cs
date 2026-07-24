@@ -1346,15 +1346,25 @@ public class MarkoutWriter
         if (_sectionExcluded || _tableWriter == null)
             return;
 
-        if (isChild && SupportsGlyphs && values.Length > 0)
+        // Project first, then prefix the glyph onto the first *displayed* cell, so a projection that
+        // reorders or drops columns still lands the child marker on the leading visible column.
+        var decorate = isChild && SupportsGlyphs;
+        if (_columnMap != null)
+        {
+            var projected = MarkoutProjection.ProjectRow(values, _columnMap);
+            if (decorate && projected.Length > 0)
+                projected[0] = ChildLabel(projected[0]);
+            _tableWriter!.WriteTableRow(projected);
+        }
+        else if (decorate && values.Length > 0)
         {
             var prefixed = values.ToArray();
             prefixed[0] = ChildLabel(prefixed[0]);
-            WriteTableRowCore(prefixed);
+            _tableWriter!.WriteTableRow(prefixed);
         }
         else
         {
-            WriteTableRowCore(values);
+            _tableWriter!.WriteTableRow(values);
         }
     }
 
