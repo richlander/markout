@@ -7,9 +7,9 @@ discovery is organic. Each scenario is run **k=5** times per arm; every run is g
 on the **Fails → Satisfies → Delivers** ladder, so the unit of evidence is a *yield* (`K/k` delivered
 runs), not a single pass/fail.
 
-- **Harness:** `richlander/dotnet-package-grounding@b81616a` + `skill-validator@cb9e32a` (per-run
-  capture; graded-yield quality card via `analyze --view ladder`, with beta-binomial posterior +
-  nested bootstrap bands).
+- **Harness:** `richlander/dotnet-package-grounding@6b7e6ea` + `skill-validator@cb9e32a` (per-run
+  capture; graded-yield quality card via `analyze --view ladder` — beta-binomial posterior + nested
+  bootstrap bands on both per-dollar IET and per-day duration, plus the ≥20% economic gate).
 - **Package:** Markout `0.23.0`; shelf `skills/markout-consumer@f14fec3` (MVV-free).
 - **Arms:** `baseline` (no grounding) → `SKILL.md` (the shelf, agent self-selects). **Eval mode:**
   holistic (baseline vs plugin; isolated arm skipped). IET model `anthropic`.
@@ -23,25 +23,29 @@ runs), not a single pass/fail.
 
 ## The quality card — baseline → `SKILL.md`, three models
 
-Two independent axes (**return** = how often it delivers; **cost** = the price of a delivery),
-plus a do-no-harm gate. Bands are 95% credible intervals from one seeded, finite-suite bootstrap
-(24 tasks held fixed, runs redrawn; beta-binomial posterior on yield, joint lognormal cost redraw;
-`S*` recomputed per iteration). Directional goal: **↑** higher is better · **↓** lower is better.
+Two independent axes — **return** (how often it delivers, scored over *all* runs) and
+**efficiency** (the price *and* speed of a delivery, scored over *delivered* runs only) — plus two
+gates: do-no-harm and a ≥20% economic-materiality premium. Bands are 95% credible intervals from
+one seeded, finite-suite bootstrap (24 tasks held fixed, runs redrawn; beta-binomial posterior on
+yield, joint lognormal cost+duration redraw; `S*` recomputed per iteration). Directional goal:
+**↑** higher is better · **↓** lower is better.
 
 | quantity (goal) | `claude-haiku-4.5` (mini) | `claude-sonnet-5` (mid) | `claude-opus-4.8` (frontier) |
 | --- | ---: | ---: | ---: |
 | **Coverage** — both-productive `S` (·) | 19 | 23 | 24 |
 | ↳ grounded-only unlocks (↑) | **5** | 1 | 0 |
 | ↳ baseline-only regressions (↓) | 0 | 0 | 0 |
-| **Axis 1 — return.** mean yield `P` (↑) | 0.533 → 0.942 | 0.775 → 1.000 | 0.883 → 1.000 |
+| **Axis 1 — return (all runs).** mean yield `P` (↑) | 0.533 → 0.942 | 0.775 → 1.000 | 0.883 → 1.000 |
 | ↳ ΔP\|both, C2 reliability [95% CrI] (↑) | +0.263 [+0.106, +0.307] | +0.191 [+0.052, +0.216] | +0.117 [−0.007, +0.144] |
 | ↳ prior robustness (uniform vs Jeffreys) | robust (both exclude 0) | robust (both exclude 0) | ⚠ prior-sensitive |
-| **Axis 2 — cost.** geo-mean `Lᵍ/Lᵇ` [95% CrI] (↓) | ×0.20 [0.19, 0.33] | ×0.26 [0.22, 0.35] | ×0.40 [0.36, 0.52] |
+| **Axis 2 — efficiency (delivered-only).** per-$ geo-mean IET `Lᵍ/Lᵇ` [95% CrI] (↓, **gate**) | ×0.20 [0.18, 0.33] | ×0.26 [0.23, 0.35] | ×0.40 [0.35, 0.52] |
 | ↳ pooled `ΣLᵍ/ΣLᵇ` (Simpson guard) (↓) | ×0.11 | ×0.23 | ×0.32 |
-| ↳ Total IET on `S` (↓) | −75% | −64% | −56% |
+| ↳ per-day geo-mean duration `Lᵍ/Lᵇ` [95% CrI] (↓, co-headline) | ×0.28 [0.26, 0.38] | ×0.21 [0.18, 0.26] | ×0.38 [0.33, 0.44] |
+| ↳ Total on `S` — IET / duration (↓) | −75% / −77% | −64% / −79% | −56% / −71% |
+| **Economic gate** — per-$ CrI upper ≤ ×0.80 (certified ≥20% cut) | ×0.33 ✅ | ×0.35 ✅ | ×0.52 ✅ |
 | **C5** predictability `σ_g/σ_b` (↓) | 0.48 | 0.59 | 0.45 |
-| **Hard gate** — loss mass / null-95 (↓) | 0.000 / 3.200 | 0.000 / 2.200 | 0.000 / 1.200 |
-| **verdict** | clean gate · win | clean gate · win | clean gate · win |
+| **Do-no-harm gate** — loss mass / null-95 (↓) | 0.000 / 3.200 | 0.000 / 2.200 | 0.000 / 1.200 |
+| **verdict** | both gates · win | both gates · win | both gates · win |
 
 (C4 fidelity — the Delivers-vs-Satisfies rate — is **1.00 by construction** in this cut: Stage 1 uses
 `Delivers ≡ Satisfies` as a labelled proxy until the delivers-tier assertions land. It is *not yet
@@ -53,23 +57,26 @@ The three models trace a clean **monotone** curve: the weaker the model, the mor
 
 - **haiku (mini)** — the largest win. Grounding **unlocks 5 tasks the baseline never delivers** (C1
   capability), lifts reliability on the shared work by **+0.26 [robust under both priors]**, and cuts
-  the typical cost of a delivery to **×0.20**. Every axis moves, and the reliability gain is real, not
-  a prior artifact.
-- **sonnet (mid)** — reliability **and** cost both certified: **+0.19 [robust]** and **×0.26**, with
-  one capability unlock. The middle of the ladder on every measure.
+  the typical delivery to **×0.20 per-dollar** and **×0.28 per-day**. Every axis moves, and the
+  reliability gain is real, not a prior artifact.
+- **sonnet (mid)** — reliability **and** efficiency both certified: **+0.19 [robust]**, **×0.26
+  per-dollar / ×0.21 per-day**, with one capability unlock. The middle of the ladder on every measure.
 - **opus (frontier)** — the baseline is already near the ceiling, so there is little reliability
   headroom: ΔP\|both is **+0.12 but its band brushes zero** and flips sign-significance between the
-  uniform and Jeffreys priors (⚠ prior-sensitive). The win here is unambiguously on **cost** — a
-  delivery is **×0.40** the price — not on reliability.
+  uniform and Jeffreys priors (⚠ prior-sensitive). The win here is unambiguously on **efficiency** — a
+  delivery is **×0.40 the price and ×0.38 the time** — not on reliability.
 
 This is the predicted **frontier-cost / mini-capability asymmetry**, now band-certified. All three
-clear the do-no-harm gate (zero loss mass, well under the null-calibrated threshold), and every known
+clear **both gates** — do-no-harm (zero loss mass, well under the null-calibrated threshold) and the
+≥20% economic-materiality premium (per-dollar CrI upper bound ≤ ×0.80 on every model) — and every known
 bias in the certified path — the `K ≥ 1` winner's curse, the uniform prior's asymmetric shrinkage —
 runs *against* grounding. The result survives all of them.
 
-> **On "verdict."** This model has no binary 100%-correct gate. The only hard gate is **do no harm**
-> (no material baseline-only regression); beyond it, the card reports a *graded* two-axis win. A model
-> delivering 0.94 yield with five unlocks and a clean gate is a strong win, not a "fail."
+> **On "verdict."** This model has no binary 100%-correct gate. It has **two gates**: **do no harm**
+> (no material baseline-only regression) and **economic materiality** (a certified ≥20% per-dollar cut —
+> the minimum premium that pays for authoring plus ongoing drift maintenance). Duration co-headlines
+> but does not gate. Beyond the gates, the card reports a *graded* two-axis win. A model delivering
+> 0.94 yield with five unlocks and both gates clean is a strong win, not a "fail."
 
 ---
 
@@ -86,17 +93,19 @@ Grounding drives it toward zero on every model:
 | archaeology ops: cache / nuget.org (↓) | 85 / 19 → **0 / 0** | 124 / 1 → **2 / 0** | 104 / 2 → **1 / 0** |
 | tool calls: web / bash / other (·) | 36/486/308 → 0/48/206 | 10/359/212 → 0/55/135 | 6/218/251 → 0/42/184 |
 | session turns (↓) | 30 → 9 | 23 → 8 | 15 → 7 |
-| wall-clock, end-to-end (↓, informative) | 158s → 46s (−71%) | 219s → 45s (−79%) | 193s → 56s (−71%) |
+| wall-clock, raw end-to-end (↓, context) | 158s → 46s (−71%) | 219s → 45s (−79%) | 193s → 56s (−71%) |
 | tasks correct, binary (↑, context) | 13/24 → 23/24 | 20/24 → 24/24 | 20/24 → 24/24 |
 | func assertions passed (↑, context) | 110/126 → 125/126 | 122/126 → 126/126 | 122/126 → 126/126 |
 
 The entry fee is the shelf load — ~1.9k tokens of grounding-doc IET per run (a per-trip **toll**, since
 the harness runs a fresh session per task); it is already inside every cost number above.
 
-> **On wall-clock:** end-to-end wall-clock tracks the turn/IET drop but is machine- and load-dependent
-> (it includes `dotnet build`/restore wait and parallelism), so it is an **informative** signal, not
-> the normative cost metric — IET is the machine-independent price. All numbers were measured on one
-> host in the same run.
+> **On wall-clock, two cuts.** The card's **per-day duration** is the normative speed metric: a
+> *delivered-only, paired geo-mean ratio* on one fixed host, so the machine constant cancels and it
+> earns a band and a co-headline. The row above is the *raw end-to-end mean* (it includes
+> `dotnet build`/restore wait and parallelism), kept as **context** — directionally identical but
+> host- and load-dependent, so it is not banded. IET remains the machine-independent price and the
+> singular economic gate; all numbers were measured on one host in the same run.
 
 ## Supporting signal — cost vs difficulty (the LIET view)
 
