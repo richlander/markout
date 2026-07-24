@@ -182,7 +182,7 @@ public class DecomposedElementTableTests
         var md = MarkoutSerializer.Serialize(Card(), DecomposedElementCardContext.Default);
 
         Assert.Contains("| Name | Score | Tasks | Bugs |", md);
-        Assert.Contains("| a | 100 \u2192 50 (-50%) | 4/6 \u2192 6/6 (+2 solved) | 7 \u2192 0 (good) |", md);
+        Assert.Contains("| a | 100 \u2192 50 (-50%) | 4/6 \u2192 6/6 (+2 solved) | 7 \u2192 0 \u2713 |", md);
     }
 
     [Fact]
@@ -314,7 +314,7 @@ public class DecomposedElementTableTests
 
         var md = MarkoutSerializer.Serialize(card, DynIgnoreCardContext.Default);
         Assert.Contains("| Name | Score | Bugs |", md);          // Note dropped (uniform)
-        Assert.Contains("| a | 100 \u2192 50 (-50%) | 7 \u2192 0 (good) |", md);
+        Assert.Contains("| a | 100 \u2192 50 (-50%) | 7 \u2192 0 \u2713 |", md);
 
         var sw = new StringWriter();
         MarkoutSerializer.Serialize(card, sw, new TableFormatter(), DynIgnoreCardContext.Default,
@@ -380,6 +380,14 @@ public class DecomposedElementTableTests
         const string arrow = " \u2192 ";
         static string SignedPct(int pct) => (pct > 0 ? "+" : "") + pct + "%";
         static string Signed(int n) => (n > 0 ? "+" : "") + n;
+        // Markdown is a glyph sink: [MarkoutGoal] renders the polarity as a trailing glyph, not the word.
+        static string StatusGlyph(string status) => status switch
+        {
+            "good" => " \u2713",
+            "bad" => " \u2717",
+            "warning" => " \u26a0",
+            _ => "",
+        };
 
         var reconstructed = new ReconstructedCard
         {
@@ -393,9 +401,9 @@ public class DecomposedElementTableTests
                 Tasks = r.GetProperty("tasks_before_count").GetInt32() + "/" + r.GetProperty("tasks_before_total").GetInt32()
                     + arrow + r.GetProperty("tasks_after_count").GetInt32() + "/" + r.GetProperty("tasks_after_total").GetInt32()
                     + " (" + Signed(r.GetProperty("tasks_delta_count").GetInt32()) + " " + r.GetProperty("tasks_delta_noun").GetString() + ")",
-                // bugs: [MarkoutGoal] -> "before → after (status)"
+                // bugs: [MarkoutGoal] -> "before → after <glyph>"
                 Bugs = r.GetProperty("bugs_before").GetInt32() + arrow + r.GetProperty("bugs_after").GetInt32()
-                    + " (" + r.GetProperty("bugs_status").GetString() + ")",
+                    + StatusGlyph(r.GetProperty("bugs_status").GetString()!),
             }).ToList(),
         };
 

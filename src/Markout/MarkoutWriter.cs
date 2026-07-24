@@ -398,7 +398,7 @@ public class MarkoutWriter
         foreach (var row in projected)
         {
             var sw = new StringWriter();
-            row.Cell?.FormatInline(sw, row.Format);
+            row.Cell?.FormatInline(sw, ApplyGlyphs(row.Format));
             denseRows.Add([row.Label, sw.ToString()]);
         }
 
@@ -593,7 +593,7 @@ public class MarkoutWriter
                     if (source.Role is null || source.Value is null || !roleIndex.TryGetValue(source.Role, out var idx))
                         continue;
                     var sw = new StringWriter();
-                    source.Value.FormatInline(sw, source.Format);
+                    source.Value.FormatInline(sw, ApplyGlyphs(source.Format));
                     values[idx + 1] = sw.ToString();
                     if (scalars is not null && source.Value is ScalarSourceCell scalar &&
                         CellText.TryScalarDouble(scalar.RawValue, out var d))
@@ -616,7 +616,7 @@ public class MarkoutWriter
         if (goal == Goal.Context)
             return label;
         var glyph = _options.Glyphs.ForGoal(goal);
-        return glyph.Length == 0 ? label : label + " " + glyph;
+        return Compose(GlyphSlot.GoalLabel, label, glyph, goal, GateStatus.Unknown);
     }
 
     /// <summary>Appends a pairwise polarity glyph to each populated scalar cell, comparing it to the
@@ -633,8 +633,7 @@ public class MarkoutWriter
                 GoalDerivation.TryDerive(prev, current, goal, noise, out _, out var status))
             {
                 var glyph = _options.Glyphs.ForStatus(status);
-                if (glyph.Length != 0)
-                    values[i + 1] = values[i + 1] + " " + glyph;
+                values[i + 1] = Compose(GlyphSlot.MovementCell, values[i + 1], glyph, goal, status);
             }
             previous = current;
         }
@@ -924,6 +923,19 @@ public class MarkoutWriter
     /// <see cref="Formatting.IGlyphFormatter"/>) rather than the slug words.</summary>
     private bool SupportsGlyphs => _formatter is Formatting.IGlyphFormatter;
 
+    /// <summary>Composes a resolved glyph onto its base text via the caller's
+    /// <see cref="MarkoutWriterOptions.ComposeGlyph"/>, or the default append-with-space.</summary>
+    private string Compose(GlyphSlot slot, string text, string glyph, Goal goal, GateStatus status)
+    {
+        var context = new GlyphContext(slot, text, glyph, goal, status);
+        return _options.ComposeGlyph is { } compose ? compose(context) : context.Combine();
+    }
+
+    /// <summary>Augments a composite-cell format with the active glyph set + composer when the sink
+    /// renders glyphs, so <see cref="Change{V}"/> emits a polarity glyph instead of the status word.</summary>
+    internal MarkoutCellFormat ApplyGlyphs(in MarkoutCellFormat format)
+        => SupportsGlyphs ? format with { Glyphs = _options.Glyphs, Compose = _options.ComposeGlyph } : format;
+
     /// <summary>The metric label with a goal marker appended. With glyphs, the configured goal glyph
     /// (<c>↑</c>/<c>↓</c>); otherwise the ASCII marker <c>(-)</c>/<c>(+)</c>. Nothing for
     /// <see cref="Goal.Context"/>.</summary>
@@ -934,7 +946,9 @@ public class MarkoutWriter
         var marker = glyphs
             ? _options.Glyphs.ForGoal(metric.Goal)
             : (metric.Goal == Goal.Lower ? "(-)" : "(+)");
-        return marker.Length == 0 ? metric.Name : metric.Name + " " + marker;
+        if (!glyphs)
+            return marker.Length == 0 ? metric.Name : metric.Name + " " + marker;
+        return Compose(GlyphSlot.GoalLabel, metric.Name, marker, metric.Goal, GateStatus.Unknown);
     }
 
     /// <summary>The Change cell with the goal state inlined. With glyphs, a polarity glyph is appended
@@ -950,7 +964,7 @@ public class MarkoutWriter
         if (glyphs && !custom && gate is { } g)
         {
             var glyph = _options.Glyphs.ForStatus(g);
-            return glyph.Length == 0 ? change : change + " " + glyph;
+            return Compose(GlyphSlot.MovementCell, change, glyph, metric.Goal, g);
         }
         return change + " (" + word + ")";
     }

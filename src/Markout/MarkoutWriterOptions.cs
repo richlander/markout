@@ -26,6 +26,7 @@ public class MarkoutWriterOptions
     private int _headingLevelOffset;
     private bool _inlineGoalStatus = true;
     private MarkoutGlyphs _glyphs = MarkoutGlyphs.Default;
+    private Func<GlyphContext, string>? _composeGlyph;
 
     /// <summary>Creates a new, writable options instance with default values.</summary>
     public MarkoutWriterOptions()
@@ -53,6 +54,7 @@ public class MarkoutWriterOptions
         _headingLevelOffset = source._headingLevelOffset;
         _inlineGoalStatus = source._inlineGoalStatus;
         _glyphs = source._glyphs;
+        _composeGlyph = source._composeGlyph;
     }
 
     /// <summary>
@@ -113,6 +115,26 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _glyphs = value ?? MarkoutGlyphs.Default;
+        }
+    }
+
+    /// <summary>
+    /// An optional callback that composes the final rendered string for a goal/polarity indicator on
+    /// rich sinks (formatters implementing <see cref="Formatting.IGlyphFormatter"/>). It receives the
+    /// base <see cref="GlyphContext.Text"/> and the resolved <see cref="GlyphContext.Glyph"/> (from
+    /// <see cref="Glyphs"/>) and returns the combined text — letting a caller replace the glyph with a
+    /// word, integrate it into the text, or condition it on the <see cref="GlyphContext.Slot"/>/
+    /// <see cref="GlyphContext.Status"/>. Default is <c>null</c> (append the glyph with a space via
+    /// <see cref="GlyphContext.Combine"/>). Ignored by plain text and decomposing sinks (TSV/JSONL),
+    /// which keep the <c>direction</c>/<c>status</c> slug words.
+    /// </summary>
+    public Func<GlyphContext, string>? ComposeGlyph
+    {
+        get => _composeGlyph;
+        set
+        {
+            ThrowIfReadOnly();
+            _composeGlyph = value;
         }
     }
 

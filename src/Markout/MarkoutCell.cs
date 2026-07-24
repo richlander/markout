@@ -35,6 +35,21 @@ public static class MarkoutCell
         cell.FormatInline(sw, format);
         return sw.ToString();
     }
+
+    /// <summary>
+    /// As <see cref="ToInlineString(IMarkoutCell?, in MarkoutCellFormat)"/>, but augments the format
+    /// with the <paramref name="writer"/>'s active glyph policy so a goal-annotated <see cref="Change{V}"/>
+    /// rendered as an element-table column emits a polarity glyph on rich sinks (matching composite-card
+    /// rows). Non-glyph and decomposing sinks are unaffected.
+    /// </summary>
+    public static string ToInlineString(IMarkoutCell? cell, in MarkoutCellFormat format, MarkoutWriter writer)
+    {
+        if (cell is null)
+            return string.Empty;
+        var sw = new StringWriter();
+        cell.FormatInline(sw, writer.ApplyGlyphs(format));
+        return sw.ToString();
+    }
 }
 
 /// <summary>

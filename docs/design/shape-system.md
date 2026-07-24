@@ -170,10 +170,12 @@ public readonly record struct Segments(params Segment[] Parts);     // 21/171/23
 public enum Goal { Context, Higher, Lower }                         // which direction is "good"
 public enum Direction { Unchanged, Increased, Decreased, Introduced, Resolved }; // structural, goal-neutral
 // Goal/polarity render as glyphs on rich sinks (Markout.MarkoutGlyphs, IGlyphFormatter: Markdown/ANSI/Unicode):
-// the metric label carries a goal glyph (↑/↓) and a derived GateStatus a polarity glyph (✓/✗); a
-// MultiSourceRow with a Goal adds pairwise polarity to each scalar column vs its predecessor. Plain
-// text keeps the (-)/(+) marker + status word; TSV/JSONL keep the direction/status slug words.
-// Configure via MarkoutWriterOptions.Glyphs (defaults ↑/↓/✓/✗).
+// the metric label carries a goal glyph (↑/↓) and a derived GateStatus a polarity glyph (✓/✗); a goal-annotated
+// standalone Change<V> (card row or element-table column) trails the glyph too; a MultiSourceRow with a Goal
+// adds pairwise polarity to each scalar column vs its predecessor. Plain text keeps the (-)/(+) marker + status
+// word; TSV/JSONL keep the direction/status slug words. Easy mode: MarkoutWriterOptions.Glyphs (defaults ↑/↓/✓/✗).
+// Advanced mode: MarkoutWriterOptions.ComposeGlyph (Func<GlyphContext,string>) composes each glyph onto its text —
+// replace with a word, integrate it, or condition on GlyphContext.Slot/GateStatus (GlyphContext.Combine() = default).
 public enum Delta { None, Percent, Absolute, Multiple }             // derived-change suffix mode (Multiple: 3× fewer/more)
 public interface IGoalMagnitude { double GoalMagnitude { get; } }   // composite cell's comparable magnitude (goal)
 public interface IDeltaCountable { double DeltaCount { get; } }     // composite cell's count for [MarkoutDeltaNoun] (Fraction→count, Share→value)

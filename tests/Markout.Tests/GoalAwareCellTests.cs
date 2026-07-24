@@ -118,7 +118,7 @@ public class GoalAwareCellTests
     }
 
     [Fact]
-    public void MultiSourceRow_CompositeCell_RendersGoalWordInPivotedMarkdown()
+    public void MultiSourceRow_CompositeCell_RendersGoalGlyphInPivotedMarkdown()
     {
         var rows = new[]
         {
@@ -130,7 +130,8 @@ public class GoalAwareCellTests
         writer.WriteMultiSourceTable("Metric", rows);
         var md = writer.ToString();
 
-        Assert.Contains("(good)", md);
+        Assert.Contains("\u2713", md);
+        Assert.DoesNotContain("(good)", md);
     }
 
     // --- Direct-cell derivation matrix (structural direction × goal-applied polarity) ---
@@ -399,6 +400,105 @@ public class GoalAwareCellTests
 
         Assert.Contains("| Failures | 0 \u2192 7 | - | bad |", md);
         Assert.Contains("| Fully raised | 40 \u2192 55 | - | good |", md);
+    }
+
+    // --- Advanced mode: ComposeGlyph hook + Change<V> glyph unification ---
+
+    [Fact]
+    public void ComposeGlyph_IntegratesGlyphIntoWord_OnMetricChangeCell()
+    {
+        // Advanced mode: the composer replaces the trailing glyph with a word that embeds it.
+        var options = new MarkoutWriterOptions
+        {
+            ComposeGlyph = ctx => ctx.Slot == GlyphSlot.MovementCell
+                ? ctx.Status switch
+                {
+                    GateStatus.Good => ctx.Text + " (improved " + ctx.Glyph + ")",
+                    GateStatus.Bad => ctx.Text + " (regressed " + ctx.Glyph + ")",
+                    _ => ctx.Text,
+                }
+                : ctx.Combine(),
+        };
+        var writer = new MarkoutWriter(new MarkdownFormatter(), options);
+        writer.WriteMetricChangeTable(new[]
+        {
+            new MetricChange<int>("Failures", 0, 7) { Goal = Goal.Lower },
+            new MetricChange<int>("Fully raised", 40, 55) { Goal = Goal.Higher },
+        });
+        var md = writer.ToString();
+
+        // Label goal glyph unchanged (default Combine); the cell polarity is composed into a word.
+        Assert.Contains("| Failures \u2193 | 0 \u2192 7 (regressed \u2717) | - |", md);
+        Assert.Contains("| Fully raised \u2191 | 40 \u2192 55 (improved \u2713) | - |", md);
+    }
+
+    [Fact]
+    public void ComposeGlyph_CanRewriteLabelGoalGlyphSeparately()
+    {
+        // The composer distinguishes the label slot from the cell slot.
+        var options = new MarkoutWriterOptions
+        {
+            ComposeGlyph = ctx => ctx.Slot == GlyphSlot.GoalLabel
+                ? ctx.Text + " [" + ctx.Glyph + "]"
+                : ctx.Combine(),
+        };
+        var writer = new MarkoutWriter(new MarkdownFormatter(), options);
+        writer.WriteMetricChangeTable(new[]
+        {
+            new MetricChange<int>("Failures", 0, 7) { Goal = Goal.Lower },
+        });
+        var md = writer.ToString();
+
+        Assert.Contains("| Failures [\u2193] | 0 \u2192 7 \u2717 | - |", md);
+    }
+
+    [Fact]
+    public void ComposeGlyph_AppliesToMultiSourcePairwiseAndLabel()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            ComposeGlyph = ctx => ctx.Glyph.Length == 0 ? ctx.Text : ctx.Text + " \u00b7 " + ctx.Glyph,
+        };
+        var rows = new[]
+        {
+            new MultiSourceRow("Alloc",
+                new Source("Jun", 100.0), new Source("Jul", 110.0), new Source("Aug", 90.0)) { Goal = Goal.Lower },
+        };
+        var writer = new MarkoutWriter(new MarkdownFormatter(), options);
+        writer.WriteMultiSourceTable("Metric", rows);
+        var md = writer.ToString();
+
+        // Label uses the composer separator; pairwise polarity glyphs use it too (110>100 bad, 90<110 good).
+        Assert.Contains("| Alloc \u00b7 \u2193 |", md);
+        Assert.Contains("| 110 \u00b7 \u2717", md);
+        Assert.Contains("| 90 \u00b7 \u2713", md);
+    }
+
+    [Fact]
+    public void Change_Standalone_Goal_RendersGlyph_OnRichSink()
+    {
+        // A [MarkoutGoal]-style Change<V> rendered as a composite-card row emits a trailing glyph
+        // (not the status word) on a glyph sink, threaded through the writer's ApplyGlyphs.
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        writer.WriteCompositeTable(
+            new MarkoutCompositeRow("Failures", new Change<long>(10, 3), new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower }));
+        var md = writer.ToString();
+
+        // Delta stays in the parenthetical; polarity trails as a glyph.
+        Assert.Contains("| Failures | 10 \u2192 3 (-7) \u2713 |", md);
+        Assert.DoesNotContain("good", md);
+    }
+
+    [Fact]
+    public void Change_Standalone_Goal_KeepsWord_OnPlainTextSink()
+    {
+        var writer = new MarkoutWriter(new PlainTextFormatter());
+        writer.WriteCompositeTable(
+            new MarkoutCompositeRow("Failures", new Change<long>(10, 3), new MarkoutCellFormat(Delta.Absolute) { Goal = Goal.Lower }));
+        var text = writer.ToString();
+
+        Assert.Contains("10 \u2192 3 (-7, good)", text);
+        Assert.DoesNotContain("\u2713", text);
     }
 
     [Fact]
@@ -840,20 +940,20 @@ public class GoalAwareCellTests
     }
 
     [Fact]
-    public void Generated_MarkoutGoal_TableColumn_RendersInlineWord()
+    public void Generated_MarkoutGoal_TableColumn_RendersInlineGlyph()
     {
-        // A [MarkoutGoal] Change<T> rendered as a generated element-table column must also carry
-        // the dense goal word (the table-cell path, not just the composite-card path).
+        // A [MarkoutGoal] Change<T> rendered as a generated element-table column carries the dense
+        // polarity glyph on a rich sink (the table-cell path, not just the composite-card path).
         var card = new GoalTableCard { Rows = [new GoalTableRow { Name = "raise", Failures = new(0, 7) }] };
         var md = MarkoutSerializer.Serialize(card, GoalTableCardContext.Default);
 
-        Assert.Contains("0 \u2192 7 (bad)", md);
+        Assert.Contains("0 \u2192 7 \u2717", md);
     }
 
     [Fact]
-    public void Generated_MarkoutGoal_CardProperty_RendersInlineWord()
+    public void Generated_MarkoutGoal_CardProperty_RendersInlineGlyph()
     {
-        // The composite-card (field-layout) path also renders the dense goal word in Markdown.
+        // The composite-card (field-layout) path also renders the dense polarity glyph in Markdown.
         var card = new GoalAttrCard
         {
             Failures = new(0, 7),       // Lower: introduced -> bad
@@ -861,8 +961,8 @@ public class GoalAwareCellTests
         };
         var md = MarkoutSerializer.Serialize(card, GoalAttrCardContext.Default);
 
-        Assert.Contains("0 \u2192 7 (bad)", md);
-        Assert.Contains("40 \u2192 55 (good)", md);
+        Assert.Contains("0 \u2192 7 \u2717", md);
+        Assert.Contains("40 \u2192 55 \u2713", md);
     }
 
     [Fact]
