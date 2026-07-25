@@ -95,7 +95,7 @@ Every quantity moves the same way:
 | ΔP\|both (what grounding adds) | +0.117 | +0.035 | **headroom compressed ~3×** |
 | per-$ `Lᵍ/Lᵇ` | ×0.40 | ×0.62 | win shrinking |
 | do-no-harm null threshold | 1.200 | 0.800 | gate got **stricter** |
-| base skill pulled (of 24 tasks) | 24 | 15 | asks for help less often |
+| base skill pulled (of 24 tasks) | 24 | 15 | reaches for grounding selectively |
 
 Two honest readings sit side by side. The **reliability** case for grounding is being competed away by
 raw model capability — that is the trend, and it is not close. The **efficiency** case is not: a frontier
@@ -174,16 +174,18 @@ The shelf is a compact base `markout` skill + **four** domain skills. Cross-mode
 clears the ×0–1 delete threshold on all four models.
 
 Note the one asymmetry: `claude-opus-5` pulls the base `markout` skill on **15 of 24** tasks where every
-other model pulls it on all 24, while its *domain*-skill pulls are unchanged. The strongest model
-increasingly reaches for grounding only on the specialised work — another face of the same
-headroom-compression trend.
+other model pulls it on all 24 — while its four *domain*-skill counts are **identical to `claude-opus-4.8`,
+task for task** (conditional-composition×8 · output-formats×7 · composite-cells-cards×4 · built-in-shapes×3).
+The strongest model has stopped reaching for the general orientation material and now pulls grounding only
+for the specialised work — another face of the same headroom-compression trend, and a hint that the base
+skill is the first part of a shelf to lose its audience.
 
 ## Caveats
 
 - **Stage 1 proxy:** `Delivers ≡ Satisfies` (functional-pass) until the delivers-tier assertions land,
   so C4 fidelity is 1.00 by construction and the *via*-fidelity is corroborated by archaeology→0, not
   yet independently graded.
-- **Baseline self-grounds:** even ungrounded, the baseline reads the README/AGENTS packed in the
+- **Baseline self-grounds:** even ungrounded, the baseline reads the README and docs packed in the
   restored nupkg and the open web, so its archaeology counts are a **lower bound** — grounding's edge
   is understated. A hermetic (Docker) clean baseline is the follow-up.
 - **Bands are finite-suite** (this 24-task suite, tasks held fixed): the verdict generalizes to *this*
@@ -197,3 +199,9 @@ headroom-compression trend.
 - **`claude-opus-5` C2 is not established** on this suite (both priors' CrI include zero). That is a
   reported null, not a hidden failure: the do-no-harm gate is clean and the economic gate clears on
   cost alone.
+- **One diagnostic label changed between legs.** All four legs ran the same 24 scenarios (identical
+  names and order) against identical `fixtureHash` and `docContentHash`. Between the first three legs
+  and `claude-opus-5`, one task's *expected-skill prior* was re-pointed from the retired
+  `multi-view-verbosity` to `conditional-composition`. That label feeds only the "target-skill hit"
+  diagnostic — never grading, cost or yield — and it fully explains opus-4.8's `23/24` versus
+  opus-5's `24/24` on that line. No graded quantity is affected.
