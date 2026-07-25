@@ -193,6 +193,13 @@ public sealed record MarkoutEmphasis { EmphasisComparison Comparison; double Cut
 public enum GateStatus { Unknown, Good, Neutral, Warning, Bad }    // verdict polarity
 public readonly record struct Verdict(GateStatus Status, string? Label = null); // first-class verdict cell
 
+// Child rows — a [MarkoutChild] bool on an element-table row type marks that row as a semantic child
+// of the preceding row (single level). It is a data relationship, not indentation: the flag is never a
+// column; rich sinks (IGlyphFormatter: Markdown/ANSI/Unicode) prefix the child row's first cell with the
+// configurable child glyph (default ↳, MarkoutGlyphs.Child / GlyphSlot.ChildRow). TSV/JSONL and plain
+// text omit it (glyph-only v1). Easy mode: override MarkoutGlyphs.Child; advanced: ComposeGlyph.
+[AttributeUsage(AttributeTargets.Property)] public sealed class MarkoutChildAttribute : Attribute { }
+
 // Hierarchy — a recursive node with children
 public class TreeNode { ... }
 
