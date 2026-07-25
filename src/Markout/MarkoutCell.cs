@@ -111,9 +111,17 @@ internal static class CellText
         var text = format is null ? Number(value) : FormatNumber(value, format);
         if (text == Placeholder)
             return Placeholder;   // non-finite: bare placeholder, never "+—"
-        // A custom format may already emit its own positive sign (e.g. "+0;-0;0"); don't double it.
-        return value > 0 && !text.StartsWith('+') ? "+" + text : text;
+        return value > 0 && !FormatControlsSign(format) ? "+" + text : text;
     }
+
+    /// <summary>
+    /// True when a numeric format string carries explicit sign sections (a <c>positive;negative;zero</c>
+    /// pattern, detected by the section separator <c>;</c>): the caller then fully controls the positive
+    /// sign, so the automatic <c>+</c> delta prefix must not be added (a section-less standard/custom
+    /// format never emits a leading <c>+</c> for positives, so the prefix is safe there).
+    /// </summary>
+    private static bool FormatControlsSign(string? format)
+        => format is not null && format.Contains(';');
 
     /// <summary>
     /// Formats a finite numeric value with a .NET numeric format string (invariant culture); a
@@ -224,8 +232,7 @@ internal static class CellText
         var text = format is null
             ? delta.ToString(CultureInfo.InvariantCulture)
             : delta.ToString(format, CultureInfo.InvariantCulture);
-        // A custom format may already emit its own positive sign (e.g. "+0;-0;0"); don't double it.
-        return signed && delta > 0 && !text.StartsWith('+') ? "+" + text : text;
+        return signed && delta > 0 && !FormatControlsSign(format) ? "+" + text : text;
     }
 
     /// <summary>

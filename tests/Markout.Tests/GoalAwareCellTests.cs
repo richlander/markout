@@ -1058,14 +1058,18 @@ public class GoalAwareCellTests
     }
 
     [Fact]
-    public void Change_NumberFormat_CustomPositiveSignFormat_DoesNotDoubleSign()
+    public void Change_NumberFormat_SectionedFormat_ControlsSign_NoDoubling()
     {
-        // A custom format with its own positive-sign section must not get a second "+" prepended.
+        // A format with explicit sign sections (containing ';') owns positive-sign rendering, so the
+        // automatic "+" is not prepended — no doubling, even with a prefix in the positive section.
         Assert.Equal("+1 \u2192 +3 (+2)",
             Inline(new Change<int>(1, 3), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "+0;-0;0" }));
-        // Same for the exact integral (decimal) delta path.
+        // Exact integral (decimal) delta path.
         Assert.Equal("+1 \u2192 +3 (+2)",
             Inline(new Change<long>(1, 3), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "+0;-0;0" }));
+        // Prefix + sign section: the delta keeps the format's own sign, no second "+".
+        Assert.Equal("$+1 \u2192 $+3 ($+2)",
+            Inline(new Change<int>(1, 3), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "$+0;-$0;0" }));
     }
 
     [Fact]
