@@ -1058,6 +1058,25 @@ public class GoalAwareCellTests
     }
 
     [Fact]
+    public void Change_NumberFormat_CustomPositiveSignFormat_DoesNotDoubleSign()
+    {
+        // A custom format with its own positive-sign section must not get a second "+" prepended.
+        Assert.Equal("+1 \u2192 +3 (+2)",
+            Inline(new Change<int>(1, 3), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "+0;-0;0" }));
+        // Same for the exact integral (decimal) delta path.
+        Assert.Equal("+1 \u2192 +3 (+2)",
+            Inline(new Change<long>(1, 3), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "+0;-0;0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_HonorsFractionalFormats()
+    {
+        // Non-grouping numeric formats (decimals) apply to operands and the absolute delta alike.
+        Assert.Equal("1.50 \u2192 3.25 (+1.75)",
+            Inline(new Change<double>(1.5, 3.25), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "F2" }));
+    }
+
+    [Fact]
     public void Generated_NumberFormat_RendersGroupedInMarkdown()
     {
         var card = new NumberFormatCard

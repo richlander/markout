@@ -10,6 +10,14 @@ namespace Markout;
 /// multiple deltas are unaffected. Markdown-only: structured (TSV/JSONL) output stays raw and
 /// ungrouped so it remains machine-parseable.
 /// </summary>
+/// <remarks>
+/// The format string must be one that the widened delta type (<see cref="double"/> for most integral
+/// operands, <see cref="decimal"/> for <see cref="long"/>/<see cref="ulong"/>/<see cref="decimal"/>)
+/// can render — the standard numeric formats (<c>"N0"</c>, <c>"F1"</c>, <c>"G"</c>, <c>"P"</c>,
+/// <c>"E"</c>, <c>"C"</c>) and custom numeric patterns (<c>"#,0"</c>). Integer-only specifiers
+/// (<c>"D"</c>, <c>"X"</c>, <c>"B"</c>) are not supported because the derived delta is not an integral
+/// type, and passing one throws <see cref="System.FormatException"/> at render time.
+/// </remarks>
 /// <param name="format">A standard or custom .NET numeric format string (e.g. <c>"N0"</c>, <c>"N2"</c>).</param>
 [AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
 public sealed class MarkoutNumberFormatAttribute(string format) : Attribute

@@ -111,7 +111,8 @@ internal static class CellText
         var text = format is null ? Number(value) : FormatNumber(value, format);
         if (text == Placeholder)
             return Placeholder;   // non-finite: bare placeholder, never "+—"
-        return value > 0 ? "+" + text : text;
+        // A custom format may already emit its own positive sign (e.g. "+0;-0;0"); don't double it.
+        return value > 0 && !text.StartsWith('+') ? "+" + text : text;
     }
 
     /// <summary>
@@ -223,7 +224,8 @@ internal static class CellText
         var text = format is null
             ? delta.ToString(CultureInfo.InvariantCulture)
             : delta.ToString(format, CultureInfo.InvariantCulture);
-        return signed && delta > 0 ? "+" + text : text;
+        // A custom format may already emit its own positive sign (e.g. "+0;-0;0"); don't double it.
+        return signed && delta > 0 && !text.StartsWith('+') ? "+" + text : text;
     }
 
     /// <summary>

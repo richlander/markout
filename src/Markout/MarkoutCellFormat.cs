@@ -40,6 +40,9 @@ public readonly record struct MarkoutCellFormat(Delta Delta = Delta.None, string
     /// ungrouped delta (<c>+1003</c>). Composite operands keep their own shape formatting; percentage
     /// and multiple deltas are unaffected. <c>null</c> keeps the default invariant formatting.
     /// Structured (TSV/JSONL) output stays raw and ungrouped so it remains machine-parseable.
+    /// Use a format the widened delta type can render — standard numeric formats (<c>"N0"</c>,
+    /// <c>"F1"</c>, <c>"G"</c>, <c>"P"</c>) or custom patterns (<c>"#,0"</c>); integer-only specifiers
+    /// (<c>"D"</c>/<c>"X"</c>) are unsupported and throw at render time.
     /// </summary>
     public string? NumberFormat { get; init; }
 
