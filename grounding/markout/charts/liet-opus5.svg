@@ -1,0 +1,209 @@
+<svg viewBox="0 0 760 670" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect width="760" height="670" fill="#ffffff"/>
+  <text x="382" y="30" text-anchor="middle" font-size="17" font-weight="700" fill="#0f172a">LIET curve — markout (claude-opus-5)</text>
+  <line x1="100" y1="380" x2="664" y2="380" stroke="#334155" stroke-width="1.5"/>
+  <line x1="100" y1="380" x2="100" y2="64" stroke="#334155" stroke-width="1.5"/>
+  <text x="92" y="384" text-anchor="end" font-size="10.5" fill="#64748b">0</text>
+  <line x1="100" y1="274.7" x2="664" y2="274.7" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="278.7" text-anchor="end" font-size="10.5" fill="#64748b">100k</text>
+  <line x1="100" y1="169.3" x2="664" y2="169.3" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="173.3" text-anchor="end" font-size="10.5" fill="#64748b">200k</text>
+  <line x1="100" y1="64" x2="664" y2="64" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="92" y="68" text-anchor="end" font-size="10.5" fill="#64748b">300k</text>
+  <text x="382" y="438" text-anchor="middle" font-size="12" fill="#334155">rung (difficulty) →</text>
+  <text x="46" y="222" text-anchor="middle" font-size="12" fill="#334155" transform="rotate(-90 46 222)">IET per correct answer (tokens) →</text>
+  <line x1="664" y1="380" x2="664" y2="64" stroke="#94a3b8" stroke-width="1.2"/>
+  <line x1="664" y1="301" x2="668" y2="301" stroke="#94a3b8" stroke-width="1"/>
+  <text x="671" y="305" text-anchor="start" font-size="10" fill="#94a3b8">50s</text>
+  <line x1="664" y1="222" x2="668" y2="222" stroke="#94a3b8" stroke-width="1"/>
+  <text x="671" y="226" text-anchor="start" font-size="10" fill="#94a3b8">100s</text>
+  <line x1="664" y1="143" x2="668" y2="143" stroke="#94a3b8" stroke-width="1"/>
+  <text x="671" y="147" text-anchor="start" font-size="10" fill="#94a3b8">150s</text>
+  <line x1="664" y1="64" x2="668" y2="64" stroke="#94a3b8" stroke-width="1"/>
+  <text x="671" y="68" text-anchor="start" font-size="10" fill="#94a3b8">200s</text>
+  <text x="708" y="222" text-anchor="middle" font-size="10.5" fill="#94a3b8" transform="rotate(-90 708 222)">wall-clock per question (s), all rungs →</text>
+  <line x1="100" y1="342" x2="664" y2="342" stroke="#22c55e" stroke-width="1.4" stroke-dasharray="6 5" opacity="0.7"/>
+  <text x="106" y="338" font-size="10" fill="#16a34a">floor 36.1k</text>
+  <g font-size="11" fill="#475569">
+    <line x1="112" y1="72" x2="134" y2="72" stroke="#dc2626" stroke-width="2.5"/><text x="140" y="76">baseline (archaeology only)</text>
+    <line x1="112" y1="88" x2="134" y2="88" stroke="#2563eb" stroke-width="2.5"/><text x="140" y="92">SKILL.md</text>
+    <line x1="112" y1="104" x2="134" y2="104" stroke="#c4a484" stroke-width="1.6" stroke-dasharray="4 3"/><text x="140" y="108" font-style="italic">baseline time · s, right axis</text>
+    <line x1="112" y1="120" x2="134" y2="120" stroke="#5eaaa8" stroke-width="1.6" stroke-dasharray="4 3"/><text x="140" y="124" font-style="italic">grounded time · s, right axis</text>
+  </g>
+  <g font-size="11" fill="#64748b" text-anchor="middle">
+    <text x="100" y="398">05</text>
+    <text x="124" y="398">04</text>
+    <text x="149" y="398">03</text>
+    <text x="173" y="398">01</text>
+    <text x="198" y="398">15</text>
+    <text x="222" y="398">06</text>
+    <text x="247" y="398">11</text>
+    <text x="271" y="398">14</text>
+    <text x="296" y="398">20</text>
+    <text x="320" y="398">21</text>
+    <text x="345" y="398">24</text>
+    <text x="369" y="398">08</text>
+    <text x="394" y="398">18</text>
+    <text x="418" y="398">23</text>
+    <text x="443" y="398">16</text>
+    <text x="467" y="398">10</text>
+    <text x="492" y="398">09</text>
+    <text x="516" y="398">02</text>
+    <text x="541" y="398">12</text>
+    <text x="565" y="398">19</text>
+    <text x="590" y="398">13</text>
+    <text x="614" y="398">22</text>
+    <text x="639" y="398">07</text>
+    <text x="664" y="398">17</text>
+  </g>
+  <polyline points="100,346.8 124,350 149,343.7 173,350 198,315.2 222,312.1 247,308.9 271,299.4 296,285.2 320,285.2 345,266.2 369,275.7 394,272.6 418,277.3 443,252 467,228.3 492,204.6 516,226.7 541,228.3 565,174.6 590,187.2 614,73.5 639,277.3 664,263.1" fill="none" stroke="#c4a484" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.85"/>
+  <circle cx="100" cy="346.8" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="124" cy="350" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="149" cy="343.7" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="173" cy="350" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="198" cy="315.2" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="222" cy="312.1" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="247" cy="308.9" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="271" cy="299.4" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="296" cy="285.2" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="320" cy="285.2" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="345" cy="266.2" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="369" cy="275.7" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="394" cy="272.6" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="418" cy="277.3" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="443" cy="252" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="467" cy="228.3" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="492" cy="204.6" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="516" cy="226.7" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="541" cy="228.3" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="565" cy="174.6" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="590" cy="187.2" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="614" cy="73.5" r="2" fill="#c4a484" opacity="0.85"/>
+  <circle cx="639" cy="277.3" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
+  <circle cx="664" cy="263.1" r="2" fill="white" stroke="#c4a484" stroke-width="1.2" opacity="0.85"/>
+  <text x="660" y="257.1" text-anchor="end" font-size="10" font-style="italic" fill="#c4a484">baseline time</text>
+  <polyline points="100,335.8 124,345.2 149,342.1 173,338.9 198,308.9 222,342.1 247,342.1 271,338.9 296,342.1 320,338.9 345,324.7 369,321.5 394,316.8 418,329.4 443,334.2 467,331 492,307.3 516,337.3 541,320 565,293.1 590,321.5 614,258.3 639,302.6 664,299.4" fill="none" stroke="#5eaaa8" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.85"/>
+  <circle cx="100" cy="335.8" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="124" cy="345.2" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="149" cy="342.1" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="173" cy="338.9" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="198" cy="308.9" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="222" cy="342.1" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="247" cy="342.1" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="271" cy="338.9" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="296" cy="342.1" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="320" cy="338.9" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="345" cy="324.7" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="369" cy="321.5" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="394" cy="316.8" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="418" cy="329.4" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="443" cy="334.2" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="467" cy="331" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="492" cy="307.3" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="516" cy="337.3" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="541" cy="320" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="565" cy="293.1" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="590" cy="321.5" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="614" cy="258.3" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="639" cy="302.6" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <circle cx="664" cy="299.4" r="2" fill="#5eaaa8" opacity="0.85"/>
+  <text x="660" y="293.4" text-anchor="end" font-size="10" font-style="italic" fill="#5eaaa8">SKILL time</text>
+  <polyline points="100,350.2 124,350 149,347.6 173,346.2 198,332.7 222,325.1 247,322.5 271,317.5 296,310.8 320,308.5 345,305.1 369,304.6 394,302.4 418,302.1 443,292.2 467,282.2 492,277.8 516,267.7 541,263.7 565,263.3 590,250.6 614,152.1" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="100" cy="350.2" r="3.5" fill="#dc2626"/>
+  <circle cx="124" cy="350" r="3.5" fill="#dc2626"/>
+  <circle cx="149" cy="347.6" r="3.5" fill="#dc2626"/>
+  <circle cx="173" cy="346.2" r="3.5" fill="#dc2626"/>
+  <circle cx="198" cy="332.7" r="3.5" fill="#dc2626"/>
+  <circle cx="222" cy="325.1" r="3.5" fill="#dc2626"/>
+  <circle cx="247" cy="322.5" r="3.5" fill="#dc2626"/>
+  <circle cx="271" cy="317.5" r="3.5" fill="#dc2626"/>
+  <circle cx="296" cy="310.8" r="3.5" fill="#dc2626"/>
+  <circle cx="320" cy="308.5" r="3.5" fill="#dc2626"/>
+  <circle cx="345" cy="305.1" r="3.5" fill="#dc2626"/>
+  <circle cx="369" cy="304.6" r="3.5" fill="#dc2626"/>
+  <circle cx="394" cy="302.4" r="3.5" fill="#dc2626"/>
+  <circle cx="418" cy="302.1" r="3.5" fill="#dc2626"/>
+  <circle cx="443" cy="292.2" r="3.5" fill="#dc2626"/>
+  <circle cx="467" cy="282.2" r="3.5" fill="#dc2626"/>
+  <circle cx="492" cy="277.8" r="3.5" fill="#dc2626"/>
+  <circle cx="516" cy="267.7" r="3.5" fill="#dc2626"/>
+  <circle cx="541" cy="263.7" r="3.5" fill="#dc2626"/>
+  <circle cx="565" cy="263.3" r="3.5" fill="#dc2626"/>
+  <circle cx="590" cy="250.6" r="3.5" fill="#dc2626"/>
+  <circle cx="614" cy="152.1" r="3.5" fill="#dc2626"/>
+  <text x="610" y="144.1" text-anchor="end" font-size="11.5" font-weight="700" fill="#dc2626">baseline</text>
+  <polyline points="100,337.1 124,344 149,341.8 173,336.2 198,322.4 222,340.8 247,340.6 271,340 296,339.8 320,339.1 345,333.7 369,333.9 394,329 418,332.4 443,338.9 467,335.9 492,322 516,335.5 541,329.4 565,315 590,328.1 614,289.5 639,320.2 664,318.6" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <circle cx="100" cy="337.1" r="4" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <circle cx="124" cy="344" r="4" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <circle cx="149" cy="341.8" r="4" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <circle cx="173" cy="336.2" r="4" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <circle cx="198" cy="322.4" r="4" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <circle cx="222" cy="340.8" r="4" fill="#2563eb"/>
+  <circle cx="247" cy="340.6" r="4" fill="#2563eb"/>
+  <circle cx="271" cy="340" r="4" fill="#2563eb"/>
+  <circle cx="296" cy="339.8" r="4" fill="#2563eb"/>
+  <circle cx="320" cy="339.1" r="4" fill="#2563eb"/>
+  <circle cx="345" cy="333.7" r="4" fill="#2563eb"/>
+  <circle cx="369" cy="333.9" r="4" fill="#2563eb"/>
+  <circle cx="394" cy="329" r="4" fill="#2563eb"/>
+  <circle cx="418" cy="332.4" r="4" fill="#2563eb"/>
+  <circle cx="443" cy="338.9" r="4" fill="#2563eb"/>
+  <circle cx="467" cy="335.9" r="4" fill="#2563eb"/>
+  <circle cx="492" cy="322" r="4" fill="#2563eb"/>
+  <circle cx="516" cy="335.5" r="4" fill="#2563eb"/>
+  <circle cx="541" cy="329.4" r="4" fill="#2563eb"/>
+  <circle cx="565" cy="315" r="4" fill="#2563eb"/>
+  <circle cx="590" cy="328.1" r="4" fill="#2563eb"/>
+  <circle cx="614" cy="289.5" r="4" fill="#2563eb"/>
+  <circle cx="639" cy="320.2" r="4" fill="#2563eb"/>
+  <circle cx="664" cy="318.6" r="4" fill="#2563eb"/>
+  <text x="660" y="310.6" text-anchor="end" font-size="11.5" font-weight="700" fill="#2563eb">SKILL.md</text>
+  <g font-size="8" font-weight="700" fill="#0891b2" text-anchor="middle">
+    <text x="100" y="350.1">M 4</text>
+    <text x="124" y="357">M</text>
+    <text x="149" y="354.8">M</text>
+    <text x="173" y="349.2">M</text>
+    <text x="198" y="335.4">1 4</text>
+    <text x="222" y="353.8">M</text>
+    <text x="247" y="353.6">M 2</text>
+    <text x="271" y="353">4</text>
+    <text x="296" y="352.8">M 1</text>
+    <text x="320" y="352.1">M 2</text>
+    <text x="345" y="346.7">3</text>
+    <text x="369" y="346.9">M 3</text>
+    <text x="394" y="342">3</text>
+    <text x="418" y="345.4">2 4</text>
+    <text x="443" y="351.9">M 2</text>
+    <text x="467" y="348.9">1 4</text>
+    <text x="492" y="335">4</text>
+    <text x="516" y="348.5">M</text>
+    <text x="541" y="342.4">3</text>
+    <text x="565" y="328">4</text>
+    <text x="590" y="341.1">M 3</text>
+    <text x="614" y="302.5">M 3</text>
+    <text x="639" y="333.2">M 3</text>
+    <text x="664" y="331.6">M 3</text>
+  </g>
+  <g font-size="10.5" fill="#475569">
+    <circle cx="112" cy="462" r="4" fill="none" stroke="#2563eb" stroke-width="2"/><text x="122" y="466">SKILL over ceiling (harm)</text>
+    <circle cx="290" cy="462" r="4" fill="#2563eb"/><text x="300" y="466">SKILL under ceiling (pays its way)</text>
+    <text x="540" y="466" font-style="italic">failed rungs not plotted</text>
+  </g>
+  <text x="112" y="484" font-size="9.5" font-weight="700" fill="#0891b2">skills pulled (id under each SKILL dot):</text>
+  <g font-size="9.5" fill="#0891b2">
+    <text x="120" y="498">• <tspan font-weight="700">M</tspan> = markout (×15)</text>
+    <text x="120" y="512">• <tspan font-weight="700">1</tspan> = built-in-shapes (exp ×3 · pull ×3)</text>
+    <text x="120" y="526">• <tspan font-weight="700">2</tspan> = composite-cells-cards (exp ×3 · pull ×4)</text>
+    <text x="120" y="540">• <tspan font-weight="700">3</tspan> = conditional-composition (exp ×8 · pull ×8)</text>
+    <text x="120" y="554">• <tspan font-weight="700">4</tspan> = output-formats (exp ×4 · pull ×7)</text>
+  </g>
+  <text x="112" y="574" font-size="9.5" font-weight="700" fill="#334155">Metrics:</text>
+  <g font-size="9.5" fill="#334155">
+    <text x="120" y="588">• Correct answers: 22→24/24</text>
+    <text x="120" y="602">• Floor LIET: 36.1k</text>
+    <text x="120" y="616">• LIET: 40.9k→9.4k (Δ −31.5k)</text>
+    <text x="120" y="630">• Levelized duration: 44.2s→6.6s (Δ −37.6s)</text>
+    <text x="120" y="644">• Archaeology operations: 109→3.4 (-97%)</text>
+    <text x="120" y="658">• Expected skill pulled: 24/24</text>
+  </g>
+</svg>
