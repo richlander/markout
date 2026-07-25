@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.25.0</Version>
-    <PackageReleaseNotes>[#152] A [MarkoutChild] bool on an element-table row type marks that row as a semantic child of the preceding row (single level). It is a data relationship, not indentation: the flag is never a column; rich sinks (Markdown/ANSI/Unicode) prefix the child row's first cell with a configurable glyph (default ↳). Easy mode: override MarkoutWriterOptions.Glyphs.Child. Advanced mode: MarkoutWriterOptions.ComposeGlyph composes it (GlyphSlot.ChildRow) — replace with a string or integrate it. TSV/JSONL and plain text omit the marker so machine-readable and non-Unicode output stay clean.</PackageReleaseNotes>
+    <Version>0.26.0</Version>
+    <PackageReleaseNotes>[#157] The source generator now rejects (MARKOUT006, error) a collection whose element type renders as a table but has no visible columns — every property is [MarkoutIgnore]'d, section-ignored, or a [MarkoutChild] flag. Such a row type produced a zero-header table that threw at runtime ("At least one header is required"); it is now caught at compile time. Give the row at least one scalar column, or render it as sections. A [MarkoutChild] flag is a nesting marker, not a column, so a row whose only property is the child flag is degenerate.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

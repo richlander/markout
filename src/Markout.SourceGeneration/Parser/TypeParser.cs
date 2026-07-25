@@ -516,6 +516,28 @@ internal static class TypeParser
 
         var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault(), visitedTypes);
 
+        // A collection rendered as a table (ComplexArray without nested subsections) emits a fixed
+        // header row up front, so a row type whose properties are all ignored/section-ignored/child
+        // flags produces zero headers and throws at runtime. Reject it at compile time (MARKOUT006).
+        if (kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
+            elementProperties is { Count: > 0 })
+        {
+            var columnIgnoreNames = sectionIgnoreProperty != null
+                ? new HashSet<string>(sectionIgnoreProperty.Split(',').Select(s => s.Trim()))
+                : null;
+            bool hasVisibleColumn = elementProperties.Any(p =>
+                !p.IsIgnored && !p.IsChildFlag &&
+                (columnIgnoreNames == null || !columnIgnoreNames.Contains(p.Name)));
+            if (!hasVisibleColumn)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    DiagnosticDescriptors.TableRowNoVisibleColumns,
+                    prop.Locations.FirstOrDefault(),
+                    prop.Name,
+                    elementTypeName ?? prop.Type.ToDisplayString()));
+            }
+        }
+
         // Determine if property is unsupported in table context
         // Joined arrays (string or complex) are treated as scalars, so they're fine in tables
         bool isJoinedArray = joinSeparator != null && (kind == PropertyKind.StringArray || kind == PropertyKind.ComplexArray);

@@ -117,7 +117,9 @@ on rich sinks (`IGlyphFormatter`: Markdown/ANSI/Unicode) a child row's first cel
 configurable glyph (default `↳`). Override it via `MarkoutWriterOptions.Glyphs` `{ Child = "»" }` —
 *easy mode*; or *advanced mode* `MarkoutWriterOptions.ComposeGlyph` (`GlyphSlot.ChildRow`) to swap in a
 string or integrate it. TSV/JSONL and plain text omit the marker, so structured and non-Unicode output
-stay clean.
+stay clean. The child flag is a nesting marker, not a column: a row type whose *only* property is a
+`[MarkoutChild]` flag (or is otherwise all-ignored) has no visible columns and is a compile error
+(`MARKOUT006`) — a table needs at least one scalar value column.
 
 ```csharp
 public class OrgRow
