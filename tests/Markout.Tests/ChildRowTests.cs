@@ -225,7 +225,9 @@ public class ChildRowTests
     [Fact]
     public void ChildOnlyRow_GeneratesCompilableSerializer()
     {
-        // The value is that this project compiles at all (see ChildOnlyCard); assert the context exists.
+        // Guards the codegen fix only: a row type whose sole property is the child flag must still
+        // emit valid C# (no trailing-comma WriteTableRow) — this project compiling is the assertion.
+        // Serializing a *populated* child-only card throws at runtime (zero columns); see issue #157.
         Assert.NotNull(ChildOnlyCardContext.Default);
     }
 }
