@@ -102,26 +102,32 @@ internal static class CellText
         => SignedNumber(value, null);
 
     /// <summary>
-    /// Formats a signed number for an absolute delta suffix (explicit <c>+</c> for gains), applying an
-    /// optional .NET numeric format string (e.g. <c>"N0"</c> for thousands grouping); <c>null</c> keeps
-    /// the default trailing-<c>.0</c>-trimmed formatting.
+    /// Formats a signed number for an absolute delta suffix, applying an optional .NET numeric format
+    /// string (e.g. <c>"N0"</c> for thousands grouping) to the <em>magnitude</em>; <c>null</c> keeps the
+    /// default trailing-<c>.0</c>-trimmed formatting. Markout owns the sign — it prepends <c>+</c> for a
+    /// gain and <c>-</c> for a loss — so the format never sees a signed value and cannot collide with
+    /// (or double) the delta sign. The format therefore governs the magnitude only and should not carry
+    /// its own sign sections or sign literals.
     /// </summary>
     public static string SignedNumber(double value, string? format)
     {
-        var text = format is null ? Number(value) : FormatNumber(value, format);
-        if (text == Placeholder)
+        var magnitude = format is null ? Number(Math.Abs(value)) : FormatNumber(Math.Abs(value), format);
+        if (magnitude == Placeholder)
             return Placeholder;   // non-finite: bare placeholder, never "+—"
-        return value > 0 && !FormatControlsSign(format) ? "+" + text : text;
+        return SignPrefix(value, signed: true) + magnitude;
     }
 
     /// <summary>
-    /// True when a numeric format string carries explicit sign sections (a <c>positive;negative;zero</c>
-    /// pattern, detected by the section separator <c>;</c>): the caller then fully controls the positive
-    /// sign, so the automatic <c>+</c> delta prefix must not be added (a section-less standard/custom
-    /// format never emits a leading <c>+</c> for positives, so the prefix is safe there).
+    /// The leading sign Markout prepends to a delta magnitude: <c>-</c> for a decrease and, when
+    /// <paramref name="signed"/> is set, <c>+</c> for an increase (otherwise nothing). Markout is the
+    /// sole authority for the delta sign; the numeric format applies to the magnitude alone.
     /// </summary>
-    private static bool FormatControlsSign(string? format)
-        => format is not null && format.Contains(';');
+    private static string SignPrefix(double value, bool signed)
+        => value < 0 ? "-" : (signed && value > 0 ? "+" : string.Empty);
+
+    /// <inheritdoc cref="SignPrefix(double, bool)"/>
+    private static string SignPrefix(decimal value, bool signed)
+        => value < 0 ? "-" : (signed && value > 0 ? "+" : string.Empty);
 
     /// <summary>
     /// Formats a finite numeric value with a .NET numeric format string (invariant culture); a
@@ -217,9 +223,8 @@ internal static class CellText
         if (TryScalarDouble(before, out var bd) && TryScalarDouble(after, out var ad))
         {
             var d = ad - bd;
-            return signed
-                ? SignedNumber(d, format)
-                : (format is null ? Number(d) : FormatNumber(d, format));
+            var magnitude = format is null ? Number(Math.Abs(d)) : FormatNumber(Math.Abs(d), format);
+            return magnitude == Placeholder ? Placeholder : SignPrefix(d, signed) + magnitude;
         }
         return Placeholder;
     }
@@ -229,10 +234,10 @@ internal static class CellText
 
     private static string SignDecimal(decimal delta, bool signed, string? format)
     {
-        var text = format is null
-            ? delta.ToString(CultureInfo.InvariantCulture)
-            : delta.ToString(format, CultureInfo.InvariantCulture);
-        return signed && delta > 0 && !FormatControlsSign(format) ? "+" + text : text;
+        var magnitude = format is null
+            ? Math.Abs(delta).ToString(CultureInfo.InvariantCulture)
+            : Math.Abs(delta).ToString(format, CultureInfo.InvariantCulture);
+        return SignPrefix(delta, signed) + magnitude;
     }
 
     /// <summary>

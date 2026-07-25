@@ -83,7 +83,9 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
   suffix, and the delta-noun/`IDeltaCountable` count — so a grouped cell no longer folds an ungrouped
   delta: `165 → 1,168 (+1,003)` instead of `165 → 1168 (+1,003)`. Composite operands keep their own shape
   formatting; percentage/multiple deltas are unaffected; structured (TSV/JSONL) output stays raw and
-  ungrouped so it remains machine-parseable.
+  ungrouped so it remains machine-parseable. Markout owns the delta sign (it prepends `+`/`-`), so the
+  format applies to the magnitude only — pass a grouping/precision format (`N0`, `F1`, `#,0`), not one
+  with its own sign sections (`+0;-0;0`) or integer-only specifiers (`D`/`X`, which throw).
   `[MarkoutGoal(Goal.Higher)]` / `[MarkoutGoal(Goal.Lower)]` on a numeric `Change<V>` makes Markout
   derive two decomposed fields — a structural `direction`
   (`increased`/`decreased`/`introduced` (0→N)/`resolved` (N→0)/`unchanged`) and a goal-applied polarity

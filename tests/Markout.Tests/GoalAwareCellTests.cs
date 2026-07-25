@@ -1058,18 +1058,22 @@ public class GoalAwareCellTests
     }
 
     [Fact]
-    public void Change_NumberFormat_SectionedFormat_ControlsSign_NoDoubling()
+    public void Change_NumberFormat_NegativeDelta_MarkoutOwnsSign()
     {
-        // A format with explicit sign sections (containing ';') owns positive-sign rendering, so the
-        // automatic "+" is not prepended — no doubling, even with a prefix in the positive section.
-        Assert.Equal("+1 \u2192 +3 (+2)",
-            Inline(new Change<int>(1, 3), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "+0;-0;0" }));
+        // Markout prepends the sign to the formatted magnitude, so a decrease groups and reads
+        // "-1,003" — the numeric format never sees a signed value (no format/BCL sign collision).
+        Assert.Equal("1,168 \u2192 165 (-1,003)",
+            Inline(new Change<int>(1168, 165), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" }));
         // Exact integral (decimal) delta path.
-        Assert.Equal("+1 \u2192 +3 (+2)",
-            Inline(new Change<long>(1, 3), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "+0;-0;0" }));
-        // Prefix + sign section: the delta keeps the format's own sign, no second "+".
-        Assert.Equal("$+1 \u2192 $+3 ($+2)",
-            Inline(new Change<int>(1, 3), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "$+0;-$0;0" }));
+        Assert.Equal("2,500,000 \u2192 1,000,000 (-1,500,000)",
+            Inline(new Change<long>(2_500_000, 1_000_000), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_ZeroDelta_HasNoSign()
+    {
+        Assert.Equal("1,000 \u2192 1,000 (0)",
+            Inline(new Change<int>(1000, 1000), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" }));
     }
 
     [Fact]
