@@ -78,6 +78,31 @@ Not yet implemented. Would detect single complex objects (not lists) in table ce
 
 Not yet implemented. Would detect `Dictionary<TKey, TValue>` and suggest conversion to `List<KeyValuePair>`.
 
+### MARKOUT006: Table Row Type Has No Visible Columns
+
+**Trigger:** A `List<T>` renders `T` as a table, but `T` has at least one property yet none is a
+visible column — every property is `[MarkoutIgnore]`'d, section-ignored, or a `[MarkoutChild]` flag.
+
+A table emits a fixed header row before any data rows, so a row type with zero renderable columns
+produces an empty header set and throws at runtime (`At least one header is required`) — even for an
+empty list. This is now rejected at compile time (Error severity).
+
+**Message:**
+
+```
+error MARKOUT006: Property 'Rows' renders 'ChildOnlyRow' as a table, but that row type has no
+visible columns (every property is [MarkoutIgnore]'d, section-ignored, or a [MarkoutChild] flag).
+Add at least one scalar column, or render it as sections instead.
+```
+
+**Solutions:**
+1. Add at least one scalar value column to the row type.
+2. Render the collection as sections (nested content) instead of a table.
+
+A `[MarkoutChild]` flag is a nesting marker, not a column, so a row whose only property is the child
+flag is degenerate. Note: a row type with *no* properties at all does not trigger this — the emitter
+renders nothing for it.
+
 ## Implementation
 
 ### Detection Algorithm

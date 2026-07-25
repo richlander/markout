@@ -75,4 +75,19 @@ internal static class DiagnosticDescriptors
                      "renders incorrectly (e.g. a target prints the raw struct), so it is rejected at compile time."
     );
 
+    public static readonly DiagnosticDescriptor TableRowNoVisibleColumns = new(
+        id: "MARKOUT006",
+        title: "Table row type has no visible columns",
+        messageFormat: "Property '{0}' renders '{1}' as a table, but that row type has no visible columns " +
+                       "(every property is [MarkoutIgnore]'d, section-ignored, or a [MarkoutChild] flag). " +
+                       "Add at least one scalar column, or render it as sections instead.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "A table is emitted with a fixed header row before any data rows, so a row type with no " +
+                     "renderable columns throws at runtime (\"At least one header is required\"). This is rejected " +
+                     "at compile time. A [MarkoutChild] flag is a nesting marker, not a column, so a row whose only " +
+                     "property is the child flag is degenerate; give the row at least one scalar value column."
+    );
+
 }
