@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.26.0</Version>
-    <PackageReleaseNotes>[#157] The source generator now rejects (MARKOUT006, error) a collection whose element type renders as a table but has no visible columns — every property is [MarkoutIgnore]'d, section-ignored, or a [MarkoutChild] flag. Such a row type produced a zero-header table that threw at runtime ("At least one header is required"); it is now caught at compile time. Give the row at least one scalar column, or render it as sections. A [MarkoutChild] flag is a nesting marker, not a column, so a row whose only property is the child flag is degenerate.</PackageReleaseNotes>
+    <Version>0.27.0</Version>
+    <PackageReleaseNotes>[#159] New [MarkoutNumberFormat("N0")] attribute (and MarkoutCellFormat.NumberFormat) applies a .NET numeric format string to the numbers Markout renders for a numeric Change&lt;V&gt; cell: the scalar before/after operands, the Delta.Absolute suffix, and the delta-noun / IDeltaCountable delta count. This keeps a grouped cell and its folded delta consistent — 165 → 1,168 (+1,003) instead of 165 → 1168 (+1,003). Composite operands keep their own shape formatting; percentage and multiple deltas are unaffected; structured (TSV/JSONL) output stays raw and ungrouped so it remains machine-parseable. Markout owns the delta sign (it prepends +/-), so the format applies to the magnitude only.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

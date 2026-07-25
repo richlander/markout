@@ -68,6 +68,24 @@ public partial class DeltaModesCardContext : MarkoutSerializerContext
 {
 }
 
+// Attribute path for [MarkoutNumberFormat]: grouped operands + grouped delta.
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class NumberFormatCard
+{
+    [MarkoutIgnore] public string Title => "Number format";
+
+    [MarkoutPropertyName("Methods"), MarkoutDelta(Delta.Absolute), MarkoutNumberFormat("N0")]
+    public Change<int> Methods { get; set; }
+
+    [MarkoutPropertyName("Solved"), MarkoutDeltaNoun("methods"), MarkoutNumberFormat("N0")]
+    public Change<Fraction> Solved { get; set; }
+}
+
+[MarkoutContext(typeof(NumberFormatCard))]
+public partial class NumberFormatCardContext : MarkoutSerializerContext
+{
+}
+
 public class GoalAwareCellTests
 {
     private static List<MarkoutField> Decompose(IMarkoutCell cell, MarkoutCellFormat format)
@@ -977,5 +995,106 @@ public class GoalAwareCellTests
 
         Assert.Contains("15 \u2192 5 (3\u00d7 fewer)", md);
         Assert.Contains("4/6 \u2192 6/6 (+2 solved)", md);
+    }
+
+    // --- [MarkoutNumberFormat] / MarkoutCellFormat.NumberFormat (issue #159) ---
+
+    [Fact]
+    public void Change_NumberFormat_GroupsScalarOperandsAndAbsoluteDelta()
+    {
+        // Acceptance: scalar Change<int> with the option renders grouped operands *and* delta.
+        Assert.Equal("165 \u2192 1,168 (+1,003)",
+            Inline(new Change<int>(165, 1168), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_Unset_LeavesRenderingUnchanged()
+    {
+        Assert.Equal("165 \u2192 1168 (+1003)",
+            Inline(new Change<int>(165, 1168), new MarkoutCellFormat(Delta.Absolute)));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_GroupsScalarDeltaNounCount()
+    {
+        Assert.Equal("165 \u2192 1,168 (+1,003 methods)",
+            Inline(new Change<int>(165, 1168), new MarkoutCellFormat { DeltaNoun = "methods", NumberFormat = "N0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_GroupsCompositeDeltaCount_OperandsStayShapeOwned()
+    {
+        // Composite operands are formatted by the shape (Fraction => "1003/2000"); only the
+        // IDeltaCountable delta count picks up the number format.
+        Assert.Equal("165/2000 \u2192 1168/2000 (+1,003 methods)",
+            Inline(new Change<Fraction>(new Fraction(165, 2000), new Fraction(1168, 2000)),
+                new MarkoutCellFormat { DeltaNoun = "methods", NumberFormat = "N0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_GroupsExactLongDelta()
+    {
+        // The exact integral/decimal delta path must group without routing through double.
+        Assert.Equal("1,000,000 \u2192 2,500,000 (+1,500,000)",
+            Inline(new Change<long>(1_000_000, 2_500_000), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_DoesNotAffectPercentDelta()
+    {
+        // Percentages are not counts: NumberFormat groups the operands but leaves the "%" delta alone.
+        Assert.Equal("1,000 \u2192 2,000 (+100%)",
+            Inline(new Change<int>(1000, 2000), new MarkoutCellFormat(Delta.Percent) { NumberFormat = "N0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_StructuredDecompositionStaysRaw()
+    {
+        // Structured output must remain machine-parseable: no grouping separators.
+        var fields = Decompose(new Change<int>(165, 1168), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" });
+        Assert.Equal("165", fields.Single(f => f.Key == "before").Value);
+        Assert.Equal("1168", fields.Single(f => f.Key == "after").Value);
+        Assert.Equal("1003", fields.Single(f => f.Key == "deltaAbs").Value);
+    }
+
+    [Fact]
+    public void Change_NumberFormat_NegativeDelta_MarkoutOwnsSign()
+    {
+        // Markout prepends the sign to the formatted magnitude, so a decrease groups and reads
+        // "-1,003" — the numeric format never sees a signed value (no format/BCL sign collision).
+        Assert.Equal("1,168 \u2192 165 (-1,003)",
+            Inline(new Change<int>(1168, 165), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" }));
+        // Exact integral (decimal) delta path.
+        Assert.Equal("2,500,000 \u2192 1,000,000 (-1,500,000)",
+            Inline(new Change<long>(2_500_000, 1_000_000), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_ZeroDelta_HasNoSign()
+    {
+        Assert.Equal("1,000 \u2192 1,000 (0)",
+            Inline(new Change<int>(1000, 1000), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "N0" }));
+    }
+
+    [Fact]
+    public void Change_NumberFormat_HonorsFractionalFormats()
+    {
+        // Non-grouping numeric formats (decimals) apply to operands and the absolute delta alike.
+        Assert.Equal("1.50 \u2192 3.25 (+1.75)",
+            Inline(new Change<double>(1.5, 3.25), new MarkoutCellFormat(Delta.Absolute) { NumberFormat = "F2" }));
+    }
+
+    [Fact]
+    public void Generated_NumberFormat_RendersGroupedInMarkdown()
+    {
+        var card = new NumberFormatCard
+        {
+            Methods = new(165, 1168),
+            Solved = new(new Fraction(165, 2000), new Fraction(1168, 2000)),
+        };
+        var md = MarkoutSerializer.Serialize(card, NumberFormatCardContext.Default);
+
+        Assert.Contains("165 \u2192 1,168 (+1,003)", md);
+        Assert.Contains("(+1,003 methods)", md);
     }
 }
