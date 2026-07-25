@@ -37,6 +37,7 @@ internal static class TypeParser
     private const string MarkoutUnitAttribute = "Markout.MarkoutUnitAttribute";
     private const string MarkoutGoalAttribute = "Markout.MarkoutGoalAttribute";
     private const string MarkoutDeltaNounAttribute = "Markout.MarkoutDeltaNounAttribute";
+    private const string MarkoutNumberFormatAttribute = "Markout.MarkoutNumberFormatAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -496,6 +497,16 @@ internal static class TypeParser
             deltaNoun = deltaNounValue;
         }
 
+        // Parse [MarkoutNumberFormat] — numeric format string for a numeric Change<> cell's operands + delta
+        string? numberFormat = null;
+        var numberFormatAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutNumberFormatAttribute);
+        if (numberFormatAttr != null && numberFormatAttr.ConstructorArguments.Length > 0 &&
+            numberFormatAttr.ConstructorArguments[0].Value is string numberFormatValue)
+        {
+            numberFormat = numberFormatValue;
+        }
+
         // Parse [MarkoutLabelHeader] — label/identity column header for a List<MultiSourceRow> card
         string? multiSourceLabelHeader = null;
         var labelHeaderAttr = prop.GetAttributes()
@@ -627,7 +638,8 @@ internal static class TypeParser
             noise,
             deltaNoun,
             isScalarShape,
-            isChildFlag);
+            isChildFlag,
+            numberFormat);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

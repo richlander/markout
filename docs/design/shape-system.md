@@ -155,7 +155,7 @@ public readonly record struct Slice(string Category, int Count);
 public readonly record struct Breakdown(string Label, Slice[] Slices);
 
 // Composite cells — data-only cells that render densely and decompose into typed columns.
-// The type picks the rendering; [MarkoutDelta]/[MarkoutUnit]/[MarkoutGoal]/[MarkoutDeltaNoun] configure derivation/format.
+// The type picks the rendering; [MarkoutDelta]/[MarkoutUnit]/[MarkoutGoal]/[MarkoutDeltaNoun]/[MarkoutNumberFormat] configure derivation/format.
 public readonly record struct Change<V>(V Before, V After);        // before → after (+ derived delta)
 public readonly record struct Fraction(double Count, double Total); // 24/24
 public readonly record struct Share(double Value, double Whole);    // 5056 (24%)
@@ -179,6 +179,10 @@ public enum Direction { Unchanged, Increased, Decreased, Introduced, Resolved };
 public enum Delta { None, Percent, Absolute, Multiple }             // derived-change suffix mode (Multiple: 3× fewer/more)
 public interface IGoalMagnitude { double GoalMagnitude { get; } }   // composite cell's comparable magnitude (goal)
 public interface IDeltaCountable { double DeltaCount { get; } }     // composite cell's count for [MarkoutDeltaNoun] (Fraction→count, Share→value)
+// [MarkoutNumberFormat("N0")] (MarkoutCellFormat.NumberFormat) applies a .NET numeric format string to the numbers Markout
+// renders for a Change<V>: scalar before/after operands + the Absolute/delta-noun/IDeltaCountable delta — keeping a grouped cell
+// and its folded delta consistent (165 → 1,168 (+1,003)). Composite operands stay shape-owned; %/multiple deltas and structured
+// (TSV/JSONL) output are unaffected (structured stays raw/ungrouped for machine parsing).
 
 // Card shapes — list-shapes that render as multi-format cards (Markdown table + typed JSONL/TSV).
 public readonly record struct MetricChange<T>(string Name, T Before, T After,

@@ -78,6 +78,12 @@ value, and `TableFormatter` (TSV/JSONL) decomposes each into typed columns from 
   `[MarkoutDeltaNoun("solved")]` renders a caller noun on the signed delta —
   `4/6 → 6/6 (+2 solved)` (sibling of `[MarkoutUnit]`; composites use `IDeltaCountable`: `Fraction`→count,
   `Share`→value; Markdown-only).
+  `[MarkoutNumberFormat("N0")]` on a numeric `Change<V>` applies a .NET numeric format string to the
+  numbers Markout renders for the cell — the scalar `before`/`after` operands, the `Delta.Absolute`
+  suffix, and the delta-noun/`IDeltaCountable` count — so a grouped cell no longer folds an ungrouped
+  delta: `165 → 1,168 (+1,003)` instead of `165 → 1168 (+1,003)`. Composite operands keep their own shape
+  formatting; percentage/multiple deltas are unaffected; structured (TSV/JSONL) output stays raw and
+  ungrouped so it remains machine-parseable.
   `[MarkoutGoal(Goal.Higher)]` / `[MarkoutGoal(Goal.Lower)]` on a numeric `Change<V>` makes Markout
   derive two decomposed fields — a structural `direction`
   (`increased`/`decreased`/`introduced` (0→N)/`resolved` (N→0)/`unchanged`) and a goal-applied polarity

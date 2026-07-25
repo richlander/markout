@@ -99,11 +99,30 @@ internal static class CellText
 
     /// <summary>Formats a signed number for an absolute delta suffix (explicit <c>+</c> for gains).</summary>
     public static string SignedNumber(double value)
+        => SignedNumber(value, null);
+
+    /// <summary>
+    /// Formats a signed number for an absolute delta suffix (explicit <c>+</c> for gains), applying an
+    /// optional .NET numeric format string (e.g. <c>"N0"</c> for thousands grouping); <c>null</c> keeps
+    /// the default trailing-<c>.0</c>-trimmed formatting.
+    /// </summary>
+    public static string SignedNumber(double value, string? format)
     {
-        var text = Number(value);
+        var text = format is null ? Number(value) : FormatNumber(value, format);
         if (text == Placeholder)
             return Placeholder;   // non-finite: bare placeholder, never "+—"
         return value > 0 ? "+" + text : text;
+    }
+
+    /// <summary>
+    /// Formats a finite numeric value with a .NET numeric format string (invariant culture); a
+    /// non-finite value renders the placeholder rather than <c>NaN</c>/<c>Inf</c>.
+    /// </summary>
+    private static string FormatNumber(double value, string format)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+            return Placeholder;
+        return value.ToString(format, CultureInfo.InvariantCulture);
     }
 
     /// <summary>Renders a scalar comparison value; numeric types drop trailing <c>.0</c>.</summary>
@@ -119,6 +138,26 @@ internal static class CellText
             => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
         _ => value.ToString() ?? string.Empty
     };
+
+    /// <summary>
+    /// Renders a scalar comparison value applying an optional .NET numeric format string (e.g.
+    /// <c>"N0"</c>); <c>null</c> defers to <see cref="Scalar(object?)"/>. A non-finite
+    /// <see cref="double"/>/<see cref="float"/> renders the placeholder; every numeric type formats
+    /// with invariant culture to preserve precision and stay locale-stable.
+    /// </summary>
+    public static string Scalar(object? value, string? format)
+    {
+        if (format is null)
+            return Scalar(value);
+        return value switch
+        {
+            null => string.Empty,
+            double d => double.IsNaN(d) || double.IsInfinity(d) ? Placeholder : d.ToString(format, CultureInfo.InvariantCulture),
+            float f => float.IsNaN(f) || float.IsInfinity(f) ? Placeholder : f.ToString(format, CultureInfo.InvariantCulture),
+            IFormattable formattable => formattable.ToString(format, CultureInfo.InvariantCulture),
+            _ => value.ToString() ?? string.Empty
+        };
+    }
 
     /// <summary>Attempts to interpret a scalar comparison value as a double for derivations.</summary>
     public static bool TryScalarDouble(object? value, out double result)
@@ -145,29 +184,45 @@ internal static class CellText
     /// overflow falls back to <c>double</c> rather than throwing.
     /// </summary>
     public static string AbsoluteDelta(object? before, object? after, bool signed)
+        => AbsoluteDelta(before, after, signed, null);
+
+    /// <summary>
+    /// As <see cref="AbsoluteDelta(object?, object?, bool)"/>, but applies an optional .NET numeric
+    /// format string (e.g. <c>"N0"</c> for thousands grouping) to the delta; <c>null</c> keeps the
+    /// default formatting. The exact integral/decimal path formats the <see cref="decimal"/> delta
+    /// directly so grouping applies without routing large values through <see cref="double"/>.
+    /// </summary>
+    public static string AbsoluteDelta(object? before, object? after, bool signed, string? format)
     {
         switch (before, after)
         {
             case (long b, long a):
-                return SignDecimal((decimal)a - (decimal)b, signed);
+                return SignDecimal((decimal)a - (decimal)b, signed, format);
             case (ulong b, ulong a):
-                return SignDecimal((decimal)a - (decimal)b, signed);
+                return SignDecimal((decimal)a - (decimal)b, signed, format);
             case (decimal b, decimal a):
-                try { return SignDecimal(a - b, signed); }
+                try { return SignDecimal(a - b, signed, format); }
                 catch (OverflowException) { break; } // fall through to the double path
         }
 
         if (TryScalarDouble(before, out var bd) && TryScalarDouble(after, out var ad))
         {
             var d = ad - bd;
-            return signed ? SignedNumber(d) : Number(d);
+            return signed
+                ? SignedNumber(d, format)
+                : (format is null ? Number(d) : FormatNumber(d, format));
         }
         return Placeholder;
     }
 
     private static string SignDecimal(decimal delta, bool signed)
+        => SignDecimal(delta, signed, null);
+
+    private static string SignDecimal(decimal delta, bool signed, string? format)
     {
-        var text = delta.ToString(CultureInfo.InvariantCulture);
+        var text = format is null
+            ? delta.ToString(CultureInfo.InvariantCulture)
+            : delta.ToString(format, CultureInfo.InvariantCulture);
         return signed && delta > 0 ? "+" + text : text;
     }
 

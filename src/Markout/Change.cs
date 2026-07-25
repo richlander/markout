@@ -32,7 +32,7 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
             string? compositeFirst = null;
             if (format.DeltaNoun is not null && Before is IDeltaCountable beforeCount && After is IDeltaCountable afterCount)
             {
-                var nounDelta = CellText.SignedNumber(afterCount.DeltaCount - beforeCount.DeltaCount);
+                var nounDelta = CellText.SignedNumber(afterCount.DeltaCount - beforeCount.DeltaCount, format.NumberFormat);
                 compositeFirst = nounDelta == CellText.Placeholder ? CellText.Placeholder : nounDelta + " " + format.DeltaNoun;
             }
             GateStatus? compositeStatus = null;
@@ -50,18 +50,18 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         var scalarGlyphMode = format.Glyphs is not null;
         TextWriter target = scalarGlyphMode ? new StringWriter() : writer;
 
-        target.Write(CellText.Scalar(Before));
+        target.Write(CellText.Scalar(Before, format.NumberFormat));
         target.Write(CellText.Arrow);
-        target.Write(CellText.Scalar(After));
+        target.Write(CellText.Scalar(After, format.NumberFormat));
 
         // Merge an optional derived-change suffix (or a delta-noun) and an optional goal status into a
         // single parenthetical in word mode: "(+40%)", "(bad)", "(+2 solved)", or "(+40%, bad)". In
         // glyph mode the status leaves the parenthetical and trails as a composed glyph: "(+40%) ✗".
         string? deltaPart;
         if (format.DeltaNoun is not null)
-            deltaPart = NounText(format.DeltaNoun);
+            deltaPart = NounText(format.DeltaNoun, format.NumberFormat);
         else
-            deltaPart = format.Delta == Delta.None ? null : DeltaSuffix(format.Delta);
+            deltaPart = format.Delta == Delta.None ? null : DeltaSuffix(format.Delta, format.NumberFormat);
         GateStatus? statusValue = null;
         if (format.Goal != Goal.Context &&
             GoalDerivation.TryDerive(Before, After, format.Goal, format.Noise, out _, out var status))
@@ -98,10 +98,10 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         return format.Compose is { } compose ? compose(context) : context.Combine();
     }
 
-    private string NounText(string noun)
+    private string NounText(string noun, string? numberFormat)
     {
         // Reuse the exact (decimal) delta path so large long/decimal changes don't lose precision.
-        var delta = CellText.AbsoluteDelta(Before, After, signed: true);
+        var delta = CellText.AbsoluteDelta(Before, After, signed: true, numberFormat);
         return delta == CellText.Placeholder ? CellText.Placeholder : delta + " " + noun;
     }
 
@@ -170,7 +170,7 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         }
     }
 
-    private string DeltaSuffix(Delta mode)
+    private string DeltaSuffix(Delta mode, string? numberFormat)
     {
         if (!CellText.TryScalarDouble(Before, out var before) || !CellText.TryScalarDouble(After, out var after))
             return CellText.Placeholder;
@@ -178,7 +178,7 @@ public readonly record struct Change<V>(V Before, V After) : IMarkoutCell
         {
             // Divide by |before| so a rise from a negative base reports as a gain, not a loss.
             Delta.Percent => before == 0 ? CellText.Placeholder : CellText.SignedPercent((after - before) / Math.Abs(before) * 100),
-            Delta.Absolute => CellText.AbsoluteDelta(Before, After, signed: true),
+            Delta.Absolute => CellText.AbsoluteDelta(Before, After, signed: true, numberFormat),
             Delta.Multiple => MultipleText(withWord: true),
             _ => CellText.Placeholder
         };

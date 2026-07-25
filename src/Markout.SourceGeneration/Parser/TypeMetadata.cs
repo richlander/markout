@@ -195,6 +195,10 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     /// a nested child of the preceding row. Excluded from table columns; drives the child glyph.</summary>
     public bool IsChildFlag { get; }
 
+    /// <summary>The <c>[MarkoutNumberFormat]</c> numeric format string (e.g. <c>"N0"</c>) applied to a
+    /// numeric <c>Change&lt;&gt;</c> cell's operands and derived delta; <c>null</c> when unset.</summary>
+    public string? NumberFormat { get; }
+
     public PropertyMetadata(
         string name,
         string displayName,
@@ -250,7 +254,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         double noise = 0,
         string? deltaNoun = null,
         bool isScalarShape = false,
-        bool isChildFlag = false)
+        bool isChildFlag = false,
+        string? numberFormat = null)
     {
         Name = name;
         DisplayName = displayName;
@@ -307,6 +312,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         IsReferenceTypeCell = isReferenceTypeCell;
         MultiSourceLabelHeader = multiSourceLabelHeader;
         IsChildFlag = isChildFlag;
+        NumberFormat = numberFormat;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -367,6 +373,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                IsReferenceTypeCell == other.IsReferenceTypeCell &&
                MultiSourceLabelHeader == other.MultiSourceLabelHeader &&
                IsChildFlag == other.IsChildFlag &&
+               NumberFormat == other.NumberFormat &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -412,6 +419,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ IsReferenceTypeCell.GetHashCode();
             hash = hash * 397 ^ (MultiSourceLabelHeader?.GetHashCode() ?? 0);
             hash = hash * 397 ^ IsChildFlag.GetHashCode();
+            hash = hash * 397 ^ (NumberFormat?.GetHashCode() ?? 0);
             return hash;
         }
     }
