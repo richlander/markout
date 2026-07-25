@@ -191,6 +191,10 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
     public bool IsReferenceTypeCell { get; }
     public string? MultiSourceLabelHeader { get; }
 
+    /// <summary>True when this property carries <c>[MarkoutChild]</c>: a bool flag marking its row as
+    /// a nested child of the preceding row. Excluded from table columns; drives the child glyph.</summary>
+    public bool IsChildFlag { get; }
+
     public PropertyMetadata(
         string name,
         string displayName,
@@ -245,7 +249,8 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         MarkoutGoalKind goal = MarkoutGoalKind.Context,
         double noise = 0,
         string? deltaNoun = null,
-        bool isScalarShape = false)
+        bool isScalarShape = false,
+        bool isChildFlag = false)
     {
         Name = name;
         DisplayName = displayName;
@@ -301,6 +306,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
         DeltaNoun = deltaNoun;
         IsReferenceTypeCell = isReferenceTypeCell;
         MultiSourceLabelHeader = multiSourceLabelHeader;
+        IsChildFlag = isChildFlag;
     }
 
     public bool Equals(PropertyMetadata? other)
@@ -360,6 +366,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
                DeltaNoun == other.DeltaNoun &&
                IsReferenceTypeCell == other.IsReferenceTypeCell &&
                MultiSourceLabelHeader == other.MultiSourceLabelHeader &&
+               IsChildFlag == other.IsChildFlag &&
                SequenceEqual(ElementProperties, other.ElementProperties);
     }
 
@@ -404,6 +411,7 @@ internal sealed class PropertyMetadata : IEquatable<PropertyMetadata>
             hash = hash * 397 ^ IsScalarShape.GetHashCode();
             hash = hash * 397 ^ IsReferenceTypeCell.GetHashCode();
             hash = hash * 397 ^ (MultiSourceLabelHeader?.GetHashCode() ?? 0);
+            hash = hash * 397 ^ IsChildFlag.GetHashCode();
             return hash;
         }
     }

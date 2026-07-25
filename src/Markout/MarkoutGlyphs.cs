@@ -33,6 +33,9 @@ public sealed record MarkoutGlyphs
     /// <summary>Polarity glyph for <see cref="GateStatus.Neutral"/> (unchanged). Default empty (no glyph).</summary>
     public string StatusNeutral { get; init; } = "";
 
+    /// <summary>Prefix glyph marking a <c>[MarkoutChild]</c> row as nested under the previous row. Default <c>↳</c>.</summary>
+    public string Child { get; init; } = "\u21b3";
+
     /// <summary>The default glyph set: <c>↑</c>/<c>↓</c> goals, <c>✓</c>/<c>✗</c> polarity.</summary>
     public static MarkoutGlyphs Default { get; } = new();
 

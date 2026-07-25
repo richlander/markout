@@ -1061,6 +1061,10 @@ internal static class SerializerEmitter
             
             if (prop.IsIgnoredInTable)
                 return "Ignored";
+
+            // The child flag is a nesting marker (rendered as a glyph), never a table column.
+            if (prop.IsChildFlag)
+                return "Ignored";
             
             // In table context, only scalars (and joined arrays) work
             if (EmitHelpers.IsScalarKind(prop.Kind) || EmitHelpers.IsJoinedArray(prop))

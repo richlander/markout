@@ -16,6 +16,7 @@ internal static class TypeParser
     private const string MarkoutPropertyNameAttribute = "Markout.MarkoutPropertyNameAttribute";
     private const string MarkoutIgnoreAttribute = "Markout.MarkoutIgnoreAttribute";
     private const string MarkoutIgnoreInTableAttribute = "Markout.MarkoutIgnoreInTableAttribute";
+    private const string MarkoutChildAttribute = "Markout.MarkoutChildAttribute";
     private const string MarkoutSectionAttribute = "Markout.MarkoutSectionAttribute";
     private const string MarkoutBoolFormatAttribute = "Markout.MarkoutBoolFormatAttribute";
     private const string MarkoutFormatAttribute = "Markout.MarkoutFormatAttribute";
@@ -234,6 +235,7 @@ internal static class TypeParser
     {
         var isIgnored = HasAttribute(prop, MarkoutIgnoreAttribute);
         var isIgnoredInTable = HasAttribute(prop, MarkoutIgnoreInTableAttribute);
+        var isChildFlag = HasAttribute(prop, MarkoutChildAttribute);
         var isSection = HasAttribute(prop, MarkoutSectionAttribute);
         var isUnwrapped = HasAttribute(prop, MarkoutUnwrapAttribute);
         var sectionLevel = 2;
@@ -602,7 +604,8 @@ internal static class TypeParser
             goal,
             noise,
             deltaNoun,
-            isScalarShape);
+            isScalarShape,
+            isChildFlag);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

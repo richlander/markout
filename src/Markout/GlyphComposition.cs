@@ -12,6 +12,9 @@ public enum GlyphSlot
 
     /// <summary>A polarity glyph on a value/change cell derived from a <see cref="GateStatus"/> (<c>✓</c>/<c>✗</c>).</summary>
     MovementCell,
+
+    /// <summary>A glyph prefixed to a child row's first column marking it as nested under the previous row (<c>↳</c>).</summary>
+    ChildRow,
 }
 
 /// <summary>

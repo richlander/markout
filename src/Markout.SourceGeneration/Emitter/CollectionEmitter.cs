@@ -33,9 +33,11 @@ internal static class CollectionEmitter
             ? new HashSet<string>(prop.SectionIgnoreProperty.Split(',').Select(s => s.Trim()))
             : new HashSet<string>();
         var visibleProps = prop.ElementProperties
-            .Where(p => !p.IsIgnored && !ignoreNames.Contains(p.Name))
+            .Where(p => !p.IsIgnored && !p.IsChildFlag && !ignoreNames.Contains(p.Name))
             .ToList();
+        var childProp = prop.ElementProperties.FirstOrDefault(p => p.IsChildFlag);
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
+        var childRowArg = childProp != null ? $"{itemVar}.{childProp.Name}" : null;
 
         // Build header array (with optional column name override for formatted property)
         var headers = string.Join(", ", visibleProps.Select(p =>
@@ -66,7 +68,10 @@ internal static class CollectionEmitter
             sb.AppendLine($"{ind}foreach (var {itemVar} in {propAccess})");
             sb.AppendLine($"{ind}{{");
             var values = visibleProps.Select(CellExpr).ToList();
-            sb.AppendLine($"{ind}    writer.WriteTableRow({string.Join(", ", values)});");
+            // Prepend the child bool as a real argument (never a string prefix) so an empty column
+            // list still emits valid C# (WriteTableRow(item.IsChild)) instead of a trailing comma.
+            var rowArgs = childRowArg != null ? new[] { childRowArg }.Concat(values) : values;
+            sb.AppendLine($"{ind}    writer.WriteTableRow({string.Join(", ", rowArgs)});");
             sb.AppendLine($"{ind}}}");
             sb.AppendLine($"{ind}writer.WriteTableEnd();");
         }
@@ -130,9 +135,11 @@ internal static class CollectionEmitter
             ? new HashSet<string>(prop.SectionIgnoreProperty.Split(',').Select(s => s.Trim()))
             : new HashSet<string>();
         var visibleProps = prop.ElementProperties!
-            .Where(p => !p.IsIgnored && !ignoreNames.Contains(p.Name))
+            .Where(p => !p.IsIgnored && !p.IsChildFlag && !ignoreNames.Contains(p.Name))
             .ToList();
+        var childProp = prop.ElementProperties!.FirstOrDefault(p => p.IsChildFlag);
         var itemVar = nestingDepth == 0 ? "item" : $"item{nestingDepth}";
+        var childRowArg = childProp != null ? $"{itemVar}.{childProp.Name}, " : "";
         var dynamicLookup = dynamicIgnoreColumns.ToDictionary(d => d.ColumnName, d => d.ConditionVar);
 
         // Resolve the dynamic-ignore condition variable (loop-invariant) for a column, if any.
@@ -192,7 +199,7 @@ internal static class CollectionEmitter
                 else
                     sb.AppendLine($"{ind}    __row.Add({value});");
             }
-            sb.AppendLine($"{ind}    writer.WriteTableRow(__row.ToArray());");
+            sb.AppendLine($"{ind}    writer.WriteTableRow({childRowArg}__row.ToArray());");
             sb.AppendLine($"{ind}}}");
             sb.AppendLine($"{ind}writer.WriteTableEnd();");
         }
@@ -340,8 +347,10 @@ internal static class CollectionEmitter
         ignoreNames.Add(groupByProp);
 
         var visibleProps = prop.ElementProperties
-            .Where(p => !p.IsIgnored && !ignoreNames.Contains(p.Name))
+            .Where(p => !p.IsIgnored && !p.IsChildFlag && !ignoreNames.Contains(p.Name))
             .ToList();
+        var childProp = prop.ElementProperties.FirstOrDefault(p => p.IsChildFlag);
+        var childArg = childProp != null ? $"__item.{childProp.Name}" : null;
 
         // Group by the specified property
         sb.AppendLine($"{indent}foreach (var __grp in {propAccess}.GroupBy(__i => __i.{groupByProp}))");
@@ -396,7 +405,7 @@ internal static class CollectionEmitter
                     else
                         sb.AppendLine($"{indent}        __grpRow.Add({value});");
                 }
-                sb.AppendLine($"{indent}        writer.WriteTableRow(__grpRow.ToArray());");
+                sb.AppendLine($"{indent}        writer.WriteTableRow({(childArg != null ? childArg + ", " : "")}__grpRow.ToArray());");
                 sb.AppendLine($"{indent}    }}");
                 sb.AppendLine($"{indent}    writer.WriteTableEnd();");
             }
@@ -412,7 +421,8 @@ internal static class CollectionEmitter
                 sb.AppendLine($"{indent}    {{");
 
                 var values = visibleProps.Select(p => EmitHelpers.GetTableCellValue(p, "__item")).ToList();
-                sb.AppendLine($"{indent}        writer.WriteTableRow({string.Join(", ", values)});");
+                var rowArgs = childArg != null ? new[] { childArg }.Concat(values) : values;
+                sb.AppendLine($"{indent}        writer.WriteTableRow({string.Join(", ", rowArgs)});");
 
                 sb.AppendLine($"{indent}    }}");
                 sb.AppendLine($"{indent}    writer.WriteTableEnd();");

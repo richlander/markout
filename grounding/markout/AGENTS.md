@@ -108,6 +108,26 @@ composite property), structured formatters (TSV/JSONL) **decompose it into typed
 Scalar columns and Markdown are otherwise unchanged. `[MarkoutIgnoreColumnWhen]` columns that
 are hidden for the table are dropped from the decomposed output too.
 
+## Child rows (nesting a table row under the previous one)
+
+Put `[MarkoutChild]` on a `bool` property of an element-table row type (`List<T>`) to mark that row as
+a semantic **child** of the row above it (single level). This is a data relationship, not indentation —
+so declare it in the model instead of hand-prefixing a `↳` into the label. The flag is never a column;
+on rich sinks (`IGlyphFormatter`: Markdown/ANSI/Unicode) a child row's first cell is prefixed with a
+configurable glyph (default `↳`). Override it via `MarkoutWriterOptions.Glyphs` `{ Child = "»" }` —
+*easy mode*; or *advanced mode* `MarkoutWriterOptions.ComposeGlyph` (`GlyphSlot.ChildRow`) to swap in a
+string or integrate it. TSV/JSONL and plain text omit the marker, so structured and non-Unicode output
+stay clean.
+
+```csharp
+public class OrgRow
+{
+    public string Name { get; set; } = "";
+    public int Count { get; set; }
+    [MarkoutChild] public bool IsChild { get; set; } // true → "| ↳ Runtime | 5 |"
+}
+```
+
 ## Card shapes (declare a list; the generator picks the layout)
 
 Two list-shapes render as multi-format cards from a `[MarkoutSerializable]` model — Markdown table +
