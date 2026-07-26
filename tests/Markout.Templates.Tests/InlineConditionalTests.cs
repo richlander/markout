@@ -271,4 +271,25 @@ public class InlineConditionalTests
             .TrimEnd();
         Assert.Equal("Alice}", result);
     }
+
+    [Fact]
+    public void ResolveInlinePlaceholders_NestedOpener_ResolvesInnerPlaceholder()
+    {
+        // A malformed "{{oops {{name}}" must not swallow the valid nested placeholder; the
+        // placeholder pass mirrors the conditional pass and resumes at the nested opener.
+        var result = TemplateParser.ResolveInlinePlaceholders(
+            "before {{oops {{name}} after",
+            key => key == "name" ? "Alice" : null);
+        Assert.Equal("before {{oops Alice after", result);
+    }
+
+    [Fact]
+    public void Render_PlaceholderWithNestedOpener_ResolvesInner()
+    {
+        var result = MarkoutTemplate.Parse("before {{oops {{name}} after")
+            .Bind("name", "Alice")
+            .Render()
+            .TrimEnd();
+        Assert.Equal("before {{oops Alice after", result);
+    }
 }

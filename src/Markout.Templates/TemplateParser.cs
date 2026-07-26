@@ -387,24 +387,41 @@ public static class TemplateParser
                 break;
             }
 
-            // Append text before the placeholder
-            result.Append(span[pos..(pos + openIndex)]);
+            int outerOpen = pos + openIndex;
 
-            int keyStart = pos + openIndex + OpenSymbol.Length;
+            // Append text before the placeholder
+            result.Append(span[pos..outerOpen]);
+
+            int keyStart = outerOpen + OpenSymbol.Length;
             int closeIndex = span[keyStart..].IndexOf(CloseSymbol);
 
             if (closeIndex < 0)
             {
                 // No closing — append remainder as-is
-                result.Append(span[(pos + openIndex)..]);
+                result.Append(span[outerOpen..]);
                 break;
             }
 
-            var key = span[keyStart..(keyStart + closeIndex)].Trim();
+            int closeAbs = keyStart + closeIndex;
+
+            // A nested "{{" before this close means these braces don't form a single placeholder
+            // token (e.g. "{{oops {{name}}"). Emit the malformed run up to the nested opener as
+            // literal and resume there, mirroring ResolveInlineConditionals, so a valid nested
+            // placeholder is still resolved rather than swallowed.
+            int nestedRel = span[keyStart..closeAbs].IndexOf(OpenSymbol);
+            if (nestedRel >= 0)
+            {
+                int nestedAbs = keyStart + nestedRel;
+                result.Append(span[outerOpen..nestedAbs]);
+                pos = nestedAbs;
+                continue;
+            }
+
+            var key = span[keyStart..closeAbs].Trim();
             var replacement = lookup(key.ToString());
             result.Append(replacement ?? $"{OpenSymbol}{key}{CloseSymbol}");
 
-            pos = keyStart + closeIndex + CloseSymbol.Length;
+            pos = closeAbs + CloseSymbol.Length;
         }
 
         return result.ToString();
