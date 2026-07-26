@@ -379,9 +379,9 @@ template.Render(plainWriter);
 Templates support:
 
 - **`{{key}}`** — inline substitution in headings and prose, or block-level data rendering
-- **`{{#if key}}`** / **`{{/if}}`** — conditional sections (included when key is bound and non-null)
+- **`{{#if key}}`** / **`{{/if}}`** — conditional sections. Use standalone directive lines for multi-line blocks, or wrap a single line inline (`{{#if ref}}Baseline ref: {{ref}}{{/if}}`) so an omitted optional line leaves no blank gap and neighbouring lines stay tight. Keys are falsy when unbound, `null`, `false`, an empty string, an empty collection, or numeric zero
 - **Pipe tables** — parsed and re-rendered through the writer's table shape, with optional statistical column-width optimization
-- **`IMarkoutFormattable`** and **`MarkoutTypeInfo<T>`** bindings for shape-aware data rendering
+- **`IMarkoutFormattable`** and **`MarkoutTypeInfo<T>`** bindings for shape-aware data rendering; **`Bind(key, IEnumerable<string>)`** renders a bullet list and **`Bind(key, bool)`** gates a conditional section
 
 ```bash
 dotnet add package Markout.Templates
