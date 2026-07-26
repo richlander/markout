@@ -292,4 +292,39 @@ public class InlineConditionalTests
             .TrimEnd();
         Assert.Equal("before {{oops Alice after", result);
     }
+
+    [Fact]
+    public void ResolveInlinePlaceholders_OverlappingOpener_ResolvesInner()
+    {
+        // "{{{x}}" overlaps: the first brace is literal, then {{x}} resolves. The nested-opener
+        // search must start at outerOpen+1 to see the overlapping "{{".
+        var result = TemplateParser.ResolveInlinePlaceholders(
+            "{{{x}}", key => key == "x" ? "X" : null);
+        Assert.Equal("{X", result);
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_OverlappingOpenerBeforeDirective_Recognized()
+    {
+        // "{{{#if flag}}shown{{/if}}" — the leading brace is literal and the {{#if}} is a real
+        // directive, so a truthy flag keeps "shown" and it does not throw a stray-close error.
+        var result = TemplateParser.ResolveInlineConditionals(
+            "{{{#if flag}}shown{{/if}}", _ => true);
+        Assert.Equal("{shown", result);
+    }
+
+    [Fact]
+    public void ResolveInlinePlaceholders_ManyAdjacentOpeners_IsLinear()
+    {
+        // Guards against O(n^2) rescanning: many adjacent "{{" followed by one close must resolve
+        // quickly. Under quadratic behavior this input takes seconds; linear it is milliseconds.
+        const int n = 200_000;
+        var input = new string('{', 2 * n) + "x}}";
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var result = TemplateParser.ResolveInlinePlaceholders(input, _ => null);
+        sw.Stop();
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(2),
+            $"Placeholder scan took {sw.Elapsed.TotalSeconds:F2}s — expected linear time.");
+        Assert.EndsWith("{{x}}", result);
+    }
 }

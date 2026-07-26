@@ -295,25 +295,41 @@ public static class TemplateParser
             if (skipDepth == 0)
                 result.Append(text, pos, open - pos);
 
-            int close = text.IndexOf(CloseSymbol, open + OpenSymbol.Length, StringComparison.Ordinal);
+            // Find the next nested opener (from open+1, to catch an overlapping "{{{") and the
+            // token's close. Only a close occurring BEFORE the next nested opener terminates this
+            // token; bounding the close search to that region keeps scanning linear on pathological
+            // input (many adjacent "{{") instead of repeatedly rescanning toward a distant "}}".
+            int nestedOpen = text.IndexOf(OpenSymbol, open + 1, StringComparison.Ordinal);
+            int close;
+            if (nestedOpen >= 0)
+            {
+                int region = nestedOpen - (open + OpenSymbol.Length);
+                close = region > 0
+                    ? text.IndexOf(CloseSymbol, open + OpenSymbol.Length, region, StringComparison.Ordinal)
+                    : -1;
+            }
+            else
+            {
+                close = text.IndexOf(CloseSymbol, open + OpenSymbol.Length, StringComparison.Ordinal);
+            }
+
             if (close < 0)
             {
+                if (nestedOpen >= 0)
+                {
+                    // A nested "{{" precedes any close (e.g. "{{oops {{#if flag}}"): the run up to it
+                    // isn't a token. Emit it as literal and resume at the nested opener so a real
+                    // directive can't be swallowed inside a malformed token.
+                    if (skipDepth == 0)
+                        result.Append(text, open, nestedOpen - open);
+                    pos = nestedOpen;
+                    continue;
+                }
+
                 // Unterminated braces — treat the remainder as literal.
                 if (skipDepth == 0)
                     result.Append(text, open, text.Length - open);
                 break;
-            }
-
-            // A nested "{{" before this close means these braces don't form a single token (e.g.
-            // "{{oops {{#if flag}}"). Treat the run up to the nested opener as literal and resume
-            // scanning there, so a structural directive can't be swallowed inside a malformed token.
-            int nestedOpen = text.IndexOf(OpenSymbol, open + OpenSymbol.Length, StringComparison.Ordinal);
-            if (nestedOpen >= 0 && nestedOpen < close)
-            {
-                if (skipDepth == 0)
-                    result.Append(text, open, nestedOpen - open);
-                pos = nestedOpen;
-                continue;
             }
 
             var inner = text.AsSpan((open + OpenSymbol.Length)..close).Trim();
@@ -393,28 +409,39 @@ public static class TemplateParser
             result.Append(span[pos..outerOpen]);
 
             int keyStart = outerOpen + OpenSymbol.Length;
-            int closeIndex = span[keyStart..].IndexOf(CloseSymbol);
 
-            if (closeIndex < 0)
+            // Next nested opener (from outerOpen+1, to catch an overlapping "{{{") and the token's
+            // close. Only a close before the nested opener terminates this token; bounding the close
+            // search there keeps scanning linear on pathological input, mirroring the conditional pass.
+            int nestedOpen = text.IndexOf(OpenSymbol, outerOpen + 1, StringComparison.Ordinal);
+            int closeAbs;
+            if (nestedOpen >= 0)
             {
+                int region = nestedOpen - keyStart;
+                closeAbs = region > 0
+                    ? text.IndexOf(CloseSymbol, keyStart, region, StringComparison.Ordinal)
+                    : -1;
+            }
+            else
+            {
+                closeAbs = text.IndexOf(CloseSymbol, keyStart, StringComparison.Ordinal);
+            }
+
+            if (closeAbs < 0)
+            {
+                if (nestedOpen >= 0)
+                {
+                    // A nested "{{" precedes any close (e.g. "{{oops {{name}}"): emit the malformed
+                    // run up to the nested opener as literal and resume there so a valid nested
+                    // placeholder is still resolved rather than swallowed.
+                    result.Append(span[outerOpen..nestedOpen]);
+                    pos = nestedOpen;
+                    continue;
+                }
+
                 // No closing — append remainder as-is
                 result.Append(span[outerOpen..]);
                 break;
-            }
-
-            int closeAbs = keyStart + closeIndex;
-
-            // A nested "{{" before this close means these braces don't form a single placeholder
-            // token (e.g. "{{oops {{name}}"). Emit the malformed run up to the nested opener as
-            // literal and resume there, mirroring ResolveInlineConditionals, so a valid nested
-            // placeholder is still resolved rather than swallowed.
-            int nestedRel = span[keyStart..closeAbs].IndexOf(OpenSymbol);
-            if (nestedRel >= 0)
-            {
-                int nestedAbs = keyStart + nestedRel;
-                result.Append(span[outerOpen..nestedAbs]);
-                pos = nestedAbs;
-                continue;
             }
 
             var key = span[keyStart..closeAbs].Trim();
