@@ -84,6 +84,26 @@ public class MarkoutTemplate
     }
 
     /// <summary>
+    /// Binds a sequence of strings rendered as a bullet list at a block placeholder, or joined with
+    /// ", " when used inline. An empty or null sequence is falsy for conditional sections.
+    /// </summary>
+    public MarkoutTemplate Bind(string key, IEnumerable<string>? items)
+    {
+        _bindings[key] = new ListBinding(items is null ? null : [.. items]);
+        return this;
+    }
+
+    /// <summary>
+    /// Binds a boolean, primarily to drive a <c>{{#if key}}</c> conditional section
+    /// (<see langword="false"/> is falsy). Inline, it renders as <c>true</c>/<c>false</c>.
+    /// </summary>
+    public MarkoutTemplate Bind(string key, bool value)
+    {
+        _bindings[key] = new BoolBinding(value);
+        return this;
+    }
+
+    /// <summary>
     /// Binds a source-generated type for block-level rendering through the shape system.
     /// </summary>
     public MarkoutTemplate Bind<T>(string key, T value, MarkoutTypeInfo<T> typeInfo)
@@ -236,7 +256,17 @@ public class MarkoutTemplate
 
             case ParagraphNode paragraph:
                 var resolvedText = ResolveInline(paragraph.Text);
-                writer.WriteParagraph(resolvedText);
+                // Inline conditionals may have emptied individual lines; drop those so an omitted
+                // optional line leaves no blank gap and the surrounding lines stay tight.
+                if (resolvedText.Contains('\n'))
+                {
+                    var kept = resolvedText
+                        .Split('\n')
+                        .Where(l => !string.IsNullOrWhiteSpace(l));
+                    resolvedText = string.Join('\n', kept);
+                }
+                if (!string.IsNullOrWhiteSpace(resolvedText))
+                    writer.WriteParagraph(resolvedText);
                 break;
 
             case PlaceholderNode placeholder:
@@ -279,7 +309,8 @@ public class MarkoutTemplate
 
     private string ResolveInline(string text)
     {
-        return TemplateParser.ResolveInlinePlaceholders(text, key =>
+        var withConditionals = TemplateParser.ResolveInlineConditionals(text, IsBindingTruthy);
+        return TemplateParser.ResolveInlinePlaceholders(withConditionals, key =>
         {
             if (_bindings.TryGetValue(key, out var binding))
                 return binding.RenderInline();

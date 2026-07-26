@@ -23,6 +23,7 @@ public abstract class TemplateBinding
 
 /// <summary>
 /// A binding for a simple string value. Used for inline substitution and conditional checks.
+/// An empty string is falsy so <c>{{#if key}}</c> can gate on presence of real content.
 /// </summary>
 internal sealed class StringBinding(string? value) : TemplateBinding
 {
@@ -34,7 +35,39 @@ internal sealed class StringBinding(string? value) : TemplateBinding
 
     public override string? RenderInline() => value;
 
-    public override bool IsTruthy => value is not null;
+    public override bool IsTruthy => !string.IsNullOrEmpty(value);
+}
+
+/// <summary>
+/// A binding for a boolean value, used to drive conditional sections.
+/// </summary>
+internal sealed class BoolBinding(bool value) : TemplateBinding
+{
+    public override void Render(MarkoutWriter writer)
+    {
+        // A bare bool has no block representation; it exists to gate {{#if}} sections.
+    }
+
+    public override string? RenderInline() => value ? "true" : "false";
+
+    public override bool IsTruthy => value;
+}
+
+/// <summary>
+/// A binding for a sequence of strings, rendered as a bullet list at a block placeholder
+/// (or joined with ", " inline). Empty and null sequences are falsy.
+/// </summary>
+internal sealed class ListBinding(string[]? items) : TemplateBinding
+{
+    public override void Render(MarkoutWriter writer)
+    {
+        if (items is { Length: > 0 })
+            writer.WriteList(items);
+    }
+
+    public override string? RenderInline() => items is null ? null : string.Join(", ", items);
+
+    public override bool IsTruthy => items is { Length: > 0 };
 }
 
 /// <summary>
@@ -98,5 +131,29 @@ internal sealed class ObjectBinding(object? value) : TemplateBinding
         _ => null
     };
 
-    public override bool IsTruthy => value is not null;
+    public override bool IsTruthy => value switch
+    {
+        null => false,
+        bool b => b,
+        string s => s.Length > 0,
+        System.Collections.ICollection c => c.Count > 0,
+        System.Collections.IEnumerable e => e.GetEnumerator().MoveNext(),
+        _ => !IsZeroNumeric(value),
+    };
+
+    private static bool IsZeroNumeric(object value) => value switch
+    {
+        sbyte n => n == 0,
+        byte n => n == 0,
+        short n => n == 0,
+        ushort n => n == 0,
+        int n => n == 0,
+        uint n => n == 0,
+        long n => n == 0,
+        ulong n => n == 0,
+        float n => n == 0,
+        double n => n == 0,
+        decimal n => n == 0,
+        _ => false,
+    };
 }

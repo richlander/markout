@@ -128,8 +128,15 @@ public static class TemplateParser
         {
             var inner = trimmed[2..^2].Trim();
 
-            // Must be a simple key (no spaces, no directives like #if)
-            if (inner.Length > 0 && !inner.Contains(' ') && inner[0] != '#' && inner[0] != '/')
+            // Must be a simple key (no spaces, no nested braces, no directives like #if).
+            // Nested braces mean this line carries inline content (e.g. "{{#if x}}{{y}}") and
+            // must fall through to a paragraph for inline resolution rather than being treated
+            // as a single block placeholder.
+            if (inner.Length > 0
+                && !inner.Contains(' ')
+                && inner.IndexOf(OpenSymbol) < 0
+                && inner.IndexOf(CloseSymbol) < 0
+                && inner[0] != '#' && inner[0] != '/')
             {
                 key = inner.ToString();
                 return true;
@@ -147,6 +154,15 @@ public static class TemplateParser
         if (trimmed.StartsWith(OpenSymbol) && trimmed.EndsWith(CloseSymbol))
         {
             var inner = trimmed[2..^2].Trim();
+
+            // A standalone block directive must be the only thing on the line. If it carries nested
+            // braces it is an inline conditional wrapping content (e.g. "{{#if x}}text{{/if}}") and
+            // is handled during inline resolution inside a paragraph, not as a block node.
+            if (inner.IndexOf(OpenSymbol) >= 0 || inner.IndexOf(CloseSymbol) >= 0)
+            {
+                node = default!;
+                return false;
+            }
 
             if (inner.StartsWith("#if "))
             {
@@ -188,11 +204,86 @@ public static class TemplateParser
     }
 
     /// <summary>
-    /// Resolves inline {{key}} placeholders in text using the provided lookup function.
+    /// Resolves inline <c>{{#if key}}…{{/if}}</c> conditionals within a single text run (a heading
+    /// or paragraph). Content inside a conditional is kept when <paramref name="isTruthy"/> returns
+    /// true for its key, and dropped otherwise. Conditionals may nest. Non-conditional
+    /// <c>{{key}}</c> placeholders are preserved verbatim for a later
+    /// <see cref="ResolveInlinePlaceholders"/> pass.
     /// </summary>
+    /// <remarks>
+    /// Inline conditionals must be balanced within the same text run. Author a self-contained
+    /// optional line as <c>{{#if key}}content{{/if}}</c> on one line so the surrounding lines stay
+    /// tight; use standalone <c>{{#if key}}</c> / <c>{{/if}}</c> directive lines for multi-line
+    /// block sections instead.
+    /// </remarks>
+    public static string ResolveInlineConditionals(string text, Func<string, bool> isTruthy)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(isTruthy);
+
+        if (text.IndexOf("{{#if ", StringComparison.Ordinal) < 0)
+            return text;
+
+        var result = new System.Text.StringBuilder(text.Length);
+        int pos = 0;
+        int skipDepth = 0;
+
+        while (pos < text.Length)
+        {
+            int open = text.IndexOf(OpenSymbol, pos, StringComparison.Ordinal);
+            if (open < 0)
+            {
+                if (skipDepth == 0)
+                    result.Append(text, pos, text.Length - pos);
+                break;
+            }
+
+            if (skipDepth == 0)
+                result.Append(text, pos, open - pos);
+
+            int close = text.IndexOf(CloseSymbol, open + OpenSymbol.Length, StringComparison.Ordinal);
+            if (close < 0)
+            {
+                // Unterminated braces — treat the remainder as literal.
+                if (skipDepth == 0)
+                    result.Append(text, open, text.Length - open);
+                break;
+            }
+
+            var inner = text.AsSpan((open + OpenSymbol.Length)..close).Trim();
+
+            if (inner.StartsWith("#if "))
+            {
+                if (skipDepth > 0)
+                {
+                    skipDepth++;
+                }
+                else
+                {
+                    var key = inner[4..].Trim().ToString();
+                    if (!isTruthy(key))
+                        skipDepth = 1;
+                }
+            }
+            else if (inner.SequenceEqual("/if"))
+            {
+                if (skipDepth > 0)
+                    skipDepth--;
+            }
+            else if (skipDepth == 0)
+            {
+                // A normal placeholder or other braces: keep verbatim for the placeholder pass.
+                result.Append(text, open, close + CloseSymbol.Length - open);
+            }
+
+            pos = close + CloseSymbol.Length;
+        }
+
+        return result.ToString();
+    }
+
     /// <summary>
     /// Resolves inline {{key}} placeholders in text using the provided lookup function.
-    /// Returns the text with all known keys replaced and unknown keys preserved.
     /// </summary>
     public static string ResolveInlinePlaceholders(string text, Func<string, string?> lookup)
     {
