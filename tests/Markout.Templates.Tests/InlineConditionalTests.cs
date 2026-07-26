@@ -362,4 +362,24 @@ public class InlineConditionalTests
         var result = TemplateParser.ResolveInlineConditionals("keep {{name", _ => true);
         Assert.Equal("keep {{name", result);
     }
+
+    [Fact]
+    public void ResolveInlineConditionals_TabPrefixedUnterminatedDirective_Throws()
+    {
+        // Reserved-directive detection must recognize any leading whitespace (not just spaces),
+        // matching the Trim() applied to terminated tokens.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("{{\t#if show\nbody", _ => true));
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_ClosedReservedPrefixNonDirective_Throws()
+    {
+        // A closed token beginning with reserved '/' or '#' that is not a valid directive form
+        // (e.g. a stray brace in "{{/if} }}") is malformed and must not pass through as data.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("{{/if} }}", _ => true));
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("{{#foo}}", _ => true));
+    }
 }

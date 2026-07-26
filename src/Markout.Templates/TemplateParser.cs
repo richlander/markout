@@ -268,7 +268,7 @@ public static class TemplateParser
     private static bool StartsWithReservedDirective(string text, int open)
     {
         int i = open + OpenSymbol.Length;
-        while (i < text.Length && text[i] == ' ')
+        while (i < text.Length && char.IsWhiteSpace(text[i]))
             i++;
         return i < text.Length && (text[i] == '#' || text[i] == '/');
     }
@@ -391,6 +391,14 @@ public static class TemplateParser
                 openDepth--;
                 if (skipDepth > 0)
                     skipDepth--;
+            }
+            else if (inner.Length > 0 && (inner[0] == '#' || inner[0] == '/'))
+            {
+                // A '#' or '/' prefix is reserved for directives. A closed token that starts with
+                // one but matches no valid directive form ("#if <key>" or "/if") is malformed —
+                // reject it rather than passing it through as a data placeholder.
+                throw new FormatException(
+                    $"Unrecognized reserved directive '{OpenSymbol}{inner.ToString()}{CloseSymbol}'.");
             }
             else if (skipDepth == 0)
             {
