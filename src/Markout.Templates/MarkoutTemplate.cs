@@ -256,8 +256,7 @@ public class MarkoutTemplate
 
             case ParagraphNode paragraph:
                 string resolvedText;
-                if (paragraph.Text.Contains("{{#if", StringComparison.Ordinal)
-                    || paragraph.Text.Contains("{{/if}}", StringComparison.Ordinal))
+                if (paragraph.Text.Contains("{{", StringComparison.Ordinal))
                 {
                     // Resolve inline conditionals first, then drop only the lines they emptied —
                     // before expanding placeholders, so multi-line *bound values* keep their own

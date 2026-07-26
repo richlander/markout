@@ -221,4 +221,31 @@ public class BindingSemanticsTests
             .Render();
         Assert.DoesNotContain("shown", result);
     }
+
+    [Fact]
+    public void ObjectBinding_NFloatZero_IsFalsy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", new System.Runtime.InteropServices.NFloat(0))
+            .Render();
+        Assert.DoesNotContain("shown", result);
+    }
+
+    [Fact]
+    public void ObjectBinding_ComplexZero_IsFalsy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", System.Numerics.Complex.Zero)
+            .Render();
+        Assert.DoesNotContain("shown", result);
+    }
+
+    [Fact]
+    public void ObjectBinding_ComplexNonZero_IsTruthy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", new System.Numerics.Complex(0, 1))
+            .Render();
+        Assert.Contains("shown", result);
+    }
 }

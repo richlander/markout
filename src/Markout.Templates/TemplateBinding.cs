@@ -163,7 +163,9 @@ internal sealed class ObjectBinding(object? value) : TemplateBinding
         nuint n => n == 0,
         Int128 n => n == 0,
         UInt128 n => n == 0,
+        System.Runtime.InteropServices.NFloat n => n.Value == 0,
         System.Numerics.BigInteger n => n.IsZero,
+        System.Numerics.Complex n => n == System.Numerics.Complex.Zero,
         _ => false,
     };
 }

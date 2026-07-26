@@ -57,9 +57,9 @@ public class InlineConditionalTests
     }
 
     [Fact]
-    public void ResolveInlineConditionals_NoConditionals_ReturnsInput()
+    public void ResolveInlineConditionals_NoBraces_ReturnsSameInstance()
     {
-        var input = "plain {{placeholder}} text";
+        var input = "plain text with no tokens";
         Assert.Same(input, TemplateParser.ResolveInlineConditionals(input, _ => true));
     }
 
@@ -231,5 +231,44 @@ public class InlineConditionalTests
         // authoring error (fail fast), not rendered literally. There is no escape mechanism.
         Assert.Throws<FormatException>(() =>
             TemplateParser.Parse("Use {{/if}} to close a block."));
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_SpacePaddedDirectives_AreRecognized()
+    {
+        // The parsers trim inner whitespace, so the guard must too: "{{ #if x }}" / "{{ /if }}"
+        // are real directives regardless of padding and drive the same drop as the unpadded form.
+        var result = TemplateParser.ResolveInlineConditionals(
+            "A {{ #if show }}B{{ /if }} C", _ => false);
+        Assert.Equal("A  C", result);
+    }
+
+    [Fact]
+    public void Parse_SpacePaddedStrayEndInProse_Throws()
+    {
+        // A space-padded stray {{/if }} must fail fast just like the exact spelling.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.Parse("Use {{/if }} here"));
+    }
+
+    [Fact]
+    public void Parse_NestedOpenerHidingDirective_Throws()
+    {
+        // A malformed "{{oops {{#if flag}}" must not swallow the nested structural directive; the
+        // unclosed {{#if}} is surfaced instead of silently accepted.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.Parse("before {{oops {{#if flag}} after"));
+    }
+
+    [Fact]
+    public void Render_PlaceholderFollowedByStrayBrace_RendersLiterally()
+    {
+        // "{{name}}}" must resolve the {{name}} placeholder and keep the trailing brace, not be
+        // misclassified as a block placeholder with key "name}".
+        var result = MarkoutTemplate.Parse("{{name}}}")
+            .Bind("name", "Alice")
+            .Render()
+            .TrimEnd();
+        Assert.Equal("Alice}", result);
     }
 }

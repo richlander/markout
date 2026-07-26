@@ -181,14 +181,14 @@ public static class TemplateParser
         {
             var inner = trimmed[2..^2].Trim();
 
-            // Must be a simple key (no spaces, no nested braces, no directives like #if).
-            // Nested braces mean this line carries inline content (e.g. "{{#if x}}{{y}}") and
-            // must fall through to a paragraph for inline resolution rather than being treated
-            // as a single block placeholder.
+            // Must be a simple key (no spaces, no braces of any kind, no directives like #if).
+            // Any brace character means this line carries inline content (e.g. "{{#if x}}{{y}}"
+            // or a trailing "}" as in "{{name}}}") and must fall through to a paragraph for inline
+            // resolution rather than being treated as a single block placeholder.
             if (inner.Length > 0
                 && !inner.Contains(' ')
-                && inner.IndexOf(OpenSymbol) < 0
-                && inner.IndexOf(CloseSymbol) < 0
+                && inner.IndexOf('{') < 0
+                && inner.IndexOf('}') < 0
                 && inner[0] != '#' && inner[0] != '/')
             {
                 key = inner.ToString();
@@ -274,8 +274,7 @@ public static class TemplateParser
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(isTruthy);
 
-        if (text.IndexOf("{{#if", StringComparison.Ordinal) < 0
-            && text.IndexOf("{{/if}}", StringComparison.Ordinal) < 0)
+        if (text.IndexOf(OpenSymbol, StringComparison.Ordinal) < 0)
             return text;
 
         var result = new System.Text.StringBuilder(text.Length);
@@ -303,6 +302,18 @@ public static class TemplateParser
                 if (skipDepth == 0)
                     result.Append(text, open, text.Length - open);
                 break;
+            }
+
+            // A nested "{{" before this close means these braces don't form a single token (e.g.
+            // "{{oops {{#if flag}}"). Treat the run up to the nested opener as literal and resume
+            // scanning there, so a structural directive can't be swallowed inside a malformed token.
+            int nestedOpen = text.IndexOf(OpenSymbol, open + OpenSymbol.Length, StringComparison.Ordinal);
+            if (nestedOpen >= 0 && nestedOpen < close)
+            {
+                if (skipDepth == 0)
+                    result.Append(text, open, nestedOpen - open);
+                pos = nestedOpen;
+                continue;
             }
 
             var inner = text.AsSpan((open + OpenSymbol.Length)..close).Trim();
