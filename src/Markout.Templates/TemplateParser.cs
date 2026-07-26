@@ -222,6 +222,9 @@ public static class TemplateParser
                 var key = inner[4..].Trim();
                 if (key.Length > 0)
                 {
+                    if (key.IndexOf('{') >= 0 || key.IndexOf('}') >= 0)
+                        throw new FormatException(
+                            $"Conditional key '{key.ToString()}' contains an invalid brace character.");
                     node = new ConditionalStartNode(key.ToString());
                     return true;
                 }
@@ -254,6 +257,20 @@ public static class TemplateParser
         level = 0;
         text = "";
         return false;
+    }
+
+    /// <summary>
+    /// True when the run beginning at <paramref name="open"/> (a <c>{{</c>) is a reserved directive:
+    /// after the opener and any leading spaces the first character is <c>#</c> or <c>/</c>. Used to
+    /// distinguish a malformed/unterminated directive (which must throw) from an unterminated data
+    /// placeholder (which degrades gracefully to literal text).
+    /// </summary>
+    private static bool StartsWithReservedDirective(string text, int open)
+    {
+        int i = open + OpenSymbol.Length;
+        while (i < text.Length && text[i] == ' ')
+            i++;
+        return i < text.Length && (text[i] == '#' || text[i] == '/');
     }
 
     /// <summary>
@@ -315,6 +332,13 @@ public static class TemplateParser
 
             if (close < 0)
             {
+                // An unterminated run whose content is a reserved directive (a '#' or '/' right
+                // after "{{") is a malformed directive, not literal prose, and must be rejected
+                // rather than silently emitted. Normal unterminated placeholders stay graceful.
+                if (StartsWithReservedDirective(text, open))
+                    throw new FormatException(
+                        "Unterminated inline conditional directive: missing closing '}}'.");
+
                 if (nestedOpen >= 0)
                 {
                     // A nested "{{" precedes any close (e.g. "{{oops {{#if flag}}"): the run up to it
@@ -345,6 +369,9 @@ public static class TemplateParser
                 if (key.Length == 0)
                     throw new FormatException(
                         "Inline conditional '{{#if}}' requires a key.");
+                if (key.Contains('{') || key.Contains('}'))
+                    throw new FormatException(
+                        $"Inline conditional key '{key}' contains an invalid brace character.");
                 openDepth++;
                 if (skipDepth > 0)
                 {

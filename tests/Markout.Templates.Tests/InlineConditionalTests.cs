@@ -314,7 +314,7 @@ public class InlineConditionalTests
     }
 
     [Fact]
-    public void ResolveInlinePlaceholders_ManyAdjacentOpeners_IsLinear()
+    public void ResolveInlineConditionals_ManyAdjacentOpeners_IsLinear()
     {
         // Guards against O(n^2) rescanning: many adjacent "{{" followed by one close must resolve
         // quickly. Under quadratic behavior this input takes seconds; linear it is milliseconds.
@@ -326,5 +326,40 @@ public class InlineConditionalTests
         Assert.True(sw.Elapsed < TimeSpan.FromSeconds(2),
             $"Placeholder scan took {sw.Elapsed.TotalSeconds:F2}s — expected linear time.");
         Assert.EndsWith("{{x}}", result);
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_BraceInInlineDirectiveKey_Throws()
+    {
+        // "{{#if x} }}" carries a stray '}' inside the key ("x}") — a malformed reserved directive
+        // that must be rejected, not silently evaluated against a phantom "x}" binding.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("A{{#if x} }}B{{/if}}C", _ => true));
+    }
+
+    [Fact]
+    public void Parse_BraceInBlockDirectiveKey_Throws()
+    {
+        // Block directive "{{#if x}}}" parses a stray '}' into the key ("x}") — reject it.
+        Assert.Throws<FormatException>(() =>
+            MarkoutTemplate.Parse("{{#if x}}}\nbody\n{{/if}}"));
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_UnterminatedDirective_Throws()
+    {
+        // A reserved directive with no closing "}}" is malformed, not literal prose.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("{{#if show\nbody", _ => true));
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("text {{/if", _ => true));
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_UnterminatedPlaceholder_StaysLiteral()
+    {
+        // A non-directive unterminated "{{" must still degrade gracefully to literal text.
+        var result = TemplateParser.ResolveInlineConditionals("keep {{name", _ => true);
+        Assert.Equal("keep {{name", result);
     }
 }
