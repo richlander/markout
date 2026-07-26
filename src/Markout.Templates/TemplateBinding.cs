@@ -136,6 +136,11 @@ internal sealed class ObjectBinding(object? value) : TemplateBinding
         null => false,
         bool b => b,
         string s => s.Length > 0,
+        // Non-generic ICollection covers List<T>, arrays, Dictionary, Queue, Stack, Collection<T>,
+        // etc. Generic-only collections (e.g. HashSet<T>) and lazy sequences are intentionally NOT
+        // probed here: counting them would require reflection (breaks AOT) or enumeration (consumes
+        // one-shot sequences). Bind collections through Bind(key, IEnumerable<string>) — which
+        // materializes and uses ListBinding — to get emptiness-driven truthiness for any sequence.
         System.Collections.ICollection c => c.Count > 0,
         _ => !IsZeroNumeric(value),
     };
@@ -156,6 +161,8 @@ internal sealed class ObjectBinding(object? value) : TemplateBinding
         Half n => n == (Half)0,
         nint n => n == 0,
         nuint n => n == 0,
+        Int128 n => n == 0,
+        UInt128 n => n == 0,
         System.Numerics.BigInteger n => n.IsZero,
         _ => false,
     };

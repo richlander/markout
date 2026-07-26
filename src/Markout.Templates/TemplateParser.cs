@@ -93,10 +93,12 @@ public static class TemplateParser
     }
 
     /// <summary>
-    /// Verifies that block-level <c>{{#if}}</c> / <c>{{/if}}</c> directives are balanced. An
-    /// unclosed <c>{{#if}}</c> would otherwise silently drop the remainder of the document at render
-    /// time (data-dependent on the key's truthiness), and a stray <c>{{/if}}</c> indicates an
-    /// authoring error; both are surfaced eagerly as a <see cref="FormatException"/>.
+    /// Verifies that both block-level and inline <c>{{#if}}</c> / <c>{{/if}}</c> directives are
+    /// balanced. An unclosed <c>{{#if}}</c> would otherwise silently drop content at render time
+    /// (data-dependent on the key's truthiness), and a stray <c>{{/if}}</c> indicates an authoring
+    /// error; both are surfaced eagerly as a <see cref="FormatException"/>. Inline conditionals are
+    /// validated structurally here — independent of any binding and of whether the enclosing node is
+    /// rendered — so a malformed inline directive nested inside a falsy block section cannot escape.
     /// </summary>
     private static void ValidateConditionalBalance(List<TemplateNode> nodes)
     {
@@ -114,12 +116,33 @@ public static class TemplateParser
                             "Unbalanced template conditional: '{{/if}}' without a matching '{{#if}}'.");
                     depth--;
                     break;
+                case ParagraphNode paragraph:
+                    ValidateInlineConditionals(paragraph.Text);
+                    break;
+                case HeadingNode heading:
+                    ValidateInlineConditionals(heading.Text);
+                    break;
+                case TableNode table:
+                    foreach (var header in table.Headers)
+                        ValidateInlineConditionals(header);
+                    foreach (var row in table.Rows)
+                        foreach (var cell in row)
+                            ValidateInlineConditionals(cell);
+                    break;
             }
         }
         if (depth > 0)
             throw new FormatException(
                 "Unbalanced template conditional: an '{{#if}}' block is missing its '{{/if}}'.");
     }
+
+    /// <summary>
+    /// Runs the inline conditional resolver purely for its structural validation side effect:
+    /// with an always-true predicate it never skips content, so it walks every directive and
+    /// throws on any imbalance, stray <c>{{/if}}</c>, or empty-key <c>{{#if}}</c>.
+    /// </summary>
+    private static void ValidateInlineConditionals(string text) =>
+        ResolveInlineConditionals(text, static _ => true);
 
     private static void FlushParagraph(List<TemplateNode> nodes, ref List<string>? lines)
     {
@@ -251,7 +274,7 @@ public static class TemplateParser
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(isTruthy);
 
-        if (text.IndexOf("{{#if ", StringComparison.Ordinal) < 0
+        if (text.IndexOf("{{#if", StringComparison.Ordinal) < 0
             && text.IndexOf("{{/if}}", StringComparison.Ordinal) < 0)
             return text;
 
@@ -284,7 +307,12 @@ public static class TemplateParser
 
             var inner = text.AsSpan((open + OpenSymbol.Length)..close).Trim();
 
-            if (inner.StartsWith("#if "))
+            if (inner.SequenceEqual("#if"))
+            {
+                throw new FormatException(
+                    "Inline conditional '{{#if}}' requires a key.");
+            }
+            else if (inner.StartsWith("#if "))
             {
                 var key = inner[4..].Trim().ToString();
                 if (key.Length == 0)
@@ -300,11 +328,6 @@ public static class TemplateParser
                     if (!isTruthy(key))
                         skipDepth = 1;
                 }
-            }
-            else if (inner.SequenceEqual("#if"))
-            {
-                throw new FormatException(
-                    "Inline conditional '{{#if}}' requires a key.");
             }
             else if (inner.SequenceEqual("/if"))
             {

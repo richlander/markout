@@ -177,4 +177,48 @@ public class BindingSemanticsTests
             .Render();
         Assert.Contains("shown", result);
     }
+
+    // --- Fix F: generic-only collections and the AOT-safe truthiness contract ---
+
+    [Fact]
+    public void ObjectBinding_EmptyGenericOnlyCollection_IsTruthy_AotLimitation()
+    {
+        // HashSet<T> does not implement the non-generic ICollection, and counting it would need
+        // reflection (breaks AOT) or enumeration (consumes one-shot sequences). So BindObject treats
+        // a generic-only collection as truthy-when-non-null. Documented, intentional contract.
+        var result = MarkoutTemplate.Parse("{{#if items}}\nshown\n{{/if}}")
+            .BindObject("items", new HashSet<int>())
+            .Render();
+        Assert.Contains("shown", result);
+    }
+
+    [Fact]
+    public void ListBinding_MaterializesHashSet_EmptyIsFalsy()
+    {
+        // The recommended path for emptiness-driven truthiness on any sequence: Bind materializes it.
+        var result = MarkoutTemplate.Parse("{{#if items}}\nshown\n{{/if}}")
+            .Bind("items", new HashSet<string>())
+            .Render();
+        Assert.DoesNotContain("shown", result);
+    }
+
+    // --- Fix G: Int128/UInt128 participate in zero-is-falsy ---
+
+    [Fact]
+    public void ObjectBinding_Int128Zero_IsFalsy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", Int128.Zero)
+            .Render();
+        Assert.DoesNotContain("shown", result);
+    }
+
+    [Fact]
+    public void ObjectBinding_UInt128Zero_IsFalsy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", UInt128.Zero)
+            .Render();
+        Assert.DoesNotContain("shown", result);
+    }
 }

@@ -198,4 +198,38 @@ public class InlineConditionalTests
         Assert.Throws<FormatException>(() =>
             TemplateParser.ResolveInlineConditionals("A{{#if k}}B", _ => false));
     }
+
+    [Fact]
+    public void ResolveInlineConditionals_KeylessNoSpace_Throws()
+    {
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("A{{#if}}B{{/if}}", _ => true));
+    }
+
+    [Fact]
+    public void Parse_KeylessBlockIf_Throws()
+    {
+        // A standalone {{#if}} (no key, no space) must not silently render as literal text.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.Parse("{{#if}}\nbody\n{{/if}}"));
+    }
+
+    [Fact]
+    public void Parse_InlineErrorInsideFalsyBlock_ThrowsRegardlessOfBinding()
+    {
+        // The malformed inline {{#if inner}} lives inside a block section; parse-time validation is
+        // data-independent, so the template is rejected even though the block would be skipped when
+        // 'outer' is falsy. Previously this escaped both validators until 'outer' happened to be truthy.
+        var template = "{{#if outer}}\nsome {{#if inner}} text no close\n{{/if}}";
+        Assert.Throws<FormatException>(() => TemplateParser.Parse(template));
+    }
+
+    [Fact]
+    public void Parse_LiteralConditionalTokenInProse_Throws()
+    {
+        // Structural directive tokens are reserved: a bare {{/if}} in prose is treated as an
+        // authoring error (fail fast), not rendered literally. There is no escape mechanism.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.Parse("Use {{/if}} to close a block."));
+    }
 }
