@@ -133,4 +133,69 @@ public class InlineConditionalTests
 
         Assert.Equal("A: 1\nB: 2", result);
     }
+
+    // --- Fix A: bound multi-line values keep their own blank-line separators ---
+
+    [Fact]
+    public void Render_BoundMultilineValue_KeepsBlankLineSeparators()
+    {
+        // The conditional-emptied-line drop must not swallow blank lines that live *inside*
+        // a bound value (placeholders are expanded after the drop).
+        var text = "{{#if show}}Body: {{body}}{{/if}}";
+        var result = MarkoutTemplate.Parse(text)
+            .Bind("show", true)
+            .Bind("body", "alpha\n\nbeta")
+            .Render()
+            .TrimEnd();
+
+        Assert.Contains("alpha", result);
+        Assert.Contains("beta", result);
+        // The blank line between the two words survives the paragraph render.
+        Assert.Contains("alpha\n\nbeta", result);
+    }
+
+    // --- Fix B: unbalanced conditionals throw eagerly ---
+
+    [Fact]
+    public void Parse_BlockConditional_MissingEnd_Throws()
+    {
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.Parse("{{#if x}}\ncontent"));
+    }
+
+    [Fact]
+    public void Parse_BlockConditional_StrayEnd_Throws()
+    {
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.Parse("content\n{{/if}}"));
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_MissingEnd_Throws()
+    {
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("A {{#if k}}B", _ => true));
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_StrayEnd_Throws()
+    {
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("A{{/if}}B", _ => true));
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_EmptyKey_Throws()
+    {
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("A{{#if }}B{{/if}}", _ => true));
+    }
+
+    [Fact]
+    public void ResolveInlineConditionals_MissingEnd_ThrowsEvenWhenTruthy()
+    {
+        // Data-independent: an unclosed truthy #if is still an authoring error.
+        Assert.Throws<FormatException>(() =>
+            TemplateParser.ResolveInlineConditionals("A{{#if k}}B", _ => false));
+    }
 }

@@ -137,7 +137,6 @@ internal sealed class ObjectBinding(object? value) : TemplateBinding
         bool b => b,
         string s => s.Length > 0,
         System.Collections.ICollection c => c.Count > 0,
-        System.Collections.IEnumerable e => e.GetEnumerator().MoveNext(),
         _ => !IsZeroNumeric(value),
     };
 
@@ -154,6 +153,10 @@ internal sealed class ObjectBinding(object? value) : TemplateBinding
         float n => n == 0,
         double n => n == 0,
         decimal n => n == 0,
+        Half n => n == (Half)0,
+        nint n => n == 0,
+        nuint n => n == 0,
+        System.Numerics.BigInteger n => n.IsZero,
         _ => false,
     };
 }

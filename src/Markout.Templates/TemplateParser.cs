@@ -88,7 +88,37 @@ public static class TemplateParser
 
         FlushTable(nodes, ref tableLines);
         FlushParagraph(nodes, ref paragraphLines);
+        ValidateConditionalBalance(nodes);
         return nodes;
+    }
+
+    /// <summary>
+    /// Verifies that block-level <c>{{#if}}</c> / <c>{{/if}}</c> directives are balanced. An
+    /// unclosed <c>{{#if}}</c> would otherwise silently drop the remainder of the document at render
+    /// time (data-dependent on the key's truthiness), and a stray <c>{{/if}}</c> indicates an
+    /// authoring error; both are surfaced eagerly as a <see cref="FormatException"/>.
+    /// </summary>
+    private static void ValidateConditionalBalance(List<TemplateNode> nodes)
+    {
+        int depth = 0;
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case ConditionalStartNode:
+                    depth++;
+                    break;
+                case ConditionalEndNode:
+                    if (depth == 0)
+                        throw new FormatException(
+                            "Unbalanced template conditional: '{{/if}}' without a matching '{{#if}}'.");
+                    depth--;
+                    break;
+            }
+        }
+        if (depth > 0)
+            throw new FormatException(
+                "Unbalanced template conditional: an '{{#if}}' block is missing its '{{/if}}'.");
     }
 
     private static void FlushParagraph(List<TemplateNode> nodes, ref List<string>? lines)
@@ -221,12 +251,14 @@ public static class TemplateParser
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(isTruthy);
 
-        if (text.IndexOf("{{#if ", StringComparison.Ordinal) < 0)
+        if (text.IndexOf("{{#if ", StringComparison.Ordinal) < 0
+            && text.IndexOf("{{/if}}", StringComparison.Ordinal) < 0)
             return text;
 
         var result = new System.Text.StringBuilder(text.Length);
         int pos = 0;
         int skipDepth = 0;
+        int openDepth = 0;
 
         while (pos < text.Length)
         {
@@ -254,19 +286,32 @@ public static class TemplateParser
 
             if (inner.StartsWith("#if "))
             {
+                var key = inner[4..].Trim().ToString();
+                if (key.Length == 0)
+                    throw new FormatException(
+                        "Inline conditional '{{#if}}' requires a key.");
+                openDepth++;
                 if (skipDepth > 0)
                 {
                     skipDepth++;
                 }
                 else
                 {
-                    var key = inner[4..].Trim().ToString();
                     if (!isTruthy(key))
                         skipDepth = 1;
                 }
             }
+            else if (inner.SequenceEqual("#if"))
+            {
+                throw new FormatException(
+                    "Inline conditional '{{#if}}' requires a key.");
+            }
             else if (inner.SequenceEqual("/if"))
             {
+                if (openDepth == 0)
+                    throw new FormatException(
+                        "Unbalanced inline conditional: '{{/if}}' without a matching '{{#if}}'.");
+                openDepth--;
                 if (skipDepth > 0)
                     skipDepth--;
             }
@@ -278,6 +323,10 @@ public static class TemplateParser
 
             pos = close + CloseSymbol.Length;
         }
+
+        if (openDepth > 0)
+            throw new FormatException(
+                "Unbalanced inline conditional: an '{{#if}}' is missing its '{{/if}}'.");
 
         return result.ToString();
     }

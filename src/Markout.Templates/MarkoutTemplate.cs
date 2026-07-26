@@ -255,15 +255,27 @@ public class MarkoutTemplate
                 break;
 
             case ParagraphNode paragraph:
-                var resolvedText = ResolveInline(paragraph.Text);
-                // Inline conditionals may have emptied individual lines; drop those so an omitted
-                // optional line leaves no blank gap and the surrounding lines stay tight.
-                if (resolvedText.Contains('\n'))
+                string resolvedText;
+                if (paragraph.Text.Contains("{{#if ", StringComparison.Ordinal)
+                    || paragraph.Text.Contains("{{/if}}", StringComparison.Ordinal))
                 {
-                    var kept = resolvedText
-                        .Split('\n')
-                        .Where(l => !string.IsNullOrWhiteSpace(l));
-                    resolvedText = string.Join('\n', kept);
+                    // Resolve inline conditionals first, then drop only the lines they emptied —
+                    // before expanding placeholders, so multi-line *bound values* keep their own
+                    // blank lines. (Dropping after placeholder expansion would swallow blank-line
+                    // separators inside a bound value.)
+                    var afterConditionals = TemplateParser.ResolveInlineConditionals(paragraph.Text, IsBindingTruthy);
+                    if (afterConditionals.Contains('\n'))
+                    {
+                        var kept = afterConditionals
+                            .Split('\n')
+                            .Where(l => !string.IsNullOrWhiteSpace(l));
+                        afterConditionals = string.Join('\n', kept);
+                    }
+                    resolvedText = ResolvePlaceholders(afterConditionals);
+                }
+                else
+                {
+                    resolvedText = ResolvePlaceholders(paragraph.Text);
                 }
                 if (!string.IsNullOrWhiteSpace(resolvedText))
                     writer.WriteParagraph(resolvedText);
@@ -310,7 +322,12 @@ public class MarkoutTemplate
     private string ResolveInline(string text)
     {
         var withConditionals = TemplateParser.ResolveInlineConditionals(text, IsBindingTruthy);
-        return TemplateParser.ResolveInlinePlaceholders(withConditionals, key =>
+        return ResolvePlaceholders(withConditionals);
+    }
+
+    private string ResolvePlaceholders(string text)
+    {
+        return TemplateParser.ResolveInlinePlaceholders(text, key =>
         {
             if (_bindings.TryGetValue(key, out var binding))
                 return binding.RenderInline();

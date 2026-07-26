@@ -118,4 +118,63 @@ public class BindingSemanticsTests
             .Render();
         Assert.Contains("shown", result);
     }
+
+    // --- Fix C: truthiness must not consume a one-shot enumerable ---
+
+    [Fact]
+    public void ObjectBinding_OneShotEnumerable_IsNotConsumedByTruthinessProbe()
+    {
+        int enumerations = 0;
+        IEnumerable<int> OneShot()
+        {
+            enumerations++;
+            yield return 1;
+        }
+
+        var result = MarkoutTemplate.Parse("{{#if seq}}\nshown\n{{/if}}")
+            .BindObject("seq", OneShot())
+            .Render();
+
+        // A non-collection enumerable is truthy when non-null, without enumerating it.
+        Assert.Contains("shown", result);
+        Assert.Equal(0, enumerations);
+    }
+
+    // --- Fix D: additional numeric types participate in zero-is-falsy ---
+
+    [Fact]
+    public void ObjectBinding_HalfZero_IsFalsy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", (Half)0)
+            .Render();
+        Assert.DoesNotContain("shown", result);
+    }
+
+    [Fact]
+    public void ObjectBinding_NIntZero_IsFalsy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", (nint)0)
+            .Render();
+        Assert.DoesNotContain("shown", result);
+    }
+
+    [Fact]
+    public void ObjectBinding_BigIntegerZero_IsFalsy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", System.Numerics.BigInteger.Zero)
+            .Render();
+        Assert.DoesNotContain("shown", result);
+    }
+
+    [Fact]
+    public void ObjectBinding_BigIntegerNonZero_IsTruthy()
+    {
+        var result = MarkoutTemplate.Parse("{{#if n}}\nshown\n{{/if}}")
+            .BindObject("n", new System.Numerics.BigInteger(7))
+            .Render();
+        Assert.Contains("shown", result);
+    }
 }
