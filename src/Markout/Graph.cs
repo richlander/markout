@@ -39,8 +39,8 @@ public sealed class Graph
     /// <param name="edges">The edges. Every endpoint must name a node in <paramref name="nodes"/>.</param>
     /// <param name="focusKey">Optional key of the focus node. Must name a node when supplied.</param>
     /// <exception cref="ArgumentException">
-    /// A node key is duplicated, an edge names an unknown key, or <paramref name="focusKey"/> names
-    /// an unknown key.
+    /// A node or edge element is null, a node key is duplicated, an edge names an unknown key, or
+    /// <paramref name="focusKey"/> names an unknown key.
     /// </exception>
     public Graph(IEnumerable<GraphNode> nodes, IEnumerable<GraphEdge> edges, string? focusKey = null)
     {
@@ -55,12 +55,17 @@ public sealed class Graph
         for (var i = 0; i < Nodes.Length; i++)
         {
             var node = Nodes[i];
+            if (node is null)
+                throw new ArgumentException($"Node at index {i} is null.", nameof(nodes));
             if (!_indexByKey.TryAdd(node.Key, i))
                 throw new ArgumentException($"Duplicate node key '{node.Key}'.", nameof(nodes));
         }
 
-        foreach (var edge in Edges)
+        for (var i = 0; i < Edges.Length; i++)
         {
+            var edge = Edges[i];
+            if (edge is null)
+                throw new ArgumentException($"Edge at index {i} is null.", nameof(edges));
             if (!_indexByKey.ContainsKey(edge.From))
                 throw new ArgumentException($"Edge references unknown node key '{edge.From}'.", nameof(edges));
             if (!_indexByKey.ContainsKey(edge.To))

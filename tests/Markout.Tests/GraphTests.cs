@@ -521,6 +521,238 @@ public class GraphTests
         Assert.True(MarkoutShape.All.HasFlag(MarkoutShape.Graphs));
     }
 
+    // ── Regression coverage from adversarial review of #163 ──
+
+    [Fact]
+    public void Graph_RejectsANullNodeElementNamingTheParameterAndIndex()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => new Graph(
+            [new GraphNode("a", "A"), null!],
+            []));
+        Assert.Equal("nodes", ex.ParamName);
+        Assert.Contains("index 1", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Graph_RejectsANullEdgeElementNamingTheParameterAndIndex()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => new Graph(
+            [new GraphNode("a", "A")],
+            [null!]));
+        Assert.Equal("edges", ex.ParamName);
+        Assert.Contains("index 0", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GraphNode_RejectsAnEmptyLabelBecauseNoDiagramSyntaxCanSpellOne()
+    {
+        Assert.Throws<ArgumentException>(() => new GraphNode("a", ""));
+    }
+
+    [Fact]
+    public void Graph_TryGetNode_FindsAKnownKeyAndRejectsAnUnknownOne()
+    {
+        var graph = SimpleChain();
+
+        Assert.True(graph.TryGetNode("b", out var found));
+        Assert.Equal("B", found.Label);
+        Assert.False(graph.TryGetNode("zzz", out var missing));
+        Assert.Null(missing);
+        Assert.False(graph.TryGetNode(null!, out _));
+    }
+
+    [Fact]
+    public void Graph_IndexOf_ReturnsThePositionOrMinusOne()
+    {
+        var graph = SimpleChain();
+
+        Assert.Equal(0, graph.IndexOf("a"));
+        Assert.Equal(2, graph.IndexOf("c"));
+        Assert.Equal(-1, graph.IndexOf("zzz"));
+        Assert.Equal(-1, graph.IndexOf(null!));
+    }
+
+    [Fact]
+    public void EdgeTable_ListsAnIsolatedNodeSoTheTableStillSeesEveryNode()
+    {
+        var graph = new Graph(
+            [new GraphNode("a", "A"), new GraphNode("b", "B"), new GraphNode("lonely", "Lonely")],
+            [new GraphEdge("a", "b")]);
+
+        var table = GraphLowering.ToEdgeTable(graph);
+
+        Assert.Equal(2, table.Rows.Count);
+        Assert.Equal(["A", "B"], table.Rows[0]);
+        // The isolated node is a From with no To rather than a row that never appears.
+        Assert.Equal(["Lonely", ""], table.Rows[1]);
+    }
+
+    [Fact]
+    public void EdgeTable_IsolatedNodeRowFillsEveryOptionalColumn()
+    {
+        var graph = new Graph(
+            [
+                new GraphNode("a", "A") { Group = "Core" },
+                new GraphNode("b", "B") { Group = "Core" },
+                new GraphNode("lonely", "Lonely") { Group = "Edge" },
+            ],
+            [new GraphEdge("a", "b") { Label = "calls" }]);
+
+        var table = GraphLowering.ToEdgeTable(graph);
+
+        Assert.Equal(["From", "From Group", "To", "To Group", "Label"], table.Headers);
+        Assert.Equal(["A", "Core", "B", "Core", "calls"], table.Rows[0]);
+        Assert.Equal(["Lonely", "Edge", "", "", ""], table.Rows[1]);
+        Assert.All(table.Rows, row => Assert.Equal(table.Headers.Length, row.Length));
+    }
+
+    [Fact]
+    public void EdgeTable_ANodeThatIsOnlyEverATargetIsNotTreatedAsIsolated()
+    {
+        var graph = SimpleChain();
+
+        var table = GraphLowering.ToEdgeTable(graph);
+
+        // "c" only ever appears as a target, so it needs no synthetic row.
+        Assert.Equal(2, table.Rows.Count);
+    }
+
+    [Fact]
+    public void EdgeTable_ASelectorThatReturnsNullYieldsAnEmptyCellNotANullCell()
+    {
+        var graph = SimpleChain();
+
+        var table = GraphLowering.ToEdgeTable(graph, _ => null!);
+
+        Assert.All(table.Rows, row => Assert.All(row, Assert.NotNull));
+    }
+
+    [Fact]
+    public void MarkdownGraph_RendersAnIsolatedNode()
+    {
+        var graph = new Graph([new GraphNode("lonely", "Lonely")], []);
+
+        var writer = MarkoutWriter.Create(new MarkdownFormatter());
+        writer.WriteGraph(graph);
+
+        Assert.Contains("Lonely", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Tree_HandlesADeepChainWithoutExhaustingTheCallStack()
+    {
+        // The lowering walks with an explicit stack, so depth is bounded by memory. A depth this
+        // large overflowed the stack while the traversal was recursive.
+        const int Depth = 50_000;
+        var nodes = new GraphNode[Depth];
+        var edges = new GraphEdge[Depth - 1];
+        for (var i = 0; i < Depth; i++)
+            nodes[i] = new GraphNode(i.ToString(), "m" + i);
+        for (var i = 0; i < Depth - 1; i++)
+            edges[i] = new GraphEdge(i.ToString(), (i + 1).ToString());
+
+        var roots = GraphLowering.ToTree(new Graph(nodes, edges));
+
+        var root = Assert.Single(roots);
+        var depth = 0;
+        for (var node = root; node is not null; node = node.Children is [var only, ..] ? only : null)
+            depth++;
+        Assert.Equal(Depth, depth);
+    }
+
+    [Fact]
+    public void Tree_ExpandsASelfLoopAsASingleRevisitChild()
+    {
+        var graph = new Graph(
+            [new GraphNode("a", "A")],
+            [new GraphEdge("a", "a")],
+            focusKey: "a");
+
+        var root = Assert.Single(GraphLowering.ToTree(graph));
+
+        Assert.Equal("A", root.Text);
+        var child = Assert.Single(root.Children!);
+        Assert.Equal(GraphLowering.RevisitMarker + "A", child.Text);
+        Assert.Null(child.Children);
+    }
+
+    [Fact]
+    public void Tree_ALeafHasNoChildrenListRatherThanAnEmptyOne()
+    {
+        var root = Assert.Single(GraphLowering.ToTree(SimpleChain()));
+
+        var last = root.Children![0].Children![0];
+        Assert.Equal("C", last.Text);
+        Assert.Null(last.Children);
+    }
+
+    [Fact]
+    public void Mermaid_EscapesAGroupTitleThatTriesToCloseItsOwnSubgraph()
+    {
+        var graph = new Graph(
+            [new GraphNode("a", "A") { Group = "evil\"]\nend\ngraph TD\n" }],
+            []);
+
+        var writer = MarkoutWriter.Create(new MermaidFormatter());
+        writer.WriteGraph(graph);
+        var lines = Normalize(writer.ToString()).Split('\n');
+
+        // The payload survives as inert text inside the quoted title; what must not happen is it
+        // becoming structure. Exactly one flowchart header line and one `end` line, and the whole
+        // title stays on a single line because its newlines are escaped.
+        Assert.Equal(1, lines.Count(line => line.Trim() == "graph TD"));
+        Assert.Equal(1, lines.Count(line => line.Trim() == "end"));
+        Assert.Equal(1, lines.Count(line => line.Contains("subgraph", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void Mermaid_KeepsRepeatedGroupsTogetherInFirstSeenOrder()
+    {
+        var graph = new Graph(
+            [
+                new GraphNode("a", "A") { Group = "Second" },
+                new GraphNode("b", "B") { Group = "First" },
+                new GraphNode("c", "C") { Group = "Second" },
+            ],
+            []);
+
+        var writer = MarkoutWriter.Create(new MermaidFormatter());
+        writer.WriteGraph(graph);
+        var output = Normalize(writer.ToString());
+
+        // "Second" is declared once, at the position of its first member, and holds both nodes.
+        Assert.Equal(1, CountOccurrences(output, "\"Second\""));
+        Assert.True(output.IndexOf("\"Second\"", StringComparison.Ordinal) < output.IndexOf("\"First\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void EmptyGraph_EveryLoweringAndFormatterHandlesItDirectly()
+    {
+        // WriteGraph short-circuits an empty graph, so exercise the lowerings and the formatters
+        // themselves rather than relying on the writer's guard.
+        var empty = new Graph([], []);
+
+        Assert.Empty(GraphLowering.ToTree(empty));
+        Assert.Empty(GraphLowering.ToEdgeTable(empty).Rows);
+
+        IMarkoutFormatter[] formatters =
+        [
+            new MermaidFormatter(),
+            new MarkdownFormatter(),
+            new TableFormatter(),
+            new PlainTextFormatter(),
+            new DiagramFormatter(),
+            new UnicodeFormatter(),
+        ];
+
+        foreach (var formatter in formatters)
+        {
+            var sink = new StringWriter();
+            ((IGraphFormatter)formatter).FormatGraph(sink, empty, new MarkoutWriterOptions());
+            Assert.Equal("", sink.ToString());
+        }
+    }
+
     private sealed class GraphlessFormatter : IMarkoutFormatter, IHeadingFormatter
     {
         void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)

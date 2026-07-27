@@ -41,11 +41,16 @@ public sealed class GraphNode
 
     /// <summary>Creates a graph node.</summary>
     /// <param name="key">Opaque identity used for edge wiring. Not emitted.</param>
-    /// <param name="label">Display text.</param>
+    /// <param name="label">Display text. Must be non-empty.</param>
+    /// <remarks>
+    /// An empty label is rejected rather than accepted and papered over: a diagram sink has no
+    /// syntax for a label-less node (Mermaid's grammar requires text between its delimiters), so an
+    /// empty label would silently produce output that does not parse.
+    /// </remarks>
     public GraphNode(string key, string label)
     {
         ArgumentException.ThrowIfNullOrEmpty(key);
-        ArgumentNullException.ThrowIfNull(label);
+        ArgumentException.ThrowIfNullOrEmpty(label);
         Key = key;
         Label = label;
     }

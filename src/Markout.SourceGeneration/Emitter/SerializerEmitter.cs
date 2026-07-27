@@ -623,6 +623,18 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}}}");
             EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
+        else if (prop.Kind == PropertyKind.Graph)
+        {
+            // An empty graph is treated the same as an empty collection: it falls through to
+            // the section's empty text rather than emitting a heading over nothing.
+            sb.AppendLine($"{indent}if ({propAccess} != null && !{propAccess}.IsEmpty)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+            sb.AppendLine($"{indent}    writer.WriteGraph({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+            sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
+        }
         else if (prop.Kind == PropertyKind.Metric)
         {
             if (prop.IsScalarShape)
@@ -836,6 +848,11 @@ internal static class SerializerEmitter
             case PropertyKind.Tree:
                 sb.AppendLine($"{indent}if ({propAccess} != null && {propAccess}.Count > 0)");
                 sb.AppendLine($"{indent}    writer.WriteTree(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({propAccess}));");
+                break;
+
+            case PropertyKind.Graph:
+                sb.AppendLine($"{indent}if ({propAccess} != null && !{propAccess}.IsEmpty)");
+                sb.AppendLine($"{indent}    writer.WriteGraph({propAccess});");
                 break;
 
             case PropertyKind.Metric:
@@ -1104,6 +1121,8 @@ internal static class SerializerEmitter
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (labeled list)";
             if (prop.Kind == PropertyKind.CodeSection)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (code block)";
+            if (prop.Kind == PropertyKind.Graph)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (graph)";
             if (prop.Kind == PropertyKind.Breakdown)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (distribution)";
             if (prop.Kind == PropertyKind.MetricChange)
@@ -1132,6 +1151,7 @@ internal static class SerializerEmitter
             PropertyKind.Metric => "Metric",
             PropertyKind.Description => "Description",
             PropertyKind.CodeSection => "Code",
+            PropertyKind.Graph => "Graph",
             PropertyKind.Callout => "Callout",
             PropertyKind.Breakdown => "Breakdown",
             PropertyKind.MetricChange => "MetricChange",

@@ -843,13 +843,31 @@ In the tree lowering a node is expanded the first time it is reached; a later ar
 leaf prefixed with `↩`, which terminates cycles and keeps a shared node from being duplicated.
 Nodes unreachable from the root are appended as extra roots, so no part of the graph is dropped.
 
+Every lowering shows every node. A node with no incident edge appears in no edge row, so the edge
+table lists it as a trailing row with an empty `To` rather than quietly shrinking the graph to its
+connected part.
+
+### Graphs in a serialized document
+
+A `Graph`-typed property is a section shape like any other, so a document modelled with
+`[MarkoutSerializable]` can carry one directly:
+
+```csharp
+[MarkoutSection(Name = "Call Graph", EmptyText = "No calls found.")]
+public Graph? CallGraph { get; set; }
+```
+
+The property renders through the same lowerings, so the one model produces a diagram, an edge
+table, or a tree depending only on the formatter. A null graph omits the section; an empty graph
+falls back to `EmptyText`.
+
 `Group` clusters nodes — a Mermaid subgraph, or `From Group` / `To Group` columns in an edge table.
 `Emphasized` marks a node as noteworthy; it augments a node and never replaces information, so a
 sink with no way to express it renders the node unchanged.
 
-Construction is validated: a duplicate key, an edge naming a key with no node, or a `focusKey`
-naming no node all throw, so a malformed graph fails where it is built rather than rendering as a
-plausible-looking but wrong diagram.
+Construction is validated: a null node or edge element, a duplicate key, an edge naming a key with
+no node, an empty node label, or a `focusKey` naming no node all throw, so a malformed graph fails
+where it is built rather than rendering as a plausible-looking but wrong diagram.
 
 ## Links
 
