@@ -258,6 +258,7 @@ public class SpectreFormatter : IMarkoutFormatter,
         Sgr(w, SgrDarkGray);
         w.Write(isLast ? "└─ " : "├─ ");
         SgrReset(w);
+        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, this));
         if (node.Badge != null && options.IncludeBadges)
         {
             w.Write(node.Badge);

@@ -515,6 +515,7 @@ internal enum PropertyKind
     NestedObject,
     FieldCollection,
     Tree,
+    Graph,
     Metric,
     Description,
     CodeSection,

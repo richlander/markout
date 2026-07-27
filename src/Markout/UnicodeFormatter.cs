@@ -8,8 +8,21 @@ namespace Markout;
 /// Uses ─│├└╭╮╰╯ for borders, █▆▄▂ for bars, and other Unicode decorations.
 /// </summary>
 public class UnicodeFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IGlyphFormatter
+    IDocumentFormatter, IMetricsFormatter, IGlyphFormatter, IGraphFormatter
 {
+    // ── IGraphFormatter ──
+
+    /// <summary>
+    /// Renders the graph as a tree rooted at the focus node, drawn with the same box-drawing
+    /// connectors as <see cref="ITreeFormatter.FormatTree"/>.
+    /// </summary>
+    void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
+    {
+        if (graph.IsEmpty)
+            return;
+
+        ((ITreeFormatter)this).FormatTree(w, GraphLowering.ToTree(graph).AsSpan(), options);
+    }
     private const int ColumnGap = 2;
     private int _consoleWidth = 80;
 
@@ -231,10 +244,11 @@ public class UnicodeFormatter : IMarkoutFormatter,
         w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
-    private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
     {
         w.Write(prefix);
         w.Write(isLast ? "└─ " : "├─ ");
+        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, this));
         if (node.Badge != null && options.IncludeBadges)
         {
             w.Write(node.Badge);

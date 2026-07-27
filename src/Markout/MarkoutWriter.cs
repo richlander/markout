@@ -1644,6 +1644,30 @@ public class MarkoutWriter
         return true;
     }
 
+    // ── Graphs ──
+
+    /// <summary>
+    /// Writes a directed graph. Each formatter lowers the graph into what its format can express —
+    /// a flowchart, an edge table, or a tree rooted at the focus node.
+    /// </summary>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support graphs.</returns>
+    public bool WriteGraph(Graph graph)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        if (graph.IsEmpty || _sectionExcluded)
+            return true;
+
+        if (_formatter is not IGraphFormatter gf)
+            return false;
+
+        EnsureBlankLineIfNeeded();
+        gf.FormatGraph(_writer, graph, _options);
+        _needsBlankLine = true;
+        _hasContent = true;
+        return true;
+    }
+
     // ── Link definitions ──
 
     /// <summary>

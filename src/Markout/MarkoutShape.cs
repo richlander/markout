@@ -50,6 +50,13 @@ public enum MarkoutShape
     /// <summary>Prose quotation blocks.</summary>
     Quotation = 8192,
 
+    /// <summary>
+    /// Directed graphs (<see cref="Graph"/>). Distinct from <see cref="Trees"/> because a node may
+    /// participate in more than one relationship, so node identity is deduplicated rather than
+    /// repeated.
+    /// </summary>
+    Graphs = 16384,
+
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation
+    All = Headings | Paragraphs | Fields | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation | Graphs
 }

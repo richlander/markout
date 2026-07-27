@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Markout\Markout.csproj" />
+    <ProjectReference Include="..\..\src\Markout.Ansi.Spectre\Markout.Ansi.Spectre.csproj" />
     <ProjectReference Include="..\..\src\Markout.SourceGeneration\Markout.SourceGeneration.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="true" />

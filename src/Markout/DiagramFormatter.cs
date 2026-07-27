@@ -7,8 +7,20 @@ namespace Markout;
 /// Supports headings, trees, and metrics with plain-text rendering.
 /// </summary>
 public class DiagramFormatter : IMarkoutFormatter,
-    IHeadingFormatter, ITreeFormatter, IMetricsFormatter
+    IHeadingFormatter, ITreeFormatter, IMetricsFormatter, IGraphFormatter
 {
+    // ── IGraphFormatter ──
+
+    /// <summary>
+    /// Renders the graph as a tree rooted at the focus node.
+    /// </summary>
+    void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
+    {
+        if (graph.IsEmpty)
+            return;
+
+        ((ITreeFormatter)this).FormatTree(w, GraphLowering.ToTree(graph).AsSpan(), options);
+    }
     // ── IHeadingFormatter ──
 
     void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
@@ -36,10 +48,11 @@ public class DiagramFormatter : IMarkoutFormatter,
         w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
-    private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
     {
         w.Write(prefix);
         w.Write(isLast ? "└─ " : "├─ ");
+        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, this));
         if (node.Badge != null && options.IncludeBadges)
         {
             w.Write(node.Badge);

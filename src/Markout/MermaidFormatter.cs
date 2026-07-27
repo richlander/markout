@@ -10,7 +10,7 @@ namespace Markout;
 /// <c>MarkdownFormatter</c> via code blocks for embedded mermaid in markdown.
 /// </summary>
 public class MermaidFormatter : IMarkoutFormatter,
-    IHeadingFormatter, ITreeFormatter
+    IHeadingFormatter, ITreeFormatter, IGraphFormatter
 {
     private int _nextNodeId;
 
@@ -88,11 +88,178 @@ public class MermaidFormatter : IMarkoutFormatter,
         }
     }
 
-    private static string BuildLabel(TreeNode node, MarkoutWriterOptions options)
+    private string BuildLabel(TreeNode node, MarkoutWriterOptions options)
     {
+        var state = MarkoutGlyphs.NodeStatePrefix(node.State, options, this);
         if (node.Badge != null && options.IncludeBadges)
-            return $"{node.Badge} {node.Text}";
-        return node.Text;
+            return $"{state}{node.Badge} {node.Text}";
+        return state + node.Text;
+    }
+
+    // ── IGraphFormatter ──
+
+    private const string FocusClass = "markoutFocus";
+    private const string EmphasisClass = "markoutEmphasis";
+
+    /// <summary>
+    /// Renders the graph as a <c>graph TD</c> flowchart.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Emitted ids are allocated here (<c>n0</c>, <c>n1</c>, …) and never derived from
+    /// <see cref="GraphNode.Key"/>, so caller data cannot reach a structural position in the syntax
+    /// and can only ever appear inside an escaped label.
+    /// </para>
+    /// <para>
+    /// The focus node is declared first. Mermaid has no explicit "centre", but a flowchart ranks
+    /// roughly in declaration order, so declaring the focus first anchors the diagram on it. It is
+    /// also given its own class so it stays identifiable once laid out.
+    /// </para>
+    /// <para>
+    /// Groups become subgraphs. A node can belong to at most one subgraph, so grouped nodes are
+    /// declared inside their group and ungrouped nodes before them; edges are declared afterwards,
+    /// which Mermaid permits and which keeps cross-group edges out of either subgraph body.
+    /// </para>
+    /// </remarks>
+    void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
+    {
+        if (graph.IsEmpty)
+            return;
+
+        var order = DisplayOrder(graph);
+        var ids = new Dictionary<string, string>(graph.Nodes.Length, StringComparer.Ordinal);
+        for (var i = 0; i < order.Length; i++)
+            ids[graph.Nodes[order[i]].Key] = $"n{i}";
+
+        w.WriteLine("graph TD");
+
+        foreach (var index in order)
+        {
+            var node = graph.Nodes[index];
+            if (string.IsNullOrEmpty(node.Group))
+                WriteNode(w, ids[node.Key], node.Label, "    ");
+        }
+
+        var subgraphId = 0;
+        foreach (var group in DistinctGroups(graph, order))
+        {
+            w.Write("    subgraph sg");
+            w.Write(subgraphId++);
+            w.Write("[\"");
+            w.Write(EscapeLabel(group));
+            w.WriteLine("\"]");
+
+            foreach (var index in order)
+            {
+                var node = graph.Nodes[index];
+                if (string.Equals(node.Group, group, StringComparison.Ordinal))
+                    WriteNode(w, ids[node.Key], node.Label, "        ");
+            }
+
+            w.WriteLine("    end");
+        }
+
+        foreach (var edge in graph.Edges)
+        {
+            w.Write("    ");
+            w.Write(ids[edge.From]);
+            if (string.IsNullOrEmpty(edge.Label))
+            {
+                w.Write(" --> ");
+            }
+            else
+            {
+                // The quoted edge-label form puts the text in the same lexer state as a node label
+                // (<string>, which consumes everything up to the closing quote), so the node-label
+                // escape set covers it. The pipe delimiter is already escaped, so the label cannot
+                // close its own edge.
+                w.Write(" -->|\"");
+                w.Write(EscapeLabel(edge.Label));
+                w.Write("\"| ");
+            }
+            w.WriteLine(ids[edge.To]);
+        }
+
+        WriteClasses(w, graph, ids, order);
+    }
+
+    private static void WriteNode(TextWriter w, string id, string label, string indent)
+    {
+        w.Write(indent);
+        w.Write(id);
+        w.Write("[\"");
+        w.Write(EscapeLabel(label));
+        w.WriteLine("\"]");
+    }
+
+    private static void WriteClasses(TextWriter w, Graph graph, Dictionary<string, string> ids, int[] order)
+    {
+        var focus = graph.Focus;
+
+        var emphasized = new List<string>();
+        foreach (var index in order)
+        {
+            var node = graph.Nodes[index];
+            if (node.Emphasized && !ReferenceEquals(node, focus))
+                emphasized.Add(ids[node.Key]);
+        }
+
+        if (focus is not null)
+        {
+            // No '#' appears in these declarations: Mermaid pre-scans for style/classDef lines
+            // containing a colour literal and strips their final character, which would corrupt them.
+            w.Write("    classDef ");
+            w.Write(FocusClass);
+            w.WriteLine(" stroke-width:3px;");
+            w.Write("    class ");
+            w.Write(ids[focus.Key]);
+            w.Write(' ');
+            w.Write(FocusClass);
+            w.WriteLine(";");
+        }
+
+        if (emphasized.Count > 0)
+        {
+            w.Write("    classDef ");
+            w.Write(EmphasisClass);
+            w.WriteLine(" stroke-dasharray:4 2;");
+            w.Write("    class ");
+            w.Write(string.Join(',', emphasized));
+            w.Write(' ');
+            w.Write(EmphasisClass);
+            w.WriteLine(";");
+        }
+    }
+
+    private static int[] DisplayOrder(Graph graph)
+    {
+        var focusIndex = graph.FocusKey is null ? -1 : graph.IndexOf(graph.FocusKey);
+        var order = new int[graph.Nodes.Length];
+        var next = 0;
+
+        if (focusIndex >= 0)
+            order[next++] = focusIndex;
+
+        for (var i = 0; i < graph.Nodes.Length; i++)
+        {
+            if (i != focusIndex)
+                order[next++] = i;
+        }
+
+        return order;
+    }
+
+    private static List<string> DistinctGroups(Graph graph, int[] order)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var groups = new List<string>();
+        foreach (var index in order)
+        {
+            var group = graph.Nodes[index].Group;
+            if (!string.IsNullOrEmpty(group) && seen.Add(group))
+                groups.Add(group);
+        }
+        return groups;
     }
 
     /// <summary>

@@ -35,6 +35,7 @@ public class TreeWriter(TextWriter writer, MarkoutWriterOptions? options = null)
     {
         writer.Write(prefix);
         writer.Write(isLast ? "└─ " : "├─ ");
+        writer.Write(MarkoutGlyphs.NodeStatePrefix(node.State, _options, glyphs: false));
         if (node.Badge != null && _options.IncludeBadges)
         {
             writer.Write(node.Badge);

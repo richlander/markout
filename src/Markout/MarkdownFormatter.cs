@@ -10,7 +10,7 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter
+    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter, IGraphFormatter
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
@@ -487,6 +487,22 @@ public class MarkdownFormatter : IMarkoutFormatter,
         }
     }
 
+    // ── IGraphFormatter ──
+
+    /// <summary>
+    /// Renders the graph as a nested list, the same lowering the other prose formatters use.
+    /// Markdown can express both a nested list and a table; the list names each node once and keeps
+    /// reachability readable, where an edge table repeats every label on both sides of every edge.
+    /// The tabular formatters own the edge-table view for callers that want one row per edge.
+    /// </summary>
+    void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
+        => ((ITreeFormatter)this).FormatTree(
+            w,
+            GraphLowering.ToTree(
+                graph,
+                node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label).AsSpan(),
+            options);
+
     // ── ITreeFormatter ──
 
     void ITreeFormatter.FormatTree(TextWriter w, ReadOnlySpan<TreeNode> nodes, MarkoutWriterOptions options)
@@ -501,10 +517,11 @@ public class MarkdownFormatter : IMarkoutFormatter,
         w.WriteLine(text);
     }
 
-    private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
     {
         w.Write(prefix);
         w.Write(isLast ? "└─ " : "├─ ");
+        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, this));
         if (node.Badge != null && options.IncludeBadges)
         {
             w.Write(node.Badge);
