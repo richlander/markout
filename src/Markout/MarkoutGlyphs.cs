@@ -100,10 +100,17 @@ public sealed record MarkoutGlyphs
     /// from a node that genuinely has no children.
     /// </para>
     /// <para>
-    /// Setting <see cref="Revisit"/> to an empty string does suppress the marker in a glyph sink.
-    /// That is deliberate and is not the same thing: it is a targeted statement about this one
-    /// marker, whereas <see cref="MarkoutWriterOptions.IncludeBadges"/> is a broad toggle whose
-    /// caller is asking to drop decoration and is not asking to lose tree structure.
+    /// Setting <see cref="Revisit"/> to an empty string suppresses the marker in a glyph sink only.
+    /// <see cref="MarkoutGlyphs"/> configures glyphs, so an empty entry is a targeted statement about
+    /// this one <em>glyph</em>; it is not the same thing as
+    /// <see cref="MarkoutWriterOptions.IncludeBadges"/>, a broad toggle whose caller is asking to drop
+    /// decoration and is not asking to lose tree structure.
+    /// </para>
+    /// <para>
+    /// A sink without glyph support keeps the stable word instead, exactly as a suppressed
+    /// <see cref="GoalLower"/> still renders the ASCII <c>(-)</c> marker and a suppressed
+    /// <see cref="StatusBad"/> still renders the <c>(bad)</c> word. The slug words are fixed so that
+    /// non-Unicode output stays meaningful; they are not reachable from the glyph table.
     /// </para>
     /// </remarks>
     public static string NodeStatePrefix(TreeNodeState state, MarkoutWriterOptions options, bool glyphs)

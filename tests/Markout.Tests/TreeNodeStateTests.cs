@@ -73,7 +73,7 @@ public class TreeNodeStateTests
     }
 
     [Fact]
-    public void AnEmptyGlyphSuppressesTheMarker()
+    public void AnEmptyGlyphSuppressesTheMarkerInAGlyphSink()
     {
         var options = new MarkoutWriterOptions();
         options.Glyphs = MarkoutGlyphs.Default with { Revisit = "" };
@@ -84,6 +84,36 @@ public class TreeNodeStateTests
 
         Assert.Contains("└─ B", output);
         Assert.DoesNotContain("\u21a9", output);
+    }
+
+    /// <summary>
+    /// <see cref="MarkoutGlyphs"/> configures glyphs, so an empty entry reaches glyph sinks only. A
+    /// sink without glyph support keeps the stable slug word, exactly as a suppressed
+    /// <see cref="MarkoutGlyphs.GoalLower"/> still renders the ASCII <c>(-)</c> marker. This test
+    /// pins both halves together: the revisit marker must not become the one concept in the glyph
+    /// table whose empty entry also silences plain text.
+    /// </summary>
+    [Fact]
+    public void AnEmptyGlyphDoesNotSuppressTheWordInANonGlyphSink()
+    {
+        var options = new MarkoutWriterOptions();
+        options.Glyphs = MarkoutGlyphs.Default with { Revisit = "", GoalLower = "" };
+
+        var tree = MarkoutWriter.Create(new PlainTextFormatter(), options);
+        tree.WriteTree(Revisited());
+        var treeOutput = Normalize(tree.ToString());
+
+        Assert.Contains("└─ (revisit) B", treeOutput);
+        Assert.DoesNotContain("\u21a9", treeOutput);
+
+        // The shipped goal marker behaves identically; if this half ever changes, the revisit half
+        // has to change with it.
+        var metrics = MarkoutWriter.Create(new PlainTextFormatter(), options);
+        metrics.WriteMetricChangeTable([new MetricChange<int>("Failures", 0, 7) { Goal = Goal.Lower }]);
+        var metricsOutput = metrics.ToString();
+
+        Assert.Contains("Failures (-)", metricsOutput);
+        Assert.DoesNotContain("\u2193", metricsOutput);
     }
 
     /// <summary>
