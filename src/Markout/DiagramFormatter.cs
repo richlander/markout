@@ -48,11 +48,11 @@ public class DiagramFormatter : IMarkoutFormatter,
         w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
-    private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
     {
         w.Write(prefix);
         w.Write(isLast ? "└─ " : "├─ ");
-        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, glyphs: false));
+        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, this));
         if (node.Badge != null && options.IncludeBadges)
         {
             w.Write(node.Badge);

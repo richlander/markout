@@ -88,9 +88,9 @@ public class MermaidFormatter : IMarkoutFormatter,
         }
     }
 
-    private static string BuildLabel(TreeNode node, MarkoutWriterOptions options)
+    private string BuildLabel(TreeNode node, MarkoutWriterOptions options)
     {
-        var state = MarkoutGlyphs.NodeStatePrefix(node.State, options, glyphs: false);
+        var state = MarkoutGlyphs.NodeStatePrefix(node.State, options, this);
         if (node.Badge != null && options.IncludeBadges)
             return $"{state}{node.Badge} {node.Text}";
         return state + node.Text;

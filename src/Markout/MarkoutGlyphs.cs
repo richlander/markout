@@ -83,19 +83,45 @@ public sealed record MarkoutGlyphs
 
     /// <summary>
     /// The prefix a tree sink writes before a node, including its trailing space, or an empty
-    /// string when the node needs no marker.
+    /// string when the node needs no marker. Prefer the overload taking the formatter, which
+    /// derives glyph support rather than trusting the caller to state it.
     /// </summary>
+    /// <param name="state">The node's state.</param>
+    /// <param name="options">The writer options supplying <see cref="MarkoutWriterOptions.Glyphs"/>.</param>
+    /// <param name="glyphs">
+    /// Whether the sink renders glyphs. Sinks that cannot get the answer from a formatter — the
+    /// standalone <see cref="TreeWriter"/> — pass it directly.
+    /// </param>
     /// <remarks>
+    /// <para>
     /// Unlike <see cref="TreeNode.Badge"/> this is not gated by
     /// <see cref="MarkoutWriterOptions.IncludeBadges"/>. A state is information about the shape of
     /// the tree, not decoration: suppressing it would make an elided subtree indistinguishable
     /// from a node that genuinely has no children.
+    /// </para>
+    /// <para>
+    /// Setting <see cref="Revisit"/> to an empty string does suppress the marker in a glyph sink.
+    /// That is deliberate and is not the same thing: it is a targeted statement about this one
+    /// marker, whereas <see cref="MarkoutWriterOptions.IncludeBadges"/> is a broad toggle whose
+    /// caller is asking to drop decoration and is not asking to lose tree structure.
+    /// </para>
     /// </remarks>
-    internal static string NodeStatePrefix(TreeNodeState state, MarkoutWriterOptions options, bool glyphs)
+    public static string NodeStatePrefix(TreeNodeState state, MarkoutWriterOptions options, bool glyphs)
     {
+        ArgumentNullException.ThrowIfNull(options);
         if (state == TreeNodeState.Normal)
             return "";
         var marker = glyphs ? options.Glyphs.ForNodeState(state) : WordForNodeState(state);
         return marker.Length == 0 ? "" : marker + " ";
+    }
+
+    /// <summary>
+    /// The prefix a tree sink writes before a node, deriving glyph support from
+    /// <paramref name="formatter"/> so a formatter cannot disagree with the capability it declares.
+    /// </summary>
+    public static string NodeStatePrefix(TreeNodeState state, MarkoutWriterOptions options, Formatting.IMarkoutFormatter formatter)
+    {
+        ArgumentNullException.ThrowIfNull(formatter);
+        return NodeStatePrefix(state, options, formatter is Formatting.IGlyphFormatter);
     }
 }

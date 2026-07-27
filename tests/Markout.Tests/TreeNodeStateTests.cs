@@ -134,6 +134,32 @@ public class TreeNodeStateTests
         Assert.Equal(TreeNodeState.Revisit, back.State);
     }
 
+    /// <summary>
+    /// <see cref="TreeWriter"/> has no formatter to declare a capability, so it takes the stable
+    /// word rather than assuming the caller can render a glyph.
+    /// </summary>
+    [Fact]
+    public void TreeWriter_RendersAWordInsteadOfTheGlyph()
+    {
+        var sw = new StringWriter();
+        new TreeWriter(sw).WriteTree(Revisited());
+        var output = Normalize(sw.ToString());
+
+        Assert.Contains("└─ (revisit) B", output);
+        Assert.DoesNotContain("\u21a9", output);
+    }
+
+    [Fact]
+    public void Diagram_RendersAWordInsteadOfTheGlyph()
+    {
+        var writer = MarkoutWriter.Create(new DiagramFormatter());
+        writer.WriteTree(Revisited());
+        var output = Normalize(writer.ToString());
+
+        Assert.Contains("(revisit) B", output);
+        Assert.DoesNotContain("\u21a9", output);
+    }
+
     private static TreeNode Revisited()
         => new("A", [new TreeNode("B") { State = TreeNodeState.Revisit }]);
 

@@ -517,11 +517,11 @@ public class MarkdownFormatter : IMarkoutFormatter,
         w.WriteLine(text);
     }
 
-    private static void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
     {
         w.Write(prefix);
         w.Write(isLast ? "└─ " : "├─ ");
-        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, glyphs: true));
+        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, this));
         if (node.Badge != null && options.IncludeBadges)
         {
             w.Write(node.Badge);
