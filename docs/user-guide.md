@@ -829,8 +829,8 @@ Each formatter renders the graph as whatever its format can express:
 | Formatter | Lowering |
 |---|---|
 | `MermaidFormatter` | `graph TD` flowchart; focus declared first, groups as subgraphs |
-| `MarkdownFormatter`, `TableFormatter` | edge table, one row per edge |
-| `PlainTextFormatter`, `DiagramFormatter`, `UnicodeFormatter` | tree rooted at the focus node |
+| `TableFormatter` | edge table, one row per edge |
+| `MarkdownFormatter`, `PlainTextFormatter`, `DiagramFormatter`, `UnicodeFormatter` | tree rooted at the focus node |
 
 `GraphLowering` exposes those projections directly, so a custom formatter can reuse them:
 
@@ -838,6 +838,9 @@ Each formatter renders the graph as whatever its format can express:
 var table = GraphLowering.ToEdgeTable(graph);   // headers + one row per edge
 var roots = GraphLowering.ToTree(graph);        // TreeNode[] rooted at the focus
 ```
+
+Both take an optional label selector, so a formatter can decorate node text — emphasizing
+`Emphasized` nodes, for example — without the lowering knowing what the decoration means.
 
 In the tree lowering a node is expanded the first time it is reached; a later arrival renders as a
 leaf prefixed with `↩`, which terminates cycles and keeps a shared node from being duplicated.

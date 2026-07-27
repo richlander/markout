@@ -490,21 +490,18 @@ public class MarkdownFormatter : IMarkoutFormatter,
     // ── IGraphFormatter ──
 
     /// <summary>
-    /// Renders the graph as an edge table — one row per edge. Markdown can express a table but not
-    /// a diagram, so the edge list is the lowering that keeps every edge addressable and diffable.
-    /// Emphasized nodes render bold, which augments the label without replacing it.
+    /// Renders the graph as a nested list, the same lowering the other prose formatters use.
+    /// Markdown can express both a nested list and a table; the list names each node once and keeps
+    /// reachability readable, where an edge table repeats every label on both sides of every edge.
+    /// The tabular formatters own the edge-table view for callers that want one row per edge.
     /// </summary>
     void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
-    {
-        if (graph.IsEmpty)
-            return;
-
-        var table = GraphLowering.ToEdgeTable(
-            graph,
-            node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label);
-
-        ((ITableFormatter)this).FormatTable(w, table.Headers.AsSpan(), table.Rows, skippedRows: 0, options);
-    }
+        => ((ITreeFormatter)this).FormatTree(
+            w,
+            GraphLowering.ToTree(
+                graph,
+                node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label).AsSpan(),
+            options);
 
     // ── ITreeFormatter ──
 

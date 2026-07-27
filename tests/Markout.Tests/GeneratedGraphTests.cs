@@ -40,9 +40,9 @@ public class GeneratedGraphTests
         var mdf = MarkoutSerializer.Serialize(Sample(), GraphContext.Default);
 
         Assert.Contains("## Call Graph", mdf, StringComparison.Ordinal);
-        // Markdown lowers a graph to its edge table.
-        Assert.Contains("| From | To |", mdf, StringComparison.Ordinal);
-        Assert.Contains("| A | B |", mdf, StringComparison.Ordinal);
+        // Markdown lowers a graph to its tree projection.
+        Assert.Contains("└─ B", mdf, StringComparison.Ordinal);
+        Assert.Contains("A", mdf, StringComparison.Ordinal);
         Assert.DoesNotContain("No calls found.", mdf, StringComparison.Ordinal);
     }
 

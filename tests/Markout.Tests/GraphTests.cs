@@ -428,15 +428,31 @@ public class GraphTests
     // ── Cross-formatter behavior ──
 
     [Fact]
-    public void Markdown_RendersAnEdgeTable()
+    public void Markdown_RendersATree()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());
         Assert.True(orch.WriteGraph(SimpleChain()));
 
         var output = orch.ToString();
-        Assert.Contains("| From | To |", output);
-        Assert.Contains("| A | B |", output);
-        Assert.Contains("| B | C |", output);
+        Assert.Contains("A", output);
+        Assert.Contains("└─ B", output);
+        Assert.Contains("└─ C", output);
+        // The tree lowering names each node once; it is not the edge-table lowering.
+        Assert.DoesNotContain("| From | To |", output);
+    }
+
+    [Fact]
+    public void Table_RendersAnEdgeTable()
+    {
+        var orch = MarkoutWriter.Create(new TableFormatter());
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = orch.ToString();
+        Assert.Contains("From", output);
+        Assert.Contains("To", output);
+        Assert.Contains("A", output);
+        Assert.Contains("B", output);
+        Assert.Contains("C", output);
     }
 
     [Fact]

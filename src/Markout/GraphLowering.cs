@@ -141,12 +141,19 @@ public static class GraphLowering
     /// recurse per level, so an extremely deep tree remains limited by them.)
     /// </para>
     /// </remarks>
-    public static ImmutableArray<TreeNode> ToTree(Graph graph)
+    /// <param name="graph">The graph to project.</param>
+    /// <param name="label">
+    /// Optional node text selector, letting a formatter decorate labels — for example emphasizing
+    /// <see cref="GraphNode.Emphasized"/> nodes. Defaults to <see cref="GraphNode.Label"/>; a
+    /// selector returning <see langword="null"/> is treated as an empty string.
+    /// </param>
+    public static ImmutableArray<TreeNode> ToTree(Graph graph, Func<GraphNode, string>? label = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         if (graph.IsEmpty)
             return [];
 
+        Func<GraphNode, string> select = label is null ? static n => n.Label : n => label(n) ?? "";
         var outgoing = BuildAdjacency(graph);
         var expanded = new HashSet<string>(StringComparer.Ordinal);
         var roots = ImmutableArray.CreateBuilder<TreeNode>();
@@ -155,7 +162,7 @@ public static class GraphLowering
         {
             if (expanded.Contains(key))
                 continue;
-            roots.Add(Expand(graph, outgoing, key, graph[key].Label, expanded));
+            roots.Add(Expand(graph, outgoing, key, select(graph[key]), select, expanded));
         }
 
         // Anything left is unreachable from the chosen roots; surface it rather than lose it.
@@ -163,7 +170,7 @@ public static class GraphLowering
         {
             if (expanded.Contains(node.Key))
                 continue;
-            roots.Add(Expand(graph, outgoing, node.Key, node.Label, expanded));
+            roots.Add(Expand(graph, outgoing, node.Key, select(node), select, expanded));
         }
 
         return roots.ToImmutable();
@@ -223,6 +230,7 @@ public static class GraphLowering
         Dictionary<string, List<GraphEdge>> outgoing,
         string key,
         string text,
+        Func<GraphNode, string> select,
         HashSet<string> expanded)
     {
         if (!expanded.Add(key))
@@ -242,10 +250,10 @@ public static class GraphLowering
             }
 
             var edge = frame.Edges[frame.Index++];
-            var target = graph[edge.To];
+            var targetLabel = select(graph[edge.To]);
             var childText = string.IsNullOrEmpty(edge.Label)
-                ? target.Label
-                : $"{target.Label} ({edge.Label})";
+                ? targetLabel
+                : $"{targetLabel} ({edge.Label})";
 
             if (!expanded.Add(edge.To))
             {
