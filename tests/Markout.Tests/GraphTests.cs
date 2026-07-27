@@ -193,7 +193,8 @@ public class GraphTests
         Assert.Equal("D", Assert.Single(viaB.Children!).Text);
 
         var viaA = root.Children[1];
-        Assert.Equal(GraphLowering.RevisitMarker + "C", viaA.Text);
+        Assert.Equal("C", viaA.Text);
+        Assert.Equal(TreeNodeState.Revisit, viaA.State);
         Assert.Null(viaA.Children);
     }
 
@@ -209,7 +210,8 @@ public class GraphTests
         var b = Assert.Single(root.Children!);
         var back = Assert.Single(b.Children!);
 
-        Assert.Equal(GraphLowering.RevisitMarker + "A", back.Text);
+        Assert.Equal("A", back.Text);
+        Assert.Equal(TreeNodeState.Revisit, back.State);
         Assert.Null(back.Children);
     }
 
@@ -688,7 +690,8 @@ public class GraphTests
 
         Assert.Equal("A", root.Text);
         var child = Assert.Single(root.Children!);
-        Assert.Equal(GraphLowering.RevisitMarker + "A", child.Text);
+        Assert.Equal("A", child.Text);
+        Assert.Equal(TreeNodeState.Revisit, child.State);
         Assert.Null(child.Children);
     }
 

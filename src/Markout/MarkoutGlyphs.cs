@@ -36,6 +36,12 @@ public sealed record MarkoutGlyphs
     /// <summary>Prefix glyph marking a <c>[MarkoutChild]</c> row as nested under the previous row. Default <c>↳</c>.</summary>
     public string Child { get; init; } = "\u21b3";
 
+    /// <summary>
+    /// Prefix glyph marking a <see cref="TreeNodeState.Revisit"/> node — one whose subtree is
+    /// elided because it already appeared earlier in the lowering. Default <c>↩</c>.
+    /// </summary>
+    public string Revisit { get; init; } = "\u21a9";
+
     /// <summary>The default glyph set: <c>↑</c>/<c>↓</c> goals, <c>✓</c>/<c>✗</c> polarity.</summary>
     public static MarkoutGlyphs Default { get; } = new();
 
@@ -56,4 +62,40 @@ public sealed record MarkoutGlyphs
         GateStatus.Neutral => StatusNeutral,
         _ => ""
     };
+
+    /// <summary>The glyph for a node state, or an empty string for <see cref="TreeNodeState.Normal"/>.</summary>
+    internal string ForNodeState(TreeNodeState state) => state switch
+    {
+        TreeNodeState.Revisit => Revisit,
+        _ => ""
+    };
+
+    /// <summary>
+    /// The stable word a sink without glyph support uses for a node state. Parenthesised for the
+    /// same reason the goal words are: it sits beside caller text and has to stay distinguishable
+    /// from it.
+    /// </summary>
+    internal static string WordForNodeState(TreeNodeState state) => state switch
+    {
+        TreeNodeState.Revisit => "(revisit)",
+        _ => ""
+    };
+
+    /// <summary>
+    /// The prefix a tree sink writes before a node, including its trailing space, or an empty
+    /// string when the node needs no marker.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="TreeNode.Badge"/> this is not gated by
+    /// <see cref="MarkoutWriterOptions.IncludeBadges"/>. A state is information about the shape of
+    /// the tree, not decoration: suppressing it would make an elided subtree indistinguishable
+    /// from a node that genuinely has no children.
+    /// </remarks>
+    internal static string NodeStatePrefix(TreeNodeState state, MarkoutWriterOptions options, bool glyphs)
+    {
+        if (state == TreeNodeState.Normal)
+            return "";
+        var marker = glyphs ? options.Glyphs.ForNodeState(state) : WordForNodeState(state);
+        return marker.Length == 0 ? "" : marker + " ";
+    }
 }

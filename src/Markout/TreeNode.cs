@@ -25,6 +25,17 @@ public class TreeNode
     public List<TreeNode>? Children { get; set; }
 
     /// <summary>
+    /// Why this node renders as it does within a tree lowering. Defaults to
+    /// <see cref="TreeNodeState.Normal"/>.
+    /// </summary>
+    /// <remarks>
+    /// Carried structurally rather than baked into <see cref="Text"/> so each sink picks its own
+    /// spelling: rich sinks render the configurable glyph from <see cref="MarkoutGlyphs"/>, while
+    /// plain and machine-readable sinks keep a stable word.
+    /// </remarks>
+    public TreeNodeState State { get; set; }
+
+    /// <summary>
     /// Creates a tree node. Pass <paramref name="children"/> (a list, array, or
     /// collection expression) to add child nodes, or omit for a leaf. Set
     /// <see cref="Badge"/> via an object initializer if needed.

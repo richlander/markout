@@ -13,9 +13,6 @@ namespace Markout;
 /// </remarks>
 public static class GraphLowering
 {
-    /// <summary>The marker prefixed to a node that has already appeared earlier in a tree lowering.</summary>
-    public const string RevisitMarker = "\u21a9 ";
-
     /// <summary>An edge list projected as a table.</summary>
     /// <param name="Headers">Column headers. Optional columns are present only when the graph uses them.</param>
     /// <param name="Rows">
@@ -128,7 +125,7 @@ public static class GraphLowering
     /// </para>
     /// <para>
     /// A node is expanded the first time it is reached; any later arrival renders as a leaf prefixed
-    /// with <see cref="RevisitMarker"/>. That terminates cycles and keeps a shared node from being
+    /// with <see cref="TreeNodeState.Revisit"/>. That terminates cycles and keeps a shared node from being
     /// duplicated as though it were several distinct nodes.
     /// </para>
     /// <para>
@@ -223,7 +220,7 @@ public static class GraphLowering
     /// Expands <paramref name="key"/> depth-first with an explicit stack. The traversal order is
     /// the same pre-order walk a recursive expansion performs — a node is marked expanded when it
     /// is first reached, not when its subtree finishes — so which arrival wins and which becomes a
-    /// <see cref="RevisitMarker"/> leaf does not depend on the traversal being recursive.
+    /// <see cref="TreeNodeState.Revisit"/> leaf does not depend on the traversal being recursive.
     /// </summary>
     private static TreeNode Expand(
         Graph graph,
@@ -234,7 +231,7 @@ public static class GraphLowering
         HashSet<string> expanded)
     {
         if (!expanded.Add(key))
-            return new TreeNode(RevisitMarker + text);
+            return new TreeNode(text) { State = TreeNodeState.Revisit };
 
         var root = new TreeNode(text);
         var stack = new Stack<Frame>();
@@ -257,7 +254,7 @@ public static class GraphLowering
 
             if (!expanded.Add(edge.To))
             {
-                frame.AddChild(new TreeNode(RevisitMarker + childText));
+                frame.AddChild(new TreeNode(childText) { State = TreeNodeState.Revisit });
                 continue;
             }
 

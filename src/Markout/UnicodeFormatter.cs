@@ -248,6 +248,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
     {
         w.Write(prefix);
         w.Write(isLast ? "└─ " : "├─ ");
+        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, glyphs: true));
         if (node.Badge != null && options.IncludeBadges)
         {
             w.Write(node.Badge);

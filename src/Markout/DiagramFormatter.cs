@@ -52,6 +52,7 @@ public class DiagramFormatter : IMarkoutFormatter,
     {
         w.Write(prefix);
         w.Write(isLast ? "└─ " : "├─ ");
+        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, glyphs: false));
         if (node.Badge != null && options.IncludeBadges)
         {
             w.Write(node.Badge);
