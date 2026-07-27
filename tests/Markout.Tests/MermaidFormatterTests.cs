@@ -173,8 +173,12 @@ public class MermaidFormatterTests
     [Fact]
     public void EscapeLabel_EscapesBackslashes()
     {
+        // Mermaid performs no backslash unescaping in quoted labels, so a doubled
+        // backslash would render as two backslashes. It also rewrites the two-character
+        // sequence \n into a line break while splitting rows, which would wrap
+        // "C:\new" mid-word. The entity form avoids both.
         var result = MermaidFormatter.EscapeLabel("path\\to\\file");
-        Assert.Equal("path\\\\to\\\\file", result);
+        Assert.Equal("path#92;to#92;file", result);
     }
 
     [Fact]
@@ -182,6 +186,102 @@ public class MermaidFormatterTests
     {
         var result = MermaidFormatter.EscapeLabel("System.Object");
         Assert.Equal("System.Object", result);
+    }
+
+    [Fact]
+    public void EscapeLabel_EscapesAngleBrackets()
+    {
+        // Flowcharts default to HTML labels and DOMPurify drops unknown tags at the
+        // default strict security level, so an unescaped generic name would render as
+        // "System.IComparable" and collide with the non-generic type.
+        var result = MermaidFormatter.EscapeLabel("System.IComparable<TSelf>");
+        Assert.Equal("System.IComparable#60;TSelf#62;", result);
+    }
+
+    [Theory]
+    // Generic and compiler-generated .NET names: the motivating corpus.
+    [InlineData("List<String>", "List#60;String#62;")]
+    [InlineData("<Main>$", "#60;Main#62;$")]
+    [InlineData("<>c__DisplayClass0_0", "#60;#62;c__DisplayClass0_0")]
+    [InlineData("<Foo>b__0", "#60;Foo#62;b__0")]
+    [InlineData("IDictionary<K, V>.TryGetValue(K, V&)", "IDictionary#60;K, V#62;.TryGetValue(K, V#38;)")]
+    // Structural characters that would otherwise alter the diagram.
+    [InlineData("a|b", "a#124;b")]
+    [InlineData("a&b", "a#38;b")]
+    [InlineData("line1\nline2", "line1#10;line2")]
+    [InlineData("line1\r\nline2", "line1#13;#10;line2")]
+    public void EscapeLabel_HostileNames_AreEscaped(string input, string expected)
+        => Assert.Equal(expected, MermaidFormatter.EscapeLabel(input));
+
+    [Fact]
+    public void EscapeLabel_EscapesHashFirstSoEntitiesAreNotDoubleEscaped()
+    {
+        // '#' introduces the entity form, so a literal '#' must itself be escaped;
+        // otherwise text that already looks like an entity would be misread on render.
+        Assert.Equal("C#35;", MermaidFormatter.EscapeLabel("C#"));
+        Assert.Equal("#35;quot;", MermaidFormatter.EscapeLabel("#quot;"));
+    }
+
+    [Theory]
+    [InlineData("`boom")]
+    [InlineData("`pwned`")]
+    [InlineData("List`1")]
+    public void EscapeLabel_EscapesBacktick(string input)
+    {
+        // A label is emitted as ["…], so a leading backtick forms the sequence ["` that
+        // Mermaid lexes as the start of a Markdown string — a rule that both precedes and
+        // outranks the plain [" rule. An unterminated one is a fatal lexical error; a
+        // terminated one silently reparses the node as Markdown.
+        var escaped = MermaidFormatter.EscapeLabel(input);
+        Assert.DoesNotContain("`", escaped);
+        Assert.Contains("#96;", escaped);
+    }
+
+    [Fact]
+    public void EscapeLabel_EscapesColonSoUpstreamStyleGuardsCannotMatch()
+    {
+        // Before decoding entities Mermaid runs two unanchored guards meant for real
+        // style/classDef lines — /style.*:\S*#.*;/ and /classDef.*:\S*#.*;/ — each
+        // stripping the last character it matched. Without escaping the colon,
+        // "Lifestyle:C#" would escape to "Lifestyle:C#35;" and then be truncated to
+        // "Lifestyle:C#35", destroying the entity. Neither guard can match without a colon.
+        Assert.Equal("Lifestyle#58;C#35;", MermaidFormatter.EscapeLabel("Lifestyle:C#"));
+        Assert.Equal("classDef x#58;#60;", MermaidFormatter.EscapeLabel("classDef x:<"));
+        Assert.DoesNotContain(":", MermaidFormatter.EscapeLabel("style:#quot;>evil<"));
+    }
+
+    [Fact]
+    public void EscapeLabel_QuoteCannotBreakOutOfLabel()
+    {
+        // The lexer ends a quoted label at the first '"' with no escape mechanism, so a
+        // surviving quote would terminate the label and let the rest inject graph syntax.
+        var escaped = MermaidFormatter.EscapeLabel("evil\"] --> boom[\"pwned");
+        Assert.DoesNotContain("\"", escaped);
+    }
+
+    [Fact]
+    public void WriteTree_GenericNodeLabels_AreEscapedInOutput()
+    {
+        var orch = MarkoutWriter.Create(new MermaidFormatter());
+        orch.WriteTree(
+            new TreeNode("System.IComparable", [
+                new TreeNode("System.IComparable<TSelf>")]));
+        var output = orch.ToString();
+        // The two nodes must remain distinguishable after rendering.
+        Assert.Contains("n0[\"System.IComparable\"]", output);
+        Assert.Contains("n1[\"System.IComparable#60;TSelf#62;\"]", output);
+    }
+
+    [Fact]
+    public void WriteHeading_WithNewline_StaysOnOneCommentLine()
+    {
+        var orch = MarkoutWriter.Create(new MermaidFormatter());
+        orch.WriteHeading(1, "Title\ngraph TD");
+        var output = orch.ToString().TrimEnd();
+        // A Mermaid comment ends at the newline, so an unsanitized heading could emit
+        // raw diagram syntax on the following line.
+        Assert.Contains("%% Title graph TD", output);
+        Assert.DoesNotContain("\n", output);
     }
 
     [Fact]
