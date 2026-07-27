@@ -24,6 +24,7 @@ The `MarkoutShape` enum defines the vocabulary of data relationships:
 | **Tables** | Uniform columnar rows | Lists of records, comparison data |
 | **Lists** | Ordered/unordered items | Features, steps, options |
 | **Trees** | Hierarchical parent-child | Org charts, file structures |
+| **Graphs** | Directed relationships between deduplicated nodes | Call graphs, dependency graphs |
 | **Descriptions** | Term with explanation | Glossaries, definitions |
 | **Metrics** | Labeled measurements | Test counts, performance data |
 | **Breakdowns** | Proportional composition | Category distributions |

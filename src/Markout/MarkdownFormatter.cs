@@ -10,7 +10,7 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter
+    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter, IGraphFormatter
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
@@ -485,6 +485,25 @@ public class MarkdownFormatter : IMarkoutFormatter,
             w.Write("- ");
             w.WriteLine(FormatHelper.RenderInlineMarkdown(item));
         }
+    }
+
+    // ── IGraphFormatter ──
+
+    /// <summary>
+    /// Renders the graph as an edge table — one row per edge. Markdown can express a table but not
+    /// a diagram, so the edge list is the lowering that keeps every edge addressable and diffable.
+    /// Emphasized nodes render bold, which augments the label without replacing it.
+    /// </summary>
+    void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
+    {
+        if (graph.IsEmpty)
+            return;
+
+        var table = GraphLowering.ToEdgeTable(
+            graph,
+            node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label);
+
+        ((ITableFormatter)this).FormatTable(w, table.Headers.AsSpan(), table.Rows, skippedRows: 0, options);
     }
 
     // ── ITreeFormatter ──

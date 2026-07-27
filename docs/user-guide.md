@@ -788,6 +788,69 @@ new TreeNode("Warning") { Badge = "🟡" }
 
 > The [LatestCves](../samples/LatestCves/LatestCves.cs) sample uses trees with icons to display CVE severity.
 
+## Graphs
+
+A tree cannot express a relationship where the same entity is reached more than once — it has to
+repeat the node, which makes one entity look like several. `Graph` deduplicates node identity, so
+use it when edges may converge, diverge, or cycle:
+
+```csharp
+var graph = new Graph(
+    nodes:
+    [
+        new GraphNode("parse", "Parser.Parse"),
+        new GraphNode("lex", "Lexer.Next"),
+        new GraphNode("emit", "Emitter.Write"),
+        new GraphNode("log", "Log.Trace") { Group = "Diagnostics", Emphasized = true }
+    ],
+    edges:
+    [
+        new GraphEdge("parse", "lex"),
+        new GraphEdge("parse", "emit"),
+        new GraphEdge("lex", "log"),
+        new GraphEdge("emit", "log")
+    ],
+    focusKey: "parse");
+
+writer.WriteGraph(graph);
+```
+
+`GraphNode.Key` is opaque. It wires edges to nodes and is never written to the output — formatters
+allocate their own emitted identifiers, so caller data can only ever appear inside an escaped label.
+
+Direction is explicit and always points `From` → `To`. If you hold an inverted relationship such as
+"who calls me", invert it once when building the graph rather than leaving each formatter to
+reinterpret it.
+
+### Lowerings
+
+Each formatter renders the graph as whatever its format can express:
+
+| Formatter | Lowering |
+|---|---|
+| `MermaidFormatter` | `graph TD` flowchart; focus declared first, groups as subgraphs |
+| `MarkdownFormatter`, `TableFormatter` | edge table, one row per edge |
+| `PlainTextFormatter`, `DiagramFormatter`, `UnicodeFormatter` | tree rooted at the focus node |
+
+`GraphLowering` exposes those projections directly, so a custom formatter can reuse them:
+
+```csharp
+var table = GraphLowering.ToEdgeTable(graph);   // headers + one row per edge
+var roots = GraphLowering.ToTree(graph);        // TreeNode[] rooted at the focus
+```
+
+In the tree lowering a node is expanded the first time it is reached; a later arrival renders as a
+leaf prefixed with `↩`, which terminates cycles and keeps a shared node from being duplicated.
+Nodes unreachable from the root are appended as extra roots, so no part of the graph is dropped.
+
+`Group` clusters nodes — a Mermaid subgraph, or `From Group` / `To Group` columns in an edge table.
+`Emphasized` marks a node as noteworthy; it augments a node and never replaces information, so a
+sink with no way to express it renders the node unchanged.
+
+Construction is validated: a duplicate key, an edge naming a key with no node, or a `focusKey`
+naming no node all throw, so a malformed graph fails where it is built rather than rendering as a
+plausible-looking but wrong diagram.
+
 ## Links
 
 Use `[MarkoutLink]` to render a string property as a Markdown link:

@@ -100,6 +100,25 @@ public static class ShapeGallery
             new TreeNode("tests", [
                 new TreeNode("Markout.Tests")]));
 
+        // Relationships — graph. Unlike a tree, a node may be reached more than once, so identity
+        // is deduplicated by key rather than repeated. Each formatter lowers it: Mermaid draws a
+        // flowchart, Markdown an edge table, plain text a tree rooted at the focus node.
+        writer.WriteHeading(2, "Call Relationships");
+        writer.WriteGraph(new Graph(
+            nodes: [
+                new GraphNode("parse", "Parser.Parse"),
+                new GraphNode("lex", "Lexer.Next"),
+                new GraphNode("emit", "Emitter.Write"),
+                new GraphNode("log", "Log.Trace") { Group = "Diagnostics", Emphasized = true },
+            ],
+            edges: [
+                new GraphEdge("parse", "lex"),
+                new GraphEdge("parse", "emit"),
+                new GraphEdge("lex", "log"),
+                new GraphEdge("emit", "log"),
+            ],
+            focusKey: "parse"));
+
         // Quotation — code section
         writer.WriteHeading(2, "Quick Start");
         writer.WriteCodeStart("csharp");

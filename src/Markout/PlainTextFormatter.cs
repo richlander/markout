@@ -9,8 +9,22 @@ namespace Markout;
 /// </summary>
 public class PlainTextFormatter : IMarkoutFormatter,
     IHeadingFormatter, IFieldFormatter, IBlockFormatter,
-    IListFormatter, ITableFormatter, ICodeBlockFormatter, ITreeFormatter
+    IListFormatter, ITableFormatter, ICodeBlockFormatter, ITreeFormatter, IGraphFormatter
 {
+    // ── IGraphFormatter ──
+
+    /// <summary>
+    /// Renders the graph as a tree rooted at the focus node. Plain text has no way to draw a
+    /// diagram, and an edge table loses the sense of walking outward from the node under
+    /// examination, which is the thing a text reader is usually after.
+    /// </summary>
+    void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
+    {
+        if (graph.IsEmpty)
+            return;
+
+        ((ITreeFormatter)this).FormatTree(w, GraphLowering.ToTree(graph).AsSpan(), options);
+    }
     private const int ColumnGap = 2;
 
     // ── IHeadingFormatter ──

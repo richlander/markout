@@ -127,6 +127,7 @@ These add meaning beyond raw document structure. They represent specific data re
 | **Descriptions** | Description | `WriteDescriptions` | `Description` |
 | **Callouts** | Attention | `WriteCallout` | `Callout` |
 | **Trees** | Hierarchy | `WriteTree` | `TreeNode` |
+| **Graphs** | Directed relationship | `WriteGraph` | `Graph` |
 
 ### Tier 3: Data Visualizations
 

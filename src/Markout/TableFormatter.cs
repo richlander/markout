@@ -10,8 +10,22 @@ namespace Markout;
 /// Formatter for compact tabular output. It can render normalized TSV or a pretty
 /// space-padded table from the same row/column projection.
 /// </summary>
-public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatter, IListFormatter, ICompositeCellFormatter
+public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatter, IListFormatter, ICompositeCellFormatter, IGraphFormatter
 {
+    // ── IGraphFormatter ──
+
+    /// <summary>
+    /// Renders the graph as an edge table — one row per edge — which is the only graph lowering a
+    /// tabular sink can express without losing edges.
+    /// </summary>
+    void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
+    {
+        if (graph.IsEmpty)
+            return;
+
+        var table = GraphLowering.ToEdgeTable(graph);
+        ((ITableFormatter)this).FormatTable(w, table.Headers.AsSpan(), table.Rows, skippedRows: 0, options);
+    }
     private const int ColumnGap = 2;
 
     /// <summary>Structured output decomposes composite cells into typed columns.</summary>
