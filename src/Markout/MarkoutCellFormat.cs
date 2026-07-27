@@ -32,6 +32,23 @@ public readonly record struct MarkoutCellFormat(Delta Delta = Delta.None, string
     public string? DeltaNoun { get; init; }
 
     /// <summary>
+    /// An optional .NET numeric format string (e.g. <c>"N0"</c>) applied to the numbers Markout itself
+    /// renders for a numeric <see cref="Change{V}"/> cell in dense Markdown: the scalar
+    /// <c>before</c>/<c>after</c> operands, the derived <see cref="Delta.Absolute"/> suffix, and the
+    /// signed delta count on both the scalar <see cref="DeltaNoun"/> path and the composite
+    /// <see cref="IDeltaCountable"/> path — so a grouped cell (<c>1,168</c>) no longer folds an
+    /// ungrouped delta (<c>+1003</c>). Composite operands keep their own shape formatting; percentage
+    /// and multiple deltas are unaffected. <c>null</c> keeps the default invariant formatting.
+    /// Structured (TSV/JSONL) output stays raw and ungrouped so it remains machine-parseable.
+    /// Markout owns the delta sign (it prepends <c>+</c>/<c>-</c>), so the format applies to the
+    /// <em>magnitude</em> only and must not carry its own sign sections or sign literals. Use a format
+    /// the widened delta type can render — standard numeric formats (<c>"N0"</c>, <c>"F1"</c>,
+    /// <c>"G"</c>, <c>"P"</c>) or custom patterns (<c>"#,0"</c>); integer-only specifiers
+    /// (<c>"D"</c>/<c>"X"</c>) are unsupported and throw at render time.
+    /// </summary>
+    public string? NumberFormat { get; init; }
+
+    /// <summary>
     /// The active glyph set when the target sink renders glyphs (a formatter implementing
     /// <see cref="Formatting.IGlyphFormatter"/>); <c>null</c> keeps the <c>good</c>/<c>bad</c> status
     /// <em>word</em>. The writer injects this (with <see cref="Compose"/>) before formatting a

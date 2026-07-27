@@ -37,6 +37,7 @@ internal static class TypeParser
     private const string MarkoutUnitAttribute = "Markout.MarkoutUnitAttribute";
     private const string MarkoutGoalAttribute = "Markout.MarkoutGoalAttribute";
     private const string MarkoutDeltaNounAttribute = "Markout.MarkoutDeltaNounAttribute";
+    private const string MarkoutNumberFormatAttribute = "Markout.MarkoutNumberFormatAttribute";
 
     private const string MarkoutContextOptionsAttribute = "Markout.MarkoutContextOptionsAttribute";
 
@@ -496,6 +497,16 @@ internal static class TypeParser
             deltaNoun = deltaNounValue;
         }
 
+        // Parse [MarkoutNumberFormat] — numeric format string for a numeric Change<> cell's operands + delta
+        string? numberFormat = null;
+        var numberFormatAttr = prop.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == MarkoutNumberFormatAttribute);
+        if (numberFormatAttr != null && numberFormatAttr.ConstructorArguments.Length > 0 &&
+            numberFormatAttr.ConstructorArguments[0].Value is string numberFormatValue)
+        {
+            numberFormat = numberFormatValue;
+        }
+
         // Parse [MarkoutLabelHeader] — label/identity column header for a List<MultiSourceRow> card
         string? multiSourceLabelHeader = null;
         var labelHeaderAttr = prop.GetAttributes()
@@ -515,6 +526,28 @@ internal static class TypeParser
         }
 
         var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault(), visitedTypes);
+
+        // A collection rendered as a table (ComplexArray without nested subsections) emits a fixed
+        // header row up front, so a row type whose properties are all ignored/section-ignored/child
+        // flags produces zero headers and throws at runtime. Reject it at compile time (MARKOUT006).
+        if (kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
+            elementProperties is { Count: > 0 })
+        {
+            var columnIgnoreNames = sectionIgnoreProperty != null
+                ? new HashSet<string>(sectionIgnoreProperty.Split(',').Select(s => s.Trim()))
+                : null;
+            bool hasVisibleColumn = elementProperties.Any(p =>
+                !p.IsIgnored && !p.IsChildFlag &&
+                (columnIgnoreNames == null || !columnIgnoreNames.Contains(p.Name)));
+            if (!hasVisibleColumn)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    DiagnosticDescriptors.TableRowNoVisibleColumns,
+                    prop.Locations.FirstOrDefault(),
+                    prop.Name,
+                    elementTypeName ?? prop.Type.ToDisplayString()));
+            }
+        }
 
         // Determine if property is unsupported in table context
         // Joined arrays (string or complex) are treated as scalars, so they're fine in tables
@@ -605,7 +638,8 @@ internal static class TypeParser
             noise,
             deltaNoun,
             isScalarShape,
-            isChildFlag);
+            isChildFlag,
+            numberFormat);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

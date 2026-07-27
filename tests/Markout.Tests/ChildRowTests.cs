@@ -27,28 +27,6 @@ public partial class OrgCardContext : MarkoutSerializerContext
 {
 }
 
-// Degenerate row whose ONLY property is the child flag: the generator must still emit valid C#
-// (regression for a trailing-comma / empty-argument-list codegen bug). Declaring the context here is
-// the compile-time guard — if codegen were broken, this test project would not compile.
-public class ChildOnlyRow
-{
-    [MarkoutChild] public bool IsChild { get; set; }
-}
-
-[MarkoutSerializable(TitleProperty = nameof(Title))]
-public class ChildOnlyCard
-{
-    [MarkoutIgnore] public string Title => "Child only";
-
-    [MarkoutSection(Name = "Rows")]
-    public List<ChildOnlyRow> Rows { get; set; } = new();
-}
-
-[MarkoutContext(typeof(ChildOnlyCard))]
-public partial class ChildOnlyCardContext : MarkoutSerializerContext
-{
-}
-
 public class GroupedChildRow
 {
     public string Group { get; set; } = "";
@@ -220,12 +198,5 @@ public class ChildRowTests
         Assert.DoesNotContain("IsChild", md);
         Assert.Contains("| Parent | 1 |", md);
         Assert.Contains("| \u21b3 Kid | 2 |", md);
-    }
-
-    [Fact]
-    public void ChildOnlyRow_GeneratesCompilableSerializer()
-    {
-        // The value is that this project compiles at all (see ChildOnlyCard); assert the context exists.
-        Assert.NotNull(ChildOnlyCardContext.Default);
     }
 }

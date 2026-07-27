@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.25.0</Version>
-    <PackageReleaseNotes>[#152] A [MarkoutChild] bool on an element-table row type marks that row as a semantic child of the preceding row (single level). It is a data relationship, not indentation: the flag is never a column; rich sinks (Markdown/ANSI/Unicode) prefix the child row's first cell with a configurable glyph (default ↳). Easy mode: override MarkoutWriterOptions.Glyphs.Child. Advanced mode: MarkoutWriterOptions.ComposeGlyph composes it (GlyphSlot.ChildRow) — replace with a string or integrate it. TSV/JSONL and plain text omit the marker so machine-readable and non-Unicode output stay clean.</PackageReleaseNotes>
+    <Version>0.27.0</Version>
+    <PackageReleaseNotes>[#159] New [MarkoutNumberFormat("N0")] attribute (and MarkoutCellFormat.NumberFormat) applies a .NET numeric format string to the numbers Markout renders for a numeric Change&lt;V&gt; cell: the scalar before/after operands, the Delta.Absolute suffix, and the delta-noun / IDeltaCountable delta count. This keeps a grouped cell and its folded delta consistent — 165 → 1,168 (+1,003) instead of 165 → 1168 (+1,003). Composite operands keep their own shape formatting; percentage and multiple deltas are unaffected; structured (TSV/JSONL) output stays raw and ungrouped so it remains machine-parseable. Markout owns the delta sign (it prepends +/-), so the format applies to the magnitude only.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

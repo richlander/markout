@@ -88,8 +88,61 @@ public static class TemplateParser
 
         FlushTable(nodes, ref tableLines);
         FlushParagraph(nodes, ref paragraphLines);
+        ValidateConditionalBalance(nodes);
         return nodes;
     }
+
+    /// <summary>
+    /// Verifies that both block-level and inline <c>{{#if}}</c> / <c>{{/if}}</c> directives are
+    /// balanced. An unclosed <c>{{#if}}</c> would otherwise silently drop content at render time
+    /// (data-dependent on the key's truthiness), and a stray <c>{{/if}}</c> indicates an authoring
+    /// error; both are surfaced eagerly as a <see cref="FormatException"/>. Inline conditionals are
+    /// validated structurally here — independent of any binding and of whether the enclosing node is
+    /// rendered — so a malformed inline directive nested inside a falsy block section cannot escape.
+    /// </summary>
+    private static void ValidateConditionalBalance(List<TemplateNode> nodes)
+    {
+        int depth = 0;
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case ConditionalStartNode:
+                    depth++;
+                    break;
+                case ConditionalEndNode:
+                    if (depth == 0)
+                        throw new FormatException(
+                            "Unbalanced template conditional: '{{/if}}' without a matching '{{#if}}'.");
+                    depth--;
+                    break;
+                case ParagraphNode paragraph:
+                    ValidateInlineConditionals(paragraph.Text);
+                    break;
+                case HeadingNode heading:
+                    ValidateInlineConditionals(heading.Text);
+                    break;
+                case TableNode table:
+                    foreach (var header in table.Headers)
+                        ValidateInlineConditionals(header);
+                    foreach (var row in table.Rows)
+                        foreach (var cell in row)
+                            ValidateInlineConditionals(cell);
+                    break;
+            }
+        }
+        if (depth > 0)
+            throw new FormatException(
+                "Unbalanced template conditional: an '{{#if}}' block is missing its '{{/if}}'.");
+    }
+
+    /// <summary>
+    /// Runs the inline conditional resolver purely for its structural validation side effect:
+    /// with an always-true predicate it never skips content, so it walks every directive and
+    /// throws on any imbalance, stray <c>{{/if}}</c>, or empty-key <c>{{#if}}</c>.
+    /// </summary>
+    private static void ValidateInlineConditionals(string text) =>
+        ResolveInlineConditionals(text, static _ => true);
 
     private static void FlushParagraph(List<TemplateNode> nodes, ref List<string>? lines)
     {
@@ -128,8 +181,15 @@ public static class TemplateParser
         {
             var inner = trimmed[2..^2].Trim();
 
-            // Must be a simple key (no spaces, no directives like #if)
-            if (inner.Length > 0 && !inner.Contains(' ') && inner[0] != '#' && inner[0] != '/')
+            // Must be a simple key (no spaces, no braces of any kind, no directives like #if).
+            // Any brace character means this line carries inline content (e.g. "{{#if x}}{{y}}"
+            // or a trailing "}" as in "{{name}}}") and must fall through to a paragraph for inline
+            // resolution rather than being treated as a single block placeholder.
+            if (inner.Length > 0
+                && !inner.Contains(' ')
+                && inner.IndexOf('{') < 0
+                && inner.IndexOf('}') < 0
+                && inner[0] != '#' && inner[0] != '/')
             {
                 key = inner.ToString();
                 return true;
@@ -148,11 +208,23 @@ public static class TemplateParser
         {
             var inner = trimmed[2..^2].Trim();
 
+            // A standalone block directive must be the only thing on the line. If it carries nested
+            // braces it is an inline conditional wrapping content (e.g. "{{#if x}}text{{/if}}") and
+            // is handled during inline resolution inside a paragraph, not as a block node.
+            if (inner.IndexOf(OpenSymbol) >= 0 || inner.IndexOf(CloseSymbol) >= 0)
+            {
+                node = default!;
+                return false;
+            }
+
             if (inner.StartsWith("#if "))
             {
                 var key = inner[4..].Trim();
                 if (key.Length > 0)
                 {
+                    if (key.IndexOf('{') >= 0 || key.IndexOf('}') >= 0)
+                        throw new FormatException(
+                            $"Conditional key '{key.ToString()}' contains an invalid brace character.");
                     node = new ConditionalStartNode(key.ToString());
                     return true;
                 }
@@ -188,11 +260,164 @@ public static class TemplateParser
     }
 
     /// <summary>
-    /// Resolves inline {{key}} placeholders in text using the provided lookup function.
+    /// True when the run beginning at <paramref name="open"/> (a <c>{{</c>) is a reserved directive:
+    /// after the opener and any leading spaces the first character is <c>#</c> or <c>/</c>. Used to
+    /// distinguish a malformed/unterminated directive (which must throw) from an unterminated data
+    /// placeholder (which degrades gracefully to literal text).
     /// </summary>
+    private static bool StartsWithReservedDirective(string text, int open)
+    {
+        int i = open + OpenSymbol.Length;
+        while (i < text.Length && char.IsWhiteSpace(text[i]))
+            i++;
+        return i < text.Length && (text[i] == '#' || text[i] == '/');
+    }
+
+    /// <summary>
+    /// Resolves inline <c>{{#if key}}…{{/if}}</c> conditionals within a single text run (a heading
+    /// or paragraph). Content inside a conditional is kept when <paramref name="isTruthy"/> returns
+    /// true for its key, and dropped otherwise. Conditionals may nest. Non-conditional
+    /// <c>{{key}}</c> placeholders are preserved verbatim for a later
+    /// <see cref="ResolveInlinePlaceholders"/> pass.
+    /// </summary>
+    /// <remarks>
+    /// Inline conditionals must be balanced within the same text run. Author a self-contained
+    /// optional line as <c>{{#if key}}content{{/if}}</c> on one line so the surrounding lines stay
+    /// tight; use standalone <c>{{#if key}}</c> / <c>{{/if}}</c> directive lines for multi-line
+    /// block sections instead.
+    /// </remarks>
+    public static string ResolveInlineConditionals(string text, Func<string, bool> isTruthy)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(isTruthy);
+
+        if (text.IndexOf(OpenSymbol, StringComparison.Ordinal) < 0)
+            return text;
+
+        var result = new System.Text.StringBuilder(text.Length);
+        int pos = 0;
+        int skipDepth = 0;
+        int openDepth = 0;
+
+        while (pos < text.Length)
+        {
+            int open = text.IndexOf(OpenSymbol, pos, StringComparison.Ordinal);
+            if (open < 0)
+            {
+                if (skipDepth == 0)
+                    result.Append(text, pos, text.Length - pos);
+                break;
+            }
+
+            if (skipDepth == 0)
+                result.Append(text, pos, open - pos);
+
+            // Find the next nested opener (from open+1, to catch an overlapping "{{{") and the
+            // token's close. Only a close occurring BEFORE the next nested opener terminates this
+            // token; bounding the close search to that region keeps scanning linear on pathological
+            // input (many adjacent "{{") instead of repeatedly rescanning toward a distant "}}".
+            int nestedOpen = text.IndexOf(OpenSymbol, open + 1, StringComparison.Ordinal);
+            int close;
+            if (nestedOpen >= 0)
+            {
+                int region = nestedOpen - (open + OpenSymbol.Length);
+                close = region > 0
+                    ? text.IndexOf(CloseSymbol, open + OpenSymbol.Length, region, StringComparison.Ordinal)
+                    : -1;
+            }
+            else
+            {
+                close = text.IndexOf(CloseSymbol, open + OpenSymbol.Length, StringComparison.Ordinal);
+            }
+
+            if (close < 0)
+            {
+                // An unterminated run whose content is a reserved directive (a '#' or '/' right
+                // after "{{") is a malformed directive, not literal prose, and must be rejected
+                // rather than silently emitted. Normal unterminated placeholders stay graceful.
+                if (StartsWithReservedDirective(text, open))
+                    throw new FormatException(
+                        "Unterminated inline conditional directive: missing closing '}}'.");
+
+                if (nestedOpen >= 0)
+                {
+                    // A nested "{{" precedes any close (e.g. "{{oops {{#if flag}}"): the run up to it
+                    // isn't a token. Emit it as literal and resume at the nested opener so a real
+                    // directive can't be swallowed inside a malformed token.
+                    if (skipDepth == 0)
+                        result.Append(text, open, nestedOpen - open);
+                    pos = nestedOpen;
+                    continue;
+                }
+
+                // Unterminated braces — treat the remainder as literal.
+                if (skipDepth == 0)
+                    result.Append(text, open, text.Length - open);
+                break;
+            }
+
+            var inner = text.AsSpan((open + OpenSymbol.Length)..close).Trim();
+
+            if (inner.SequenceEqual("#if"))
+            {
+                throw new FormatException(
+                    "Inline conditional '{{#if}}' requires a key.");
+            }
+            else if (inner.StartsWith("#if "))
+            {
+                var key = inner[4..].Trim().ToString();
+                if (key.Length == 0)
+                    throw new FormatException(
+                        "Inline conditional '{{#if}}' requires a key.");
+                if (key.Contains('{') || key.Contains('}'))
+                    throw new FormatException(
+                        $"Inline conditional key '{key}' contains an invalid brace character.");
+                openDepth++;
+                if (skipDepth > 0)
+                {
+                    skipDepth++;
+                }
+                else
+                {
+                    if (!isTruthy(key))
+                        skipDepth = 1;
+                }
+            }
+            else if (inner.SequenceEqual("/if"))
+            {
+                if (openDepth == 0)
+                    throw new FormatException(
+                        "Unbalanced inline conditional: '{{/if}}' without a matching '{{#if}}'.");
+                openDepth--;
+                if (skipDepth > 0)
+                    skipDepth--;
+            }
+            else if (inner.Length > 0 && (inner[0] == '#' || inner[0] == '/'))
+            {
+                // A '#' or '/' prefix is reserved for directives. A closed token that starts with
+                // one but matches no valid directive form ("#if <key>" or "/if") is malformed —
+                // reject it rather than passing it through as a data placeholder.
+                throw new FormatException(
+                    $"Unrecognized reserved directive '{OpenSymbol}{inner.ToString()}{CloseSymbol}'.");
+            }
+            else if (skipDepth == 0)
+            {
+                // A normal placeholder or other braces: keep verbatim for the placeholder pass.
+                result.Append(text, open, close + CloseSymbol.Length - open);
+            }
+
+            pos = close + CloseSymbol.Length;
+        }
+
+        if (openDepth > 0)
+            throw new FormatException(
+                "Unbalanced inline conditional: an '{{#if}}' is missing its '{{/if}}'.");
+
+        return result.ToString();
+    }
+
     /// <summary>
     /// Resolves inline {{key}} placeholders in text using the provided lookup function.
-    /// Returns the text with all known keys replaced and unknown keys preserved.
     /// </summary>
     public static string ResolveInlinePlaceholders(string text, Func<string, string?> lookup)
     {
@@ -213,24 +438,52 @@ public static class TemplateParser
                 break;
             }
 
+            int outerOpen = pos + openIndex;
+
             // Append text before the placeholder
-            result.Append(span[pos..(pos + openIndex)]);
+            result.Append(span[pos..outerOpen]);
 
-            int keyStart = pos + openIndex + OpenSymbol.Length;
-            int closeIndex = span[keyStart..].IndexOf(CloseSymbol);
+            int keyStart = outerOpen + OpenSymbol.Length;
 
-            if (closeIndex < 0)
+            // Next nested opener (from outerOpen+1, to catch an overlapping "{{{") and the token's
+            // close. Only a close before the nested opener terminates this token; bounding the close
+            // search there keeps scanning linear on pathological input, mirroring the conditional pass.
+            int nestedOpen = text.IndexOf(OpenSymbol, outerOpen + 1, StringComparison.Ordinal);
+            int closeAbs;
+            if (nestedOpen >= 0)
             {
+                int region = nestedOpen - keyStart;
+                closeAbs = region > 0
+                    ? text.IndexOf(CloseSymbol, keyStart, region, StringComparison.Ordinal)
+                    : -1;
+            }
+            else
+            {
+                closeAbs = text.IndexOf(CloseSymbol, keyStart, StringComparison.Ordinal);
+            }
+
+            if (closeAbs < 0)
+            {
+                if (nestedOpen >= 0)
+                {
+                    // A nested "{{" precedes any close (e.g. "{{oops {{name}}"): emit the malformed
+                    // run up to the nested opener as literal and resume there so a valid nested
+                    // placeholder is still resolved rather than swallowed.
+                    result.Append(span[outerOpen..nestedOpen]);
+                    pos = nestedOpen;
+                    continue;
+                }
+
                 // No closing — append remainder as-is
-                result.Append(span[(pos + openIndex)..]);
+                result.Append(span[outerOpen..]);
                 break;
             }
 
-            var key = span[keyStart..(keyStart + closeIndex)].Trim();
+            var key = span[keyStart..closeAbs].Trim();
             var replacement = lookup(key.ToString());
             result.Append(replacement ?? $"{OpenSymbol}{key}{CloseSymbol}");
 
-            pos = keyStart + closeIndex + CloseSymbol.Length;
+            pos = closeAbs + CloseSymbol.Length;
         }
 
         return result.ToString();

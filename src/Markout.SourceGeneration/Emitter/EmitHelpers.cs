@@ -384,11 +384,15 @@ internal static class EmitHelpers
     /// for every composite-cell rendering path (dense field layouts, table columns, composite-card rows).
     /// </summary>
     public static string CompositeCellFormatLiteral(PropertyMetadata prop)
-        => $"new global::Markout.MarkoutCellFormat({DeltaLiteral(prop)}, {UnitLiteral(prop)}) {{ Goal = {GoalLiteral(prop)}, Noise = {NoiseLiteral(prop)}, DeltaNoun = {DeltaNounLiteral(prop)} }}";
+        => $"new global::Markout.MarkoutCellFormat({DeltaLiteral(prop)}, {UnitLiteral(prop)}) {{ Goal = {GoalLiteral(prop)}, Noise = {NoiseLiteral(prop)}, DeltaNoun = {DeltaNounLiteral(prop)}, NumberFormat = {NumberFormatLiteral(prop)} }}";
 
     /// <summary>Emits the delta-noun string literal (or <c>null</c>) for a composite cell property.</summary>
     public static string DeltaNounLiteral(PropertyMetadata prop)
         => prop.DeltaNoun == null ? "null" : $"\"{EscapeString(prop.DeltaNoun)}\"";
+
+    /// <summary>Emits the number-format string literal (or <c>null</c>) for a composite cell property.</summary>
+    public static string NumberFormatLiteral(PropertyMetadata prop)
+        => prop.NumberFormat == null ? "null" : $"\"{EscapeString(prop.NumberFormat)}\"";
 
     public static bool IsScalarKind(PropertyKind kind)
     {

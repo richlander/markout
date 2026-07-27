@@ -84,6 +84,26 @@ public class MarkoutTemplate
     }
 
     /// <summary>
+    /// Binds a sequence of strings rendered as a bullet list at a block placeholder, or joined with
+    /// ", " when used inline. An empty or null sequence is falsy for conditional sections.
+    /// </summary>
+    public MarkoutTemplate Bind(string key, IEnumerable<string>? items)
+    {
+        _bindings[key] = new ListBinding(items is null ? null : [.. items]);
+        return this;
+    }
+
+    /// <summary>
+    /// Binds a boolean, primarily to drive a <c>{{#if key}}</c> conditional section
+    /// (<see langword="false"/> is falsy). Inline, it renders as <c>true</c>/<c>false</c>.
+    /// </summary>
+    public MarkoutTemplate Bind(string key, bool value)
+    {
+        _bindings[key] = new BoolBinding(value);
+        return this;
+    }
+
+    /// <summary>
     /// Binds a source-generated type for block-level rendering through the shape system.
     /// </summary>
     public MarkoutTemplate Bind<T>(string key, T value, MarkoutTypeInfo<T> typeInfo)
@@ -235,8 +255,29 @@ public class MarkoutTemplate
                 break;
 
             case ParagraphNode paragraph:
-                var resolvedText = ResolveInline(paragraph.Text);
-                writer.WriteParagraph(resolvedText);
+                string resolvedText;
+                if (paragraph.Text.Contains("{{", StringComparison.Ordinal))
+                {
+                    // Resolve inline conditionals first, then drop only the lines they emptied —
+                    // before expanding placeholders, so multi-line *bound values* keep their own
+                    // blank lines. (Dropping after placeholder expansion would swallow blank-line
+                    // separators inside a bound value.)
+                    var afterConditionals = TemplateParser.ResolveInlineConditionals(paragraph.Text, IsBindingTruthy);
+                    if (afterConditionals.Contains('\n'))
+                    {
+                        var kept = afterConditionals
+                            .Split('\n')
+                            .Where(l => !string.IsNullOrWhiteSpace(l));
+                        afterConditionals = string.Join('\n', kept);
+                    }
+                    resolvedText = ResolvePlaceholders(afterConditionals);
+                }
+                else
+                {
+                    resolvedText = ResolvePlaceholders(paragraph.Text);
+                }
+                if (!string.IsNullOrWhiteSpace(resolvedText))
+                    writer.WriteParagraph(resolvedText);
                 break;
 
             case PlaceholderNode placeholder:
@@ -278,6 +319,12 @@ public class MarkoutTemplate
     }
 
     private string ResolveInline(string text)
+    {
+        var withConditionals = TemplateParser.ResolveInlineConditionals(text, IsBindingTruthy);
+        return ResolvePlaceholders(withConditionals);
+    }
+
+    private string ResolvePlaceholders(string text)
     {
         return TemplateParser.ResolveInlinePlaceholders(text, key =>
         {
