@@ -222,6 +222,34 @@ public class MermaidFormatterTests
         Assert.Equal("#35;quot;", MermaidFormatter.EscapeLabel("#quot;"));
     }
 
+    [Theory]
+    [InlineData("`boom")]
+    [InlineData("`pwned`")]
+    [InlineData("List`1")]
+    public void EscapeLabel_EscapesBacktick(string input)
+    {
+        // A label is emitted as ["…], so a leading backtick forms the sequence ["` that
+        // Mermaid lexes as the start of a Markdown string — a rule that both precedes and
+        // outranks the plain [" rule. An unterminated one is a fatal lexical error; a
+        // terminated one silently reparses the node as Markdown.
+        var escaped = MermaidFormatter.EscapeLabel(input);
+        Assert.DoesNotContain("`", escaped);
+        Assert.Contains("#96;", escaped);
+    }
+
+    [Fact]
+    public void EscapeLabel_EscapesColonSoUpstreamStyleGuardsCannotMatch()
+    {
+        // Before decoding entities Mermaid runs two unanchored guards meant for real
+        // style/classDef lines — /style.*:\S*#.*;/ and /classDef.*:\S*#.*;/ — each
+        // stripping the last character it matched. Without escaping the colon,
+        // "Lifestyle:C#" would escape to "Lifestyle:C#35;" and then be truncated to
+        // "Lifestyle:C#35", destroying the entity. Neither guard can match without a colon.
+        Assert.Equal("Lifestyle#58;C#35;", MermaidFormatter.EscapeLabel("Lifestyle:C#"));
+        Assert.Equal("classDef x#58;#60;", MermaidFormatter.EscapeLabel("classDef x:<"));
+        Assert.DoesNotContain(":", MermaidFormatter.EscapeLabel("style:#quot;>evil<"));
+    }
+
     [Fact]
     public void EscapeLabel_QuoteCannotBreakOutOfLabel()
     {

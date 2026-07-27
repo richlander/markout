@@ -164,6 +164,17 @@ public class MermaidFormatter : IMarkoutFormatter,
         '\\' => "#92;",
         '\r' => "#13;",
         '\n' => "#10;",
+        // A label is emitted as ["…], so a leading backtick forms the two-character
+        // sequence ["` that Mermaid lexes as the start of a Markdown string. That rule
+        // precedes (and outranks) the plain ["  rule, so the label would be parsed as
+        // Markdown and the delimiters lost.
+        '`' => "#96;",
+        // Before decoding entities Mermaid runs two unanchored guards intended for real
+        // style/classDef lines — /style.*:\S*#.*;/ and /classDef.*:\S*#.*;/ — each
+        // stripping the final character of whatever they match. A label such as
+        // "Lifestyle:C#" escapes to "Lifestyle:C#35;", which those guards truncate to
+        // "…C#35", destroying the entity. They cannot match without a colon.
+        ':' => "#58;",
         _ => null,
     };
 }
