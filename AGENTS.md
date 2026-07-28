@@ -70,9 +70,10 @@ installation stays an explicit, visible act.
 Consequences for maintainers:
 
 - The `version:` stamp in every `skills/*/SKILL.md` and in `skills/plugin.json` tracks the
-  **Markout package version**. Bump them together with `<Version>` in `Markout.csproj`, or the
-  shipped shelf misstates which release it describes.
-- `skills/` is globbed into the package, so **any file added there ships**. Keep it to skills.
+  **Markout package version**. `dotnet pack` **fails** if they disagree with `<Version>` in
+  `Markout.csproj`, because the shipped shelf must not misstate which release it describes.
+- `skills/` is globbed into the package, so **any file committed there ships**. Releases pack
+  a clean CI checkout, so what is in git is exactly what consumers get. Keep it to skills.
 - Only `Markout` carries the shelf. `Markout.Templates` and `MarkdownTable.Formatting` do not.
 
 ## Markdown Linting

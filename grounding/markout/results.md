@@ -11,13 +11,16 @@ a single pass/fail. The rungs: **Fails < Satisfies < Delivers** — *Fails* = no
 hand-rolled around the taught surface; *Delivers* = *Satisfies* **and** done the idiomatic taught way
 (the full-price rung yield counts; Stage 1 proxies `Delivers ≡ Satisfies` — see caveats).
 
-- **Harness:** `richlander/dotnet-package-grounding` + `skill-validator@cb9e32a` (per-run
+- **Harness:** `richlander/dotnet-package-grounding` +
+  [`skill-validator@cb9e32a`](https://github.com/richlander/skills/tree/published-markout-ct24) (per-run
   capture; graded-yield quality card via `analyze --view ladder` — beta-binomial posterior + nested
   bootstrap bands on both per-dollar IET and per-day duration, plus the ≥20% economic gate). All four
   legs ran on the **same** validator build; all four columns were **re-rendered in a single pass** on
-  one harness build, so the bands are mutually comparable.
-- **Package:** Markout `0.23.0`; shelf `skills/markout-consumer@f14fec3` (MVV-free). Provenance is
-  identical across all four legs — `docContentHash sha256:e35d12a6e562295a`,
+  one harness build, so the bands are mutually comparable. That commit is not on `dotnet/skills` main
+  — holistic eval mode was never upstreamed — so it is preserved on the `published-markout-ct24` tag.
+- **Package:** Markout `0.23.0`; shelf
+  [`skills/@f14fec3`](https://github.com/richlander/markout/tree/f14fec3/skills) (MVV-free).
+  Provenance is identical across all four legs — `docContentHash sha256:e35d12a6e562295a`,
   `fixtureHash sha256:83617c5cf63fd96c` — so the only variable is the model.
 - **Arms:** `baseline` (no grounding) → `SKILL.md` (the shelf, agent self-selects). **Eval mode:**
   holistic (baseline vs plugin; isolated arm skipped). IET model `anthropic`.
