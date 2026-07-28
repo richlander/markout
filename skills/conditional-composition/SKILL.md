@@ -15,6 +15,24 @@ The trap this skill prevents: hand-rolling `if (hasErrors) sb.AppendLine("## Err
 column arithmetic. In Markout you **declare** the condition on the model; the generator renders the
 right shape. This keeps one source of truth and makes the same model serve quiet/detail/export modes.
 
+## Required setup
+
+Markout has **no reflection fallback**. Every report needs an annotated model, a partial context
+registering each model type, and a `Serialize` call that passes it — there is no `Serialize(obj)`
+overload, and omitting the context does not compile.
+
+```csharp
+using Markout;
+
+[MarkoutContext(typeof(Inspection))]    // the model AND every user element type of a List<T>
+[MarkoutContext(typeof(FailureRow))]
+[MarkoutContext(typeof(WarnRow))]
+[MarkoutContext(typeof(MatchRow))]
+public partial class InspectionContext : MarkoutSerializerContext { }
+
+var ctx = InspectionContext.Default;    // the `ctx` passed in the examples below
+```
+
 ## Conditional sections
 
 ```csharp

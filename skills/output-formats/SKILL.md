@@ -15,6 +15,32 @@ Default `Serialize(...)` emits Markdown. Pass a **formatter** (and optional `Mar
 to get other formats. The anti-pattern is per-format string building (`string.Join("\t", ...)`); let
 Markout project the same model to each format so columns/headers stay consistent.
 
+## Required setup
+
+Markout has **no reflection fallback**. Every report needs an annotated model, a partial context
+registering each model type, and a `Serialize` call that passes it — there is no `Serialize(obj)`
+overload, and omitting the context does not compile.
+
+```csharp
+using Markout;
+
+[MarkoutSerializable(TitleProperty = nameof(Title))]
+public class Report
+{
+    public string Title { get; set; } = "";
+    [MarkoutSection(Name = "Rows")] public List<Row>? Rows { get; set; }
+}
+
+[MarkoutSerializable]
+public class Row { public string Name { get; set; } = ""; public int Count { get; set; } }
+
+[MarkoutContext(typeof(Report))]
+[MarkoutContext(typeof(Row))]          // every user element type of a List<T>, too
+public partial class ReportContext : MarkoutSerializerContext { }
+
+var ctx = ReportContext.Default;       // the `ctx` passed in the examples below
+```
+
 ## Formatters
 
 ```csharp
@@ -48,7 +74,7 @@ MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ctx, opts
 
 - `MarkoutTableMode.Pretty` — columns aligned to a uniform start position.
 - `MarkoutTableMode.Tsv` — stable `snake_case` headers; never emits embedded tabs/newlines in cells.
-- `MarkoutTableMode.Jsonl` — one record per row (heterogeneous keys; see composite-cells-cards).
+- `MarkoutTableMode.Jsonl` — one record per row, carrying only that row's keys (heterogeneous).
 - `MaxItems = N` caps EVERY table to N rows and appends `... and {count} more`; works with any formatter,
   so a Markdown view can show the first N rows while TSV/JSONL export them all. (Or per-property:
   `[MarkoutMaxItems(3)]`, with an optional `EllipsisFormat`.)

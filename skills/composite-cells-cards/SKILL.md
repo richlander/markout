@@ -17,6 +17,21 @@ a row: Markdown renders a dense human value, and `TableFormatter` (TSV/JSONL) de
 cell into typed columns — no pre-stringifying, one declaration serves both. This replaces
 pre-formatting numbers into strings (which loses the machine-readable form).
 
+## Required setup
+
+Markout has **no reflection fallback**. Every report needs an annotated model, a partial context
+registering each model type, and a `Serialize` call that passes it — there is no `Serialize(obj)`
+overload, and omitting the context does not compile.
+
+```csharp
+using Markout;
+
+[MarkoutContext(typeof(QualityCard))]   // register every model type you serialize
+public partial class QualityCardContext : MarkoutSerializerContext { }
+
+MarkoutSerializer.Serialize(card, Console.Out, QualityCardContext.Default);
+```
+
 ## Composite cell primitives
 
 | Shape | Dense Markdown | Decomposed columns |
