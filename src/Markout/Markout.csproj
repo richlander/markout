@@ -39,13 +39,9 @@
     Pack the consumer skill shelf at skills/<name>/ in the nupkg. It restores to
     ~/.nuget/packages/markout/<version>/skills/ and is installed into a consuming repo's
     .github/skills/ by a package-skill installer. See AGENTS.md "Package grounding".
-
-    The glob ships whatever is in skills/, so exclude the files a working tree collects
-    (macOS .DS_Store, editor backups) rather than trusting nobody ever leaves one there.
   -->
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)..\..\skills\**\*"
-          Exclude="$(MSBuildThisFileDirectory)..\..\skills\**\.*;$(MSBuildThisFileDirectory)..\..\skills\**\*~;$(MSBuildThisFileDirectory)..\..\skills\**\*.bak;$(MSBuildThisFileDirectory)..\..\skills\**\*.orig"
           Pack="true"
           PackagePath="skills\"
           Visible="false" />
