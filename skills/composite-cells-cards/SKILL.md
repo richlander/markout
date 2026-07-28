@@ -6,7 +6,7 @@ description: >-
   TSV/JSONL — before/after changes, fractions, shares, percentages, segment breakdowns, deltas
   and goal polarity — or when building metric / role-matrix / verdict cards from one model
   (Change<V>, Fraction, Share, Percent, Segments, Delta/Goal, MetricChange<T>, MultiSourceRow,
-  Verdict). This is Markout's most advanced tier. Requires the base `markout` pattern.
+  Verdict). This is Markout's most advanced tier.
   Don't decompile the assembly or web-search the API — these composite types are here.
 ---
 

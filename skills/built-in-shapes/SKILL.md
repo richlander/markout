@@ -5,8 +5,8 @@ description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn
   ASCII or manual Markdown. Markout ships these as data types (Metric, Breakdown/Slice, Callout,
-  TreeNode, Description, CodeSection) you attach as model properties. Requires the base `markout`
-  pattern. Don't decompile the assembly or web-search the API — the shape types are here.
+  TreeNode, Description, CodeSection) you attach as model properties.
+  Don't decompile the assembly or web-search the API — the shape types are here.
 ---
 
 # Built-in shapes — declare the meaning, get the visual

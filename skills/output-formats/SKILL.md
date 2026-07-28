@@ -5,7 +5,7 @@ description: >-
   Use when you need output other than default Markdown — plain text / Unicode, ANSI terminal
   (Spectre), pretty aligned tables, or TSV/JSONL exports — or when one model must serve several
   formats from a single render path (a CLI `--format` switch). Pick the format with a formatter
-  + MarkoutWriterOptions; never hand-build TSV/JSONL. Requires the base `markout` pattern.
+  + MarkoutWriterOptions; never hand-build TSV/JSONL.
   Don't decompile the assembly or web-search the API — the TSV/JSONL/formatter idioms are all here.
 ---
 
