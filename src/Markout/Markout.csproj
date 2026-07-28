@@ -8,8 +8,8 @@
     <RootNamespace>Markout</RootNamespace>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.29.0</Version>
-    <PackageReleaseNotes>[#159] New [MarkoutNumberFormat("N0")] attribute (and MarkoutCellFormat.NumberFormat) applies a .NET numeric format string to the numbers Markout renders for a numeric Change&lt;V&gt; cell: the scalar before/after operands, the Delta.Absolute suffix, and the delta-noun / IDeltaCountable delta count. This keeps a grouped cell and its folded delta consistent — 165 → 1,168 (+1,003) instead of 165 → 1168 (+1,003). Composite operands keep their own shape formatting; percentage and multiple deltas are unaffected; structured (TSV/JSONL) output stays raw and ungrouped so it remains machine-parseable. Markout owns the delta sign (it prepends +/-), so the format applies to the magnitude only.</PackageReleaseNotes>
+    <Version>0.30.0</Version>
+    <PackageReleaseNotes>The Markout consumer skill shelf now ships inside the package. Five skills — the base `markout` pattern plus `conditional-composition`, `output-formats`, `built-in-shapes`, and `composite-cells-cards` — are packed at `skills/&lt;name&gt;/SKILL.md` and restore to `~/.nuget/packages/markout/&lt;version&gt;/skills/`, where a package-skill installer can copy them into a consuming repo's `.github/skills/`. This pins the grounding to the package version that produced it, so an agent using Markout gets the current idioms without decompiling the assembly or searching the web. No API or behavior changes.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,6 +33,18 @@
     <None Include="$(MSBuildThisFileDirectory)..\..\README.md"
           Pack="true"
           PackagePath="\" />
+  </ItemGroup>
+
+  <!--
+    Pack the consumer skill shelf at skills/<name>/ in the nupkg. It restores to
+    ~/.nuget/packages/markout/<version>/skills/ and is installed into a consuming repo's
+    .github/skills/ by a package-skill installer. See AGENTS.md "Package grounding".
+  -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\..\skills\**\*"
+          Pack="true"
+          PackagePath="skills\"
+          Visible="false" />
   </ItemGroup>
 
 </Project>

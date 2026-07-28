@@ -48,14 +48,32 @@ Keep maintainer guidance and consumer grounding separate:
 - **`skills/`** holds the **consumer** grounding for **agents using the Markout package** —
   the source-generated serializer API, attributes, the required `MarkoutSerializerContext`
   pattern, and the higher-value rendering workflows. These are authored as invokable
-  `SKILL.md` skills (a brief base skill plus discrete domain-workflow skills), delivered by
-  skill acquisition rather than packed into the nupkg.
+  `SKILL.md` skills (a brief base skill plus discrete domain-workflow skills).
 
 This mirrors dotnet-inspect's maintainer/consumer split, and now the *delivery form* matches
 too: both projects surface consumer grounding as invokable *skills* (`skills/<name>/SKILL.md`).
-Markout previously shipped a packed `grounding/markout/AGENTS.md` at the nupkg root; that has
-been retired in favor of skills, so the package ships no agent-facing doc of its own — the
-human `README.md` remains the packaged readme.
+Markout previously shipped a packed `grounding/markout/AGENTS.md` at the nupkg root; that prose
+doc has been retired in favor of skills, and the package ships no agent-facing *doc* of its own —
+the human `README.md` remains the packaged readme.
+
+### Shipping the shelf
+
+The skill shelf **is** packed into `Markout.nupkg`, at `skills/<name>/` in the package root
+(`src/Markout/Markout.csproj`). This is the *package skill* delivery route from
+[dotnet-package-skills](https://github.com/richlander/dotnet-package-skills): the shelf restores
+to `~/.nuget/packages/markout/<version>/skills/`, and a package-skill installer copies the skills
+a consumer wants into their repo's `.github/skills/<name>/`, where they persist as ordinary
+in-repo skills — checked in, reviewable, deletable. Packing the shelf pins the grounding to the
+package version that produced it; it does not push anything into a consumer's context, because
+installation stays an explicit, visible act.
+
+Consequences for maintainers:
+
+- The `version:` stamp in every `skills/*/SKILL.md` and in `skills/plugin.json` tracks the
+  **Markout package version**. Bump them together with `<Version>` in `Markout.csproj`, or the
+  shipped shelf misstates which release it describes.
+- `skills/` is globbed into the package, so **any file added there ships**. Keep it to skills.
+- Only `Markout` carries the shelf. `Markout.Templates` and `MarkdownTable.Formatting` do not.
 
 ## Markdown Linting
 

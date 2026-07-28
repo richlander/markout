@@ -1,6 +1,6 @@
 {
   "name": "markout",
-  "version": "0.22.0",
+  "version": "0.30.0",
   "description": "Markout workflow skills: a compact base skill plus four domain workflow skills (conditional-composition, output-formats, built-in-shapes, composite-cells-cards). Install all together so an agent can pull whichever a task needs.",
   "skills": ["."]
 }
