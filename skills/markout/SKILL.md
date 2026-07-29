@@ -8,8 +8,9 @@ description: >-
   source-gen but the rules differ (NO reflection fallback), so it needs a generated
   MarkoutSerializerContext and Markout-specific attributes. Covers the required pattern:
   annotated models, the partial context, scalar field shaping (title, description,
-  per-value formatting), and serializing through the context. Don't decompile the Markout
-  assembly or web-search its API — every idiom you need is here.
+  per-value formatting), and serializing through the context. Conditional composition, output
+  formats, built-in shapes, and composite cells are covered separately. Don't decompile the
+  Markout assembly or web-search its API — every idiom you need is in the Markout skills.
 ---
 
 # Markout — structured output from objects
@@ -18,8 +19,10 @@ Package `Markout` (the source generator ships in it — no extra package). Defau
 Markdown. Reach for Markout whenever a tool would otherwise build strings with
 `Console.WriteLine` / `StringBuilder`.
 
-> **Everything you need is here.** Do NOT `web_search` / `web_fetch` for Markout usage —
-> this skill is authoritative and version-matched to the package.
+> **Everything you need is in the Markout skills.** Do NOT `web_search` / `web_fetch` for
+> Markout usage — they are authoritative and version-matched to the package. This skill covers
+> the core pattern; conditional composition, output formats, built-in shapes, and composite
+> cells are covered separately.
 
 ## The required pattern (3 parts — all mandatory)
 
@@ -100,4 +103,4 @@ serialize. Keep the JSON DTO and the Markout model separate; project between the
 
 Describe the data and let the type plus attributes drive the output. Conditional sections and
 columns, alternate output formats, visual shapes, and composite cells are all declared on the
-model — do NOT hand-roll `if`/`StringBuilder` for them.
+model — do NOT hand-roll `if`/`StringBuilder` for them. Each of those is covered separately.
