@@ -2,8 +2,8 @@
 #
 # 24 workflow/user-problem scenarios that exercise the base "markout" skill plus four domain
 # workflow skills. First 6 are the basics (floor); the remaining 18 rise in difficulty across
-# the four domains (conditional-composition, output-formats, built-in-shapes,
-# composite-cells-cards), four difficulty rounds A<B<C<D.
+# the four domains (markout-conditional-composition, markout-output-formats,
+# markout-built-in-shapes, markout-composite-cells-cards), four difficulty rounds A<B<C<D.
 #
 # DESIGN: each fixture ships a BARE domain model (plain POCOs) + populated data + a TODO. The
 # agent authors ONLY the rendering (Markout attributes + serializer call). This isolates the
@@ -776,14 +776,16 @@ scenarios:
       - "Section selection uses IncludeSections; omitted sections are never hand-written"
     timeout: 1200
 
-  # ── CT25/CT26: HELD OUT of the shipped 24-scenario benchmark. They target multi-view-verbosity,
-  #    which is currently NOT on the shelf (skills/multi-view-verbosity was deleted — on the 24-ladder
-  #    it self-selected ×1, below the keep threshold). These two collect-less "backpressure"
-  #    discriminators (marginal +0.42 in the n=5 haiku ablation) are what justify MVV; re-add
-  #    skills/multi-view-verbosity and fold CT25/CT26 into the benchmark when it grows past 24. ──
+  # ── CT25/CT26: HELD OUT of the shipped 24-scenario benchmark. They target
+  #    markout-multi-view-verbosity, which is currently NOT on the shelf (the skill was deleted — on
+  #    the 24-ladder it self-selected ×1, below the keep threshold). These two collect-less
+  #    "backpressure" discriminators (marginal +0.42 in the n=5 haiku ablation) are what justify MVV;
+  #    re-add skills/markout-multi-view-verbosity and fold CT25/CT26 into the benchmark when it grows
+  #    past 24. Note the name carries the package prefix: `dotnet pack` rejects a bare
+  #    skills/multi-view-verbosity. ──
   - name: "CT25: flag-driven collect-less (quiet skips the expensive scan)"
     held_out: true                         # authored but NOT in the shipped 24-scenario benchmark
-    expected_skill: multi-view-verbosity   # methodology prior: backpressure = gate what you COLLECT
+    expected_skill: markout-multi-view-verbosity   # methodology prior: backpressure = gate what you COLLECT
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj).
       Program.cs holds one plain PackageReport with scalar fields and a Diagnostics detail section.
@@ -828,7 +830,7 @@ scenarios:
 
   - name: "CT26: section-targeted promotion collects only the requested scan"
     held_out: true                         # authored but NOT in the shipped 24-scenario benchmark
-    expected_skill: multi-view-verbosity   # methodology prior: promote collection per requested section
+    expected_skill: markout-multi-view-verbosity   # methodology prior: promote collection per requested section
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj).
       Program.cs holds one plain PackageReport with scalar fields and two detail sections
