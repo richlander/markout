@@ -76,6 +76,23 @@ Consequences for maintainers:
   a clean CI checkout, so what is in git is exactly what consumers get. Keep it to skills.
 - Only `Markout` carries the shelf. `Markout.Templates` and `MarkdownTable.Formatting` do not.
 
+## XML documentation
+
+The five shipping libraries — `Markout`, `Markout.Templates`, `MarkdownTable.Formatting`,
+`MarkdownTable.Query`, and `Markout.Ansi.Spectre` — set `GenerateDocumentationFile`, so
+`dotnet pack` puts `lib/<tfm>/<Assembly>.xml` next to the DLL and consumers get IntelliSense
+and agent-readable API grounding from the package itself.
+
+Combined with the repo-wide `TreatWarningsAsErrors`, this means **every new public member
+needs a doc comment** — CS1591 is a build error, not a warning. Malformed comments and
+broken `cref` targets (CS1570/CS1574/CS1734) fail the build too, so `<see cref="..."/>` must
+point at something that actually resolves from the *referencing* project. `Markout` cannot
+`cref` into `Markout.Templates`, for example, because the dependency runs the other way;
+use `<c>...</c>` for those. Use `<inheritdoc/>` when an interface member already carries
+the documentation.
+
+Tests, samples, tools, and `Markout.Demo` are not packed and do not generate a doc file.
+
 ## Markdown Linting
 
 All markdown files must pass `markdownlint` before committing. When there are lint errors, run the auto-fixer first:

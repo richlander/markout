@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>Markout.Ansi.Spectre</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Spectre.Console renderer for Markout</Description>
   </PropertyGroup>
 

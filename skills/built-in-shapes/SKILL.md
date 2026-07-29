@@ -1,6 +1,6 @@
 ---
 name: built-in-shapes
-version: 0.30.0
+version: 0.31.0
 description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn

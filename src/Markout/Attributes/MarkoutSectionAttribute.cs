@@ -70,6 +70,7 @@ public sealed class MarkoutSectionAttribute : Attribute
     /// </summary>
     public bool IncludeSectionInStructuredRows { get; set; }
 
+    /// <summary>
     /// Gets or sets fallback text rendered as a paragraph when the section's collection is
     /// non-null but empty. The section heading is still emitted, followed by this text in place
     /// of the table or list. When the collection is null the section is omitted entirely, so the

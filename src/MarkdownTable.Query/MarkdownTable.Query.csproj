@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>MarkdownTable.Query</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Query engine for markdown pipe tables — select, filter, sort, slice</Description>
     <Version>0.2.1</Version>
   </PropertyGroup>

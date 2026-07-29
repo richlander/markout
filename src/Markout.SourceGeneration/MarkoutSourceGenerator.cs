@@ -13,6 +13,7 @@ namespace Markout.SourceGeneration;
 [Generator]
 public sealed class MarkoutSourceGenerator : IIncrementalGenerator
 {
+    /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find all partial classes with [MarkoutContext] attributes

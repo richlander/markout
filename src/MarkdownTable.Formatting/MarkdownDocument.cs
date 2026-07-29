@@ -63,6 +63,9 @@ public class DocumentSection
 /// </summary>
 public class DocumentTable
 {
+    /// <summary>The table's header cells, left to right.</summary>
     public string[] Headers { get; set; } = [];
+
+    /// <summary>The table's data rows, each holding one cell per header.</summary>
     public List<string[]> Rows { get; set; } = [];
 }

@@ -37,6 +37,10 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
     };
     private readonly bool _showHeader;
 
+    /// <summary>
+    /// Creates a table formatter.
+    /// </summary>
+    /// <param name="showHeader">Whether to emit the header row above the data rows.</param>
     public TableFormatter(bool showHeader = true)
     {
         _showHeader = showHeader;

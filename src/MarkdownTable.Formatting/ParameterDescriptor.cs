@@ -16,11 +16,19 @@ public class ParameterDescriptor<TValue>(
     Action<TValue> setter,
     TryParseDelegate<TValue> parser) : IParameterDescriptor
 {
+    /// <inheritdoc/>
     public string Name { get; } = name;
+
+    /// <inheritdoc/>
     public string Description { get; } = description;
+
+    /// <inheritdoc/>
     public string Type { get; } = type;
+
+    /// <inheritdoc/>
     public string DefaultValue { get; } = defaultValue?.ToString() ?? "";
 
+    /// <inheritdoc/>
     public bool TrySetValue(string value)
     {
         if (parser(value, out var parsedValue))

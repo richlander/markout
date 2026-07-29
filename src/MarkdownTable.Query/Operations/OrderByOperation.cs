@@ -8,12 +8,16 @@ public class OrderByOperation : ITableOperation
     private readonly string _column;
     private readonly bool _descending;
 
+    /// <summary>Creates the operation.</summary>
+    /// <param name="column">Name of the column to sort by. Matched case-insensitively.</param>
+    /// <param name="descending">Whether to sort in descending order.</param>
     public OrderByOperation(string column, bool descending)
     {
         _column = column;
         _descending = descending;
     }
 
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var colIdx = Array.FindIndex(headers, h => string.Equals(h, _column, StringComparison.OrdinalIgnoreCase));
