@@ -223,10 +223,13 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
-    /// Shapes to suppress warnings for when unsupported by the writer.
-    /// Use when the caller knows the writer doesn't support certain shapes
-    /// and wants to silence the diagnostic warnings globally.
+    /// Records shapes the caller knows the writer does not support.
     /// </summary>
+    /// <remarks>
+    /// Reserved: the value is stored and copied but is not read by any current code path,
+    /// because unsupported shapes are already silent — the corresponding <c>Write</c> method
+    /// writes nothing and returns <c>false</c> without emitting a diagnostic.
+    /// </remarks>
     public MarkoutShape SuppressedShapes
     {
         get => _suppressedShapes;

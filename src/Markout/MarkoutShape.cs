@@ -1,9 +1,10 @@
 namespace Markout;
 
 /// <summary>
-/// Flags indicating which rendering shapes a writer supports.
-/// Unsupported shapes produce a runtime diagnostic and are skipped; set
-/// <see cref="MarkoutWriterOptions.SuppressedShapes"/> to silence that diagnostic.
+/// Flags identifying the rendering shapes a writer may support.
+/// When the formatter behind a <see cref="MarkoutWriter"/> does not implement the
+/// capability interface for a shape, the corresponding <c>Write</c> method writes
+/// nothing and returns <c>false</c>; no diagnostic is emitted.
 /// </summary>
 [Flags]
 public enum MarkoutShape
