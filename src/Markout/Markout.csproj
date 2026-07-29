@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.30.0</Version>
-    <PackageReleaseNotes>The Markout consumer skill shelf now ships inside the package. Five skills — the base `markout` pattern plus `conditional-composition`, `output-formats`, `built-in-shapes`, and `composite-cells-cards` — are packed at `skills/&lt;name&gt;/SKILL.md` and restore to `~/.nuget/packages/markout/&lt;version&gt;/skills/`, where a package-skill installer can copy them into a consuming repo's `.github/skills/`. This pins the grounding to the package version that produced it, so an agent using Markout gets the current idioms without decompiling the assembly or searching the web. No API or behavior changes.</PackageReleaseNotes>
+    <Version>0.31.0</Version>
+    <PackageReleaseNotes>The package now ships XML documentation. `dotnet pack` places `lib/net10.0/Markout.xml` beside the assembly, so IntelliSense shows real summaries and an agent inspecting the restored package can read the API without decompiling it. Enabling this required documenting 110 previously undocumented public members across Markout, MarkdownTable.Formatting and MarkdownTable.Query, because the repo builds with warnings as errors. It also made the compiler start parsing doc comments it had been ignoring, which exposed five latent bugs that were shipping as broken documentation: two comments missing their opening summary tag, a cref to a member that does not exist, two crefs pointing across an inverted project dependency, an ambiguous overload cref, and a paramref naming a tuple element. A stale claim that unsupported shapes emit a runtime diagnostic silenced by MarkoutWriterOptions.SuppressedShapes was corrected: unsupported shapes write nothing and return false, and SuppressedShapes is reserved. No API or behavior changes.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
