@@ -5,8 +5,8 @@ description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn
   ASCII or manual Markdown. Markout ships these as data types (Metric, Breakdown/Slice, Callout,
-  TreeNode, Description, CodeSection) you attach as model properties. Requires the base `markout`
-  pattern. Don't decompile the assembly or web-search the API — the shape types are here.
+  TreeNode, Description, CodeSection) you attach as model properties.
+  Don't decompile the assembly or web-search the API — the shape types are here.
 ---
 
 # Built-in shapes — declare the meaning, get the visual
@@ -14,6 +14,21 @@ description: >-
 Attach these types as properties; the formatter draws the right visual. The anti-pattern is
 building bars/trees by hand (`new string('█', n)`, indented dashes). Say *what the data is* — a
 measurement, a breakdown, an alert — not *how to draw it*.
+
+## Required setup
+
+Markout has **no reflection fallback**. Every report needs an annotated model, a partial context
+registering each model type, and a `Serialize` call that passes it — there is no `Serialize(obj)`
+overload, and omitting the context does not compile.
+
+```csharp
+using Markout;
+
+[MarkoutContext(typeof(Dashboard))]   // your model types only — the shape types below are built in
+public partial class DashboardContext : MarkoutSerializerContext { }
+
+MarkoutSerializer.Serialize(dashboard, Console.Out, DashboardContext.Default);
+```
 
 ## The shapes
 
@@ -45,9 +60,10 @@ public class Dashboard
     [MarkoutSection(Name = "Glossary"), MarkoutIgnoreInTable]
     public List<Description>? Glossary { get; set; }    // new Description("API", "Application ...")
 
-    // Code block.
-    [MarkoutIgnoreInTable]
-    public CodeSection? Snippet { get; set; }           // new CodeSection("csharp", "class Foo { }")
+    // Code block. Like Callout it is a value type, so pair it with [MarkoutSkipDefault]
+    // rather than making it nullable — the generator cannot unwrap a CodeSection?.
+    [MarkoutIgnoreInTable, MarkoutSkipDefault]
+    public CodeSection Snippet { get; set; }            // new CodeSection("csharp", "class Foo { }")
 }
 ```
 
@@ -62,7 +78,8 @@ public class Dashboard
   terminal formatter this shows the group label + `█` bar, not per-slice table rows.
 - **Children go in a collection expression**, never as trailing constructor arguments:
   `new TreeNode("root", [new TreeNode("leaf")])`. `Badge` is an optional object-initializer property.
-- **`Callout` is a value type** — pair it with `[MarkoutSkipDefault]` so an unset callout disappears.
+- **`Callout` and `CodeSection` are value types** — declare them non-nullable and pair with
+  `[MarkoutSkipDefault]` so an unset one disappears. `Callout?` / `CodeSection?` does not compile.
 - Do not hand-draw bars/trees; if you're building glyphs by hand you're using the wrong tool.
 
 ## Shape cheat-sheet

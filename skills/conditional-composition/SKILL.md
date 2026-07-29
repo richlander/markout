@@ -6,8 +6,7 @@ description: >-
   columns that are empty/uniform, filter output to a chosen set of sections, or render one
   model into several shapes ("one model, many views"). This is Markout's highest-value idiom:
   declare the conditions with attributes instead of hand-writing if/else + StringBuilder.
-  Requires the base `markout` pattern (model + context + Serialize). Don't decompile the
-  assembly or web-search the API — the conditional idioms are here.
+  Don't decompile the assembly or web-search the API — the conditional idioms are here.
 ---
 
 # Conditional composition — one model, many views
@@ -15,6 +14,24 @@ description: >-
 The trap this skill prevents: hand-rolling `if (hasErrors) sb.AppendLine("## Errors")` and manual
 column arithmetic. In Markout you **declare** the condition on the model; the generator renders the
 right shape. This keeps one source of truth and makes the same model serve quiet/detail/export modes.
+
+## Required setup
+
+Markout has **no reflection fallback**. Every report needs an annotated model, a partial context
+registering each model type, and a `Serialize` call that passes it — there is no `Serialize(obj)`
+overload, and omitting the context does not compile.
+
+```csharp
+using Markout;
+
+[MarkoutContext(typeof(Inspection))]    // the model AND every user element type of a List<T>
+[MarkoutContext(typeof(FailureRow))]
+[MarkoutContext(typeof(WarnRow))]
+[MarkoutContext(typeof(MatchRow))]
+public partial class InspectionContext : MarkoutSerializerContext { }
+
+var ctx = InspectionContext.Default;    // the `ctx` passed in the examples below
+```
 
 ## Conditional sections
 

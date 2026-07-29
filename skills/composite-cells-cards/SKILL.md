@@ -6,7 +6,7 @@ description: >-
   TSV/JSONL — before/after changes, fractions, shares, percentages, segment breakdowns, deltas
   and goal polarity — or when building metric / role-matrix / verdict cards from one model
   (Change<V>, Fraction, Share, Percent, Segments, Delta/Goal, MetricChange<T>, MultiSourceRow,
-  Verdict). This is Markout's most advanced tier. Requires the base `markout` pattern.
+  Verdict). This is Markout's most advanced tier.
   Don't decompile the assembly or web-search the API — these composite types are here.
 ---
 
@@ -16,6 +16,21 @@ Composite cells are **data-only scalar properties**. With `FieldLayout.Table` (d
 a row: Markdown renders a dense human value, and `TableFormatter` (TSV/JSONL) decomposes the *same*
 cell into typed columns — no pre-stringifying, one declaration serves both. This replaces
 pre-formatting numbers into strings (which loses the machine-readable form).
+
+## Required setup
+
+Markout has **no reflection fallback**. Every report needs an annotated model, a partial context
+registering each model type, and a `Serialize` call that passes it — there is no `Serialize(obj)`
+overload, and omitting the context does not compile.
+
+```csharp
+using Markout;
+
+[MarkoutContext(typeof(QualityCard))]   // register every model type you serialize
+public partial class QualityCardContext : MarkoutSerializerContext { }
+
+MarkoutSerializer.Serialize(card, Console.Out, QualityCardContext.Default);
+```
 
 ## Composite cell primitives
 

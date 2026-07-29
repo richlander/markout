@@ -6,10 +6,11 @@ description: >-
   TSV/JSONL) from C# objects instead of hand-built strings — CLIs, tools, reports, agent
   output. Markout is a source-generated .NET serializer: it looks like System.Text.Json
   source-gen but the rules differ (NO reflection fallback), so it needs a generated
-  MarkoutSerializerContext and Markout-specific attributes. Start here for the required
-  pattern; branch to the domain skills for conditional reports, multi-view/verbosity,
-  output formats, built-in shapes, and composite cells/cards. Don't decompile the Markout
-  assembly or web-search its API — every idiom you need is in these skills.
+  MarkoutSerializerContext and Markout-specific attributes. Covers the required pattern:
+  annotated models, the partial context, scalar field shaping (title, description,
+  per-value formatting), and serializing through the context. Conditional composition, output
+  formats, built-in shapes, and composite cells are covered separately. Don't decompile the
+  Markout assembly or web-search its API — every idiom you need is in the Markout skills.
 ---
 
 # Markout — structured output from objects
@@ -18,9 +19,10 @@ Package `Markout` (the source generator ships in it — no extra package). Defau
 Markdown. Reach for Markout whenever a tool would otherwise build strings with
 `Console.WriteLine` / `StringBuilder`.
 
-> **Everything you need is in these skills.** Do NOT `web_search` / `web_fetch` for Markout usage —
-> this base skill plus the domain skills below are authoritative and version-matched to the package.
-> If an idiom isn't here, pull the matching domain skill (listed at the end); don't go to the web.
+> **Everything you need is in the Markout skills.** Do NOT `web_search` / `web_fetch` for
+> Markout usage — they are authoritative and version-matched to the package. This skill covers
+> the core pattern; conditional composition, output formats, built-in shapes, and composite
+> cells are covered separately.
 
 ## The required pattern (3 parts — all mandatory)
 
@@ -97,14 +99,8 @@ public class Component
 Fetch JSON, project to a Markout model (a plain data model is fine — no separate visual layer),
 serialize. Keep the JSON DTO and the Markout model separate; project between them with LINQ.
 
-## Which skill for what
+## Author declaratively
 
-Author declaratively — describe the data, let the type/attributes drive output. Do NOT hand-roll
-`if`/`StringBuilder` for things below. Pull the matching skill:
-
-- **conditional-composition** — show/hide sections & columns from the data; filter to sections;
-  one model, many shapes (`ShowWhenProperty`, `IgnoreColumnWhen`, `IncludeSections`, same-name sections).
-- **output-formats** — plain text, ANSI/Spectre, pretty tables, TSV/JSONL, multi-format dispatch.
-- **built-in-shapes** — `Metric`, `Breakdown`, `Callout`, `TreeNode`, `Description`, `CodeSection`.
-- **composite-cells-cards** — dense-Markdown-cell ↔ decomposed-column data (`Change<V>`, `Fraction`,
-  `Share`, `Percent`, `Segments`, `Delta`/`Goal`) and metric/role/verdict cards.
+Describe the data and let the type plus attributes drive the output. Conditional sections and
+columns, alternate output formats, visual shapes, and composite cells are all declared on the
+model — do NOT hand-roll `if`/`StringBuilder` for them. Each of those is covered separately.
