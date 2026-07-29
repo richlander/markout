@@ -7,11 +7,14 @@ public class TakeOperation : ITableOperation
 {
     private readonly int _count;
 
+    /// <summary>Creates the operation.</summary>
+    /// <param name="count">Number of leading rows to keep.</param>
     public TakeOperation(int count)
     {
         _count = count;
     }
 
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var taken = rows.Take(_count).ToList();
@@ -26,11 +29,14 @@ public class SkipOperation : ITableOperation
 {
     private readonly int _count;
 
+    /// <summary>Creates the operation.</summary>
+    /// <param name="count">Number of leading rows to discard.</param>
     public SkipOperation(int count)
     {
         _count = count;
     }
 
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var skipped = rows.Skip(_count).ToList();
@@ -43,6 +49,7 @@ public class SkipOperation : ITableOperation
 /// </summary>
 public class FirstOperation : ITableOperation
 {
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         if (rows.Count == 0)
@@ -57,6 +64,7 @@ public class FirstOperation : ITableOperation
 /// </summary>
 public class LastOperation : ITableOperation
 {
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         if (rows.Count == 0)
@@ -71,6 +79,7 @@ public class LastOperation : ITableOperation
 /// </summary>
 public class CountOperation : ITableOperation
 {
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         return QueryResult.Scalar(rows.Count.ToString());
@@ -82,6 +91,7 @@ public class CountOperation : ITableOperation
 /// </summary>
 public class DistinctOperation : ITableOperation
 {
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var seen = new HashSet<string>();
@@ -105,11 +115,14 @@ public class IndexOperation : ITableOperation
 {
     private readonly int _index;
 
+    /// <summary>Creates the operation.</summary>
+    /// <param name="index">Row index to select. Negative values count back from the last row.</param>
     public IndexOperation(int index)
     {
         _index = index;
     }
 
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var idx = _index < 0 ? rows.Count + _index : _index;
@@ -128,12 +141,16 @@ public class SliceOperation : ITableOperation
     private readonly int? _start;
     private readonly int? _end;
 
+    /// <summary>Creates the operation.</summary>
+    /// <param name="start">Inclusive start row index, or <see langword="null"/> for the first row. Negative values count back from the last row.</param>
+    /// <param name="end">Exclusive end row index, or <see langword="null"/> for past the last row. Negative values count back from the last row.</param>
     public SliceOperation(int? start, int? end)
     {
         _start = start;
         _end = end;
     }
 
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var start = _start ?? 0;
@@ -156,11 +173,14 @@ public class ColumnExtractOperation : ITableOperation
 {
     private readonly string _column;
 
+    /// <summary>Creates the operation.</summary>
+    /// <param name="column">Name of the column to extract. Matched case-insensitively.</param>
     public ColumnExtractOperation(string column)
     {
         _column = column;
     }
 
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var colIdx = Array.FindIndex(headers, h => string.Equals(h, _column, StringComparison.OrdinalIgnoreCase));
@@ -185,12 +205,16 @@ public class CellExtractOperation : ITableOperation
     private readonly int _rowIndex;
     private readonly string _column;
 
+    /// <summary>Creates the operation.</summary>
+    /// <param name="rowIndex">Row index to read. Negative values count back from the last row.</param>
+    /// <param name="column">Name of the column to read. Matched case-insensitively.</param>
     public CellExtractOperation(int rowIndex, string column)
     {
         _rowIndex = rowIndex;
         _column = column;
     }
 
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var rowIdx = _rowIndex < 0 ? rows.Count + _rowIndex : _rowIndex;

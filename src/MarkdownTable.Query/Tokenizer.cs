@@ -6,42 +6,100 @@ namespace MarkdownTable.Query;
 public enum TokenKind
 {
     // Literals and identifiers
-    Dot,             // .
-    Identifier,      // bare word (Name, CPU, etc.)
-    QuotedString,    // "..."
-    Number,          // 42, 3.14
+
+    /// <summary>The <c>.</c> path separator.</summary>
+    Dot,
+
+    /// <summary>A bare word, such as a section or column name.</summary>
+    Identifier,
+
+    /// <summary>A double-quoted string literal.</summary>
+    QuotedString,
+
+    /// <summary>A numeric literal, integer or decimal.</summary>
+    Number,
 
     // Brackets and delimiters
-    OpenBracket,     // [
-    CloseBracket,    // ]
-    Comma,           // ,
-    Colon,           // :
-    Pipe,            // |
+
+    /// <summary>The <c>[</c> opening bracket.</summary>
+    OpenBracket,
+
+    /// <summary>The <c>]</c> closing bracket.</summary>
+    CloseBracket,
+
+    /// <summary>The <c>,</c> separator.</summary>
+    Comma,
+
+    /// <summary>The <c>:</c> slice separator.</summary>
+    Colon,
+
+    /// <summary>The <c>|</c> pipeline separator.</summary>
+    Pipe,
 
     // Comparison operators
-    Equal,           // ==
-    NotEqual,        // !=
-    GreaterThan,     // >
-    LessThan,        // <
-    GreaterOrEqual,  // >=
-    LessOrEqual,     // <=
+
+    /// <summary>The <c>==</c> equality operator.</summary>
+    Equal,
+
+    /// <summary>The <c>!=</c> inequality operator.</summary>
+    NotEqual,
+
+    /// <summary>The <c>&gt;</c> operator.</summary>
+    GreaterThan,
+
+    /// <summary>The <c>&lt;</c> operator.</summary>
+    LessThan,
+
+    /// <summary>The <c>&gt;=</c> operator.</summary>
+    GreaterOrEqual,
+
+    /// <summary>The <c>&lt;=</c> operator.</summary>
+    LessOrEqual,
 
     // Keywords
+
+    /// <summary>The <c>select</c> keyword.</summary>
     Select,
+
+    /// <summary>The <c>where</c> keyword.</summary>
     Where,
+
+    /// <summary>The <c>orderby</c> keyword.</summary>
     OrderBy,
+
+    /// <summary>The <c>take</c> keyword.</summary>
     Take,
+
+    /// <summary>The <c>skip</c> keyword.</summary>
     Skip,
+
+    /// <summary>The <c>first</c> keyword.</summary>
     First,
+
+    /// <summary>The <c>last</c> keyword.</summary>
     Last,
+
+    /// <summary>The <c>count</c> keyword.</summary>
     Count,
+
+    /// <summary>The <c>distinct</c> keyword.</summary>
     Distinct,
+
+    /// <summary>The <c>asc</c> keyword, for ascending sort order.</summary>
     Asc,
+
+    /// <summary>The <c>desc</c> keyword, for descending sort order.</summary>
     Desc,
+
+    /// <summary>The <c>and</c> keyword.</summary>
     And,
+
+    /// <summary>The <c>or</c> keyword.</summary>
     Or,
 
     // End
+
+    /// <summary>End of input.</summary>
     End
 }
 
@@ -72,6 +130,12 @@ public static class Tokenizer
         ["or"] = TokenKind.Or,
     };
 
+    /// <summary>
+    /// Splits <paramref name="query"/> into tokens, ending with <see cref="TokenKind.End"/>.
+    /// </summary>
+    /// <param name="query">The query string to tokenize.</param>
+    /// <returns>The tokens in source order.</returns>
+    /// <exception cref="QueryParseException">The query contains an unrecognized character or an unterminated string.</exception>
     public static List<Token> Tokenize(string query)
     {
         var tokens = new List<Token>();
@@ -253,8 +317,14 @@ public static class Tokenizer
 /// </summary>
 public class QueryParseException : Exception
 {
+    /// <summary>Zero-based character offset in the query where parsing failed.</summary>
     public int Position { get; }
 
+    /// <summary>
+    /// Creates the exception.
+    /// </summary>
+    /// <param name="message">Description of the parse failure.</param>
+    /// <param name="position">Zero-based character offset in the query where parsing failed.</param>
     public QueryParseException(string message, int position) : base(message)
     {
         Position = position;

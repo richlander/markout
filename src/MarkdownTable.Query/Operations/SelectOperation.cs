@@ -7,11 +7,14 @@ public class SelectOperation : ITableOperation
 {
     private readonly string[] _columns;
 
+    /// <summary>Creates the operation.</summary>
+    /// <param name="columns">Names of the columns to project, in output order. Matched case-insensitively.</param>
     public SelectOperation(string[] columns)
     {
         _columns = columns;
     }
 
+    /// <inheritdoc/>
     public QueryResult Execute(string[] headers, List<string[]> rows)
     {
         var indices = ResolveColumnIndices(headers, _columns);

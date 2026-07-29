@@ -12,7 +12,7 @@ public interface IMarkoutTypeInfo
 
     /// <summary>
     /// Gets the template binding name for this type (snake_case).
-    /// Used by <see cref="Templates.MarkoutTemplate.BindContext"/> for automatic registration.
+    /// Used by <c>Markout.Templates.MarkoutTemplate.BindContext</c> for automatic registration.
     /// </summary>
     string BindingName { get; }
 

@@ -40,6 +40,7 @@ public readonly struct FieldValue
     /// <summary>The number of items (1 for scalars).</summary>
     public int Count => _items?.Length ?? (_text is not null ? 1 : 0);
 
+    /// <summary>Returns <see cref="Text"/>, the scalar or joined rendering of the value.</summary>
     public override string ToString() => Text;
 
     /// <summary>Implicit conversion to string (returns Text).</summary>

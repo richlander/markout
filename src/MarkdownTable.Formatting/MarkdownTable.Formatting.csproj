@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>MarkdownTable.Formatting</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Statistical column-width optimization for markdown pipe tables</Description>
     <Version>0.3.3</Version>
   </PropertyGroup>

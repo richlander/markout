@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>Markout</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.30.0</Version>

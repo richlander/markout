@@ -98,6 +98,13 @@ public class LineReader
         }
     }
 
+    /// <summary>
+    /// Creates a line reader over <paramref name="stream"/>.
+    /// </summary>
+    /// <param name="stream">The stream to read UTF-8 bytes from.</param>
+    /// <param name="bufferSize">Size in bytes of the read buffer. Must be positive.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="bufferSize"/> is not positive.</exception>
     public LineReader(Stream stream, int bufferSize)
     {
         ArgumentNullException.ThrowIfNull(stream);

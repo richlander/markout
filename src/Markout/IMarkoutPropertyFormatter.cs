@@ -8,5 +8,8 @@ namespace Markout;
 /// <typeparam name="T">The type of the property value to format.</typeparam>
 public interface IMarkoutPropertyFormatter<in T> where T : class
 {
+    /// <summary>Formats <paramref name="value"/> as the rendered table cell.</summary>
+    /// <param name="value">The property value to format.</param>
+    /// <returns>The string to render.</returns>
     string Format(T value);
 }

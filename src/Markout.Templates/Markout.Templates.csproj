@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>Markout.Templates</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Template engine for Markout — compose human-authored documents with data-driven content</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.3.0</Version>

@@ -72,7 +72,7 @@ public abstract class MarkoutSerializerContext
 
     /// <summary>
     /// Gets all type infos registered in this context.
-    /// Used by <see cref="Templates.MarkoutTemplate.BindContext"/> for automatic registration.
+    /// Used by <c>Markout.Templates.MarkoutTemplate.BindContext</c> for automatic registration.
     /// </summary>
     /// <returns>An enumerable of all registered type infos.</returns>
     public abstract IEnumerable<IMarkoutTypeInfo> GetRegisteredTypes();

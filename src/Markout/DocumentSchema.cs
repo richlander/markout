@@ -30,11 +30,23 @@ public readonly record struct SchemaItem(string Name, string Kind)
 /// </summary>
 public sealed class SectionSchema
 {
+    /// <summary>
+    /// Creates a section schema from item names that all share the same kind.
+    /// </summary>
+    /// <param name="name">Display name of the section.</param>
+    /// <param name="itemKind">Kind applied to every item, such as <c>field</c> or <c>column</c>.</param>
+    /// <param name="itemNames">Display names of the items in the section.</param>
     public SectionSchema(string name, string itemKind, string[] itemNames)
         : this(name, itemKind, itemNames.Select(n => new SchemaItem(n, itemKind)).ToArray())
     {
     }
 
+    /// <summary>
+    /// Creates a section schema from items, overriding each item's kind with <paramref name="itemKind"/>.
+    /// </summary>
+    /// <param name="name">Display name of the section.</param>
+    /// <param name="itemKind">Kind applied to every item, such as <c>field</c> or <c>column</c>.</param>
+    /// <param name="items">The items in the section.</param>
     public SectionSchema(string name, string itemKind, SchemaItem[] items)
     {
         Name = name;
@@ -42,9 +54,16 @@ public sealed class SectionSchema
         Items = items.Select(i => i with { Kind = itemKind }).ToArray();
     }
 
+    /// <summary>Display name of the section.</summary>
     public string Name { get; }
+
+    /// <summary>Canonical machine-facing key for the section, derived from <see cref="Name"/>.</summary>
     public string Key => Formatting.FormatHelper.ToSnakeCase(Name);
+
+    /// <summary>Kind shared by every item in the section, such as <c>field</c> or <c>column</c>.</summary>
     public string ItemKind { get; }
+
+    /// <summary>The items the section exposes for discovery and projection.</summary>
     public SchemaItem[] Items { get; }
 }
 
@@ -53,7 +72,7 @@ public sealed class SectionSchema
 /// Used for discovery (-D), projection validation (--fields/--columns), and diagnostics.
 /// </summary>
 /// <remarks>
-/// <para>Built manually today via <see cref="Add"/>. Will be source-generated from
+/// <para>Built manually today via <see cref="Add(string, string, string[])"/>. Will be source-generated from
 /// Markout attributes in a future release.</para>
 /// <para>All name lookups are case-insensitive.</para>
 /// </remarks>
@@ -201,8 +220,15 @@ public sealed class DocumentSchema
 /// </summary>
 public sealed class ProjectionValidation
 {
+    /// <summary>A validation result with no resolved names, no unresolved names, and no suggestions.</summary>
     public static readonly ProjectionValidation Empty = new([], [], new Dictionary<string, string[]>());
 
+    /// <summary>
+    /// Creates a validation result.
+    /// </summary>
+    /// <param name="resolved">Names that matched the schema.</param>
+    /// <param name="unresolved">Names that did not match any schema item.</param>
+    /// <param name="suggestions">Prefix-based suggestions keyed by unresolved name.</param>
     public ProjectionValidation(string[] resolved, string[] unresolved,
         IReadOnlyDictionary<string, string[]> suggestions)
     {
@@ -220,5 +246,6 @@ public sealed class ProjectionValidation
     /// <summary>Prefix-based suggestions for unresolved names, keyed by the unresolved name.</summary>
     public IReadOnlyDictionary<string, string[]> Suggestions { get; }
 
+    /// <summary>Whether every requested name matched a schema item.</summary>
     public bool IsValid => Unresolved.Length == 0;
 }

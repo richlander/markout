@@ -165,6 +165,9 @@ public sealed class FieldDocument : IDisposable
     /// <summary>Gets the keys of all fields in the document.</summary>
     public IEnumerable<string> Keys => _fields.Keys;
 
+    /// <summary>
+    /// No-op. The document's backing buffer is caller-owned, so there is nothing to release.
+    /// </summary>
     public void Dispose() { /* buffer is caller-owned */ }
 
     // --- Static targeted lookup (early exit, zero dictionary) ---

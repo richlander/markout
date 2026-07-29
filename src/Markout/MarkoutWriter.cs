@@ -881,6 +881,8 @@ public class MarkoutWriter
         return WriteTable(headers, headerNames, outRows);
     }
 
+    /// <summary>
+    /// Writes a gated-metric table from <see cref="MetricChange{T}"/> rows: document formatters
     /// render fixed <c>Metric | Change | Target | Status</c> columns; decomposing formatters
     /// (TSV/JSONL) emit flat typed fields (<c>before</c>, <c>after</c>, optional <c>target</c>/
     /// <c>target_label</c>, <c>status</c>). Absent targets render <c>-</c> and are omitted from
@@ -1058,7 +1060,7 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Resolves the row's polarity for dense glyph rendering: the display <paramref name="Word"/>
+    /// Resolves the row's polarity for dense glyph rendering: the display <c>Word</c>
     /// (caller <see cref="MetricChange{T}.StatusLabel"/>, else the polarity slug), the underlying
     /// <see cref="GateStatus"/> enum when the polarity is derived or caller-set (so a glyph can be
     /// chosen), and whether the word is a caller-supplied custom label (which stays a word, not a glyph).
