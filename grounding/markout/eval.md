@@ -198,7 +198,7 @@ and field layout. Drive output through the serializer. Build and run to confirm.
 
 ## CT07: conditional section via ShowWhenProperty
 
-- Target skill: conditional-composition
+- Target skill: markout-conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT07/Report.csproj](fixtures/ct/CT07/Report.csproj), [CT07/Program.cs](fixtures/ct/CT07/Program.cs)
 
@@ -229,7 +229,7 @@ imperative string-building. Build and run to confirm.
 
 ## CT08: render a section subset with IncludeSections
 
-- Target skill: conditional-composition
+- Target skill: markout-conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT08/Report.csproj](fixtures/ct/CT08/Report.csproj), [CT08/Program.cs](fixtures/ct/CT08/Program.cs)
 
@@ -260,7 +260,7 @@ Build and run to confirm.
 
 ## CT09: machine-readable TSV output
 
-- Target skill: output-formats
+- Target skill: markout-output-formats
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT09/Report.csproj](fixtures/ct/CT09/Report.csproj), [CT09/Program.cs](fixtures/ct/CT09/Program.cs)
 
@@ -289,7 +289,7 @@ Do not hand-build the TSV strings. Build and run to confirm.
 
 ## CT10: metric bars and a breakdown
 
-- Target skill: built-in-shapes
+- Target skill: markout-built-in-shapes
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT10/Report.csproj](fixtures/ct/CT10/Report.csproj), [CT10/Program.cs](fixtures/ct/CT10/Program.cs)
 
@@ -319,7 +319,7 @@ and the breakdown rather than hand-built rows. Build and run to confirm.
 
 ## CT11: before -&gt; after change cells
 
-- Target skill: composite-cells-cards
+- Target skill: markout-composite-cells-cards
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT11/Report.csproj](fixtures/ct/CT11/Report.csproj), [CT11/Program.cs](fixtures/ct/CT11/Program.cs)
 
@@ -349,7 +349,7 @@ change cells so the absolute delta is appended. Do not hand-format the arrows/de
 
 ## CT12: conditional table column via IgnoreColumnWhen
 
-- Target skill: conditional-composition
+- Target skill: markout-conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT12/Report.csproj](fixtures/ct/CT12/Report.csproj), [CT12/Program.cs](fixtures/ct/CT12/Program.cs)
 
@@ -381,7 +381,7 @@ or imperatively build the table. Build and run to confirm.
 
 ## CT13: verbosity-gated detail sections (quiet vs verbose)
 
-- Target skill: conditional-composition
+- Target skill: markout-conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT13/Report.csproj](fixtures/ct/CT13/Report.csproj), [CT13/Program.cs](fixtures/ct/CT13/Program.cs)
 
@@ -412,7 +412,7 @@ hand-write the omitted sections). Drive output through the serializer. Build and
 
 ## CT14: JSONL with typed numeric values
 
-- Target skill: output-formats
+- Target skill: markout-output-formats
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT14/Report.csproj](fixtures/ct/CT14/Report.csproj), [CT14/Program.cs](fixtures/ct/CT14/Program.cs)
 
@@ -442,7 +442,7 @@ Build and run to confirm.
 
 ## CT15: dependency tree with badges
 
-- Target skill: built-in-shapes
+- Target skill: markout-built-in-shapes
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT15/Report.csproj](fixtures/ct/CT15/Report.csproj), [CT15/Program.cs](fixtures/ct/CT15/Program.cs)
 
@@ -472,7 +472,7 @@ hand-built indentation. Build and run to confirm.
 
 ## CT16: gated metric-change card with goals
 
-- Target skill: composite-cells-cards
+- Target skill: markout-composite-cells-cards
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT16/Report.csproj](fixtures/ct/CT16/Report.csproj), [CT16/Program.cs](fixtures/ct/CT16/Program.cs)
 
@@ -504,7 +504,7 @@ than computing status by hand. Build and run to confirm.
 
 ## CT17: same-name polymorphic sections (one heading, two shapes)
 
-- Target skill: conditional-composition
+- Target skill: markout-conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT17/Report.csproj](fixtures/ct/CT17/Report.csproj), [CT17/Program.cs](fixtures/ct/CT17/Program.cs)
 
@@ -535,7 +535,7 @@ serializer; do not hand-write the heading or branch with imperative string-build
 
 ## CT18: one model rendered at three verbosity levels
 
-- Target skill: conditional-composition
+- Target skill: markout-conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT18/Report.csproj](fixtures/ct/CT18/Report.csproj), [CT18/Program.cs](fixtures/ct/CT18/Program.cs)
 
@@ -566,7 +566,7 @@ output through the serializer. Build and run to confirm.
 
 ## CT19: central multi-format dispatch with row cap
 
-- Target skill: output-formats
+- Target skill: markout-output-formats
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT19/Report.csproj](fixtures/ct/CT19/Report.csproj), [CT19/Program.cs](fixtures/ct/CT19/Program.cs)
 
@@ -598,7 +598,7 @@ run to confirm.
 
 ## CT20: advisory with a callout, code block, and definitions
 
-- Target skill: built-in-shapes
+- Target skill: markout-built-in-shapes
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT20/Report.csproj](fixtures/ct/CT20/Report.csproj), [CT20/Program.cs](fixtures/ct/CT20/Program.cs)
 
@@ -629,7 +629,7 @@ confirm.
 
 ## CT21: multi-source comparison matrix with verdicts
 
-- Target skill: composite-cells-cards
+- Target skill: markout-composite-cells-cards
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT21/Report.csproj](fixtures/ct/CT21/Report.csproj), [CT21/Program.cs](fixtures/ct/CT21/Program.cs)
 
@@ -660,7 +660,7 @@ hand-built table. Build and run to confirm.
 
 ## CT22: full composed inspection report
 
-- Target skill: conditional-composition
+- Target skill: markout-conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT22/Report.csproj](fixtures/ct/CT22/Report.csproj), [CT22/Program.cs](fixtures/ct/CT22/Program.cs)
 
@@ -697,7 +697,7 @@ hand-write headings or tables. Build and run to confirm.
 
 ## CT23: dense composite cell that decomposes into columns
 
-- Target skill: output-formats
+- Target skill: markout-output-formats
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT23/Report.csproj](fixtures/ct/CT23/Report.csproj), [CT23/Program.cs](fixtures/ct/CT23/Program.cs)
 
@@ -728,7 +728,7 @@ percent. Do not hand-build any format. Build and run to confirm.
 
 ## CT24: section-targeted verbosity views from one model (-D / -S)
 
-- Target skill: conditional-composition
+- Target skill: markout-conditional-composition
 - Tool restriction: No web search / fetch allowed.
 - Fixtures: [CT24/Report.csproj](fixtures/ct/CT24/Report.csproj), [CT24/Program.cs](fixtures/ct/CT24/Program.cs)
 

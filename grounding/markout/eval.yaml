@@ -213,7 +213,7 @@ scenarios:
     timeout: 900
 
   - name: "CT07: conditional section via ShowWhenProperty"
-    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageInfo
       objects — one WITH deprecations, one WITHOUT. Using the serializer, print a Markdown report for each with
@@ -244,7 +244,7 @@ scenarios:
     timeout: 900
 
   - name: "CT08: render a section subset with IncludeSections"
-    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain ServiceStatus
       with scalar fields and two list sections (Incidents, Metrics). Using the serializer, print the SAME model
@@ -275,7 +275,7 @@ scenarios:
     timeout: 900
 
   - name: "CT09: machine-readable TSV output"
-    expected_skill: output-formats   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-output-formats   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain Roster with a
       list of members. Using the serializer, print the members as tab-separated values (TSV) — one header row of
@@ -304,7 +304,7 @@ scenarios:
     timeout: 900
 
   - name: "CT10: metric bars and a breakdown"
-    expected_skill: built-in-shapes   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-built-in-shapes   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PerfReport
       with a list of timing measurements (label + seconds) and a coverage breakdown (covered vs
@@ -334,7 +334,7 @@ scenarios:
     timeout: 900
 
   - name: "CT11: before -> after change cells"
-    expected_skill: composite-cells-cards   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-composite-cells-cards   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain
       RegressionReport with two before -> after change values (Change cells) for Errors and
@@ -364,7 +364,7 @@ scenarios:
     timeout: 900
 
   - name: "CT12: conditional table column via IgnoreColumnWhen"
-    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageDeps
       objects — one whose dependencies are ALL required, and one with a MIX of required and optional.
@@ -396,7 +396,7 @@ scenarios:
     timeout: 900
 
   - name: "CT13: verbosity-gated detail sections (quiet vs verbose)"
-    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
       (scalars plus Dependencies and Tags collections). Using the serializer, print BOTH a quiet and a verbose
@@ -427,7 +427,7 @@ scenarios:
     timeout: 900
 
   - name: "CT14: JSONL with typed numeric values"
-    expected_skill: output-formats   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-output-formats   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain BenchReport
       with a list of benchmark rows (a name plus numeric OpsPerSec and AllocatedKb). Using the serializer, print
@@ -457,7 +457,7 @@ scenarios:
     timeout: 900
 
   - name: "CT15: dependency tree with badges"
-    expected_skill: built-in-shapes   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-built-in-shapes   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain DependencyTree
       whose Root is a TreeNode with nested children (some carrying a badge marker). Using the serializer,
@@ -487,7 +487,7 @@ scenarios:
     timeout: 900
 
   - name: "CT16: gated metric-change card with goals"
-    expected_skill: composite-cells-cards   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-composite-cells-cards   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain QualityGate
       with a list of MetricChange rows (Failures 7 -> 0, Coverage 78 -> 85). Using the serializer, render a
@@ -519,7 +519,7 @@ scenarios:
     timeout: 900
 
   - name: "CT17: same-name polymorphic sections (one heading, two shapes)"
-    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageInfo
       objects — one that exposes APIs, one that is types-only. Using the serializer, print a Markdown report for
@@ -550,7 +550,7 @@ scenarios:
     timeout: 900
 
   - name: "CT18: one model rendered at three verbosity levels"
-    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
       with scalar fields and two list sections (Dependencies, Diagnostics). Using the serializer, print the SAME
@@ -581,7 +581,7 @@ scenarios:
     timeout: 900
 
   - name: "CT19: central multi-format dispatch with row cap"
-    expected_skill: output-formats   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-output-formats   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain SearchReport
       with a Query and a list of hits. Using the serializer, write ONE dispatch that renders the SAME model in a
@@ -613,7 +613,7 @@ scenarios:
     timeout: 1200
 
   - name: "CT20: advisory with a callout, code block, and definitions"
-    expected_skill: built-in-shapes   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-built-in-shapes   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain Advisory with
       a warning Callout, a Repro CodeSection (a C# snippet), and a list of Description terms. Using
@@ -644,7 +644,7 @@ scenarios:
     timeout: 900
 
   - name: "CT21: multi-source comparison matrix with verdicts"
-    expected_skill: composite-cells-cards   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-composite-cells-cards   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain ModelComparison
       whose rows compare a "baseline" and a "grounded" source across several metrics, using composite cells (Fraction, Share, Percent, Segments) and a Verdict. Using the serializer, render a "##
@@ -675,7 +675,7 @@ scenarios:
     timeout: 900
 
   - name: "CT22: full composed inspection report"
-    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageInfo.
       Using the serializer, print ONE Markdown report composed of these sections in order:
@@ -712,7 +712,7 @@ scenarios:
     timeout: 1200
 
   - name: "CT23: dense composite cell that decomposes into columns"
-    expected_skill: output-formats   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-output-formats   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain BenchReport
       whose rows each carry a before -> after change value (a Change cell). Using the serializer, print
@@ -743,7 +743,7 @@ scenarios:
     timeout: 1200
 
   - name: "CT24: section-targeted verbosity views from one model (-D / -S)"
-    expected_skill: conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
+    expected_skill: markout-conditional-composition   # methodology prior: the ONE target skill (grounding/eval)
     prompt: |
       This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
       with scalar fields and two detail sections (Dependencies, Diagnostics), where Diagnostics is the

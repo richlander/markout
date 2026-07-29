@@ -69,6 +69,15 @@ installation stays an explicit, visible act.
 
 Consequences for maintainers:
 
+- **Every skill is named for the package.** The base skill is `markout`; every workflow skill is
+  `markout-<domain>`. The directory name and the frontmatter `name` are the same string, and that
+  string is the name used everywhere the skill is referred to. Skill names are a **flat, global
+  namespace** in a consuming repo — this shelf installs next to every other package's, with no
+  coordinating authority — so a bare `output-formats` is a name any other maintainer could also
+  ship. Deriving from the package id inherits uniqueness from the NuGet id namespace instead of
+  negotiating it. `dotnet pack` **fails** on a skill directory that is neither `markout` nor
+  `markout-*`, or whose frontmatter `name` disagrees with its directory. See
+  [authoring-principles.md](https://github.com/richlander/dotnet-package-skills/blob/main/docs/authoring-principles.md#naming-derive-every-skill-name-from-the-package-id).
 - The `version:` stamp in every `skills/*/SKILL.md` and in `skills/plugin.json` tracks the
   **Markout package version**. `dotnet pack` **fails** if they disagree with `<Version>` in
   `Markout.csproj`, because the shipped shelf must not misstate which release it describes.
