@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.32.0</Version>
-    <PackageReleaseNotes>The shipped skill shelf is now five standalone skills. Each workflow skill (conditional-composition, output-formats, built-in-shapes, composite-cells-cards) carries the required MarkoutSerializerContext setup for its own examples, so it produces code that compiles when read on its own; previously that pattern appeared only in the base markout skill and Markout has no reflection fallback. The base skill drops its routing table and instead states its scope, naming the topics the other skills cover without naming the skills, so nothing dangles when an installer writes a subset. Measured on a 26-scenario benchmark at 130 runs per variant: this shelf passes 87.7% against 84.6% for the previous routing shelf (not a significant difference) while 27.7% of runs complete using a workflow skill with no base skill at all, which the routing shelf never did once. An intermediate version that removed the routing table but let the base skill claim to be complete regressed to 78.5%, because agents on a domain task read that claim and stopped looking. Also fixes a built-in-shapes example that never compiled: CodeSection is a readonly record struct, so a CodeSection? property makes the generator emit member access on Nullable&lt;T&gt;. No API or behavior changes.</PackageReleaseNotes>
+    <Version>0.33.0</Version>
+    <PackageReleaseNotes>The four workflow skills on the shipped shelf are now named for the package that ships them: markout-conditional-composition, markout-output-formats, markout-built-in-shapes, and markout-composite-cells-cards. The base skill stays markout. Skill names occupy a flat, global namespace once installed — a consumer's .github/skills/ holds every package's shelf side by side, with no coordinating authority — so a bare name like output-formats is one any other maintainer could also ship. Deriving each name from the package id inherits uniqueness from the NuGet id namespace instead of negotiating it. Pack now fails on a skill directory that is neither markout nor markout-&lt;domain&gt;, or whose frontmatter name disagrees with its directory. Consumers who installed the previous shelf should delete the four old directories from .github/skills/ before installing this one; the skills carry no cross-references, so nothing else moves. No API or behavior changes.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -53,15 +53,28 @@
     consumer restored. They drifted before (0.22.0 while the package shipped 0.29.0, across
     seven releases) because keeping them in sync was a rule someone had to remember. Fail
     the pack instead.
+
+    Skill names are enforced here for the same reason. Once installed they sit in a consumer's
+    .github/skills/ next to every other package's shelf — one flat namespace, no coordinating
+    authority — so each name is derived from the package id: `markout` for the base skill,
+    `markout-<domain>` for the rest. The directory name and the frontmatter `name` are the same
+    string, because that name is how the skill is addressed everywhere.
   -->
   <Target Name="ValidateShelfVersionStamps" BeforeTargets="GenerateNuspec">
     <ItemGroup>
       <_ShelfSkill Include="$(MSBuildThisFileDirectory)..\..\skills\**\SKILL.md" />
+      <_ShelfSkill>
+        <SkillName>$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName('%(FullPath)'))))</SkillName>
+      </_ShelfSkill>
     </ItemGroup>
     <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Contains('%0Aversion: $(Version)%0A'))"
-           Text="skills/%(_ShelfSkill.RecursiveDir)SKILL.md does not carry 'version: $(Version)'. The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
+           Text="skills/%(_ShelfSkill.SkillName)/SKILL.md does not carry 'version: $(Version)'. The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
     <Error Condition="!$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\skills\plugin.json').Contains('&quot;version&quot;: &quot;$(Version)&quot;'))"
            Text="skills/plugin.json does not carry version $(Version). The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
+    <Error Condition="'%(_ShelfSkill.SkillName)' != 'markout' AND !$([System.String]::new('%(_ShelfSkill.SkillName)').StartsWith('markout-'))"
+           Text="skills/%(_ShelfSkill.SkillName)/ is not named for the package. Skill names share one flat namespace in a consuming repo, so the base skill must be 'markout' and every workflow skill 'markout-&lt;domain&gt;'." />
+    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Contains('%0Aname: %(_ShelfSkill.SkillName)%0A'))"
+           Text="skills/%(_ShelfSkill.SkillName)/SKILL.md declares a frontmatter 'name' that is not its directory name. A skill is addressed by that name, so the two must be the same string." />
   </Target>
 
 </Project>

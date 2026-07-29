@@ -1,6 +1,6 @@
 ---
 name: markout
-version: 0.32.0
+version: 0.33.0
 description: >-
   Use when generating Markdown or other structured output (plain text, ANSI, pretty tables,
   TSV/JSONL) from C# objects instead of hand-built strings — CLIs, tools, reports, agent

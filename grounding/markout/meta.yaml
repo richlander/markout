@@ -6,5 +6,5 @@ name: markout
 package: Markout
 description: >-
   Markout workflow grounding: a compact base skill (title + scalar fields + simple
-  sections + formatter choice) plus four domain workflow skills (conditional-composition,
-  output-formats, built-in-shapes, composite-cells-cards).
+  sections + formatter choice) plus four domain workflow skills (markout-conditional-composition,
+  markout-output-formats, markout-built-in-shapes, markout-composite-cells-cards).
