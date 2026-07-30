@@ -1042,7 +1042,17 @@ for every format, **including TSV and JSONL**, whose output carries no heading t
 reorder. Asking for the order a document already had reproduces it byte for byte.
 
 Setting `SectionOrder` buffers the whole document, because the last section
-written may be the first one emitted. Leaving it unset costs nothing.
+written may be the first one emitted. That also makes emitting the end of the
+document: `Flush()` and `ToString()` write it out, and writing again afterwards
+throws, because a section written then could no longer move ahead of one already
+written out. Finish the document before flushing.
+
+`ToString()` returns the ordered result only for a writer that owns its own
+buffer. Against a `TextWriter` you supplied it has nothing to return and emits
+nothing, so inspecting the writer in a debugger does not commit the document.
+
+Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
+goes straight to your writer as before.
 
 ### Heading Level Offset
 

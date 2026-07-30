@@ -117,7 +117,7 @@ public class MarkoutWriter
             return false;
 
         if (_hasContent)
-            _writer.WriteLine();
+            WriteSeparatorLine();
 
         hf.FormatHeading(_writer, RenderHeadingLevel(level), text, context);
         _writer.WriteLine();
@@ -1716,7 +1716,11 @@ public class MarkoutWriter
     public void Flush()
     {
         _sectionBuffer?.EmitOrdered(_options.SectionOrder);
-        _writer.Flush();
+
+        // _writer is either _target or the buffering wrapper in front of it, and the
+        // wrapper has nothing of its own to flush once it has emitted. Flushing both
+        // would flush the target twice whenever ordering is off, which is every
+        // caller that never asked for it.
         _target.Flush();
     }
 
@@ -1726,10 +1730,15 @@ public class MarkoutWriter
     /// </summary>
     public override string ToString()
     {
+        // Emitting is a write, so only do it where ToString can actually return the
+        // result. Against a stream target this method has nothing to return, and
+        // committing the document from something a debugger calls implicitly would be
+        // a side effect no caller asked for.
+        if (_target is not StringWriter sw)
+            return base.ToString() ?? "";
+
         _sectionBuffer?.EmitOrdered(_options.SectionOrder);
-        if (_target is StringWriter sw)
-            return sw.ToString().TrimEnd();
-        return base.ToString() ?? "";
+        return sw.ToString().TrimEnd();
     }
 
     // ── Private infrastructure ──
@@ -1819,9 +1828,26 @@ public class MarkoutWriter
 
         if (_needsBlankLine)
         {
-            _writer.WriteLine();
+            WriteSeparatorLine();
             _needsBlankLine = false;
         }
+    }
+
+    /// <summary>
+    /// Writes the blank line that separates two blocks, unless it would land at a
+    /// section seam. A seam separator belongs to neither section, so capturing it with
+    /// the section that follows makes it travel when that section moves. At a seam the
+    /// buffering writer re-inserts one where the requested order actually needs it.
+    /// </summary>
+    private void WriteSeparatorLine()
+    {
+        if (_sectionBuffer is { AtSectionBoundary: true } buffer)
+        {
+            buffer.DropSeparatorAtBoundary();
+            return;
+        }
+
+        _writer.WriteLine();
     }
 
     private void FlushPendingSection()
@@ -1842,7 +1868,7 @@ public class MarkoutWriter
             return;
 
         if (_hasContent)
-            _writer.WriteLine();
+            WriteSeparatorLine();
 
         hf.FormatHeading(_writer, RenderHeadingLevel(level), text, context);
         _writer.WriteLine();
