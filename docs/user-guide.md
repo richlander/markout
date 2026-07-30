@@ -1069,14 +1069,24 @@ under is used. Everything else, including line endings inside a section, is
 unaffected.
 
 A second boundary, and it is not the buffer's: a `Projection` defers a section's
-heading until something in that section renders, and the deferral is a single
-slot rather than one per section. So a non-headless section whose whole body is
-projected away leaves its heading waiting, and a headless section after it flushes
-that heading into its own output. This happens with `SectionOrder` unset — it is
-how the writer already behaves — but it means such a document's output depends on
-the order it was written in, and no reordering can reproduce an output that was
-never a function of the order alone. Give a section that may render nothing a
-headless neighbour it can safely precede, or do not project its only content away.
+heading until the section writes an ordinary block, and the deferral is a single
+slot rather than one per section. A section that writes no such block leaves its
+heading waiting, and a headless section after it flushes that heading into its own
+output.
+
+"No ordinary block" is wider than "renders nothing", and neither implies the
+other. A section holding only a sub-heading renders visible output and still
+leaks, because a heading does not flush the slot; a section holding only an empty
+list renders nothing and leaks; a section holding only an empty streaming table
+renders nothing visible and does *not* leak, because starting the table flushes.
+Empty sections, blank-line-only sections, and sections a projection emptied all
+leak.
+
+This is how the writer already behaves with `SectionOrder` unset, so reordering
+neither causes it nor can repair it: such a document's output depends on the order
+it was written in, and there is no order-independent output to reproduce. Give a
+section that may write no ordinary block a non-headless neighbour, or keep one
+block in it that a projection cannot remove.
 
 Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
 goes straight to your writer as before.
