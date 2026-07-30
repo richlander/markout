@@ -1070,23 +1070,26 @@ unaffected.
 
 A second boundary, and it is not the buffer's: a `Projection` defers a section's
 heading until the section writes an ordinary block, and the deferral is a single
-slot rather than one per section. A section that writes no such block leaves its
-heading waiting, and a headless section after it flushes that heading into its own
-output.
+slot rather than one per section. A section that writes no ordinary block and is
+never closed leaves its heading waiting, and a headless section after it flushes
+that heading into its own output — labelling that section's content with the
+previous section's name.
 
-"No ordinary block" is wider than "renders nothing", and neither implies the
-other. A section holding only a sub-heading renders visible output and still
-leaks, because a heading does not flush the slot; a section holding only an empty
-list renders nothing and leaks; a section holding only an empty streaming table
-renders nothing visible and does *not* leak, because starting the table flushes.
-Empty sections, blank-line-only sections, and sections a projection emptied all
-leak.
+`WriteSectionEnd()` discards a heading still pending, so pairing it with
+`WriteSectionStart()` avoids this entirely, and is worth doing whenever a section
+may turn out empty.
+
+Both halves of the condition are easy to misjudge, so neither "it renders
+something" nor "it renders nothing" is the test. A section holding only a
+sub-heading renders visible output and still leaks, because a heading does not
+flush the slot. A section holding only an empty streaming table renders nothing
+visible and does not leak, because starting the table does flush. Empty sections,
+blank-line-only sections, empty lists, and sections a projection emptied all leak
+unless closed.
 
 This is how the writer already behaves with `SectionOrder` unset, so reordering
 neither causes it nor can repair it: such a document's output depends on the order
-it was written in, and there is no order-independent output to reproduce. Give a
-section that may write no ordinary block a non-headless neighbour, or keep one
-block in it that a projection cannot remove.
+it was written in, and there is no order-independent output to reproduce.
 
 Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
 goes straight to your writer as before.
