@@ -148,15 +148,14 @@ public class RowWindowTests
         foreach (var window in windows)
         {
             Assert.True(window.IsPositional);
-            for (var total = 0; total <= 8; total++)
+            for (var total = 0; total <= 15; total++)
             {
                 var (keepStart, keepEnd) = window.Resolve(total);
                 for (var position = 0; position < total; position++)
                 {
                     var expected = position >= keepStart && position < keepEnd;
                     Assert.Equal(expected, window.KeepsPosition(position));
-                    if (window.IsPastEnd(position))
-                        Assert.False(expected);
+                    Assert.Equal(position >= keepEnd, window.IsPastEnd(position));
                 }
             }
         }
@@ -678,6 +677,36 @@ public class RowWindowTests
 
         writer.WriteTableEnd();
         Assert.Contains("row:r1", sw.ToString());
+    }
+
+    /// <summary>
+    /// A window that keeps nothing must cost nothing per row. Tail is the only kind
+    /// that retains rows at all, so it is the only one that can get this wrong, and
+    /// <c>Tail(0)</c> is the boundary where retaining and copying come apart: the
+    /// bound is reached before the first row, so every copy is made to be discarded.
+    /// Head(0) is the control — it never had a buffer to misuse.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void AWindowThatKeepsNothing_CopiesNothing(int kind)
+    {
+        var window = kind == 0 ? MarkoutRowWindow.Tail(0) : MarkoutRowWindow.Head(0);
+        var writer = new TableWriter(
+            TextWriter.Null,
+            new StreamingOnlyFormatter(),
+            new MarkoutWriterOptions { RowWindow = window });
+        writer.WriteTableStart(Header);
+        string[] row = ["r"];
+
+        for (var i = 0; i < 200; i++)
+            writer.WriteTableRow(row);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 1000; i++)
+            writer.WriteTableRow(row);
+
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
     }
 
     [Fact]

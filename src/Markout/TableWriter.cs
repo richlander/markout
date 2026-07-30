@@ -190,9 +190,15 @@ public class TableWriter
         }
         else if (_tailBuffer != null)
         {
-            _tailBuffer.Enqueue(values.ToArray());
-            while (_tailBuffer.Count > _tailBound)
-                _tailBuffer.Dequeue();
+            // A zero-retention tail keeps nothing, so copying a row only to discard
+            // it on the next line is pure waste. Above zero, make room before
+            // copying so the queue never holds more than the window can keep.
+            if (_tailBound > 0)
+            {
+                while (_tailBuffer.Count >= _tailBound)
+                    _tailBuffer.Dequeue();
+                _tailBuffer.Enqueue(values.ToArray());
+            }
         }
         else
         {
