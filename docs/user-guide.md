@@ -1068,6 +1068,16 @@ single moment whose value is the right one — the newline each section was writ
 under is used. Everything else, including line endings inside a section, is
 unaffected.
 
+A second boundary, and it is not the buffer's: a `Projection` defers a section's
+heading until something in that section renders, and the deferral is a single
+slot rather than one per section. So a non-headless section whose whole body is
+projected away leaves its heading waiting, and a headless section after it flushes
+that heading into its own output. This happens with `SectionOrder` unset — it is
+how the writer already behaves — but it means such a document's output depends on
+the order it was written in, and no reordering can reproduce an output that was
+never a function of the order alone. Give a section that may render nothing a
+headless neighbour it can safely precede, or do not project its only content away.
+
 Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
 goes straight to your writer as before.
 
