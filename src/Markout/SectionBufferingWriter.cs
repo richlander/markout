@@ -173,11 +173,18 @@ internal sealed class SectionBufferingWriter : TextWriter
     /// <summary>
     /// Whether the writer is positioned at a seam between two sections: inside a
     /// section that has no content yet. A separator written here belongs to neither
-    /// section, so it is dropped and recomputed at emit. Content, not characters, is
-    /// the test at both ends of it. Blank lines the caller wrote do not close the seam,
-    /// because the block after them is still the section's first and its separator
-    /// still depends on what the section ends up following; and a block that emits no
-    /// characters at all but is content — an empty table in JSONL — does close it.
+    /// section, so it is dropped and recomputed at emit.
+    ///
+    /// <para>
+    /// Content is the test, not characters, and it answers both ends of the seam on
+    /// its own. A block that emits no characters and is content anyway — an empty
+    /// table in JSONL — closes the seam, because the block after it is not the
+    /// section's opener. Blank lines the caller wrote do not close it, because they
+    /// are not content and the block after them still is the opener. That leaves
+    /// characters that are not content, which is a block writing output the writer
+    /// does not count; a streaming table left open was one, and it is fixed where it
+    /// was wrong rather than compensated for here.
+    /// </para>
     /// </summary>
     public bool AtSectionBoundary =>
         !ReferenceEquals(_current, _preamble) && !_current.ContainsContent;

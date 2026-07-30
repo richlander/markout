@@ -1319,6 +1319,12 @@ public class MarkoutWriter
         {
             _tableWriter.WriteTableStart(headers);
         }
+
+        // A started table is content, not only a finished one. Deferring this to
+        // WriteTableEnd left a table the caller never closed writing characters that
+        // nothing counted, so a block after it was separated against whatever the rest
+        // of the document had written — which reordering changes.
+        _hasContent = true;
         return true;
     }
 

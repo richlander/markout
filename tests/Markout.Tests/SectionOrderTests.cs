@@ -555,14 +555,23 @@ public class SectionOrderTests
     /// </para>
     ///
     /// <para>
-    /// On its own, with every enumerated sweep filtered out, this catches all seven
+    /// <c>open-table</c> is the third corner: a streaming table the caller never
+    /// closed, which wrote characters that the writer did not count as content. A
+    /// review found it, and it turned out to be reachable without reordering at all —
+    /// with this kind present the seeded documents fail in identity order too, which
+    /// is why the fix is in the writer rather than in the buffering.
+    /// </para>
+    ///
+    /// <para>
+    /// On its own, with every enumerated sweep filtered out, this catches all eight
     /// mechanisms the seam replay is made of, in cases out of 1500: self-separation
-    /// not recorded, 75; the record replayed without regard to what precedes it, 489;
-    /// an explicit blank line not satisfying what is pending, 42; a blank line closing
-    /// the seam, 55; the emitted-characters test standing in for the content test, 17;
-    /// a closed seam not carrying its end state, 555; the seam replayed out of order,
-    /// 28. Seventeen is the thin one, and the reason the seed count is what it is
-    /// rather than the hundred that would otherwise do.
+    /// not recorded, 85; that record replayed without regard to what precedes it, 443;
+    /// an explicit blank line not satisfying what is pending, 40; the seam boundary
+    /// testing emitted characters rather than content, 53; the same substitution when
+    /// accumulating what precedes a chunk, 22; a closed seam not carrying its end
+    /// state, 533; the seam replayed out of order, 30; a started streaming table not
+    /// counted as content, 14. Fourteen is the thin one, and the reason the seed count
+    /// is what it is rather than the hundred that would otherwise do.
     /// </para>
     /// </summary>
     public static TheoryData<int> DocumentSeeds()
@@ -582,7 +591,7 @@ public class SectionOrderTests
             "paragraph", "field", "table", "streaming-table", "list", "quotation",
             "array", "rule", "callout", "descriptions", "breakdown", "code",
             "blank", "heading", "empty-table", "empty-streaming-table", "empty-list",
-            "empty-array", "empty-descriptions", "empty-breakdown"
+            "empty-array", "empty-descriptions", "empty-breakdown", "open-table"
         ];
 
         var plan = new Random(seed);
@@ -650,6 +659,10 @@ public class SectionOrderTests
                 break;
             case "empty-breakdown":
                 writer.WriteBreakdown([]);
+                break;
+            case "open-table":
+                writer.WriteTableStart("Name");
+                writer.WriteTableRow(marker);
                 break;
             default:
                 WriteBlock(writer, kind, marker);
