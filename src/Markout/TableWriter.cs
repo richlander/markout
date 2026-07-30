@@ -59,28 +59,19 @@ public class TableWriter
     private void WriteTableCore(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames, IList<string[]> rows)
     {
         var renderedHeaders = FormatHeaders(headers, headerNames);
+        var (selected, skipped) = SelectRows(rows);
+
         if (_batchFormatter != null)
         {
-            var (truncated, skipped) = TruncateRows(rows);
-            _batchFormatter.FormatTable(_writer, renderedHeaders, truncated, skipped, _options);
+            _batchFormatter.FormatTable(_writer, renderedHeaders, selected, skipped, _options);
             return;
         }
 
         if (_streamingFormatter != null)
         {
             _streamingFormatter.BeginTable(_writer, renderedHeaders, _options);
-            int count = 0;
-            int skipped = 0;
-            foreach (var row in rows)
-            {
-                if (_options.MaxItems is int max && count >= max)
-                {
-                    skipped++;
-                    continue;
-                }
+            foreach (var row in selected)
                 _streamingFormatter.WriteRow(_writer, row);
-                count++;
-            }
             _streamingFormatter.EndTable(_writer, skipped);
         }
     }
@@ -106,8 +97,12 @@ public class TableWriter
         _streamingHeaders = FormatHeaders(headers, headerNames);
 
         // Force buffering when TableOptions is set — statistical width
-        // calculation requires all rows before rendering.
-        if (_streamingFormatter != null && _options.TableOptions == null)
+        // calculation requires all rows before rendering. A row window forces it
+        // for a different reason: Tail and an open-ended Range are defined
+        // against the total row count, which is not known until the last row
+        // arrives. Buffering lets every path resolve through the same
+        // MarkoutRowWindow.Resolve rather than re-deriving the window positionally.
+        if (_streamingFormatter != null && _options.TableOptions == null && !HasRowWindow)
         {
             _streamingDirect = true;
             _streamingFormatter.BeginTable(_writer, _streamingHeaders, _options);
@@ -152,7 +147,10 @@ public class TableWriter
     {
         if (_streamingHeaders == null) return;
 
-        if (_options.MaxItems is int max && _tableRowCount >= max)
+        // With a window active every row must be buffered: which rows survive is
+        // not decidable until the total is known, so capping here would cap the
+        // wrong set. SelectRows applies both the window and MaxItems at end.
+        if (!HasRowWindow && _options.MaxItems is int max && _tableRowCount >= max)
         {
             _tableRowsSkipped++;
             return;
@@ -180,9 +178,28 @@ public class TableWriter
         {
             _streamingFormatter.EndTable(_writer, _tableRowsSkipped);
         }
-        else if (_batchFormatter != null)
+        else
         {
-            _batchFormatter.FormatTable(_writer, _streamingHeaders, _streamingRows ?? [], _tableRowsSkipped, _options);
+            // Buffered. MaxItems was deferred while a window was active, so both
+            // are resolved here; without a window the rows were capped on arrival.
+            var rows = (IList<string[]>)(_streamingRows ?? []);
+            var skipped = _tableRowsSkipped;
+            if (HasRowWindow)
+                (rows, skipped) = SelectRows(rows);
+
+            if (_batchFormatter != null)
+            {
+                _batchFormatter.FormatTable(_writer, _streamingHeaders, rows, skipped, _options);
+            }
+            else if (_streamingFormatter != null)
+            {
+                // A streaming-only formatter still has to emit what was buffered,
+                // or forcing buffering would silently drop the entire table.
+                _streamingFormatter.BeginTable(_writer, _streamingHeaders, _options);
+                foreach (var row in rows)
+                    _streamingFormatter.WriteRow(_writer, row);
+                _streamingFormatter.EndTable(_writer, skipped);
+            }
         }
 
         _streamingHeaders = null;
@@ -190,10 +207,30 @@ public class TableWriter
         _streamingDirect = false;
     }
 
-    private (IList<string[]> rows, int skipped) TruncateRows(IList<string[]> rows)
+    private bool HasRowWindow => _options.RowWindow is { IsUnlimited: false };
+
+    private (IList<string[]> rows, int skipped) SelectRows(IList<string[]> rows)
     {
-        if (_options.MaxItems is int max && rows.Count > max)
-            return (rows.Take(max).ToList(), rows.Count - max);
-        return (rows, 0);
+        var selected = rows;
+
+        // Selection runs before summarization: the window says which rows exist,
+        // MaxItems then says how many of those to show. Resolving here — and only
+        // here — is what keeps every table mode agreeing on what a row window means.
+        if (_options.RowWindow is { IsUnlimited: false } window)
+        {
+            var (keepStart, keepEnd) = window.Resolve(rows.Count);
+            if (keepStart != 0 || keepEnd != rows.Count)
+            {
+                var kept = new List<string[]>(keepEnd - keepStart);
+                for (var i = keepStart; i < keepEnd; i++)
+                    kept.Add(rows[i]);
+                selected = kept;
+            }
+        }
+
+        if (_options.MaxItems is int max && selected.Count > max)
+            return (selected.Take(max).ToList(), selected.Count - max);
+
+        return (selected, 0);
     }
 }

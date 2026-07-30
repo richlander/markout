@@ -661,6 +661,44 @@ public List<string>? Files { get; set; }
 
 The default ellipsis text is `"... and {0} more"` where `{0}` is the remaining count.
 
+### Row Windows
+
+`MaxItems` summarizes: it caps a table and reports what it dropped. A **row
+window** selects instead — it says which rows exist at all, and reports nothing.
+Set `MarkoutWriterOptions.RowWindow` to window every table the writer emits:
+
+```csharp
+var options = new MarkoutWriterOptions
+{
+    RowWindow = MarkoutRowWindow.Tail(20)   // the last 20 rows
+};
+```
+
+| Factory | Selects |
+| --- | --- |
+| `MarkoutRowWindow.Head(n)` | the first `n` rows |
+| `MarkoutRowWindow.Tail(n)` | the last `n` rows |
+| `MarkoutRowWindow.Range(start, end)` | rows `[start, end)`, 0-based; `end: null` runs to the end |
+
+A negative count means unlimited, so `Head(-1)` renders every row.
+
+The window is resolved once, at the writer seam, so every table mode and every
+formatter agrees on what it means — including TSV and JSONL, where a windowed
+table stays machine-consumable because no ellipsis row is introduced.
+
+When both are set, **the window selects and `MaxItems` then caps the selection**,
+so the reported overflow count describes only what the cap dropped:
+
+```csharp
+// Of 100 rows: the window selects the last 20, MaxItems shows 5,
+// and the table reports "... and 15 more".
+new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(20), MaxItems = 5 }
+```
+
+Setting a window forces streamed rows to buffer, because `Tail` and an
+open-ended `Range` are defined against a total row count that is not known until
+the last row arrives. Streamed and batched output are identical either way.
+
 ### Section Level
 
 Sections default to heading level 2 (`##`). Set `Level` to change:
