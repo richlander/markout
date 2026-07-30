@@ -29,12 +29,37 @@ namespace Markout;
 /// Recomputed, not replayed. Recording which seams carried a separator and re-emitting
 /// that same vector positionally is wrong whenever the sections differ in shape: with
 /// <c>TableFormatter</c> a table is set off by a blank line and consecutive fields are
-/// not, so moving a table changes which adjacencies need one. The writer decides by
-/// asking two questions — did the block before me leave a blank line pending, and am I
-/// a heading, which separates from anything at all — and this type records the answers
-/// per chunk so the same two questions can be asked again of whatever pair of chunks
-/// ends up adjacent.
+/// not, so moving a table changes which adjacencies need one. So this type records per
+/// chunk the facts the writer decides from, and asks the writer's own questions again
+/// of whatever pair of chunks ends up adjacent:
 /// </para>
+///
+/// <list type="bullet">
+/// <item><description>
+/// Does this chunk open with a block that separates itself from anything before it —
+/// a heading, a quotation, a rule (<see cref="Chunk.OpensSelfSeparating"/>)? Natively
+/// that block writes its blank line whenever content precedes it, so at emit it needs
+/// one whenever content precedes it here.
+/// </description></item>
+/// <item><description>
+/// Did the chunk before this one leave a blank line pending
+/// (<see cref="Chunk.EndsNeedingBlankLine"/>)? That is a fact about the other chunk,
+/// which is exactly why it cannot travel with this one.
+/// </description></item>
+/// <item><description>
+/// Did the caller open this chunk with blank lines of its own
+/// (<see cref="Chunk.OpensWithExplicitBlankLine"/>)? Those satisfy a pending blank
+/// line, so computing another on the same grounds doubles it — but they do not close
+/// the seam (<see cref="Chunk.OpeningLength"/>), because the block after them is
+/// still the chunk's first and still separates itself.
+/// </description></item>
+/// <item><description>
+/// Does this chunk hold content at all (<see cref="Chunk.ContainsContent"/>)? A chunk
+/// holding nothing but blank lines, or whose only block the formatter does not
+/// support, is not something a following block separates itself from — so "a chunk
+/// came before" is not the question, "content came before" is.
+/// </description></item>
+/// </list>
 /// </summary>
 internal sealed class SectionBufferingWriter : TextWriter
 {
@@ -74,10 +99,27 @@ internal sealed class SectionBufferingWriter : TextWriter
 
         /// <summary>
         /// Whether this chunk opens with a blank line the caller wrote itself. That
-        /// blank line is the seam's separator, kept as content, so computing another
-        /// one at emit would double it.
+        /// blank line satisfies whatever the block before the seam left pending, so a
+        /// computed separator on the same grounds would double it.
         /// </summary>
         public bool OpensWithExplicitBlankLine { get; set; }
+
+        /// <summary>
+        /// How much of <see cref="Content"/> is the chunk's opening: blank lines the
+        /// caller wrote at the seam, before any block. They are content — they are in
+        /// the output wherever this chunk lands — but they are not what the section
+        /// starts with, so a block that follows them is still opening the section and
+        /// its own separator is still the seam's to compute.
+        /// </summary>
+        public int OpeningLength { get; set; }
+
+        /// <summary>
+        /// Whether this chunk holds anything a following block would have to separate
+        /// itself from. Not the same as being non-empty: a chunk can hold nothing but
+        /// blank lines the caller wrote, and a self-separating block does not separate
+        /// itself from those.
+        /// </summary>
+        public bool ContainsContent { get; set; }
 
         /// <summary>
         /// Whether <see cref="SeparatorNewLine"/> has been observed yet. The first
@@ -116,11 +158,14 @@ internal sealed class SectionBufferingWriter : TextWriter
 
     /// <summary>
     /// Whether the writer is positioned at a seam between two sections: inside a
-    /// section that has not been written to yet. A blank line written here separates
-    /// this section from the previous one rather than belonging to either.
+    /// section that has written nothing but its opening blank lines. A separator
+    /// written here belongs to neither section, so it is dropped and recomputed at
+    /// emit. Explicit blank lines do not close the seam, because the block after them
+    /// is still the section's first and its separator still depends on what the
+    /// section ends up following.
     /// </summary>
     public bool AtSectionBoundary =>
-        !ReferenceEquals(_current, _preamble) && _current.Content.Length == 0;
+        !ReferenceEquals(_current, _preamble) && _current.Content.Length == _current.OpeningLength;
 
     /// <summary>
     /// Records that the section now open begins with something that separates itself
@@ -135,13 +180,31 @@ internal sealed class SectionBufferingWriter : TextWriter
     }
 
     /// <summary>
-    /// Records that the section now open begins with a blank line the caller wrote,
-    /// which is the seam's separator arriving as content.
+    /// Records that the section now open holds content — something a block after it
+    /// would separate itself from, as opposed to blank lines, which it would not.
     /// </summary>
-    public void NoteSectionOpensWithExplicitBlankLine()
+    public void NoteContent() => _current.ContainsContent = true;
+
+    /// <summary>
+    /// Writes a blank line the caller asked for at a section seam, and records that the
+    /// section opens with one. The blank line stays as content — it is the caller's, and
+    /// it belongs to the section wherever the section lands — but it does not close the
+    /// seam, so a self-separating block after it still has its separator computed rather
+    /// than captured.
+    /// </summary>
+    /// <returns>
+    /// Whether the writer was at a seam and wrote the line. When it was not, the caller
+    /// writes the blank line the ordinary way.
+    /// </returns>
+    public bool TryWriteSectionOpeningBlankLine()
     {
-        if (AtSectionBoundary)
-            _current.OpensWithExplicitBlankLine = true;
+        if (!AtSectionBoundary)
+            return false;
+
+        WriteLine();
+        _current.OpeningLength = _current.Content.Length;
+        _current.OpensWithExplicitBlankLine = true;
+        return true;
     }
 
     /// <summary>
@@ -339,19 +402,27 @@ internal sealed class SectionBufferingWriter : TextWriter
             .Select(s => s.chunk);
 
         Chunk? previous = null;
+        var precededByContent = false;
         foreach (var chunk in Prepend(_preamble, ordered))
         {
             if (chunk.Content.Length == 0)
                 continue;
 
-            var separate = !chunk.OpensWithExplicitBlankLine
-                && (chunk.OpensSelfSeparating || previous?.EndsNeedingBlankLine == true);
+            // A self-separating opening needs its blank line whenever content precedes
+            // it — natively it is written against _hasContent, which the section's own
+            // opening blank lines do not set and an unsupported block does not either,
+            // so "some chunk came before" is the wrong question. An ordinary opening
+            // needs one only because the chunk before left one pending, and a blank
+            // line the caller wrote at this seam has already satisfied that.
+            var separate = (chunk.OpensSelfSeparating && precededByContent)
+                || (!chunk.OpensWithExplicitBlankLine && previous?.EndsNeedingBlankLine == true);
 
             if (previous != null && separate)
                 _target.Write(chunk.SeparatorNewLine);
 
             _target.Write(chunk.Content);
             previous = chunk;
+            precededByContent |= chunk.ContainsContent;
         }
 
         if (previous == null)

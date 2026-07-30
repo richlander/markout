@@ -21,7 +21,7 @@ public class MarkoutWriter
     private readonly MarkoutWriterOptions _options;
 
     // State
-    private bool _hasContent;
+    private bool _hasContentValue;
     private bool _needsBlankLine;
     private bool _inTable;
     private bool _inCode;
@@ -1698,12 +1698,12 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return;
 
-        // An explicit blank line at a section boundary is the separator for that seam,
-        // written by the caller rather than by a block. Keeping it as content and also
-        // computing one at emit would double it.
-        _sectionBuffer?.NoteSectionOpensWithExplicitBlankLine();
+        // An explicit blank line at a section boundary is part of the seam: it is the
+        // caller's content and travels with the section, but it does not settle what
+        // separator the seam needs, because the block after it has not been seen yet.
+        if (_sectionBuffer?.TryWriteSectionOpeningBlankLine() != true)
+            _writer.WriteLine();
 
-        _writer.WriteLine();
         _needsBlankLine = false;
     }
 
@@ -1817,6 +1817,27 @@ public class MarkoutWriter
         }
 
         return fields.ToArray();
+    }
+
+    /// <summary>
+    /// Whether anything has been written that a block after it has to separate itself
+    /// from. Ordering needs to know which section that content landed in, and "the
+    /// section's buffer is not empty" is not the same fact: a section can hold nothing
+    /// but blank lines the caller wrote, and a block the formatter does not support
+    /// returns before setting this at all. Recording it in the setter rather than at
+    /// the two dozen sites that assign it means a new block cannot come to count as
+    /// content without also coming to be recorded as content.
+    /// </summary>
+    private bool _hasContent
+    {
+        get => _hasContentValue;
+        set
+        {
+            _hasContentValue = value;
+
+            if (value)
+                _sectionBuffer?.NoteContent();
+        }
     }
 
     /// <summary>

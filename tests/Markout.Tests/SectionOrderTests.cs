@@ -445,8 +445,19 @@ public class SectionOrderTests
     /// it. Both were found by a reviewer, in a fixture that wrote paragraphs, tables and
     /// fields.
     /// </para>
+    ///
+    /// <para>
+    /// And then the fourth gap, in this fixture: it varied which block a section opens
+    /// with, and held constant that a section opens with a block. A section's opening is
+    /// a sequence. Blank lines the caller writes at the seam are content and travel with
+    /// the section, but the block after them is still its first, and its separator is
+    /// still the seam's to compute — so the opening blank lines dimension here is not
+    /// decoration. It also caught the sharper half: a chunk holding nothing but those
+    /// blank lines, or whose only block the formatter does not support, is not content,
+    /// and a self-separating block does not separate itself from it.
+    /// </para>
     /// </summary>
-    public static TheoryData<string, string, bool, bool> BlockKindCases()
+    public static TheoryData<string, string, bool, bool, int> BlockKindCases()
     {
         string[] kinds =
         [
@@ -455,26 +466,29 @@ public class SectionOrderTests
             "blank-line", "sub-heading"
         ];
 
-        var data = new TheoryData<string, string, bool, bool>();
+        var data = new TheoryData<string, string, bool, bool, int>();
         foreach (var opening in kinds)
             foreach (var closing in kinds)
                 foreach (var markdown in (bool[])[true, false])
                     foreach (var preamble in (bool[])[true, false])
-                        data.Add(opening, closing, markdown, preamble);
+                        foreach (var openingBlankLines in (int[])[0, 1, 2])
+                            data.Add(opening, closing, markdown, preamble, openingBlankLines);
         return data;
     }
 
     [Theory]
     [MemberData(nameof(BlockKindCases))]
     public void ASectionOpeningWithAnyBlockKind_MatchesOneWrittenInThatOrder(
-        string opening, string closing, bool markdown, bool preamble)
+        string opening, string closing, bool markdown, bool preamble, int openingBlankLines)
     {
         // Alpha ends with the closing kind and Beta opens with the opening kind, so
         // reordering to Beta, Alpha puts a pair that were never adjacent at a seam —
         // which is the only place the separator rule can be wrong.
         string[] order = ["Beta", "Alpha"];
 
-        static string Write(bool markdown, bool preamble, string[]? order, string[] names, string opening, string closing)
+        static string Write(
+            bool markdown, bool preamble, string[]? order, string[] names,
+            string opening, string closing, int openingBlankLines)
         {
             var options = new MarkoutWriterOptions();
             if (order != null)
@@ -489,14 +503,22 @@ public class SectionOrderTests
             foreach (var name in names)
             {
                 writer.WriteSectionStart(2, name, headless: true);
+
+                // A section's opening is a sequence, not one block. Blank lines the
+                // caller writes at the seam are content and travel with the section,
+                // but the block after them is still its first, and that block's own
+                // separator is still the seam's to compute.
+                for (var i = 0; i < openingBlankLines; i++)
+                    writer.WriteBlankLine();
+
                 WriteBlock(writer, name == "Beta" ? opening : closing, name.ToLowerInvariant());
             }
 
             return writer.ToString();
         }
 
-        var ordered = Write(markdown, preamble, order, ["Alpha", "Beta"], opening, closing);
-        var native = Write(markdown, preamble, null, ["Beta", "Alpha"], opening, closing);
+        var ordered = Write(markdown, preamble, order, ["Alpha", "Beta"], opening, closing, openingBlankLines);
+        var native = Write(markdown, preamble, null, ["Beta", "Alpha"], opening, closing, openingBlankLines);
 
         Assert.Equal(native, ordered);
     }
