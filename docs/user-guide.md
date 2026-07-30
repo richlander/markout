@@ -1017,6 +1017,33 @@ var options = new MarkoutWriterOptions
 
 > From the [SectionFiltering](../samples/Serialization/SectionFiltering.cs) sample.
 
+### Section Ordering
+
+`IncludeSections` chooses which sections appear; `SectionOrder` chooses the order
+they appear in. Sections named there lead, in that order, and every other section
+follows in the order it was written:
+
+```csharp
+var options = new MarkoutWriterOptions
+{
+    SectionOrder = ["Summary", "Findings"]
+};
+```
+
+Matching is case-insensitive, and naming a section the document never writes is
+not an error — a caller can state a preferred order once and reuse it across
+documents that contain different subsets of it.
+
+Content written before the first section — a document title, an introductory
+paragraph — is not a section and always stays first.
+
+Ordering is applied at the writer seam rather than to rendered text, so it works
+for every format, **including TSV and JSONL**, whose output carries no heading to
+reorder. Asking for the order a document already had reproduces it byte for byte.
+
+Setting `SectionOrder` buffers the whole document, because the last section
+written may be the first one emitted. Leaving it unset costs nothing.
+
 ### Heading Level Offset
 
 `HeadingLevelOffset` shifts every rendered heading by a fixed amount (default

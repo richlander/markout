@@ -15,6 +15,8 @@ namespace Markout;
 public class MarkoutWriter
 {
     private readonly TextWriter _writer;
+    private readonly TextWriter _target;
+    private readonly SectionBufferingWriter? _sectionBuffer;
     private readonly IMarkoutFormatter _formatter;
     private readonly MarkoutWriterOptions _options;
 
@@ -44,7 +46,11 @@ public class MarkoutWriter
     {
         var opts = options ?? new MarkoutWriterOptions();
 
-        _writer = writer;
+        _target = writer;
+        // A requested order can put the last section written first, so ordering cannot
+        // be decided until the document is complete. Only pay for that when asked.
+        _sectionBuffer = opts.SectionOrder is { Count: > 0 } ? new SectionBufferingWriter(writer) : null;
+        _writer = _sectionBuffer ?? writer;
         _formatter = formatter;
         _options = opts;
     }
@@ -1709,7 +1715,9 @@ public class MarkoutWriter
     /// </summary>
     public void Flush()
     {
+        _sectionBuffer?.EmitOrdered(_options.SectionOrder);
         _writer.Flush();
+        _target.Flush();
     }
 
     /// <summary>
@@ -1718,7 +1726,8 @@ public class MarkoutWriter
     /// </summary>
     public override string ToString()
     {
-        if (_writer is StringWriter sw)
+        _sectionBuffer?.EmitOrdered(_options.SectionOrder);
+        if (_target is StringWriter sw)
             return sw.ToString().TrimEnd();
         return base.ToString() ?? "";
     }
@@ -1739,6 +1748,12 @@ public class MarkoutWriter
         {
             _currentSectionName = text;
             _sectionExcluded = !IsSectionIncluded();
+
+            // The boundary the writer declares, not one re-derived from rendered text.
+            // Excluded sections open a buffer too: they write nothing today, but routing
+            // them into the previous section's buffer would be a silent misattribution
+            // the moment any write path stops honoring _sectionExcluded.
+            _sectionBuffer?.BeginSection(text);
         }
     }
 

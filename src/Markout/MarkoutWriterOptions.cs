@@ -15,6 +15,7 @@ public class MarkoutWriterOptions
     private int? _maxItems;
     private MarkoutRowWindow? _rowWindow;
     private HashSet<string>? _includeSections;
+    private IReadOnlyList<string>? _sectionOrder;
     private MarkoutProjection? _projection;
     private MarkoutShape _suppressedShapes;
     private TableFormatterOptions? _tableOptions;
@@ -44,6 +45,7 @@ public class MarkoutWriterOptions
         _maxItems = source._maxItems;
         _rowWindow = source._rowWindow;
         _includeSections = source._includeSections;
+        _sectionOrder = source._sectionOrder;
         _projection = source._projection;
         _suppressedShapes = source._suppressedShapes;
         _tableOptions = source._tableOptions;
@@ -229,6 +231,28 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _includeSections = value;
+        }
+    }
+
+    /// <summary>
+    /// If set, sections named here are emitted first, in this order; every other section
+    /// follows in the order it was written. Matching is case-insensitive, and naming a
+    /// section that the document never writes is not an error.
+    ///
+    /// <para>
+    /// Ordering is applied at the writer seam rather than to rendered text, so it works
+    /// for every format — including TSV and JSONL, whose output carries no heading to
+    /// reorder. Setting it buffers the whole document, because the last section written
+    /// may be the first one emitted.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<string>? SectionOrder
+    {
+        get => _sectionOrder;
+        set
+        {
+            ThrowIfReadOnly();
+            _sectionOrder = value;
         }
     }
 
