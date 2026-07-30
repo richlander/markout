@@ -678,13 +678,27 @@ var options = new MarkoutWriterOptions
 | --- | --- |
 | `MarkoutRowWindow.Head(n)` | the first `n` rows |
 | `MarkoutRowWindow.Tail(n)` | the last `n` rows |
-| `MarkoutRowWindow.Range(start, end)` | rows `[start, end)`, 0-based; `end: null` runs to the end |
+| `MarkoutRowWindow.Range(start, end)` | rows `start` through `end`, **1-based and inclusive**; `end: null` runs to the last row |
 
-A negative count means unlimited, so `Head(-1)` renders every row.
+Row numbers are the ones a reader counts in the rendered table, so `Range(2, 3)`
+selects the second and third rows. `start` below 1, or an `end` before `start`,
+throws `ArgumentOutOfRangeException`. A range starting past the end of the table
+is not an error — it selects nothing.
 
-The window is resolved once, at the writer seam, so every table mode and every
-formatter agrees on what it means — including TSV and JSONL, where a windowed
-table stays machine-consumable because no ellipsis row is introduced.
+A negative count throws `ArgumentOutOfRangeException`. "No window" is spelled by
+leaving `RowWindow` null, so a negative count — usually the result of a
+subtraction that slipped below zero — fails rather than silently widening the
+table to every row.
+
+The window is resolved once, at the writer seam, so every table mode agrees on
+what it means — including TSV and JSONL, where selection alone introduces no
+ellipsis row and leaves the output machine-consumable. (Adding `MaxItems` on top
+reintroduces `MaxItems`' own ellipsis line in TSV, as it does without a window.)
+
+The window applies to tables written through the writer — `WriteTable`,
+`WriteTableStart`/`WriteTableRow`/`WriteTableEnd`, and `WriteCompositeTable`. It
+does **not** apply to lowerings that call a formatter's `FormatTable` directly,
+which today means metrics and breakdown rendering and the graph edge table.
 
 When both are set, **the window selects and `MaxItems` then caps the selection**,
 so the reported overflow count describes only what the cap dropped:
@@ -695,9 +709,10 @@ so the reported overflow count describes only what the cap dropped:
 new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(20), MaxItems = 5 }
 ```
 
-Setting a window forces streamed rows to buffer, because `Tail` and an
-open-ended `Range` are defined against a total row count that is not known until
-the last row arrives. Streamed and batched output are identical either way.
+Streamed and batched output are identical. A `Tail` window buffers the rows it
+might still keep, because which rows those are is not known until the last row
+arrives; the other window kinds decide each row from its position and stream
+without buffering.
 
 ### Section Level
 

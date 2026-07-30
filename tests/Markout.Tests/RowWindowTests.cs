@@ -86,25 +86,81 @@ public class RowWindowTests
     public void Range_PastTheEnd_ResolvesEmptyRatherThanThrowing()
         => Assert.Equal((3, 3), MarkoutRowWindow.Range(9, 12).Resolve(3));
 
+    /// <summary>
+    /// A count is usually computed, and a subtraction that slips below zero should
+    /// fail rather than silently widen the table to every row. "No window" is
+    /// already spelled by leaving the option null, so a negative count has no
+    /// legitimate reading left.
+    /// </summary>
     [Theory]
     [InlineData(-1)]
     [InlineData(-100)]
-    public void ANegativeCount_MeansNoLimit(int count)
+    public void ANegativeCount_IsRejected(int count)
     {
-        Assert.True(MarkoutRowWindow.Head(count).IsUnlimited);
-        Assert.True(MarkoutRowWindow.Tail(count).IsUnlimited);
-        Assert.Equal((0, 4), MarkoutRowWindow.Head(count).Resolve(4));
-        Assert.Equal((0, 4), MarkoutRowWindow.Tail(count).Resolve(4));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MarkoutRowWindow.Head(count));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MarkoutRowWindow.Tail(count));
+    }
+
+    [Fact]
+    public void AZeroCount_SelectsNoRows()
+    {
+        Assert.Equal((0, 0), MarkoutRowWindow.Head(0).Resolve(4));
+        Assert.Equal((4, 4), MarkoutRowWindow.Tail(0).Resolve(4));
     }
 
     /// <summary>
-    /// A range always names a bounded start, so it is never "unlimited" even
-    /// when open-ended. If this regressed, an open-ended range would be skipped
-    /// entirely by the <c>IsUnlimited</c> fast path and silently keep every row.
+    /// Only Tail is defined against the total, so only Tail may make a renderer wait.
+    /// If an open-ended range were treated as non-positional it would buffer a table
+    /// it could have streamed.
     /// </summary>
     [Fact]
-    public void AnOpenEndedRange_IsNotUnlimited()
-        => Assert.False(MarkoutRowWindow.Range(2, null).IsUnlimited);
+    public void OnlyTail_NeedsTheTotalRowCount()
+    {
+        Assert.True(MarkoutRowWindow.Head(2).IsPositional);
+        Assert.True(MarkoutRowWindow.Range(2, null).IsPositional);
+        Assert.True(MarkoutRowWindow.Range(2, 4).IsPositional);
+        Assert.False(MarkoutRowWindow.Tail(2).IsPositional);
+    }
+
+    [Fact]
+    public void ATailWindow_RefusesToAnswerByPosition()
+    {
+        Assert.Throws<InvalidOperationException>(() => MarkoutRowWindow.Tail(2).KeepsPosition(0));
+        Assert.Throws<InvalidOperationException>(() => MarkoutRowWindow.Tail(2).IsPastEnd(0));
+    }
+
+    /// <summary>
+    /// The two ways of asking what a window means must give the same answer, or the
+    /// streaming path has quietly acquired its own dialect. Swept rather than
+    /// sampled, because a disagreement is likely to live at an edge.
+    /// </summary>
+    [Fact]
+    public void AskingByPosition_AgreesWithResolvingAgainstATotal()
+    {
+        MarkoutRowWindow[] windows =
+        [
+            MarkoutRowWindow.Head(0), MarkoutRowWindow.Head(1), MarkoutRowWindow.Head(3),
+            MarkoutRowWindow.Head(10),
+            MarkoutRowWindow.Range(1, 1), MarkoutRowWindow.Range(2, 4),
+            MarkoutRowWindow.Range(3, null), MarkoutRowWindow.Range(9, 12)
+        ];
+
+        foreach (var window in windows)
+        {
+            Assert.True(window.IsPositional);
+            for (var total = 0; total <= 8; total++)
+            {
+                var (keepStart, keepEnd) = window.Resolve(total);
+                for (var position = 0; position < total; position++)
+                {
+                    var expected = position >= keepStart && position < keepEnd;
+                    Assert.Equal(expected, window.KeepsPosition(position));
+                    if (window.IsPastEnd(position))
+                        Assert.False(expected);
+                }
+            }
+        }
+    }
 
     [Fact]
     public void Range_RefusesAnEndBeforeItsStart()
@@ -142,7 +198,7 @@ public class RowWindowTests
 
         static IEnumerable<MarkoutRowWindow> AllWindows()
         {
-            for (var n = -1; n <= 7; n++)
+            for (var n = 0; n <= 7; n++)
             {
                 yield return MarkoutRowWindow.Head(n);
                 yield return MarkoutRowWindow.Tail(n);
@@ -390,8 +446,11 @@ public class RowWindowTests
 
     private static IEnumerable<MarkoutRowWindow> AllWindowKinds() =>
     [
+        MarkoutRowWindow.Head(0),
         MarkoutRowWindow.Head(2),
+        MarkoutRowWindow.Tail(0),
         MarkoutRowWindow.Tail(2),
+        MarkoutRowWindow.Range(1, 1),
         MarkoutRowWindow.Range(2, 4),
         MarkoutRowWindow.Range(3, null),
         MarkoutRowWindow.Range(9, 12)
@@ -479,10 +538,10 @@ public class RowWindowTests
     }
 
     [Fact]
-    public void AnUnlimitedWindow_RendersEveryRow()
+    public void AWindowWiderThanTheTable_RendersEveryRow()
     {
         var output = Render(
-            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Head(-1) },
+            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Head(100) },
             Rows(4));
 
         Assert.Contains("r1", output);
@@ -556,9 +615,77 @@ public class RowWindowTests
     [Fact]
     public void AStreamingOnlyFormatter_WithoutAWindow_StillStreamsDirectly()
     {
-        var output = RenderStreamingOnly(new MarkoutWriterOptions(), Rows(3));
+        var sw = new StringWriter();
+        var writer = new TableWriter(sw, new StreamingOnlyFormatter(), new MarkoutWriterOptions());
+        writer.WriteTableStart(Header);
+        writer.WriteTableRow(["r1"]);
 
-        Assert.Contains("row:r1", output);
-        Assert.Contains("row:r3", output);
+        // Observed before the table ends: buffering-and-replaying would also satisfy
+        // an assertion made after WriteTableEnd, so checking afterwards would not
+        // distinguish direct streaming from the path this test exists to rule out.
+        Assert.Contains("row:r1", sw.ToString());
+
+        writer.WriteTableRow(["r2"]);
+        writer.WriteTableEnd();
+        Assert.Contains("row:r2", sw.ToString());
+    }
+
+    /// <summary>
+    /// The gate on windows not costing memory. A positional window decides each row as
+    /// it arrives, so rows must reach the formatter before the table ends; if they do
+    /// not, the writer is holding the table, and a Head(1) over a million rows retains
+    /// a million rows to emit one. Observing emission mid-table is the structural form
+    /// of that claim — a memory measurement would assert the same thing less reliably.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(PositionalWindows))]
+    public void APositionalWindow_ReachesTheFormatterBeforeTheTableEnds(MarkoutRowWindow window)
+    {
+        var sw = new StringWriter();
+        var writer = new TableWriter(sw, new StreamingOnlyFormatter(), new MarkoutWriterOptions { RowWindow = window });
+        writer.WriteTableStart(Header);
+
+        // Enough rows that every window under test has selected at least one.
+        for (var i = 1; i <= 5; i++)
+            writer.WriteTableRow(["r" + i]);
+
+        Assert.Contains("row:", sw.ToString());
+    }
+
+    public static TheoryData<MarkoutRowWindow> PositionalWindows() =>
+    [
+        MarkoutRowWindow.Head(2),
+        MarkoutRowWindow.Range(2, 4),
+        MarkoutRowWindow.Range(3, null)
+    ];
+
+    /// <summary>
+    /// The negative control for the test above: a Tail window is the one kind that
+    /// legitimately waits, so this pins that it waits rather than that waiting is fine.
+    /// </summary>
+    [Fact]
+    public void AWindowedStreamingOnlyFormatter_EmitsNothingUntilTheTableEnds()
+    {
+        var sw = new StringWriter();
+        var writer = new TableWriter(
+            sw,
+            new StreamingOnlyFormatter(),
+            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(2) });
+        writer.WriteTableStart(Header);
+        writer.WriteTableRow(["r1"]);
+
+        Assert.Equal("", sw.ToString());
+
+        writer.WriteTableEnd();
+        Assert.Contains("row:r1", sw.ToString());
+    }
+
+    [Fact]
+    public void ApplyingAnAbsentWindowToANullList_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(
+            () => MarkoutRowWindow.Apply<string>(null, null!));
+        Assert.Throws<ArgumentNullException>(
+            () => MarkoutRowWindow.Apply<string>(MarkoutRowWindow.Head(2), null!));
     }
 }

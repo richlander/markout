@@ -23,10 +23,12 @@ namespace Markout;
 /// </para>
 ///
 /// <para>
-/// <see cref="Resolve"/> is the single place these semantics are interpreted.
-/// Every emission path resolves through it rather than branching on the window's
-/// shape, so a change to what a window means cannot land in one table mode and
-/// miss another.
+/// This type is the single owner of what a window means. It offers two ways to
+/// ask — <see cref="Resolve"/> against a known row count, and
+/// <see cref="KeepsPosition"/>/<see cref="IsPastEnd"/> for a row whose table has
+/// not finished arriving — so that a streaming caller never has to re-derive the
+/// semantics for itself. The two must agree, and a renderer is expected to prove
+/// that rather than assume it.
 /// </para>
 /// </summary>
 public readonly record struct MarkoutRowWindow
@@ -47,23 +49,48 @@ public readonly record struct MarkoutRowWindow
     public MarkoutRowWindowKind Kind { get; }
 
     /// <summary>
-    /// True when this window keeps every row, so a renderer can skip windowing
-    /// entirely. Only a relative window can be unlimited (via a negative count);
-    /// an absolute range always names a bounded start, even when open-ended.
+    /// Whether every row this window keeps can be decided from that row's position
+    /// alone. True for <see cref="Head"/> and <see cref="Range"/>, whose bounds are
+    /// fixed in advance; false for <see cref="Tail"/>, which cannot know which rows
+    /// are the last ones until the table ends.
+    ///
+    /// <para>
+    /// A renderer uses this to decide whether it may stream. It is not a hint about
+    /// what the window means — <see cref="KeepsPosition"/> answers that.
+    /// </para>
     /// </summary>
-    public bool IsUnlimited => Kind != MarkoutRowWindowKind.Range && _count < 0;
+    public bool IsPositional => Kind != MarkoutRowWindowKind.Tail;
 
     /// <summary>
-    /// Keep the first <paramref name="count"/> data rows. A negative count means
-    /// "no limit", which lets a caller hold a window unconditionally rather than
-    /// forking between a window and none.
+    /// The most rows a <see cref="Tail"/> window can ever keep, and therefore the
+    /// most a renderer buffering for one needs to retain. Zero for the positional
+    /// kinds, which need to retain nothing.
     /// </summary>
-    /// <param name="count">How many leading rows to keep; negative for no limit.</param>
-    public static MarkoutRowWindow Head(int count) => new(MarkoutRowWindowKind.Head, count, 0, null);
+    public int RetentionBound => Kind == MarkoutRowWindowKind.Tail ? _count : 0;
+
+    /// <summary>
+    /// Keep the first <paramref name="count"/> data rows.
+    /// </summary>
+    /// <param name="count">How many leading rows to keep.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative.</exception>
+    public static MarkoutRowWindow Head(int count)
+    {
+        // A negative count is rejected rather than read as "no limit". "No limit" is
+        // already spelled by not setting a window at all, and a count is usually
+        // computed -- a subtraction that slips below zero should fail rather than
+        // silently widen the table to everything.
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        return new(MarkoutRowWindowKind.Head, count, 0, null);
+    }
 
     /// <summary>Keep the last <paramref name="count"/> data rows.</summary>
-    /// <param name="count">How many trailing rows to keep; negative for no limit.</param>
-    public static MarkoutRowWindow Tail(int count) => new(MarkoutRowWindowKind.Tail, count, 0, null);
+    /// <param name="count">How many trailing rows to keep.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is negative.</exception>
+    public static MarkoutRowWindow Tail(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        return new(MarkoutRowWindowKind.Tail, count, 0, null);
+    }
 
     /// <summary>
     /// Keep the rows numbered <paramref name="start"/> through
@@ -113,16 +140,66 @@ public readonly record struct MarkoutRowWindow
         switch (Kind)
         {
             case MarkoutRowWindowKind.Head:
-                // A negative count is "no limit"; clamping it to dataCount keeps
-                // the whole table rather than emptying it.
-                return (0, _count < 0 ? dataCount : Math.Min(_count, dataCount));
+                return (0, Math.Min(_count, dataCount));
             case MarkoutRowWindowKind.Tail:
-                return (_count < 0 ? 0 : Math.Max(0, dataCount - _count), dataCount);
+                return (Math.Max(0, dataCount - _count), dataCount);
             default:
                 var start = Math.Min(_start - 1, dataCount);
                 var end = _end is int e ? Math.Min(e, dataCount) : dataCount;
                 return (start, end);
         }
+    }
+
+    /// <summary>
+    /// Whether the data row at 0-based <paramref name="position"/> is inside this
+    /// window, for a table whose total row count is not yet known.
+    ///
+    /// <para>
+    /// Only meaningful when <see cref="IsPositional"/> is true; a <see cref="Tail"/>
+    /// window has no answer until the table ends, and asking throws rather than
+    /// returning a guess.
+    /// </para>
+    /// </summary>
+    /// <param name="position">0-based position of the data row.</param>
+    /// <exception cref="InvalidOperationException">This window is not positional.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="position"/> is negative.</exception>
+    public bool KeepsPosition(int position)
+    {
+        ThrowIfNotPositional();
+        ArgumentOutOfRangeException.ThrowIfNegative(position);
+
+        return position >= FirstKeptPosition && position < EndPositionExclusive;
+    }
+
+    /// <summary>
+    /// Whether no row at or after 0-based <paramref name="position"/> can be kept,
+    /// so a caller may stop considering rows entirely.
+    /// </summary>
+    /// <param name="position">0-based position of the data row.</param>
+    /// <exception cref="InvalidOperationException">This window is not positional.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="position"/> is negative.</exception>
+    public bool IsPastEnd(int position)
+    {
+        ThrowIfNotPositional();
+        ArgumentOutOfRangeException.ThrowIfNegative(position);
+
+        return position >= EndPositionExclusive;
+    }
+
+    private int FirstKeptPosition => Kind == MarkoutRowWindowKind.Range ? _start - 1 : 0;
+
+    private long EndPositionExclusive => Kind switch
+    {
+        MarkoutRowWindowKind.Head => _count,
+        MarkoutRowWindowKind.Range => _end ?? long.MaxValue,
+        _ => long.MaxValue
+    };
+
+    private void ThrowIfNotPositional()
+    {
+        if (!IsPositional)
+            throw new InvalidOperationException(
+                $"A {Kind} window is defined against the table's total row count and cannot be resolved by position.");
     }
 
     /// <summary>
@@ -149,16 +226,23 @@ public readonly record struct MarkoutRowWindow
     }
 
     /// <summary>
-    /// Applies an optional window, treating "no window" and "unlimited" alike as
-    /// keeping every row. Callers hold a window as a nullable, so putting the
-    /// null handling here keeps it from being re-derived per caller.
+    /// Applies an optional window, treating "no window" as keeping every row.
+    /// Callers hold a window as a nullable, so putting the null handling here keeps
+    /// it from being re-derived per caller.
     /// </summary>
     /// <typeparam name="T">The row type.</typeparam>
     /// <param name="window">The window to apply, or null to keep every row.</param>
     /// <param name="rows">The rows to window.</param>
     /// <returns>The rows within the window, in their original order.</returns>
-    public static IReadOnlyList<T> Apply<T>(MarkoutRowWindow? window, IReadOnlyList<T> rows) =>
-        window is { IsUnlimited: false } w ? w.Apply(rows) : rows;
+    /// <exception cref="ArgumentNullException"><paramref name="rows"/> is null.</exception>
+    public static IReadOnlyList<T> Apply<T>(MarkoutRowWindow? window, IReadOnlyList<T> rows)
+    {
+        // Guard before the fast path, or a null list is returned as a non-null
+        // result whenever the window happens to be absent or unlimited.
+        ArgumentNullException.ThrowIfNull(rows);
+
+        return window is { } w ? w.Apply(rows) : rows;
+    }
 }
 
 /// <summary>Whether a <see cref="MarkoutRowWindow"/> counts rows or names them.</summary>

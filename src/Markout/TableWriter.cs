@@ -21,6 +21,9 @@ public class TableWriter
     private bool _streamingDirect;
     private int _tableRowCount;
     private int _tableRowsSkipped;
+    private int _dataPosition;
+    private Queue<string[]>? _tailBuffer;
+    private int _tailBound;
 
     /// <summary>
     /// Creates a table writer with a batch table formatter.
@@ -93,23 +96,39 @@ public class TableWriter
         _tableRowCount = 0;
         _tableRowsSkipped = 0;
         _streamingDirect = false;
+        _dataPosition = 0;
+        _tailBuffer = null;
 
         _streamingHeaders = FormatHeaders(headers, headerNames);
 
-        // Force buffering when TableOptions is set — statistical width
-        // calculation requires all rows before rendering. A row window forces it
-        // for a different reason: Tail and an open-ended Range are defined
-        // against the total row count, which is not known until the last row
-        // arrives. Buffering lets every path resolve through the same
-        // MarkoutRowWindow.Resolve rather than re-deriving the window positionally.
-        if (_streamingFormatter != null && _options.TableOptions == null && !HasRowWindow)
+        // Force buffering when TableOptions is set — statistical width calculation
+        // requires all rows before rendering. A Tail window forces it for its own
+        // reason: which rows are the last ones is not known until the table ends.
+        // Head and Range decide each row from its position, so they keep streaming
+        // and retain nothing; a window is not a reason on its own to hold a table
+        // in memory.
+        var window = _options.RowWindow;
+        if (_streamingFormatter != null && _options.TableOptions == null
+            && (window == null || window.Value.IsPositional))
         {
             _streamingDirect = true;
             _streamingFormatter.BeginTable(_writer, _streamingHeaders, _options);
         }
         else
         {
-            _streamingRows = [];
+            // A Tail window never needs more than its own count in hand, so it reads
+            // through a queue bounded by what the window can keep rather than by the
+            // size of the table. Enqueue-and-dequeue keeps that O(1) per row; trimming
+            // a list from the front would make a large Tail quadratic.
+            if (window is { IsPositional: false } tail)
+            {
+                _tailBound = tail.RetentionBound;
+                _tailBuffer = new Queue<string[]>(Math.Min(_tailBound, 1024));
+            }
+            else
+            {
+                _streamingRows = [];
+            }
         }
     }
 
@@ -147,10 +166,18 @@ public class TableWriter
     {
         if (_streamingHeaders == null) return;
 
-        // With a window active every row must be buffered: which rows survive is
-        // not decidable until the total is known, so capping here would cap the
-        // wrong set. SelectRows applies both the window and MaxItems at end.
-        if (!HasRowWindow && _options.MaxItems is int max && _tableRowCount >= max)
+        var position = _dataPosition++;
+
+        // A positional window is asked about this row directly; it is the same type
+        // that answers Resolve, so streaming does not get its own idea of what the
+        // window means. A Tail window has no answer yet and is settled at the end.
+        if (_options.RowWindow is { IsPositional: true } window && !window.KeepsPosition(position))
+            return;
+
+        // MaxItems caps the window's selection, so it counts selected rows. Under a
+        // Tail window the selection is not known yet, so the cap is deferred to
+        // SelectRows rather than applied to whichever rows happened to arrive first.
+        if (!DefersMaxItems && _options.MaxItems is int max && _tableRowCount >= max)
         {
             _tableRowsSkipped++;
             return;
@@ -160,6 +187,12 @@ public class TableWriter
         if (_streamingDirect && _streamingFormatter != null)
         {
             _streamingFormatter.WriteRow(_writer, values);
+        }
+        else if (_tailBuffer != null)
+        {
+            _tailBuffer.Enqueue(values.ToArray());
+            while (_tailBuffer.Count > _tailBound)
+                _tailBuffer.Dequeue();
         }
         else
         {
@@ -180,11 +213,13 @@ public class TableWriter
         }
         else
         {
-            // Buffered. MaxItems was deferred while a window was active, so both
-            // are resolved here; without a window the rows were capped on arrival.
-            var rows = (IList<string[]>)(_streamingRows ?? []);
+            // Buffered. A positional window already excluded its rows on arrival and
+            // MaxItems already capped what survived, so re-running SelectRows here
+            // would apply the window a second time to rows that are only the window's
+            // output. Only a Tail window still has both to settle.
+            var rows = (IList<string[]>)(_tailBuffer?.ToArray() ?? (IList<string[]>?)_streamingRows ?? []);
             var skipped = _tableRowsSkipped;
-            if (HasRowWindow)
+            if (_options.RowWindow is { IsPositional: false })
                 (rows, skipped) = SelectRows(rows);
 
             if (_batchFormatter != null)
@@ -204,10 +239,16 @@ public class TableWriter
 
         _streamingHeaders = null;
         _streamingRows = null;
+        _tailBuffer = null;
         _streamingDirect = false;
     }
 
-    private bool HasRowWindow => _options.RowWindow is { IsUnlimited: false };
+    /// <summary>
+    /// Whether MaxItems has to wait for the table to end. Only a Tail window makes it
+    /// wait: capping on arrival would cap the rows that came first, not the rows the
+    /// window selected.
+    /// </summary>
+    private bool DefersMaxItems => _options.RowWindow is { IsPositional: false };
 
     private (IList<string[]> rows, int skipped) SelectRows(IList<string[]> rows)
     {
@@ -216,7 +257,7 @@ public class TableWriter
         // Selection runs before summarization: the window says which rows exist,
         // MaxItems then says how many of those to show. Resolving here — and only
         // here — is what keeps every table mode agreeing on what a row window means.
-        if (_options.RowWindow is { IsUnlimited: false } window)
+        if (_options.RowWindow is { } window)
         {
             var (keepStart, keepEnd) = window.Resolve(rows.Count);
             if (keepStart != 0 || keepEnd != rows.Count)
