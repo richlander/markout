@@ -23,6 +23,7 @@ public class MarkoutWriter
     // State
     private bool _hasContentValue;
     private bool _needsBlankLine;
+
     private bool _inTable;
     private bool _inCode;
     // Number of leading identity columns for the in-progress table write (composite decompose).
@@ -1138,8 +1139,7 @@ public class MarkoutWriter
         if (_formatter is not IListFormatter lf)
             return false;
 
-        RequireBlankLineBeforeThisBlock();
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         lf.FormatArray(_writer, key, items, _options.BoldFieldNames);
         _needsBlankLine = true;
@@ -1159,8 +1159,7 @@ public class MarkoutWriter
         if (_formatter is not IListFormatter lf)
             return false;
 
-        RequireBlankLineBeforeThisBlock();
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         foreach (var item in items)
             lf.FormatListItem(_writer, item);
@@ -1471,8 +1470,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        RequireBlankLineBeforeThisBlock();
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         bf.FormatCallout(_writer, severity, message);
         _needsBlankLine = true;
@@ -1492,8 +1490,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        RequireBlankLineBeforeThisBlock();
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         bf.FormatQuotation(_writer, text);
         _needsBlankLine = true;
@@ -1513,8 +1510,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        RequireBlankLineBeforeThisBlock();
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         bf.FormatRule(_writer);
         _needsBlankLine = true;
@@ -1534,8 +1530,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        RequireBlankLineBeforeThisBlock();
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         foreach (var item in items)
             bf.FormatDescription(_writer, item);
@@ -1559,8 +1554,7 @@ public class MarkoutWriter
         if (_formatter is not IMetricsFormatter mf)
             return false;
 
-        RequireBlankLineBeforeThisBlock();
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         mf.FormatBreakdown(_writer, items, maxBarWidth, uniformBarWidth, _options);
         _needsBlankLine = true;
@@ -1848,32 +1842,41 @@ public class MarkoutWriter
     /// </summary>
     private void SeparateFromPrecedingContent()
     {
-        // Noted whether or not one is written here. A section that opens the document
-        // has nothing to separate from, but the same section moved later does.
-        _sectionBuffer?.NoteSelfSeparatingOpen();
+        // Recorded whether or not one is written here. A section that opens the
+        // document has nothing to separate from, but the same section moved later does.
+        _sectionBuffer?.NoteSeam(SeamEvent.SelfSeparating);
 
         if (_hasContent)
             WriteSeparatorLine();
     }
 
     /// <summary>
-    /// The same claim for a block that is set off by a blank line rather than writing
-    /// its own — a quotation, a rule, a callout, an array, a description list. These
-    /// were the blocks the heading-only version of this missed: their separator was
-    /// dropped at a section boundary and never put back, because nothing recorded that
-    /// the block itself was what required it.
+    /// Opens a block, taking whatever blank line is already owed.
     /// </summary>
-    private void RequireBlankLineBeforeThisBlock()
-    {
-        _sectionBuffer?.NoteSelfSeparatingOpen();
-
-        if (_hasContent)
-            _needsBlankLine = true;
-    }
-
-    private void EnsureBlankLineIfNeeded()
+    /// <param name="blockSeparatesItself">
+    /// Whether this block is set off by a blank line of its own rather than only
+    /// inheriting one — a quotation, a rule, a callout, an array, a description list,
+    /// a breakdown. These were the blocks the heading-only version of this missed:
+    /// their separator was dropped at a section boundary and never put back, because
+    /// nothing recorded that the block itself was what required it. It is a parameter
+    /// rather than a separate call so that a block cannot acquire the property without
+    /// acquiring the record of it.
+    /// </param>
+    private void EnsureBlankLineIfNeeded(bool blockSeparatesItself = false)
     {
         FlushPendingSection();
+
+        if (blockSeparatesItself)
+        {
+            _sectionBuffer?.NoteSeam(SeamEvent.SelfSeparating);
+
+            if (_hasContent)
+                _needsBlankLine = true;
+        }
+        else
+        {
+            _sectionBuffer?.NoteSeam(SeamEvent.Ordinary);
+        }
 
         if (_needsBlankLine)
         {

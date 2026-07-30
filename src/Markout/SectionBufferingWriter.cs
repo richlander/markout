@@ -3,6 +3,27 @@ using System.Text;
 
 namespace Markout;
 
+internal enum SeamEvent : byte
+{
+    /// <summary>
+    /// A block that separates itself from anything before it — a heading, a quotation,
+    /// a rule. It requires a blank line whenever content precedes it, and then takes it.
+    /// </summary>
+    SelfSeparating,
+
+    /// <summary>
+    /// A block that takes the blank line before it only if one is already pending.
+    /// </summary>
+    Ordinary,
+
+    /// <summary>
+    /// A blank line the caller wrote. It is unconditional, so it is in the chunk's
+    /// content rather than computed here — but it satisfies a pending blank line, and
+    /// where in the seam it does that matters.
+    /// </summary>
+    ExplicitBlank,
+}
+
 /// <summary>
 /// A <see cref="TextWriter"/> that captures output into per-section buffers so the
 /// writer can emit sections in a requested order rather than in call order.
@@ -36,30 +57,27 @@ namespace Markout;
 ///
 /// <list type="bullet">
 /// <item><description>
-/// Does this chunk open with a block that separates itself from anything before it —
-/// a heading, a quotation, a rule (<see cref="Chunk.OpensSelfSeparating"/>)? Natively
-/// that block writes its blank line whenever content precedes it, so at emit it needs
-/// one whenever content precedes it here.
+/// A <see cref="SeamEvent.SelfSeparating"/> block — a heading, a quotation, a rule —
+/// requires a blank line whenever content precedes it, and then takes it.
 /// </description></item>
 /// <item><description>
-/// Did the chunk before this one leave a blank line pending
-/// (<see cref="Chunk.EndsNeedingBlankLine"/>)? That is a fact about the other chunk,
-/// which is exactly why it cannot travel with this one.
+/// An <see cref="SeamEvent.Ordinary"/> block takes one only if one is already pending.
 /// </description></item>
 /// <item><description>
-/// Did the caller open this chunk with blank lines of its own
-/// (<see cref="Chunk.OpensWithExplicitBlankLine"/>)? Those satisfy a pending blank
-/// line, so computing another on the same grounds doubles it — but they do not close
-/// the seam (<see cref="Chunk.OpeningLength"/>), because the block after them is
-/// still the chunk's first and still separates itself.
-/// </description></item>
-/// <item><description>
-/// Does this chunk hold content at all (<see cref="Chunk.ContainsContent"/>)? A chunk
-/// holding nothing but blank lines, or whose only block the formatter does not
-/// support, is not something a following block separates itself from — so "a chunk
-/// came before" is not the question, "content came before" is.
+/// An <see cref="SeamEvent.ExplicitBlank"/> is the caller's own blank line. It is
+/// unconditional, so it lives in the chunk's content rather than being computed here,
+/// and all it does at emit is satisfy whatever was pending at that point in the seam.
 /// </description></item>
 /// </list>
+///
+/// <para>
+/// Summarising that into per-chunk booleans is what the first five rounds of review
+/// did, and each summary lost a case: a section's opening is a sequence rather than a
+/// block, a chunk can be content while emitting nothing, a chunk can emit nothing and
+/// still take or leave a pending blank line, and a seam can need two separators rather
+/// than one. Recording the decisions and running them again costs a small list per
+/// section and stops the question being how many booleans it takes.
+/// </para>
 /// </summary>
 internal sealed class SectionBufferingWriter : TextWriter
 {
@@ -91,27 +109,23 @@ internal sealed class SectionBufferingWriter : TextWriter
         public StringBuilder Content => Buffer.GetStringBuilder();
 
         /// <summary>
-        /// Whether this chunk opens with something that separates itself from any
-        /// content before it — a heading, a quotation, a rule — rather than relying on
-        /// the block before it to have left a blank line pending.
+        /// What the writer did at this chunk's seam, in order, before any content of
+        /// its own settled the question. Not a summary of it — the writer's blank-line
+        /// logic is a small state machine over two facts, and five rounds of review
+        /// found five separate ways that summarising it loses a case. So the decisions
+        /// are recorded and run again at emit, against whatever this chunk turns out
+        /// to follow.
         /// </summary>
-        public bool OpensSelfSeparating { get; set; }
+        public List<SeamEvent> Seam { get; } = [];
 
         /// <summary>
-        /// Whether this chunk opens with a blank line the caller wrote itself. That
-        /// blank line satisfies whatever the block before the seam left pending, so a
-        /// computed separator on the same grounds would double it.
+        /// Whether the chunk ever emitted a character of its own, closing the seam.
+        /// Until it does, every blank-line decision in it is still the seam's, and
+        /// <see cref="EndsNeedingBlankLine"/> describes the order it was written in
+        /// rather than the order it is emitted in — <c>_needsBlankLine</c> is set
+        /// against <c>_hasContent</c>, which is a fact about everything before it.
         /// </summary>
-        public bool OpensWithExplicitBlankLine { get; set; }
-
-        /// <summary>
-        /// How much of <see cref="Content"/> is the chunk's opening: blank lines the
-        /// caller wrote at the seam, before any block. They are content — they are in
-        /// the output wherever this chunk lands — but they are not what the section
-        /// starts with, so a block that follows them is still opening the section and
-        /// its own separator is still the seam's to compute.
-        /// </summary>
-        public int OpeningLength { get; set; }
+        public bool SeamClosed { get; set; }
 
         /// <summary>
         /// Whether this chunk holds anything a following block would have to separate
@@ -158,25 +172,26 @@ internal sealed class SectionBufferingWriter : TextWriter
 
     /// <summary>
     /// Whether the writer is positioned at a seam between two sections: inside a
-    /// section that has written nothing but its opening blank lines. A separator
-    /// written here belongs to neither section, so it is dropped and recomputed at
-    /// emit. Explicit blank lines do not close the seam, because the block after them
-    /// is still the section's first and its separator still depends on what the
-    /// section ends up following.
+    /// section that has no content yet. A separator written here belongs to neither
+    /// section, so it is dropped and recomputed at emit. Content, not characters, is
+    /// the test at both ends of it. Blank lines the caller wrote do not close the seam,
+    /// because the block after them is still the section's first and its separator
+    /// still depends on what the section ends up following; and a block that emits no
+    /// characters at all but is content — an empty table in JSONL — does close it.
     /// </summary>
     public bool AtSectionBoundary =>
-        !ReferenceEquals(_current, _preamble) && _current.Content.Length == _current.OpeningLength;
+        !ReferenceEquals(_current, _preamble) && !_current.ContainsContent;
 
     /// <summary>
-    /// Records that the section now open begins with something that separates itself
-    /// from any content before it, whatever that content was. This survives reordering,
-    /// while <see cref="Chunk.EndsNeedingBlankLine"/> — a fact about the chunk before
-    /// the seam — does not.
+    /// Records one of the writer's blank-line decisions, if it is being made at a seam
+    /// where the answer depends on what this section ends up following. Once the
+    /// section has content of its own, the answers are its own and are written into
+    /// its buffer as usual.
     /// </summary>
-    public void NoteSelfSeparatingOpen()
+    public void NoteSeam(SeamEvent seamEvent)
     {
         if (AtSectionBoundary)
-            _current.OpensSelfSeparating = true;
+            _current.Seam.Add(seamEvent);
     }
 
     /// <summary>
@@ -201,9 +216,8 @@ internal sealed class SectionBufferingWriter : TextWriter
         if (!AtSectionBoundary)
             return false;
 
+        _current.Seam.Add(SeamEvent.ExplicitBlank);
         WriteLine();
-        _current.OpeningLength = _current.Content.Length;
-        _current.OpensWithExplicitBlankLine = true;
         return true;
     }
 
@@ -247,6 +261,7 @@ internal sealed class SectionBufferingWriter : TextWriter
     {
         ThrowIfEmitted();
 
+        _current.SeamClosed = !AtSectionBoundary;
         _current.EndsNeedingBlankLine = endsNeedingBlankLine;
         var chunk = new Chunk(name, _target.NewLine);
         _sections.Add(chunk);
@@ -381,6 +396,7 @@ internal sealed class SectionBufferingWriter : TextWriter
         if (_emitted)
             return;
 
+        _current.SeamClosed = !AtSectionBoundary;
         _current.EndsNeedingBlankLine = endsNeedingBlankLine;
 
         var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -401,31 +417,58 @@ internal sealed class SectionBufferingWriter : TextWriter
             .ThenBy(s => s.ordinal)
             .Select(s => s.chunk);
 
-        Chunk? previous = null;
-        var precededByContent = false;
+        var emitted = false;
+        var hasContent = false;
+        var blankLinePending = false;
         foreach (var chunk in Prepend(_preamble, ordered))
         {
-            if (chunk.Content.Length == 0)
-                continue;
+            // Run the writer's seam decisions again, in order, against what this chunk
+            // actually follows now. Nothing is skipped: a chunk that emitted no
+            // characters can still have taken a pending blank line, or left one.
+            foreach (var seamEvent in chunk.Seam)
+            {
+                if (seamEvent == SeamEvent.ExplicitBlank)
+                {
+                    // Unconditional, and already in the chunk's content. All it does
+                    // here is satisfy whatever was pending at this point in the seam.
+                    blankLinePending = false;
+                    continue;
+                }
 
-            // A self-separating opening needs its blank line whenever content precedes
-            // it — natively it is written against _hasContent, which the section's own
-            // opening blank lines do not set and an unsupported block does not either,
-            // so "some chunk came before" is the wrong question. An ordinary opening
-            // needs one only because the chunk before left one pending, and a blank
-            // line the caller wrote at this seam has already satisfied that.
-            var separate = (chunk.OpensSelfSeparating && precededByContent)
-                || (!chunk.OpensWithExplicitBlankLine && previous?.EndsNeedingBlankLine == true);
+                if (seamEvent == SeamEvent.SelfSeparating && hasContent)
+                    blankLinePending = true;
 
-            if (previous != null && separate)
-                _target.Write(chunk.SeparatorNewLine);
+                if (blankLinePending)
+                {
+                    _target.Write(chunk.SeparatorNewLine);
+                    blankLinePending = false;
+                    emitted = true;
+                }
+            }
 
-            _target.Write(chunk.Content);
-            previous = chunk;
-            precededByContent |= chunk.ContainsContent;
+            if (chunk.Content.Length > 0)
+            {
+                _target.Write(chunk.Content);
+                emitted = true;
+            }
+
+            hasContent |= chunk.ContainsContent;
+
+            // A chunk that did nothing at all passes the pending blank line through:
+            // what it inherited in the order it was written in says nothing about the
+            // order it is emitted in. A chunk that did anything owns its end state,
+            // even if nothing reached the output — every block that reaches the seam
+            // consumes what is pending before writing, so what is pending after it is
+            // what the block itself left, which no reordering changes. An empty table
+            // in JSONL is the case: it emits nothing and still leaves a blank line
+            // pending for whatever follows.
+            // Only a closed seam needs its end state supplied out of band. While the
+            // seam is open every raise is recorded in it, so the replay already knows.
+            if (chunk.SeamClosed)
+                blankLinePending = chunk.EndsNeedingBlankLine;
         }
 
-        if (previous == null)
+        if (!emitted)
             return;
 
         _emitted = true;

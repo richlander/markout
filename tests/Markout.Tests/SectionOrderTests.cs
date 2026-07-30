@@ -548,11 +548,21 @@ public class SectionOrderTests
     /// </para>
     ///
     /// <para>
-    /// On its own, with every enumerated sweep filtered out, this catches each defect
-    /// the last two rounds found: taking any preceding chunk for content, 14 of these
-    /// cases; the seam closing at the first write, 8; blocks not self-separating, 92;
-    /// headings not self-separating, 99. Eight is the thin one, and the reason the
-    /// seed count is what it is rather than the hundred that would otherwise do.
+    /// The empty kinds are here for the mirror-image case, which got through the round
+    /// after: a block that emits no characters and is content anyway. An empty table in
+    /// JSONL writes nothing, and the writer still separates the next block from it. A
+    /// generator whose every table had a row could not produce that document.
+    /// </para>
+    ///
+    /// <para>
+    /// On its own, with every enumerated sweep filtered out, this catches all seven
+    /// mechanisms the seam replay is made of, in cases out of 1500: self-separation
+    /// not recorded, 75; the record replayed without regard to what precedes it, 489;
+    /// an explicit blank line not satisfying what is pending, 42; a blank line closing
+    /// the seam, 55; the emitted-characters test standing in for the content test, 17;
+    /// a closed seam not carrying its end state, 555; the seam replayed out of order,
+    /// 28. Seventeen is the thin one, and the reason the seed count is what it is
+    /// rather than the hundred that would otherwise do.
     /// </para>
     /// </summary>
     public static TheoryData<int> DocumentSeeds()
@@ -571,7 +581,8 @@ public class SectionOrderTests
         [
             "paragraph", "field", "table", "streaming-table", "list", "quotation",
             "array", "rule", "callout", "descriptions", "breakdown", "code",
-            "blank", "heading"
+            "blank", "heading", "empty-table", "empty-streaming-table", "empty-list",
+            "empty-array", "empty-descriptions", "empty-breakdown"
         ];
 
         var plan = new Random(seed);
@@ -620,6 +631,25 @@ public class SectionOrderTests
                 break;
             case "heading":
                 writer.WriteHeading(3, marker);
+                break;
+            case "empty-table":
+                writer.WriteTable(["Name"], []);
+                break;
+            case "empty-streaming-table":
+                writer.WriteTableStart("Name");
+                writer.WriteTableEnd();
+                break;
+            case "empty-list":
+                writer.WriteList();
+                break;
+            case "empty-array":
+                writer.WriteArray("items");
+                break;
+            case "empty-descriptions":
+                writer.WriteDescriptions([]);
+                break;
+            case "empty-breakdown":
+                writer.WriteBreakdown([]);
                 break;
             default:
                 WriteBlock(writer, kind, marker);
