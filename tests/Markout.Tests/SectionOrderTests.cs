@@ -363,6 +363,152 @@ public class SectionOrderTests
         Assert.Equal(plain.ToString(), ordered.ToString());
     }
 
+    // ── Transparency ──
+
+    /// <summary>
+    /// A target whose newline changes partway through gets the line ending it had at
+    /// each point, buffered or not. Separators are the part that can drift: they are
+    /// dropped where they were written and put back at flush, which may be long after
+    /// the target's newline moved on, so re-reading it there would rewrite line endings
+    /// chosen earlier. The newline follows the section name rather than its position,
+    /// so the document written natively in the requested order is a real oracle.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(ReorderCases))]
+    public void ANewlineChangedMidDocument_SurvivesReordering(
+        MarkoutTableMode mode, string[] order, bool preamble, bool uniformShapes)
+    {
+        _ = mode;
+        _ = uniformShapes;
+
+        static string Write(string[]? order, IReadOnlyList<string> names, bool preamble)
+        {
+            var target = new StringWriter { NewLine = "<0>" };
+            var options = new MarkoutWriterOptions();
+            if (order != null)
+                options.SectionOrder = order;
+
+            var writer = MarkoutWriter.Create(target, new MarkdownFormatter(), options);
+            if (preamble)
+            {
+                writer.WriteHeading(1, "Title");
+                writer.WriteParagraph("preamble");
+            }
+
+            foreach (var name in names)
+            {
+                // Twice per section, straddling the boundary. A section with a heading
+                // writes it immediately, so the separator ahead of it uses the newline
+                // in force at the section start; a headless one writes nothing until its
+                // first block, by which point the newline has moved. Both spellings have
+                // to reach back to the right one, so the fixture contains both.
+                target.NewLine = $"<{name}-open>";
+                writer.WriteSectionStart(2, name, headless: name != "Beta");
+                target.NewLine = $"<{name}-body>";
+                writer.WriteParagraph(name.ToLowerInvariant());
+            }
+
+            writer.Flush();
+            return target.ToString();
+        }
+
+        Assert.Equal(Write(null, Reorder(order), preamble), Write(order, Sections, preamble));
+    }
+
+    // ── A flush that emits nothing must change nothing ──
+
+    /// <summary>
+    /// A section can be open and still have rendered nothing: a projection defers its
+    /// heading until the first block, a headless section never writes one, and a
+    /// streaming table holds its rows until it is ended. Flushing there emits an empty
+    /// document, and if that flush tore down the section state anyway, everything
+    /// written afterwards would land in the preamble — unorderable, and silently so,
+    /// because a preamble is exactly what a document that has not begun a section looks
+    /// like. So a flush that writes nothing leaves the writer exactly as it found it.
+    /// </summary>
+    [Theory]
+    [InlineData("projection")]
+    [InlineData("headless")]
+    [InlineData("streaming")]
+    public void AFlushThatEmitsNothing_LeavesOrderingIntact(string kind)
+    {
+        Assert.Equal(WriteInterrupted(kind, null), WriteInterrupted(kind, ["Beta", "Alpha"]));
+    }
+
+    /// <summary>
+    /// Writes Alpha then Beta with a <c>Flush()</c> after Alpha has begun but before it
+    /// has rendered anything. With <paramref name="order"/> set the result must match
+    /// the same document written natively in that order, which is what the unordered
+    /// arm produces by writing Beta first.
+    /// </summary>
+    private static string WriteInterrupted(string kind, string[]? order)
+    {
+        var options = new MarkoutWriterOptions();
+        if (order != null)
+            options.SectionOrder = order;
+        if (kind == "projection")
+            options.Projection = MarkoutProjection.WithoutColumns("nothing");
+
+        // A streaming Markdown table writes its header row straight through, so it
+        // could not stand for a section that has rendered nothing; TableFormatter holds
+        // rows back to size its columns, which is the case in question.
+        IMarkoutFormatter formatter = kind == "streaming" ? new TableFormatter() : new MarkdownFormatter();
+        var writer = new MarkoutWriter(formatter, options);
+        string[] names = order == null ? ["Beta", "Alpha"] : ["Alpha", "Beta"];
+
+        // The unordered arm writes Beta whole, so only the ordered arm can be
+        // interrupted mid-section; interrupting both would compare two documents that
+        // took the same path and prove nothing.
+        var interrupt = order != null;
+
+        foreach (var name in names)
+        {
+            var marker = name.ToLowerInvariant();
+
+            if (kind == "streaming")
+            {
+                writer.WriteSectionStart(2, name, headless: true);
+                writer.WriteTableStart("Name");
+                writer.WriteTableRow($"{marker}1");
+                if (interrupt && name == "Alpha")
+                    writer.Flush();
+                writer.WriteTableEnd();
+            }
+            else
+            {
+                writer.WriteSectionStart(2, name, headless: kind == "headless");
+                if (interrupt && name == "Alpha")
+                    writer.Flush();
+                writer.WriteField("owner", marker);
+            }
+        }
+
+        return writer.ToString();
+    }
+
+    /// <summary>
+    /// The companion to the case above, and the reason it is not simply "flushing never
+    /// finalizes". Once a section has rendered anything, the flush writes it out and the
+    /// document really is committed — a section beginning afterwards could no longer be
+    /// moved ahead of it. That case has to keep throwing, or the escape hatch for an
+    /// unrendered section would quietly become a licence to reorder what has already
+    /// left the building.
+    /// </summary>
+    [Fact]
+    public void AFlushThatEmitsContent_StillRefusesLaterSections()
+    {
+        var writer = new MarkoutWriter(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { SectionOrder = ["Beta", "Alpha"] });
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteTableStart("Name");
+        writer.WriteTableRow("alpha1");
+        writer.Flush();
+
+        Assert.Throws<InvalidOperationException>(() => writer.WriteSectionStart(2, "Beta"));
+    }
+
     // ── Reordering is a reordering ──
 
     /// <summary>
@@ -373,7 +519,7 @@ public class SectionOrderTests
     /// separator and the rest do, so a captured separator surfaces as a document that
     /// opens on a blank line. Only the second case can see that defect.
     /// </summary>
-    public static TheoryData<MarkoutTableMode, string[], bool> ReorderCases()
+    public static TheoryData<MarkoutTableMode, string[], bool, bool> ReorderCases()
     {
         string[][] orders =
         [
@@ -382,17 +528,36 @@ public class SectionOrderTests
             ["beta", "ALPHA"]
         ];
 
-        var data = new TheoryData<MarkoutTableMode, string[], bool>();
+        var data = new TheoryData<MarkoutTableMode, string[], bool, bool>();
         foreach (var mode in Enum.GetValues<MarkoutTableMode>())
             foreach (var order in orders)
                 foreach (var preamble in (bool[])[true, false])
-                    data.Add(mode, order, preamble);
+                    foreach (var uniformShapes in (bool[])[true, false])
+                        data.Add(mode, order, preamble, uniformShapes);
         return data;
     }
 
     private static readonly string[] Sections = ["Alpha", "Beta", "Gamma"];
 
-    private static void WriteSections(MarkoutWriter writer, IReadOnlyList<string> names, bool preamble = true)
+    /// <summary>
+    /// Writes the three sections, either all the same shape or deliberately not.
+    ///
+    /// <para>
+    /// The <paramref name="uniformShapes"/> dimension is what makes the seam rule
+    /// testable. Whether a blank line belongs between two blocks depends on what they
+    /// are — with <c>TableFormatter</c> a table is set off by one and consecutive
+    /// fields are not — so when every section has the same shape every seam gets the
+    /// same answer and any positional replay of those answers is indistinguishable from
+    /// computing them. Giving the middle section a table and the outer two a bare field
+    /// makes the answers differ, so moving the table has to move the blank lines with
+    /// it.
+    /// </para>
+    /// </summary>
+    private static void WriteSections(
+        MarkoutWriter writer,
+        IReadOnlyList<string> names,
+        bool preamble = true,
+        bool uniformShapes = true)
     {
         if (preamble)
         {
@@ -404,9 +569,21 @@ public class SectionOrderTests
         {
             var marker = name.ToLowerInvariant();
             writer.WriteSectionStart(2, name);
-            writer.WriteParagraph($"{marker} intro");
-            writer.WriteTable(["Name"], [[$"{marker}1"], [$"{marker}2"]]);
-            writer.WriteField("owner", marker);
+
+            if (uniformShapes)
+            {
+                writer.WriteParagraph($"{marker} intro");
+                writer.WriteTable(["Name"], [[$"{marker}1"], [$"{marker}2"]]);
+                writer.WriteField("owner", marker);
+                continue;
+            }
+
+            // Shape follows the name, not the position, so the oracle writing the same
+            // names in a different order writes the same shapes.
+            if (name == "Beta")
+                writer.WriteTable(["Name"], [[$"{marker}1"], [$"{marker}2"]]);
+            else
+                writer.WriteField("owner", marker);
         }
     }
 
@@ -440,30 +617,32 @@ public class SectionOrderTests
     /// </summary>
     [Theory]
     [MemberData(nameof(ReorderCases))]
-    public void AReorderedDocument_MatchesOneWrittenInThatOrder(MarkoutTableMode mode, string[] order, bool preamble)
+    public void AReorderedDocument_MatchesOneWrittenInThatOrder(
+        MarkoutTableMode mode, string[] order, bool preamble, bool uniformShapes)
     {
         var ordered = new MarkoutWriter(
             new TableFormatter(),
             new MarkoutWriterOptions { TableMode = mode, SectionOrder = order });
-        WriteSections(ordered, Sections, preamble);
+        WriteSections(ordered, Sections, preamble, uniformShapes);
 
         var native = new MarkoutWriter(new TableFormatter(), new MarkoutWriterOptions { TableMode = mode });
-        WriteSections(native, Reorder(order), preamble);
+        WriteSections(native, Reorder(order), preamble, uniformShapes);
 
         Assert.Equal(native.ToString(), ordered.ToString());
     }
 
     [Theory]
     [MemberData(nameof(ReorderCases))]
-    public void AReorderedMarkdownDocument_MatchesOneWrittenInThatOrder(MarkoutTableMode mode, string[] order, bool preamble)
+    public void AReorderedMarkdownDocument_MatchesOneWrittenInThatOrder(
+        MarkoutTableMode mode, string[] order, bool preamble, bool uniformShapes)
     {
         _ = mode;
 
         var ordered = new MarkoutWriter(new MarkdownFormatter(), new MarkoutWriterOptions { SectionOrder = order });
-        WriteSections(ordered, Sections, preamble);
+        WriteSections(ordered, Sections, preamble, uniformShapes);
 
         var native = new MarkoutWriter(new MarkdownFormatter());
-        WriteSections(native, Reorder(order), preamble);
+        WriteSections(native, Reorder(order), preamble, uniformShapes);
 
         Assert.Equal(native.ToString(), ordered.ToString());
     }

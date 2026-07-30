@@ -21,23 +21,60 @@ namespace Markout;
 /// sections is not part of either one. Captured with the section that follows it, it
 /// travels when that section moves — putting a leading blank line at the top of the
 /// document and leaving no separation where the seam ended up. So the separator is
-/// dropped at capture (<see cref="AtSectionBoundary"/>) and re-inserted between
+/// dropped at capture (<see cref="AtSectionBoundary"/>) and recomputed between
 /// emitted sections, which is where a separator means anything.
+/// </para>
+///
+/// <para>
+/// Recomputed, not replayed. Recording which seams carried a separator and re-emitting
+/// that same vector positionally is wrong whenever the sections differ in shape: with
+/// <c>TableFormatter</c> a table is set off by a blank line and consecutive fields are
+/// not, so moving a table changes which adjacencies need one. The writer decides by
+/// asking two questions — did the block before me leave a blank line pending, and am I
+/// a heading, which separates from anything at all — and this type records the answers
+/// per chunk so the same two questions can be asked again of whatever pair of chunks
+/// ends up adjacent.
 /// </para>
 /// </summary>
 internal sealed class SectionBufferingWriter : TextWriter
 {
     private readonly TextWriter _target;
-    private readonly List<(string Name, StringWriter Buffer)> _sections = [];
-    private readonly List<bool> _seams = [];
-    private readonly StringWriter _preamble = new();
-    private StringWriter _current;
+    private readonly List<Chunk> _sections = [];
+    private Chunk _preamble;
+    private Chunk _current;
     private bool _emitted;
 
     public SectionBufferingWriter(TextWriter target)
     {
         _target = target;
+        _preamble = new Chunk(null, target.NewLine);
         _current = _preamble;
+    }
+
+    /// <summary>
+    /// One captured run of output — the preamble, or one section — together with the
+    /// two facts the writer used to decide about separators around it: whether the last
+    /// block in it left a blank line pending, and whether it opens with a heading, which
+    /// separates itself from any content before it regardless of what that content was.
+    /// </summary>
+    private sealed class Chunk(string? name, string separatorNewLine)
+    {
+        public string? Name { get; } = name;
+
+        public StringWriter Buffer { get; } = new();
+
+        public StringBuilder Content => Buffer.GetStringBuilder();
+
+        public bool OpensWithHeading { get; set; }
+
+        public bool EndsNeedingBlankLine { get; set; }
+
+        /// <summary>
+        /// The newline in effect where this chunk's leading separator was written, so a
+        /// target whose <see cref="TextWriter.NewLine"/> changes mid-document still gets
+        /// the line ending it had at that point rather than the one in force at flush.
+        /// </summary>
+        public string SeparatorNewLine { get; set; } = separatorNewLine;
     }
 
     /// <inheritdoc/>
@@ -63,59 +100,68 @@ internal sealed class SectionBufferingWriter : TextWriter
     /// this section from the previous one rather than belonging to either.
     /// </summary>
     public bool AtSectionBoundary =>
-        !ReferenceEquals(_current, _preamble) && _current.GetStringBuilder().Length == 0;
+        !ReferenceEquals(_current, _preamble) && _current.Content.Length == 0;
 
     /// <summary>
-    /// Records that a separator was written at the current seam and drops it. Whether a
-    /// seam carries one is a property of the seam, not of either section: it depends on
-    /// how the section before it ended and how the one after it starts. Reordering
-    /// permutes the sections and leaves the seams where they were, so the separator
-    /// stays with the position rather than travelling with a section.
+    /// Records that the section now open begins with a heading. A heading separates
+    /// itself from any content before it, whatever that content was, so this survives
+    /// reordering while <see cref="Chunk.EndsNeedingBlankLine"/> — a fact about the
+    /// chunk before the seam — does not.
     /// </summary>
-    public void DropSeparatorAtBoundary() => _seams[^1] = true;
+    public void NoteSectionOpensWithHeading()
+    {
+        if (AtSectionBoundary)
+            _current.OpensWithHeading = true;
+    }
 
     /// <summary>
     /// Starts a new section buffer. Content written before the first call stays in the
     /// preamble, which is always emitted first — a document title is not a section and
     /// must not be reordered behind one.
     /// </summary>
-    public void BeginSection(string name)
+    /// <param name="name">The section name to order by.</param>
+    /// <param name="endsNeedingBlankLine">
+    /// Whether the chunk being closed left a blank line pending. Read from the writer
+    /// here because nothing has been written since, so it is still the state the writer
+    /// would consult at this seam.
+    /// </param>
+    public void BeginSection(string name, bool endsNeedingBlankLine)
     {
         ThrowIfEmitted();
 
-        var buffer = new StringWriter();
-        _sections.Add((name, buffer));
-        _seams.Add(false);
-        _current = buffer;
+        _current.EndsNeedingBlankLine = endsNeedingBlankLine;
+        var chunk = new Chunk(name, _target.NewLine);
+        _sections.Add(chunk);
+        _current = chunk;
+    }
+
+    /// <summary>
+    /// The buffer to write into, having first noted the newline in force at the start of
+    /// a section. The separator before a section is written immediately ahead of its
+    /// first content, so that is the newline it would have used — and the one to put
+    /// back at flush, which may be reached long after the target's newline moved on.
+    /// </summary>
+    private StringWriter Prepare()
+    {
+        ThrowIfEmitted();
+
+        if (AtSectionBoundary)
+            _current.SeparatorNewLine = _target.NewLine;
+
+        return _current.Buffer;
     }
 
     /// <inheritdoc/>
-    public override void Write(char value)
-    {
-        ThrowIfEmitted();
-        _current.Write(value);
-    }
+    public override void Write(char value) => Prepare().Write(value);
 
     /// <inheritdoc/>
-    public override void Write(string? value)
-    {
-        ThrowIfEmitted();
-        _current.Write(value);
-    }
+    public override void Write(string? value) => Prepare().Write(value);
 
     /// <inheritdoc/>
-    public override void Write(char[] buffer, int index, int count)
-    {
-        ThrowIfEmitted();
-        _current.Write(buffer, index, count);
-    }
+    public override void Write(char[] buffer, int index, int count) => Prepare().Write(buffer, index, count);
 
     /// <inheritdoc/>
-    public override void Write(ReadOnlySpan<char> buffer)
-    {
-        ThrowIfEmitted();
-        _current.Write(buffer);
-    }
+    public override void Write(ReadOnlySpan<char> buffer) => Prepare().Write(buffer);
 
     /// <summary>
     /// Every newline this writer emits is read from the target when it is written, not
@@ -168,17 +214,60 @@ internal sealed class SectionBufferingWriter : TextWriter
     }
 
     /// <summary>
+    /// The two asynchronous line endings the base class writes from
+    /// <see cref="TextWriter.CoreNewLine"/> without going through any overload routed
+    /// above. The rest reach <see cref="WriteLine()"/> on their own; these do not, and
+    /// would put this writer's own newline into a buffer the target's newline chose the
+    /// rest of.
+    /// </summary>
+    public override Task WriteLineAsync()
+    {
+        WriteLine();
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc cref="WriteLineAsync()"/>
+    public override Task WriteLineAsync(StringBuilder? value, CancellationToken cancellationToken = default)
+    {
+        if (cancellationToken.IsCancellationRequested)
+            return Task.FromCanceled(cancellationToken);
+
+        WriteLine(value);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
     /// Emits the preamble followed by every buffered section, ordered by
     /// <paramref name="order"/>. Sections named there come first in that order; the rest
     /// follow in the order they were written. Matching is case-insensitive.
     ///
     /// <para>
-    /// Emptying the buffers as it goes makes this idempotent, so a second call — from
-    /// <c>Flush</c> after <c>ToString</c>, say — does not duplicate the document.
+    /// Separators are recomputed here rather than replayed, because which adjacencies
+    /// need one is a property of the pair that ends up adjacent. Empty chunks — an
+    /// excluded section, or one opened but never written to — sit at no adjacency at
+    /// all and are skipped, so they neither add nor suppress a separator.
+    /// </para>
+    ///
+    /// <para>
+    /// A call that emits nothing changes nothing: the buffers, the open section and the
+    /// writable state all survive it. Otherwise flushing a document whose only section
+    /// has yet to render — one whose heading a projection has deferred, a headless
+    /// section, an unfinished streaming table — would discard the boundary and dump
+    /// everything after it into the preamble, unorderable and silently so.
     /// </para>
     /// </summary>
-    public void EmitOrdered(IReadOnlyList<string>? order)
+    /// <param name="order">The requested section order, or <c>null</c>.</param>
+    /// <param name="endsNeedingBlankLine">
+    /// Whether the last chunk left a blank line pending, for the same reason
+    /// <see cref="BeginSection"/> takes it.
+    /// </param>
+    public void EmitOrdered(IReadOnlyList<string>? order, bool endsNeedingBlankLine)
     {
+        if (_emitted)
+            return;
+
+        _current.EndsNeedingBlankLine = endsNeedingBlankLine;
+
         var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         if (order != null)
         {
@@ -192,63 +281,42 @@ internal sealed class SectionBufferingWriter : TextWriter
         }
 
         var ordered = _sections
-            .Select((section, ordinal) => (section.Name, section.Buffer, ordinal))
-            .OrderBy(s => rank.TryGetValue(s.Name, out var r) ? r : int.MaxValue)
-            .ThenBy(s => s.ordinal);
+            .Select((chunk, ordinal) => (chunk, ordinal))
+            .OrderBy(s => s.chunk.Name is { } name && rank.TryGetValue(name, out var r) ? r : int.MaxValue)
+            .ThenBy(s => s.ordinal)
+            .Select(s => s.chunk);
 
-        var seams = SeamsInWriteOrder();
-        var seamIndex = 0;
-        var wroteSomething = false;
+        Chunk? previous = null;
+        foreach (var chunk in Prepend(_preamble, ordered))
+        {
+            if (chunk.Content.Length == 0)
+                continue;
 
-        Emit(_preamble, seams, ref seamIndex, ref wroteSomething);
-        foreach (var section in ordered)
-            Emit(section.Buffer, seams, ref seamIndex, ref wroteSomething);
+            if (previous != null && (chunk.OpensWithHeading || previous.EndsNeedingBlankLine))
+                _target.Write(chunk.SeparatorNewLine);
 
-        if (wroteSomething)
-            _emitted = true;
+            _target.Write(chunk.Content);
+            previous = chunk;
+        }
 
+        if (previous == null)
+            return;
+
+        _emitted = true;
+
+        // Drop the buffers rather than clearing them: StringBuilder.Clear allocates a
+        // fresh backing array the size of the one it discards, which on a large
+        // document is another document-sized allocation for nothing.
         _sections.Clear();
-        _seams.Clear();
+        _preamble = new Chunk(null, _target.NewLine);
         _current = _preamble;
     }
 
-    /// <summary>
-    /// The separators the document actually had, in the order its seams occurred. A
-    /// section that wrote nothing sits at no seam, so it contributes none — and the
-    /// count then matches the number of seams the reordered document will have.
-    /// </summary>
-    private List<bool> SeamsInWriteOrder()
+    private static IEnumerable<Chunk> Prepend(Chunk first, IEnumerable<Chunk> rest)
     {
-        var seams = new List<bool>();
-        var seenContent = _preamble.GetStringBuilder().Length > 0;
-
-        for (var i = 0; i < _sections.Count; i++)
-        {
-            var hasContent = _sections[i].Buffer.GetStringBuilder().Length > 0;
-            if (hasContent && seenContent)
-                seams.Add(_seams[i]);
-            seenContent |= hasContent;
-        }
-
-        return seams;
-    }
-
-    private void Emit(StringWriter buffer, List<bool> seams, ref int seamIndex, ref bool wroteSomething)
-    {
-        var content = buffer.GetStringBuilder();
-        if (content.Length == 0)
-            return;
-
-        if (wroteSomething)
-        {
-            if (seamIndex < seams.Count && seams[seamIndex])
-                _target.Write(_target.NewLine);
-            seamIndex++;
-        }
-
-        _target.Write(content);
-        content.Clear();
-        wroteSomething = true;
+        yield return first;
+        foreach (var chunk in rest)
+            yield return chunk;
     }
 
     private void ThrowIfEmitted()

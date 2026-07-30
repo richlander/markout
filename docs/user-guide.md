@@ -1045,11 +1045,21 @@ Setting `SectionOrder` buffers the whole document, because the last section
 written may be the first one emitted. That also makes emitting the end of the
 document: `Flush()` and `ToString()` write it out, and writing again afterwards
 throws, because a section written then could no longer move ahead of one already
-written out. Finish the document before flushing.
+written out. Finish the document before flushing. Clearing `SectionOrder` at that
+point does not lift the restriction — the buffer is installed when the writer is
+constructed — so a document that must continue past a flush needs a new writer
+created without an order.
 
-`ToString()` returns the ordered result only for a writer that owns its own
-buffer. Against a `TextWriter` you supplied it has nothing to return and emits
-nothing, so inspecting the writer in a debugger does not commit the document.
+A flush that has nothing to emit is not a flush. A section whose heading a
+projection has deferred, a headless section, or a streaming table still gathering
+rows has rendered nothing yet, so flushing there writes no document and leaves
+the writer exactly as it was, still ordering and still writable.
+
+`ToString()` returns the ordered result for a writer that owns its own buffer,
+and for one you gave a `StringWriter` — in both cases there is a string to
+return, so it emits. Against any other `TextWriter` it has nothing to return and
+emits nothing, so inspecting such a writer in a debugger does not commit the
+document.
 
 Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
 goes straight to your writer as before.

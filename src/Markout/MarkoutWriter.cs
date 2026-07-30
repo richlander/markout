@@ -116,6 +116,8 @@ public class MarkoutWriter
         if (_formatter is not IHeadingFormatter hf)
             return false;
 
+        _sectionBuffer?.NoteSectionOpensWithHeading();
+
         if (_hasContent)
             WriteSeparatorLine();
 
@@ -1715,7 +1717,7 @@ public class MarkoutWriter
     /// </summary>
     public void Flush()
     {
-        _sectionBuffer?.EmitOrdered(_options.SectionOrder);
+        _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
 
         // _writer is either _target or the buffering wrapper in front of it, and the
         // wrapper has nothing of its own to flush once it has emitted. Flushing both
@@ -1737,7 +1739,7 @@ public class MarkoutWriter
         if (_target is not StringWriter sw)
             return base.ToString() ?? "";
 
-        _sectionBuffer?.EmitOrdered(_options.SectionOrder);
+        _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
         return sw.ToString().TrimEnd();
     }
 
@@ -1762,7 +1764,7 @@ public class MarkoutWriter
             // Excluded sections open a buffer too: they write nothing today, but routing
             // them into the previous section's buffer would be a silent misattribution
             // the moment any write path stops honoring _sectionExcluded.
-            _sectionBuffer?.BeginSection(text);
+            _sectionBuffer?.BeginSection(text, _needsBlankLine);
         }
     }
 
@@ -1841,11 +1843,8 @@ public class MarkoutWriter
     /// </summary>
     private void WriteSeparatorLine()
     {
-        if (_sectionBuffer is { AtSectionBoundary: true } buffer)
-        {
-            buffer.DropSeparatorAtBoundary();
+        if (_sectionBuffer is { AtSectionBoundary: true })
             return;
-        }
 
         _writer.WriteLine();
     }
@@ -1866,6 +1865,8 @@ public class MarkoutWriter
 
         if (_formatter is not IHeadingFormatter hf)
             return;
+
+        _sectionBuffer?.NoteSectionOpensWithHeading();
 
         if (_hasContent)
             WriteSeparatorLine();
