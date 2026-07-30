@@ -1061,6 +1061,13 @@ return, so it emits. Against any other `TextWriter` it has nothing to return and
 emits nothing, so inspecting such a writer in a debugger does not commit the
 document.
 
+One boundary: reordering assumes your writer's `NewLine` is stable for the
+duration of the document. The blank line between two sections sits between a pair
+that were never adjacent, so if `NewLine` changes partway through there is no
+single moment whose value is the right one — the newline each section was written
+under is used. Everything else, including line endings inside a section, is
+unaffected.
+
 Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
 goes straight to your writer as before.
 

@@ -65,7 +65,27 @@ internal sealed class SectionBufferingWriter : TextWriter
 
         public StringBuilder Content => Buffer.GetStringBuilder();
 
-        public bool OpensWithHeading { get; set; }
+        /// <summary>
+        /// Whether this chunk opens with something that separates itself from any
+        /// content before it — a heading, a quotation, a rule — rather than relying on
+        /// the block before it to have left a blank line pending.
+        /// </summary>
+        public bool OpensSelfSeparating { get; set; }
+
+        /// <summary>
+        /// Whether this chunk opens with a blank line the caller wrote itself. That
+        /// blank line is the seam's separator, kept as content, so computing another
+        /// one at emit would double it.
+        /// </summary>
+        public bool OpensWithExplicitBlankLine { get; set; }
+
+        /// <summary>
+        /// Whether <see cref="SeparatorNewLine"/> has been observed yet. The first
+        /// observation wins: it is taken where the separator would have been written,
+        /// which is before the chunk's first content, and a later write may see a
+        /// newline the target has since changed.
+        /// </summary>
+        public bool SeparatorNewLineCaptured { get; set; }
 
         public bool EndsNeedingBlankLine { get; set; }
 
@@ -103,15 +123,50 @@ internal sealed class SectionBufferingWriter : TextWriter
         !ReferenceEquals(_current, _preamble) && _current.Content.Length == 0;
 
     /// <summary>
-    /// Records that the section now open begins with a heading. A heading separates
-    /// itself from any content before it, whatever that content was, so this survives
-    /// reordering while <see cref="Chunk.EndsNeedingBlankLine"/> — a fact about the
-    /// chunk before the seam — does not.
+    /// Records that the section now open begins with something that separates itself
+    /// from any content before it, whatever that content was. This survives reordering,
+    /// while <see cref="Chunk.EndsNeedingBlankLine"/> — a fact about the chunk before
+    /// the seam — does not.
     /// </summary>
-    public void NoteSectionOpensWithHeading()
+    public void NoteSelfSeparatingOpen()
     {
         if (AtSectionBoundary)
-            _current.OpensWithHeading = true;
+            _current.OpensSelfSeparating = true;
+    }
+
+    /// <summary>
+    /// Records that the section now open begins with a blank line the caller wrote,
+    /// which is the seam's separator arriving as content.
+    /// </summary>
+    public void NoteSectionOpensWithExplicitBlankLine()
+    {
+        if (AtSectionBoundary)
+            _current.OpensWithExplicitBlankLine = true;
+    }
+
+    /// <summary>
+    /// Observes the newline in force where this section's leading separator belongs.
+    /// First observation wins, so the point the writer suppressed a separator at beats
+    /// the point the first content arrived at, which may be later and may see a newline
+    /// the target has changed in between.
+    ///
+    /// <para>
+    /// This is exact only while the target's newline is stable, which is the boundary
+    /// of what reordering can promise. A separator sits between two chunks that were
+    /// never adjacent, so "the newline in force there" names a moment the document
+    /// never had: the newline the section itself was written under and the newline the
+    /// section it now follows ended under can differ, and neither is the answer in
+    /// every case. The section's own is used, and a caller or formatter that changes
+    /// <see cref="TextWriter.NewLine"/> mid-document gets that rather than a guarantee.
+    /// </para>
+    /// </summary>
+    public void NoteSeparatorNewLine()
+    {
+        if (!AtSectionBoundary || _current.SeparatorNewLineCaptured)
+            return;
+
+        _current.SeparatorNewLine = _target.NewLine;
+        _current.SeparatorNewLineCaptured = true;
     }
 
     /// <summary>
@@ -144,10 +199,7 @@ internal sealed class SectionBufferingWriter : TextWriter
     private StringWriter Prepare()
     {
         ThrowIfEmitted();
-
-        if (AtSectionBoundary)
-            _current.SeparatorNewLine = _target.NewLine;
-
+        NoteSeparatorNewLine();
         return _current.Buffer;
     }
 
@@ -292,7 +344,10 @@ internal sealed class SectionBufferingWriter : TextWriter
             if (chunk.Content.Length == 0)
                 continue;
 
-            if (previous != null && (chunk.OpensWithHeading || previous.EndsNeedingBlankLine))
+            var separate = !chunk.OpensWithExplicitBlankLine
+                && (chunk.OpensSelfSeparating || previous?.EndsNeedingBlankLine == true);
+
+            if (previous != null && separate)
                 _target.Write(chunk.SeparatorNewLine);
 
             _target.Write(chunk.Content);

@@ -116,10 +116,7 @@ public class MarkoutWriter
         if (_formatter is not IHeadingFormatter hf)
             return false;
 
-        _sectionBuffer?.NoteSectionOpensWithHeading();
-
-        if (_hasContent)
-            WriteSeparatorLine();
+        SeparateFromPrecedingContent();
 
         hf.FormatHeading(_writer, RenderHeadingLevel(level), text, context);
         _writer.WriteLine();
@@ -1141,8 +1138,7 @@ public class MarkoutWriter
         if (_formatter is not IListFormatter lf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
+        RequireBlankLineBeforeThisBlock();
         EnsureBlankLineIfNeeded();
 
         lf.FormatArray(_writer, key, items, _options.BoldFieldNames);
@@ -1163,8 +1159,7 @@ public class MarkoutWriter
         if (_formatter is not IListFormatter lf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
+        RequireBlankLineBeforeThisBlock();
         EnsureBlankLineIfNeeded();
 
         foreach (var item in items)
@@ -1476,8 +1471,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
+        RequireBlankLineBeforeThisBlock();
         EnsureBlankLineIfNeeded();
 
         bf.FormatCallout(_writer, severity, message);
@@ -1498,8 +1492,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
+        RequireBlankLineBeforeThisBlock();
         EnsureBlankLineIfNeeded();
 
         bf.FormatQuotation(_writer, text);
@@ -1520,8 +1513,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
+        RequireBlankLineBeforeThisBlock();
         EnsureBlankLineIfNeeded();
 
         bf.FormatRule(_writer);
@@ -1542,8 +1534,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
+        RequireBlankLineBeforeThisBlock();
         EnsureBlankLineIfNeeded();
 
         foreach (var item in items)
@@ -1568,8 +1559,7 @@ public class MarkoutWriter
         if (_formatter is not IMetricsFormatter mf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
+        RequireBlankLineBeforeThisBlock();
         EnsureBlankLineIfNeeded();
 
         mf.FormatBreakdown(_writer, items, maxBarWidth, uniformBarWidth, _options);
@@ -1708,6 +1698,11 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return;
 
+        // An explicit blank line at a section boundary is the separator for that seam,
+        // written by the caller rather than by a block. Keeping it as content and also
+        // computing one at emit would double it.
+        _sectionBuffer?.NoteSectionOpensWithExplicitBlankLine();
+
         _writer.WriteLine();
         _needsBlankLine = false;
     }
@@ -1824,6 +1819,37 @@ public class MarkoutWriter
         return fields.ToArray();
     }
 
+    /// <summary>
+    /// Separates the heading about to be written from anything before it. A heading
+    /// separates itself, whatever preceded it, which is what makes this survive
+    /// reordering: an ordinary block separates only when the block before it left a
+    /// blank line pending, and that is a fact about the other block.
+    /// </summary>
+    private void SeparateFromPrecedingContent()
+    {
+        // Noted whether or not one is written here. A section that opens the document
+        // has nothing to separate from, but the same section moved later does.
+        _sectionBuffer?.NoteSelfSeparatingOpen();
+
+        if (_hasContent)
+            WriteSeparatorLine();
+    }
+
+    /// <summary>
+    /// The same claim for a block that is set off by a blank line rather than writing
+    /// its own — a quotation, a rule, a callout, an array, a description list. These
+    /// were the blocks the heading-only version of this missed: their separator was
+    /// dropped at a section boundary and never put back, because nothing recorded that
+    /// the block itself was what required it.
+    /// </summary>
+    private void RequireBlankLineBeforeThisBlock()
+    {
+        _sectionBuffer?.NoteSelfSeparatingOpen();
+
+        if (_hasContent)
+            _needsBlankLine = true;
+    }
+
     private void EnsureBlankLineIfNeeded()
     {
         FlushPendingSection();
@@ -1843,8 +1869,14 @@ public class MarkoutWriter
     /// </summary>
     private void WriteSeparatorLine()
     {
-        if (_sectionBuffer is { AtSectionBoundary: true })
+        if (_sectionBuffer is { AtSectionBoundary: true } buffer)
+        {
+            // This is where the separator would have been written, so this is the
+            // newline it would have used — earlier than the section's first content,
+            // and the one to reinstate at emit.
+            buffer.NoteSeparatorNewLine();
             return;
+        }
 
         _writer.WriteLine();
     }
@@ -1866,10 +1898,7 @@ public class MarkoutWriter
         if (_formatter is not IHeadingFormatter hf)
             return;
 
-        _sectionBuffer?.NoteSectionOpensWithHeading();
-
-        if (_hasContent)
-            WriteSeparatorLine();
+        SeparateFromPrecedingContent();
 
         hf.FormatHeading(_writer, RenderHeadingLevel(level), text, context);
         _writer.WriteLine();

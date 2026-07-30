@@ -363,6 +363,144 @@ public class SectionOrderTests
         Assert.Equal(plain.ToString(), ordered.ToString());
     }
 
+    // ── Every block kind, at a seam ──
+
+    /// <summary>
+    /// Sweeps the block a section opens with, and the block the section before it ends
+    /// with, across every kind the writer can emit.
+    ///
+    /// <para>
+    /// This is the third fixture gap on this change, and the same gap each time: the
+    /// assertions were right and the documents they compared were too alike to tell.
+    /// Comparing marker positions missed layout; writing a preamble before every
+    /// section made a misattributed separator into a uniform prefix; giving every
+    /// section the same shape made a positional separator vector indistinguishable from
+    /// a computed one. Each fix widened the oracle and the next defect walked in through
+    /// whatever the oracle still held constant.
+    /// </para>
+    ///
+    /// <para>
+    /// What it held constant here was the kind of block. A heading separates itself from
+    /// whatever precedes it, but so do a quotation, a rule, a callout, an array and a
+    /// description list — and treating headings as the only self-separating opening lost
+    /// their separator at a seam. An explicit <c>WriteBlankLine</c> is the opposite case:
+    /// it is the seam's separator arriving as content, and computing another one doubles
+    /// it. Both were found by a reviewer, in a fixture that wrote paragraphs, tables and
+    /// fields.
+    /// </para>
+    /// </summary>
+    public static TheoryData<string, string, bool, bool> BlockKindCases()
+    {
+        string[] kinds =
+        [
+            "paragraph", "field", "table", "streaming-table", "list", "quotation",
+            "array", "rule", "callout", "descriptions", "breakdown", "code",
+            "blank-line", "sub-heading"
+        ];
+
+        var data = new TheoryData<string, string, bool, bool>();
+        foreach (var opening in kinds)
+            foreach (var closing in kinds)
+                foreach (var markdown in (bool[])[true, false])
+                    foreach (var preamble in (bool[])[true, false])
+                        data.Add(opening, closing, markdown, preamble);
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(BlockKindCases))]
+    public void ASectionOpeningWithAnyBlockKind_MatchesOneWrittenInThatOrder(
+        string opening, string closing, bool markdown, bool preamble)
+    {
+        // Alpha ends with the closing kind and Beta opens with the opening kind, so
+        // reordering to Beta, Alpha puts a pair that were never adjacent at a seam —
+        // which is the only place the separator rule can be wrong.
+        string[] order = ["Beta", "Alpha"];
+
+        static string Write(bool markdown, bool preamble, string[]? order, string[] names, string opening, string closing)
+        {
+            var options = new MarkoutWriterOptions();
+            if (order != null)
+                options.SectionOrder = order;
+
+            IMarkoutFormatter formatter = markdown ? new MarkdownFormatter() : new TableFormatter();
+            var writer = new MarkoutWriter(formatter, options);
+
+            if (preamble)
+                writer.WriteParagraph("preamble");
+
+            foreach (var name in names)
+            {
+                writer.WriteSectionStart(2, name, headless: true);
+                WriteBlock(writer, name == "Beta" ? opening : closing, name.ToLowerInvariant());
+            }
+
+            return writer.ToString();
+        }
+
+        var ordered = Write(markdown, preamble, order, ["Alpha", "Beta"], opening, closing);
+        var native = Write(markdown, preamble, null, ["Beta", "Alpha"], opening, closing);
+
+        Assert.Equal(native, ordered);
+    }
+
+    private static void WriteBlock(MarkoutWriter writer, string kind, string marker)
+    {
+        switch (kind)
+        {
+            case "paragraph":
+                writer.WriteParagraph(marker);
+                break;
+            case "field":
+                writer.WriteField("owner", marker);
+                break;
+            case "table":
+                writer.WriteTable(["Name"], [[marker]]);
+                break;
+            case "streaming-table":
+                writer.WriteTableStart("Name");
+                writer.WriteTableRow(marker);
+                writer.WriteTableEnd();
+                break;
+            case "list":
+                writer.WriteList(marker, marker + "2");
+                break;
+            case "quotation":
+                writer.WriteQuotation(marker);
+                break;
+            case "array":
+                writer.WriteArray("items", marker, marker + "2");
+                break;
+            case "rule":
+                writer.WriteRule();
+                break;
+            case "callout":
+                writer.WriteCallout(CalloutSeverity.Note, marker);
+                break;
+            case "descriptions":
+                writer.WriteDescriptions([new Description(marker, "text")]);
+                break;
+            case "breakdown":
+                writer.WriteBreakdown([new Breakdown(marker, [new Slice("a", 1)])]);
+                break;
+            case "code":
+                writer.WriteCodeStart("text");
+                writer.WriteParagraph(marker);
+                writer.WriteCodeEnd();
+                break;
+            case "blank-line":
+                writer.WriteBlankLine();
+                writer.WriteField("owner", marker);
+                break;
+            case "sub-heading":
+                writer.WriteHeading(3, marker);
+                writer.WriteField("owner", marker);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown block kind.");
+        }
+    }
+
     // ── Transparency ──
 
     /// <summary>
