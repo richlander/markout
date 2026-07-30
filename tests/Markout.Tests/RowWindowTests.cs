@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 using Markout;
 using Markout.Formatting;
 
@@ -707,6 +709,90 @@ public class RowWindowTests
             writer.WriteTableRow(row);
 
         Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+
+    /// <summary>
+    /// A tail window retains its bound, not the table. Allocation cannot show this —
+    /// every row is copied on arrival either way, so allocated bytes are linear in row
+    /// count whether the buffer is bounded or not. Reachability can: the rows a bounded
+    /// buffer let go of become collectable, and the ones it holds do not.
+    ///
+    /// <para>
+    /// The row values are freshly built rather than literals, so nothing is interned
+    /// and the only thing that can keep one alive is the writer. The producer is a
+    /// separate non-inlined method so its locals are out of scope and off the stack
+    /// before the collection runs.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ATailWindow_HoldsItsBoundRatherThanTheTable()
+    {
+        const int Rows = 1000;
+        const int Bound = 7;
+
+        var (writer, tracked) = FillTail(Rows, Bound);
+
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+
+        var alive = tracked.Count(reference => reference.IsAlive);
+        GC.KeepAlive(writer);
+
+        Assert.Equal(Bound, alive);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (TableWriter Writer, WeakReference[] Tracked) FillTail(int rows, int bound)
+    {
+        var writer = new TableWriter(
+            TextWriter.Null,
+            new StreamingOnlyFormatter(),
+            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(bound) });
+        writer.WriteTableStart(Header);
+
+        var tracked = new WeakReference[rows];
+        for (var i = 0; i < rows; i++)
+        {
+            // Built rather than written as a literal: an interned string would stay
+            // reachable no matter what the writer did with it.
+            var value = new string('r', 1) + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            tracked[i] = new WeakReference(value);
+            writer.WriteTableRow(value);
+        }
+
+        return (writer, tracked);
+    }
+
+    /// <summary>
+    /// A window that keeps everything hands back the list it was given rather than a
+    /// copy of it. Only reference identity can say so: a copy holds the same elements
+    /// in the same order, so every assertion about content passes either way, which is
+    /// how this went ungated until a reviewer mutated the branch away and saw nothing
+    /// fail.
+    /// </summary>
+    [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void AWindowThatKeepsEveryRow_ReturnsTheSameList(int count)
+    {
+        IReadOnlyList<string> rows = ["r1", "r2", "r3"];
+
+        Assert.Same(rows, MarkoutRowWindow.Head(count).Apply(rows));
+        Assert.Same(rows, MarkoutRowWindow.Tail(count).Apply(rows));
+        Assert.Same(rows, MarkoutRowWindow.Range(1, count).Apply(rows));
+        Assert.Same(rows, MarkoutRowWindow.Range(1, null).Apply(rows));
+        Assert.Same(rows, MarkoutRowWindow.Apply(null, rows));
+    }
+
+    [Fact]
+    public void AWindowThatKeepsSomeRows_ReturnsACopy()
+    {
+        IReadOnlyList<string> rows = ["r1", "r2", "r3"];
+
+        Assert.NotSame(rows, MarkoutRowWindow.Head(2).Apply(rows));
+        Assert.NotSame(rows, MarkoutRowWindow.Tail(2).Apply(rows));
+        Assert.NotSame(rows, MarkoutRowWindow.Range(2, null).Apply(rows));
     }
 
     [Fact]
