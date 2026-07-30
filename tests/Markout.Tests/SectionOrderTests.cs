@@ -523,6 +523,102 @@ public class SectionOrderTests
         Assert.Equal(native, ordered);
     }
 
+    /// <summary>
+    /// Every seed is one whole document: two to four sections, one to three blocks
+    /// each, a formatter, a table mode, a preamble or not, headings or not, written in
+    /// one order and reordered into another.
+    ///
+    /// <para>
+    /// The hand-enumerated sweeps above each name a dimension, which is why each of
+    /// them was complete right up until the next defect arrived through a dimension
+    /// nobody had named yet — five times running. This one names none. It cannot be
+    /// reasoned about the way a named dimension can, and that is the point: it is the
+    /// only test here that can fail for a reason its author had not thought of.
+    /// A reviewer's throwaway fuzz over twenty thousand random documents found the
+    /// content-less-chunk defect that the block-kind sweep, freshly widened, still
+    /// missed; this is that fuzz made deterministic and permanent.
+    /// </para>
+    ///
+    /// <para>
+    /// Seeded, so a failure is reproducible and the suite cannot flake. The block
+    /// kinds here are single blocks — a bare <c>WriteBlankLine</c>, a bare heading —
+    /// rather than the composites <see cref="WriteBlock"/> uses, because a composite
+    /// always ends in something that counts as content, and a section that is present
+    /// but is not content was exactly the case that got through.
+    /// </para>
+    /// </summary>
+    public static TheoryData<int> DocumentSeeds()
+    {
+        var data = new TheoryData<int>();
+        for (var seed = 0; seed < 1500; seed++)
+            data.Add(seed);
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(DocumentSeeds))]
+    public void ADocumentOfAnyShapeAtAll_MatchesOneWrittenInThatOrder(int seed)
+    {
+        string[] kinds =
+        [
+            "paragraph", "field", "table", "streaming-table", "list", "quotation",
+            "array", "rule", "callout", "descriptions", "breakdown", "code",
+            "blank", "heading"
+        ];
+
+        var plan = new Random(seed);
+        var names = Enumerable.Range(0, plan.Next(2, 5)).Select(i => $"S{i}").ToArray();
+        var blocks = names.ToDictionary(
+            name => name,
+            _ => Enumerable.Range(0, plan.Next(1, 4)).Select(_ => kinds[plan.Next(kinds.Length)]).ToArray());
+        var markdown = plan.Next(2) == 0;
+        var mode = (MarkoutTableMode)plan.Next(Enum.GetValues<MarkoutTableMode>().Length);
+        var preamble = plan.Next(2) == 0;
+        var headless = plan.Next(2) == 0;
+        var wanted = names.OrderBy(_ => plan.Next()).ToArray();
+        var written = names.OrderBy(_ => plan.Next()).ToArray();
+
+        string Write(string[] order, string[]? sectionOrder)
+        {
+            var options = new MarkoutWriterOptions { TableMode = mode };
+            if (sectionOrder != null)
+                options.SectionOrder = sectionOrder;
+
+            IMarkoutFormatter formatter = markdown ? new MarkdownFormatter() : new TableFormatter();
+            var writer = new MarkoutWriter(formatter, options);
+
+            if (preamble)
+                writer.WriteParagraph("preamble");
+
+            foreach (var name in order)
+            {
+                writer.WriteSectionStart(2, name, headless: headless);
+                foreach (var kind in blocks[name])
+                    WriteSingleBlock(writer, kind, name.ToLowerInvariant());
+            }
+
+            return writer.ToString();
+        }
+
+        Assert.Equal(Write(wanted, null), Write(written, wanted));
+    }
+
+    private static void WriteSingleBlock(MarkoutWriter writer, string kind, string marker)
+    {
+        switch (kind)
+        {
+            case "blank":
+                writer.WriteBlankLine();
+                break;
+            case "heading":
+                writer.WriteHeading(3, marker);
+                break;
+            default:
+                WriteBlock(writer, kind, marker);
+                break;
+        }
+    }
+
     private static void WriteBlock(MarkoutWriter writer, string kind, string marker)
     {
         switch (kind)
