@@ -256,7 +256,7 @@ public class MarkoutWriterOptions
             // Copied rather than referenced: MakeReadOnly would otherwise freeze only
             // the reference, and a caller still holding the list could change the
             // rendered order of a frozen options object.
-            _sectionOrder = value;
+            _sectionOrder = value is null ? null : [.. value];
         }
     }
 
