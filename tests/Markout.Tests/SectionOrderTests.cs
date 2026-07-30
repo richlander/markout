@@ -1,3 +1,4 @@
+using System.Text;
 using Markout;
 using Markout.Formatting;
 
@@ -361,6 +362,62 @@ public class SectionOrderTests
         plain.WriteParagraph("just a preamble");
 
         Assert.Equal(plain.ToString(), ordered.ToString());
+    }
+
+    /// <summary>
+    /// The two <c>WriteLineAsync</c> overloads the base class ends from its own
+    /// <see cref="TextWriter.CoreNewLine"/> field rather than through anything the
+    /// buffering writer overrides, so they are the two that can put the wrong line
+    /// ending into a buffer the target's newline chose the rest of.
+    ///
+    /// <para>
+    /// These were declared untestable — the buffering writer is internal and
+    /// <c>MarkoutWriter</c> drives it synchronously — until a reviewer pointed out the
+    /// route: a formatter is handed the writer as a plain <see cref="TextWriter"/>, so
+    /// a formatter can call anything on it. The declaration was wrong and this is the
+    /// gate it should have had.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AsynchronousLineEndings_UseTheTargetNewline()
+    {
+        static string Write(bool buffered)
+        {
+            var target = new StringWriter { NewLine = "<A>" };
+            var options = new MarkoutWriterOptions();
+            if (buffered)
+                options.SectionOrder = ["Alpha"];
+
+            var writer = MarkoutWriter.Create(target, new AsyncLineEndingFormatter(), options);
+            writer.WriteSectionStart(2, "Alpha", headless: true);
+            writer.WriteParagraph("x");
+            writer.Flush();
+            return target.ToString();
+        }
+
+        Assert.Equal("<A>x<A>", Write(buffered: false));
+        Assert.Equal(Write(buffered: false), Write(buffered: true));
+    }
+
+    /// <summary>
+    /// Ends its lines through the asynchronous overloads, which is the only way to
+    /// reach them: a formatter receives the writer as a plain <see cref="TextWriter"/>.
+    /// </summary>
+    private sealed class AsyncLineEndingFormatter : IMarkoutFormatter, IBlockFormatter
+    {
+        public void FormatParagraph(TextWriter writer, string text)
+        {
+            writer.WriteLineAsync().GetAwaiter().GetResult();
+            writer.WriteLineAsync(new StringBuilder(text)).GetAwaiter().GetResult();
+        }
+
+        public void FormatCallout(TextWriter writer, CalloutSeverity severity, string message) => throw new NotSupportedException();
+
+        public void FormatQuotation(TextWriter writer, string text) => throw new NotSupportedException();
+
+        public void FormatRule(TextWriter writer) => throw new NotSupportedException();
+
+        public void FormatDescription(TextWriter writer, Description item) => throw new NotSupportedException();
     }
 
     // ── Every block kind, at a seam ──
