@@ -1069,9 +1069,10 @@ under is used. Everything else, including line endings inside a section, is
 unaffected.
 
 A second boundary, and it is not the buffer's: a `Projection` defers a section's
-heading until the section writes an ordinary block, and the deferral is a single
-slot rather than one per section. A section that writes no ordinary block and is
-never closed leaves its heading waiting, and a headless section after it flushes
+heading until the section writes a block — any block except a heading or a blank
+line, both of which pass the slot by — and the deferral is a single slot rather
+than one per section. A section that writes no such block and is never closed
+leaves its heading waiting, and a headless section after it flushes
 that heading into its own output — labelling that section's content with the
 previous section's name.
 
@@ -1085,7 +1086,8 @@ sub-heading renders visible output and still leaks, because a heading does not
 flush the slot. A section holding only an empty streaming table renders nothing
 visible and does not leak, because starting the table does flush. Empty sections,
 blank-line-only sections, empty lists, and sections a projection emptied all leak
-unless closed.
+unless closed. A rule, a quotation or a callout flushes like any other block,
+despite bringing its own separator.
 
 This is how the writer already behaves with `SectionOrder` unset, so reordering
 neither causes it nor can repair it: such a document's output depends on the order
