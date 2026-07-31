@@ -1,11 +1,11 @@
 ---
 name: markout-built-in-shapes
-version: 0.34.0
+version: 0.35.0
 description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn
   ASCII or manual Markdown. Markout ships these as data types (Metric, Breakdown/Slice, Callout,
-  TreeNode, Description, CodeSection) you attach as model properties.
+  TreeNode, Description, CodeSection, MarkoutTable) you attach as model properties.
   Don't decompile the assembly or web-search the API — the shape types are here.
 ---
 
@@ -64,6 +64,45 @@ public class Dashboard
     // rather than making it nullable — the generator cannot unwrap a CodeSection?.
     [MarkoutIgnoreInTable, MarkoutSkipDefault]
     public CodeSection Snippet { get; set; }            // new CodeSection("csharp", "class Foo { }")
+
+    // Table whose columns are runtime data, not attributed properties. Use it when the column
+    // set is only known at run time (rows projected out of a foreign schema, a heap dump, etc.).
+    [MarkoutSection(Name = "Metadata"), MarkoutIgnoreInTable]
+    public MarkoutTable? Metadata { get; set; }
+    // new MarkoutTable(["Property", "Value"], [["Machine", "Amd64"]])
+}
+```
+
+## Runtime-column tables and runtime-named sections
+
+`MarkoutTable` carries headers and rows as runtime values, so the generator does not need to know
+the columns at compile time. It still flows through the serializer like a generated table —
+`SectionOrder`, `RowWindow`, `IncludeSections`, column projection, and TSV/JSONL decomposition all
+apply for free. Two differences from a generated table:
+
+- **Projection is tolerant.** A projection (`IncludeColumns`) that names none of a `MarkoutTable`'s
+  columns leaves the table whole instead of throwing, because the same projection may be aimed at a
+  sibling section whose columns differ. Generated tables keep the strict throw-on-no-match.
+- **Structured column keys.** Pass a second `headerNames` list to key TSV/JSONL output on stable
+  names while the display headers stay human-facing:
+  `new MarkoutTable(["Property", "Value"], ["prop", "val"], rows)`.
+
+To emit a *runtime-determined set of named sections* — each carrying its own runtime-column table —
+put the tables on title-bearing elements and `[MarkoutUnwrap]` the list. Each element becomes its
+own level-2 section named from its runtime title, and every markout feature still applies:
+
+```csharp
+[MarkoutSerializable(TitleProperty = nameof(Name))]
+public class MetadataSection
+{
+    [MarkoutIgnore] public string Name { get; set; } = "";      // drives the heading only
+    [MarkoutIgnoreInTable] public MarkoutTable? Body { get; set; }
+}
+
+[MarkoutSerializable]
+public class MetadataDocument
+{
+    [MarkoutUnwrap] public List<MetadataSection> Sections { get; set; } = [];
 }
 ```
 
@@ -92,3 +131,4 @@ public class Dashboard
 | `TreeNode` | hierarchy | `new TreeNode("root", [children]) { Badge = "📁" }` |
 | `Description` | term + text | `new Description("API", "…")` |
 | `CodeSection` | fenced code block | `new CodeSection("csharp", "…")` |
+| `MarkoutTable` | runtime-column table | `new MarkoutTable(["Property", "Value"], [["Machine", "Amd64"]])` |

@@ -682,6 +682,10 @@ internal static class TypeParser
         if (knownTypes.Graph is not null && SymbolEqualityComparer.Default.Equals(type, knownTypes.Graph))
             return (PropertyKind.Graph, null, null, false, null, null, true, FieldLayoutKind.Table, false);
 
+        // MarkoutTable type - a table whose columns are runtime data, rendered by the writer
+        if (knownTypes.MarkoutTable is not null && SymbolEqualityComparer.Default.Equals(type, knownTypes.MarkoutTable))
+            return (PropertyKind.Table, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+
         // Callout type - renders as admonition block
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.Callout))
             return (PropertyKind.Callout, null, null, false, null, null, true, FieldLayoutKind.Table, false);
@@ -928,6 +932,7 @@ internal static class TypeParser
              (p.Kind == PropertyKind.ComplexArray && p.JoinSeparator == null) ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.Graph ||
+             p.Kind == PropertyKind.Table ||
              p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
              p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
              p.Kind == PropertyKind.MetricChange || p.Kind == PropertyKind.MultiSource ||

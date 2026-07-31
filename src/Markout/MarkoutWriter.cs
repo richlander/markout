@@ -1185,7 +1185,19 @@ public class MarkoutWriter
     public bool WriteTable(IEnumerable<string> headers, IEnumerable<string> headerNames, IEnumerable<string[]> rows)
         => WriteTableCore(headers, headerNames, rows);
 
-    private bool WriteTableCore(IEnumerable<string> headers, IEnumerable<string>? headerNames, IEnumerable<string[]> rows)
+    /// <summary>
+    /// Writes a <see cref="MarkoutTable"/> — a table whose columns are runtime data. Column
+    /// projection is resolved tolerantly: a projection matching none of this table's columns
+    /// leaves it whole rather than throwing, because the projection may target a sibling section.
+    /// </summary>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteTable(MarkoutTable table)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        return WriteTableCore(table.Headers, table.HeaderNames, table.Rows, tolerantProjection: true);
+    }
+
+    private bool WriteTableCore(IEnumerable<string> headers, IEnumerable<string>? headerNames, IEnumerable<string[]> rows, bool tolerantProjection = false)
     {
         if (_sectionExcluded)
             return true;
@@ -1198,10 +1210,25 @@ public class MarkoutWriter
         if (headerNameArray != null && headerNameArray.Length != headerArray.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        // Apply column projection
-        var columnMap = headerNameArray == null
-            ? _options.Projection?.ComputeColumnMap(headerArray)
-            : _options.Projection?.ComputeColumnMap(headerArray, headerNameArray);
+        // Apply column projection. A tolerant projection (runtime-column tables) treats a
+        // no-match as "no projection" and renders the whole table, because the same projection
+        // may be aimed at a sibling section; a strict one (generated tables) throws on no-match.
+        int[]? columnMap;
+        if (tolerantProjection && _options.Projection is { } tolerantProj)
+        {
+            var resolution = headerNameArray == null
+                ? tolerantProj.ResolveColumns(headerArray)
+                : tolerantProj.ResolveColumns(headerArray, headerNameArray);
+            columnMap = resolution.Kind == ColumnProjectionResolutionKind.Matched
+                ? [.. resolution.ColumnMap]
+                : null;
+        }
+        else
+        {
+            columnMap = headerNameArray == null
+                ? _options.Projection?.ComputeColumnMap(headerArray)
+                : _options.Projection?.ComputeColumnMap(headerArray, headerNameArray);
+        }
         if (columnMap != null)
         {
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
