@@ -644,6 +644,53 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_ColumnsRenderedWhileTheProjectionWasDetached_StillCount()
+    {
+        // MarkoutWriterOptions.Projection is publicly mutable, so "was a projection set when this
+        // table rendered" is not the same question as "did this document have this column". Only
+        // the second one is the universe's business: a caller who detaches the projection around a
+        // table must not be told the column that table rendered was a typo.
+        var projection = new MarkoutProjection { IncludeColumns = ["B"] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["a"]]);   // misses; excused only if "B" is known to exist
+        options.Projection = null;            // detached -- this table is rendered whole
+        writer.WriteTable(["B"], [["b"]]);
+        options.Projection = projection;
+
+        Assert.Contains("| B |", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_FinalizingTwice_DoesNotRepeatTheProbes()
+    {
+        // Flush() is callable repeatedly and ToString() finalizes too, so an excused list must stay
+        // excused rather than be re-proved. The universe only ever grows, so a list the document has
+        // already satisfied cannot become unsatisfied -- repeating the probe is pure cost, and it is
+        // the expensive path, one matcher run over every distinct column in the document.
+        const int Tables = 200;
+        var projection = new MarkoutProjection();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        for (int i = 0; i < Tables; i++)
+        {
+            projection.IncludeColumns = ["C" + (i + 1)];   // misses here, excused by the next table
+            writer.WriteTable(["C" + i], [["v"]]);
+        }
+
+        projection.IncludeColumns = ["C" + Tables];
+        writer.WriteTable(["C" + Tables], [["v"]]);
+
+        writer.Flush();
+        var afterFirst = writer.ProjectionResolveCount;
+        writer.Flush();
+        var afterSecond = writer.ProjectionResolveCount;
+
+        Assert.Equal(afterFirst, afterSecond);
+    }
+
+    [Fact]
     public void Projection_AnUnprojectedTablesColumns_AreStillColumnsTheDocumentOffered()
     {
         // The universe answers "did this document have these columns". A table rendered while the
@@ -791,6 +838,36 @@ public class GeneratedTableTests
         Assert.True(
             writer.ProjectionReachEntryComparisons < 4 * Tables,
             $"Entry lookup made {writer.ProjectionReachEntryComparisons} comparisons for {Tables} distinct lists, which means it is scanning rather than bucketing.");
+
+        // Every column here is distinct, so this pins the universe to one entry per column and no
+        // more -- it is the no-duplication half. The deduplicating half is asserted separately by
+        // Projection_ManyTablesSharingColumns_HoldOneUniverseEntryEach, which is where repeated
+        // columns actually occur.
+        Assert.Equal(Tables, writer.ProjectionUniverseSize);
+    }
+
+    [Fact]
+    public void Projection_ManyTablesSharingColumns_HoldOneUniverseEntryEach()
+    {
+        // The universe holds distinct columns, not columns-per-table. This is the property that
+        // bounds a probe to a single matcher run over the document's column set, and so the thing
+        // that makes the resolve counter mean what it says: without it a probe is O(tables), and
+        // the quadratic this whole design exists to remove is back with every counter still green.
+        //
+        // What this does NOT prove: that insertion is O(1). That rests on the HashSet in
+        // RecordProjectedTable, which no counter here observes -- replacing it with a linear scan
+        // over the universe would keep every assertion in this file passing.
+        const int Tables = 5_000;
+        string[] headers = ["A", "B", "C", "D", "E"];
+        var projection = new MarkoutProjection { IncludeColumns = ["A"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        for (int i = 0; i < Tables; i++)
+            writer.WriteTable(headers, [["1", "2", "3", "4", "5"]]);
+
+        _ = writer.ToString();
+
+        Assert.Equal(headers.Length, writer.ProjectionUniverseSize);
     }
 
     [Fact]

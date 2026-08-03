@@ -1224,7 +1224,16 @@ public class MarkoutWriter
         // unprojectable; rendering the table whole emitted the very columns the caller did not
         // ask for. Resolving the display headers as stable names too lets a projection use the
         // canonical keys that structured output actually emits.
+        // Recorded before, and independently of, whatever projection happens to be set right now.
+        // The universe answers "did this document have these columns", which is a property of the
+        // document and not of the projection in force at the moment: Options.Projection is publicly
+        // mutable, so a caller who clears or replaces it around a table would otherwise hide that
+        // table's columns and be told the column it rendered was a typo. Free for documents that
+        // never project -- 20,000 five-column tables measured 26 ms against 32 ms without it, which
+        // is noise -- because the universe is deduplicated and stays the size of the distinct
+        // column set.
         int[]? columnMap = null;
+        RecordProjectedTable(headerArray, headerNameArray ?? headerArray);
         if (_options.Projection is { } projection)
         {
             if (!ResolveProjectedColumns(projection, headerArray, headerNameArray ?? headerArray, out columnMap))
@@ -1330,6 +1339,8 @@ public class MarkoutWriter
 
         // See WriteTableCore: a table matching none of the projection contributes nothing.
         // Leaving _tableWriter null is what suppresses the rows that follow.
+        // See WriteTableCore: recorded for the document, not for the projection currently set.
+        RecordProjectedTable(headers, headerNames.Length > 0 ? headerNames : headers);
         if (_options.Projection is { } projection)
         {
             if (!ResolveProjectedColumns(projection, headers, headerNames.Length > 0 ? headerNames : headers, out _columnMap))
@@ -1824,6 +1835,12 @@ public class MarkoutWriter
     // structurally what the design claims: entry lookup does not scan, and an unmatched list is
     // put to the matcher once.
     internal long ProjectionReachEntryComparisons { get; private set; }
+
+    /// <summary>
+    /// Size of the deduplicated column universe, for the test that asserts it stays the size of the
+    /// document's distinct column set rather than growing per table.
+    /// </summary>
+    internal int ProjectionUniverseSize => _projectionColumnsSeen?.Count ?? 0;
     // Sums every resolve the document caused: the configured projection's (one per rendered table)
     // plus each finalization probe's. Probes use throwaway projections, so their counts are drained
     // into _probeResolveCount as they are discarded.
@@ -2087,13 +2104,6 @@ public class MarkoutWriter
         columnMap = null;
         var resolution = projection.ResolveColumns(headers, headerNames);
 
-        // Before the NoProjection exit, not after it. The universe answers "did this document have
-        // these columns", and a table rendered while the projection was cleared is still a table
-        // this document had. Recording only projected tables makes clearing IncludeColumns hide the
-        // very columns an earlier allow list was retargeted towards, and reports that list as a
-        // typo for a document that rendered it.
-        RecordProjectedTable(headers, headerNames);
-
         if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
             return true;
 
@@ -2139,10 +2149,17 @@ public class MarkoutWriter
         {
             foreach (var entry in _projectionReach)
             {
-                if (entry.Matched || ProjectionWouldHaveMatchedSomewhere(entry))
+                if (entry.Matched)
                     continue;
 
-                return entry.Requested;
+                if (!ProjectionWouldHaveMatchedSomewhere(entry))
+                    return entry.Requested;
+
+                // Excused for good. The universe only ever grows, so a list the document has
+                // already satisfied cannot become unsatisfied, and Flush() is callable repeatedly:
+                // without this, every later finalization repeats every probe and every thread it
+                // needs.
+                entry.Matched = true;
             }
 
             return null;
