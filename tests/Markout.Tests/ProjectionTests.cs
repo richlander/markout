@@ -94,6 +94,26 @@ public class ProjectionTests
     }
 
     [Fact]
+    public void ExcludeColumns_ExcludingEveryColumn_ReportsTheExclusionRatherThanAnEmptyMatchList()
+    {
+        // The reach gate fires for an exclude projection too, but "no columns matched" is the
+        // wrong account of it: nothing failed to match, the caller excluded everything. Reporting
+        // the include list here would print an empty one, naming no column at all.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { ExcludeColumns = ["Name", "Version"] }
+        };
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo.dll", "1.0.0");
+        orch.WriteTableEnd();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => orch.ToString());
+        Assert.Equal("Projection excluded every column: Name, Version", ex.Message);
+    }
+
+    [Fact]
     public void IncludeColumns_AllUnmatchedColumns_ThrowsWhenNothingInTheDocumentMatched()
     {
         // One table, and the projection reaches none of it: the projection named a column this

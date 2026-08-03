@@ -1804,7 +1804,18 @@ public class MarkoutWriter
         if (_projectedTablesSeen == 0 || _projectedTablesMatched > 0)
             return;
 
-        var requested = _options.Projection?.IncludeColumns ?? [];
+        // An include projection that reached nothing named columns the document does not have.
+        // An exclude projection that reached nothing named every column the document does have,
+        // which is a different mistake and must not be reported as an unmatched name -- there is
+        // no unmatched name, and the include list it would print is empty.
+        var projection = _options.Projection;
+        if (projection?.ExcludeColumns is { Count: > 0 } excluded)
+        {
+            throw new InvalidOperationException(
+                $"Projection excluded every column: {string.Join(", ", excluded)}");
+        }
+
+        var requested = projection?.IncludeColumns ?? [];
         throw new InvalidOperationException(
             $"No columns matched projection: {string.Join(", ", requested)}");
     }
