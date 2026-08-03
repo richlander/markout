@@ -94,6 +94,26 @@ public class ProjectionTests
     }
 
     [Fact]
+    public void IncludeColumns_EmptyList_ReportsTheEmptyAllowListRatherThanAnUnmatchedName()
+    {
+        // An empty allow list still fails closed -- it selects nothing -- but it is not an
+        // unmatched name, and reporting it as one prints a message naming no column at all.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = [] }
+        };
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo.dll", "1.0.0");
+        orch.WriteTableEnd();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => orch.ToString());
+        Assert.Contains("IncludeColumns is empty", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("No columns matched projection:", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ExcludeColumns_ExcludingEveryColumn_RendersNothingRatherThanFailing()
     {
         // The reach gate diagnoses an allow list that named a column the document does not have.

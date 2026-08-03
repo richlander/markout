@@ -69,6 +69,7 @@ public sealed class MarkoutTable
         if (headers.Count > 1)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
+            var seenDisplay = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < headers.Count; i++)
             {
                 var explicitName = headerNames is not null && i < headerNames.Count ? headerNames[i] : null;
@@ -78,6 +79,15 @@ public sealed class MarkoutTable
                     throw new ArgumentException(
                         $"Two columns share the canonical structured key '{key}'. Structured output would emit duplicate keys and lose a column.",
                         headerNames != null ? nameof(headerNames) : nameof(headers));
+
+                // Under MarkoutTableHeaderStyle.DisplayName the display header IS the structured
+                // key, so unique stable names do not save a table whose display headers repeat --
+                // it would emit duplicate JSONL keys just the same. A Markdown table with two
+                // identically titled columns is unreadable regardless of style.
+                if (!seenDisplay.Add(headers[i]))
+                    throw new ArgumentException(
+                        $"Two columns share the display header '{headers[i]}'. Structured output keyed on display headers would emit duplicate keys and lose a column.",
+                        nameof(headers));
             }
         }
 

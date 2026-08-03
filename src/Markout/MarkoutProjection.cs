@@ -252,10 +252,11 @@ public class MarkoutProjection
         if (MatchesName(pattern, headers[index]))
             return true;
 
-        if (index >= headerNames.Length || string.IsNullOrEmpty(headerNames[index]))
-            return false;
-
-        var stableName = headerNames[index];
+        // Resolve the stable name the way TableWriter.FormatHeaders does: an explicit name that is
+        // null or empty falls back to the display header. Returning early instead would refuse to
+        // match a column by the very key structured output emits for it.
+        var explicitName = index < headerNames.Length ? headerNames[index] : null;
+        var stableName = string.IsNullOrEmpty(explicitName) ? headers[index] : explicitName;
         return MatchesName(pattern, stableName)
             || MatchesName(pattern, Formatting.FormatHelper.ToSnakeCase(stableName));
     }

@@ -1194,12 +1194,6 @@ public class MarkoutWriter
     public bool WriteTable(MarkoutTable table)
     {
         ArgumentNullException.ThrowIfNull(table);
-
-        // A table with no columns has no Markdown spelling -- the generator already skips one,
-        // and rendering it here would emit a "|"/"|" husk that is not a table.
-        if (table.IsEmpty)
-            return true;
-
         return WriteTableCore(table.Headers, table.HeaderNames, table.Rows);
     }
 
@@ -1215,6 +1209,12 @@ public class MarkoutWriter
         var headerNameArray = headerNames == null ? null : headerNames as string[] ?? headerNames.ToArray();
         if (headerNameArray != null && headerNameArray.Length != headerArray.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
+
+        // A table with no columns has no Markdown spelling -- rendering one emits a "|"/"|" husk
+        // that is not a table. Guarded here rather than at each overload so every buffered caller
+        // is covered, including the runtime-column shape whose column count is data.
+        if (headerArray.Length == 0)
+            return true;
 
         // Apply column projection. A projection is an allow list over a whole document, and the
         // same projection may name columns belonging to a sibling section, so a table matching
@@ -1782,6 +1782,14 @@ public class MarkoutWriter
     private int _projectedTablesSeen;
     private int _projectedTablesMatched;
 
+    // Captured at the miss, not read back at finalization. MarkoutWriterOptions.Projection is a
+    // mutable object a caller can retarget mid-document, and re-reading it would let a later
+    // exclude projection answer for an earlier include projection's failure -- reporting success
+    // for a typo that already cost the caller a table.
+    private bool _projectionMissRecorded;
+    private bool _projectionMissWasExclude;
+    private IReadOnlyList<string>? _projectionMissRequested;
+
     private bool ResolveProjectedColumns(
         MarkoutProjection projection,
         ReadOnlySpan<string> headers,
@@ -1795,7 +1803,15 @@ public class MarkoutWriter
 
         _projectedTablesSeen++;
         if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
+        {
+            if (!_projectionMissRecorded)
+            {
+                _projectionMissRecorded = true;
+                _projectionMissWasExclude = projection.ExcludeColumns is { Count: > 0 };
+                _projectionMissRequested = projection.IncludeColumns;
+            }
             return false;
+        }
 
         _projectedTablesMatched++;
         columnMap = [.. resolution.ColumnMap];
@@ -1814,10 +1830,16 @@ public class MarkoutWriter
         // named columns the document does have and asked for them to go, so the empty result is
         // the answer to a well-formed request rather than evidence of a typo. Only an include
         // projection can name a column that is simply not there.
-        if (_options.Projection?.ExcludeColumns is { Count: > 0 })
+        if (_projectionMissWasExclude)
             return;
 
-        var requested = _options.Projection?.IncludeColumns ?? [];
+        // An empty allow list is not an unmatched name -- there is no name. Reporting it as one
+        // prints "No columns matched projection: " and tells the caller nothing about what to fix.
+        var requested = _projectionMissRequested ?? [];
+        if (requested.Count == 0)
+            throw new InvalidOperationException(
+                "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
+
         throw new InvalidOperationException(
             $"No columns matched projection: {string.Join(", ", requested)}");
     }

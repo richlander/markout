@@ -282,14 +282,69 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void MarkoutTable_RejectsColumnsThatShareADisplayHeader()
+    {
+        // Under MarkoutTableHeaderStyle.DisplayName the display header IS the structured key, so
+        // distinct stable names do not save a table whose display headers repeat: JSONL would
+        // carry {"Same":"one","Same":"two"} and a consumer recovers only the last.
+        var ex = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["Same", "Same"], ["first", "second"], [["one", "two"]]));
+        Assert.Contains("share the display header 'Same'", ex.Message, StringComparison.Ordinal);
+
+        // Distinct display headers are unaffected.
+        _ = new MarkoutTable(["Line", "End Line"], ["line", "end_line"], [["1", "2"]]);
+    }
+
+    [Fact]
+    public void Projection_MatchesTheCanonicalKeyOfAColumnWhoseStableNameFallsBackToItsDisplayHeader()
+    {
+        // The column's emitted TSV/JSONL key is display_name, because an empty explicit name falls
+        // back to the display header. Projection has to accept the key the output actually uses.
+        var table = new MarkoutTable(["Display Name"], [""], [["value"]]);
+
+        var tsv = new StringWriter();
+        MarkoutWriter.Create(tsv, new TableFormatter(), new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv })
+            .WriteTable(table);
+        Assert.StartsWith("display_name", tsv.ToString(), StringComparison.Ordinal);
+
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["display_name"] }
+        });
+        writer.WriteTable(table);
+        Assert.Contains("Display Name", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_RetargetedMidDocument_StillReportsTheEarlierUnmatchedIncludeList()
+    {
+        // MarkoutWriterOptions.Projection is a mutable object. Reading it back at finalization let
+        // a later exclude projection answer for an include projection that had already cost the
+        // caller a table, turning a typo into success-shaped empty output.
+        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+        writer.WriteTable(["Name"], [["value"]]);
+
+        projection.IncludeColumns = null;
+        projection.ExcludeColumns = ["Name"];
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WriteTable_RendersNothingForATableWithNoColumns()
     {
-        // The generator skips an empty table, but the imperative overload reached the formatter
-        // directly and emitted a "|"/"|" husk that is not a table.
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions());
-        writer.WriteTable(new MarkoutTable([], []));
+        // The generator skips an empty table, but every buffered imperative overload reached the
+        // formatter directly and emitted a "|"/"|" husk that is not a table. Guarding only the
+        // MarkoutTable overload left the plain one still doing it, so both are pinned here.
+        var fromTable = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions());
+        fromTable.WriteTable(new MarkoutTable([], []));
+        Assert.Equal("", fromTable.ToString());
 
-        Assert.Equal("", writer.ToString());
+        var fromHeaders = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions());
+        fromHeaders.WriteTable([], []);
+        Assert.Equal("", fromHeaders.ToString());
     }
 
     // ---- Dynamic set of named sections, each carrying a runtime-column table ----
