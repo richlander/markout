@@ -68,8 +68,22 @@ public class MarkdownFormatter : IMarkoutFormatter,
 
     // ── ITableFormatter ──
 
+    // A MarkoutTable's headers are runtime data, so they carry the same injection risk cells do:
+    // an unescaped pipe silently changes the column count and an unescaped newline ends the table
+    // mid-row. Generated tables never reached this because their headers are property names.
+    // Escape at the entry point so widths and separator runs are measured against what is actually
+    // written, and so headers and cells agree on escaping.
+    private static string[] EscapeHeaders(ReadOnlySpan<string> headers)
+    {
+        var escaped = new string[headers.Length];
+        for (int i = 0; i < headers.Length; i++)
+            escaped[i] = FormatHelper.RenderInlineMarkdownTableCell(headers[i]);
+        return escaped;
+    }
+
     void ITableFormatter.FormatTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
     {
+        headers = EscapeHeaders(headers);
         if (options.PrettyTables)
             WritePrettyPipeTable(w, headers, rows, skippedRows, options.TableOptions);
         else
@@ -297,6 +311,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
 
     void IStreamingTableFormatter.BeginTable(TextWriter w, ReadOnlySpan<string> headers, MarkoutWriterOptions options)
     {
+        headers = EscapeHeaders(headers);
         _streamingWidths = null; // Reset state in case previous table had an error
         _streamingDefaultEnd = null;
 

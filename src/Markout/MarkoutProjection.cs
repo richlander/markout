@@ -247,30 +247,6 @@ public class MarkoutProjection
         return resolution.Kind != ColumnProjectionResolutionKind.NoMatches;
     }
 
-    /// <summary>
-    /// Computes a column index map for projecting table columns.
-    /// Returns null if no column projection is needed.
-    /// Each entry maps projected position → original position.
-    /// </summary>
-    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers)
-        => ComputeColumnMap(headers, default);
-
-    /// <summary>
-    /// Computes a column index map for projecting table columns.
-    /// Matches display headers, stable header names, and snake_case stable names.
-    /// </summary>
-    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
-    {
-        var resolution = ResolveColumns(headers, headerNames);
-        return resolution.Kind switch
-        {
-            ColumnProjectionResolutionKind.NoProjection => null,
-            ColumnProjectionResolutionKind.Matched => [.. resolution.ColumnMap],
-            _ => throw new InvalidOperationException(
-                $"No columns matched projection: {string.Join(", ", resolution.RequestedColumns)}")
-        };
-    }
-
     private bool MatchesColumn(string pattern, ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames, int index)
     {
         if (MatchesName(pattern, headers[index]))

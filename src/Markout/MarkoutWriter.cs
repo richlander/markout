@@ -1186,18 +1186,18 @@ public class MarkoutWriter
         => WriteTableCore(headers, headerNames, rows);
 
     /// <summary>
-    /// Writes a <see cref="MarkoutTable"/> — a table whose columns are runtime data. Column
-    /// projection is resolved tolerantly: a projection matching none of this table's columns
-    /// leaves it whole rather than throwing, because the projection may target a sibling section.
+    /// Writes a <see cref="MarkoutTable"/> — a table whose columns are runtime data. A column
+    /// projection matching none of this table's columns renders nothing, the same rule generated
+    /// tables follow, because the projection may target a sibling section.
     /// </summary>
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
     public bool WriteTable(MarkoutTable table)
     {
         ArgumentNullException.ThrowIfNull(table);
-        return WriteTableCore(table.Headers, table.HeaderNames, table.Rows, tolerantProjection: true);
+        return WriteTableCore(table.Headers, table.HeaderNames, table.Rows);
     }
 
-    private bool WriteTableCore(IEnumerable<string> headers, IEnumerable<string>? headerNames, IEnumerable<string[]> rows, bool tolerantProjection = false)
+    private bool WriteTableCore(IEnumerable<string> headers, IEnumerable<string>? headerNames, IEnumerable<string[]> rows)
     {
         if (_sectionExcluded)
             return true;
@@ -1210,24 +1210,17 @@ public class MarkoutWriter
         if (headerNameArray != null && headerNameArray.Length != headerArray.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        // Apply column projection. A tolerant projection (runtime-column tables) treats a
-        // no-match as "no projection" and renders the whole table, because the same projection
-        // may be aimed at a sibling section; a strict one (generated tables) throws on no-match.
-        int[]? columnMap;
-        if (tolerantProjection && _options.Projection is { } tolerantProj)
+        // Apply column projection. A projection is an allow list over a whole document, and the
+        // same projection may name columns belonging to a sibling section, so a table matching
+        // none of it contributes nothing. Throwing made a heterogeneous multi-section document
+        // unprojectable; rendering the table whole emitted the very columns the caller did not
+        // ask for. Resolving the display headers as stable names too lets a projection use the
+        // canonical keys that structured output actually emits.
+        int[]? columnMap = null;
+        if (_options.Projection is { } projection)
         {
-            var resolution = headerNameArray == null
-                ? tolerantProj.ResolveColumns(headerArray)
-                : tolerantProj.ResolveColumns(headerArray, headerNameArray);
-            columnMap = resolution.Kind == ColumnProjectionResolutionKind.Matched
-                ? [.. resolution.ColumnMap]
-                : null;
-        }
-        else
-        {
-            columnMap = headerNameArray == null
-                ? _options.Projection?.ComputeColumnMap(headerArray)
-                : _options.Projection?.ComputeColumnMap(headerArray, headerNameArray);
+            if (!ResolveProjectedColumns(projection, headerArray, headerNameArray ?? headerArray, out columnMap))
+                return true;
         }
         if (columnMap != null)
         {
@@ -1317,9 +1310,13 @@ public class MarkoutWriter
         if (headerNames.Length > 0 && headerNames.Length != headers.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        _columnMap = headerNames.Length > 0
-            ? _options.Projection?.ComputeColumnMap(headers, headerNames)
-            : _options.Projection?.ComputeColumnMap(headers);
+        // See WriteTableCore: a table matching none of the projection contributes nothing.
+        // Leaving _tableWriter null is what suppresses the rows that follow.
+        if (_options.Projection is { } projection)
+        {
+            if (!ResolveProjectedColumns(projection, headers, headerNames.Length > 0 ? headerNames : headers, out _columnMap))
+                return true;
+        }
         string[]? projectedHeaderNames = null;
         if (headerNames.Length > 0)
         {
@@ -1739,6 +1736,7 @@ public class MarkoutWriter
     /// </summary>
     public void Flush()
     {
+        ThrowIfProjectionMatchedNothing();
         _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
 
         // _writer is either _target or the buffering wrapper in front of it, and the
@@ -1761,8 +1759,54 @@ public class MarkoutWriter
         if (_target is not StringWriter sw)
             return base.ToString() ?? "";
 
+        ThrowIfProjectionMatchedNothing();
         _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
         return sw.ToString().TrimEnd();
+    }
+
+    // ── Projection reach ──
+
+    // A projection is an allow list, so a single table matching none of it legitimately
+    // contributes nothing -- that is what makes a heterogeneous multi-section document
+    // projectable at all. A projection matching nothing in the *whole document* is a
+    // different fact: the caller named columns this document does not have, almost always
+    // a typo, and rendering an empty document for it would turn a caller error into
+    // success-shaped empty output. The reach is therefore tracked per document and
+    // reported when the document is finished.
+    private int _projectedTablesSeen;
+    private int _projectedTablesMatched;
+
+    private bool ResolveProjectedColumns(
+        MarkoutProjection projection,
+        ReadOnlySpan<string> headers,
+        ReadOnlySpan<string> headerNames,
+        out int[]? columnMap)
+    {
+        columnMap = null;
+        var resolution = projection.ResolveColumns(headers, headerNames);
+        if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
+            return true;
+
+        _projectedTablesSeen++;
+        if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
+            return false;
+
+        _projectedTablesMatched++;
+        columnMap = [.. resolution.ColumnMap];
+        return true;
+    }
+
+    // Only a document that actually offered the projection something can be said to have
+    // rejected it. A document with no tables at all leaves the projection vacuous rather
+    // than unsatisfied, and must not fail.
+    private void ThrowIfProjectionMatchedNothing()
+    {
+        if (_projectedTablesSeen == 0 || _projectedTablesMatched > 0)
+            return;
+
+        var requested = _options.Projection?.IncludeColumns ?? [];
+        throw new InvalidOperationException(
+            $"No columns matched projection: {string.Join(", ", requested)}");
     }
 
     // ── Private infrastructure ──

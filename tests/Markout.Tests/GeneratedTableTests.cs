@@ -153,18 +153,118 @@ public class GeneratedTableTests
     }
 
     [Fact]
-    public void TableProperty_LeavesTheTableWholeWhenNoColumnMatches()
+    public void TableProperty_ThrowsWhenTheProjectionMatchesNothingInTheDocument()
     {
-        // A runtime-column table resolves projection tolerantly: a projection aimed at a sibling
-        // section's columns must not blank this one, unlike the strict generated-table path.
+        // A projection is an allow list, so an individual table matching none of it contributes
+        // nothing -- see the sibling-section test below, which is what that rule exists for. But a
+        // projection matching nothing in the *whole* document names columns this document does not
+        // have, which is a caller error, and rendering an empty document for it would turn that
+        // error into success-shaped empty output.
         var options = new MarkoutWriterOptions
         {
             Projection = new MarkoutProjection { IncludeColumns = ["ColumnThatDoesNotExist"] },
         };
-        var mdf = MarkoutSerializer.Serialize(Sample(), TableContext.Default, options);
 
-        Assert.Contains("| Property | Value |", mdf, StringComparison.Ordinal);
-        Assert.Contains("| Machine | Amd64 |", mdf, StringComparison.Ordinal);
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => MarkoutSerializer.Serialize(Sample(), TableContext.Default, options));
+        Assert.Contains("No columns matched projection: ColumnThatDoesNotExist", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TableProperty_ProjectionMatchingASiblingSectionLeavesEachSectionItsOwnColumns()
+    {
+        // The case the rule exists for: one projection, two sections with different columns.
+        // The matching section projects; the non-matching one drops out rather than throwing.
+        var model = new DynamicMetadataDocument
+        {
+            Sections =
+            [
+                new() { Name = "Alpha", Body = new MarkoutTable(["Only Alpha"], [["a"]]) },
+                new() { Name = "Beta", Body = new MarkoutTable(["Only Beta"], [["b"]]) },
+            ],
+        };
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["Only Beta"] },
+        };
+        var mdf = MarkoutSerializer.Serialize(model, DynamicMetadataContext.Default, options);
+
+        Assert.Contains("| Only Beta |", mdf, StringComparison.Ordinal);
+        Assert.Contains("| b |", mdf, StringComparison.Ordinal);
+        Assert.DoesNotContain("Only Alpha", mdf, StringComparison.Ordinal);
+        Assert.DoesNotContain("| a |", mdf, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TableProperty_ProjectionMatchesTheCanonicalKeyStructuredOutputEmits()
+    {
+        // Without explicit header names, TSV/JSONL key on snake_case(display header). A projection
+        // copied from that output must therefore match, or the caller silently gets the wrong
+        // columns from the very names the tool printed.
+        var model = new TableContainer
+        {
+            Image = new MarkoutTable(["Display A", "Display B"], [["a", "b"]]),
+        };
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["display_b"] },
+        };
+        var mdf = MarkoutSerializer.Serialize(model, TableContext.Default, options);
+
+        Assert.Contains("| Display B |", mdf, StringComparison.Ordinal);
+        Assert.DoesNotContain("Display A", mdf, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TableProperty_EscapesHeadersTheSameWayItEscapesCells()
+    {
+        // A MarkoutTable's headers are runtime data. An unescaped pipe would silently add a
+        // column and an unescaped newline would end the table mid-header.
+        var model = new TableContainer
+        {
+            Image = new MarkoutTable(["A|B", "C\nD", "<img src=x>"], [["1", "2", "3"]]),
+        };
+        var mdf = MarkoutSerializer.Serialize(model, TableContext.Default);
+
+        var headerLine = mdf.Split('\n').First(l => l.Contains("A", StringComparison.Ordinal) && l.StartsWith('|'));
+        Assert.Equal(4, headerLine.Count(c => c == '|')); // 3 columns => 4 pipes, not 5
+        Assert.Contains("&#124;", headerLine, StringComparison.Ordinal);
+        Assert.DoesNotContain("<img", mdf, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MarkoutTable_RejectsRowsThatDoNotMatchTheHeaderCount()
+    {
+        // Every renderer indexes rows positionally against the headers, and they disagree about a
+        // mismatch: Markdown and TSV keep an extra cell, JSONL drops it. Fail at construction.
+        var shortRow = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["A", "B"], [["x"]]));
+        Assert.Contains("Row 0 has 1 cell(s) but the table has 2 column(s)", shortRow.Message, StringComparison.Ordinal);
+
+        var longRow = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["A", "B"], [["x", "y", "z"]]));
+        Assert.Contains("Row 0 has 3 cell(s) but the table has 2 column(s)", longRow.Message, StringComparison.Ordinal);
+
+        var nullRow = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["A"], [null!]));
+        Assert.Contains("Row 0 is null", nullRow.Message, StringComparison.Ordinal);
+
+        // The well-formed case still constructs, including zero rows.
+        _ = new MarkoutTable(["A", "B"], [["x", "y"]]);
+        _ = new MarkoutTable(["A", "B"], []);
+    }
+
+    [Fact]
+    public void MarkoutTable_RejectsColumnsThatShareACanonicalStructuredKey()
+    {
+        // "A-B" and "A B" both canonicalize to a_b, which would emit JSONL with duplicate keys —
+        // and a consumer recovers only the last, silently losing a column.
+        var ex = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["A-B", "A B"], [["one", "two"]]));
+        Assert.Contains("canonical structured key 'a_b'", ex.Message, StringComparison.Ordinal);
+
+        // Distinct keys are unaffected.
+        _ = new MarkoutTable(["Line", "End Line"], [["1", "2"]]);
     }
 
     // ---- Dynamic set of named sections, each carrying a runtime-column table ----
