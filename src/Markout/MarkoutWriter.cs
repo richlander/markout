@@ -1311,6 +1311,12 @@ public class MarkoutWriter
         if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
             return false;
 
+        // Validated before the zero-column return below, so that a malformed call is still reported
+        // as malformed. Returning first would have let zero headers with a stable name through in
+        // silence on this path while the buffered path rejected the same arguments.
+        if (headerNames.Length > 0 && headerNames.Length != headers.Length)
+            throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
+
         // A table with no columns renders nothing, exactly as the buffered path does. Throwing here
         // instead made the two entry points disagree about the same table: generated code hides
         // columns with [MarkoutIgnoreColumnWhen] at run time, and a model whose columns are all
@@ -1319,8 +1325,6 @@ public class MarkoutWriter
         // which is what suppresses the rows that follow.
         if (headers.Length == 0)
             return true;
-        if (headerNames.Length > 0 && headerNames.Length != headers.Length)
-            throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
         // See WriteTableCore: a table matching none of the projection contributes nothing.
         // Leaving _tableWriter null is what suppresses the rows that follow.
@@ -1780,11 +1784,12 @@ public class MarkoutWriter
 
     // A projection is an allow list, so a single table matching none of it legitimately
     // contributes nothing -- that is what makes a heterogeneous multi-section document
-    // projectable at all. A projection matching nothing in the *whole document* is a
+    // projectable at all. An allow list matching nothing *anywhere it was offered* is a
     // different fact: the caller named columns this document does not have, almost always
     // a typo, and rendering an empty document for it would turn a caller error into
-    // success-shaped empty output. The reach is therefore tracked per document and
-    // reported when the document is finished.
+    // success-shaped empty output. Reach is therefore tracked and reported when the
+    // document is finished.
+    //
     // Reach is tracked per allow list, not per document. A single pair of document-wide counters
     // conflates projections that a caller retargeted mid-document: any one table matching would
     // answer for every earlier list that matched nothing, so an unmatched typo followed by a
@@ -1798,26 +1803,80 @@ public class MarkoutWriter
     // Only an allow list is diagnosable. An exclude projection that leaves nothing behind named
     // columns the document does have and asked for them to go, so its empty result answers a
     // well-formed request rather than evidencing a typo, and it gets no entry at all.
+    // Two allow lists are the same selection when the matcher cannot tell them apart, so identity
+    // has to use the comparison the matcher uses rather than a comparison of its own. Keying
+    // ordinally split "Name" from "name" under the default OrdinalIgnoreCase matching -- two
+    // entries for one selection, of which the second could never match and so threw spuriously --
+    // while ignoring Comparison merged two genuinely different selections that happened to share
+    // their text, letting a case-insensitive match excuse an ordinal miss.
+    //
+    // Buckets are keyed on a case-folded digest for lookup and then compared exactly under the
+    // entry's own comparison, so a digest that over-merges costs a short scan rather than a wrong
+    // answer. The parallel list preserves insertion order, which is what makes the reported
+    // failure the first one the caller caused rather than whichever the hash landed on first.
+    private Dictionary<string, List<ProjectionReach>>? _projectionReachBuckets;
     private List<ProjectionReach>? _projectionReach;
 
     private sealed class ProjectionReach
     {
         public required string[] Requested { get; init; }
+        public required string[] Identity { get; init; }
+        public required StringComparison Comparison { get; init; }
         public bool Matched { get; set; }
     }
 
-    private ProjectionReach GetProjectionReach(IReadOnlyList<string> requested)
+    // Duplicates and case are both invisible to matching -- a repeated name selects its column
+    // once, and the default comparison ignores case -- so neither may split one selection into
+    // two entries. Order is preserved because it determines the projected column order.
+    private static string[] ProjectionIdentity(IReadOnlyList<string> requested, StringComparison comparison)
     {
-        _projectionReach ??= [];
-        foreach (var entry in _projectionReach)
+        var identity = new List<string>(requested.Count);
+        foreach (var name in requested)
         {
-            if (entry.Requested.Length != requested.Count)
+            var seen = false;
+            foreach (var kept in identity)
+            {
+                if (string.Equals(kept, name, comparison))
+                {
+                    seen = true;
+                    break;
+                }
+            }
+
+            if (!seen)
+                identity.Add(name);
+        }
+
+        return [.. identity];
+    }
+
+    private ProjectionReach GetProjectionReach(IReadOnlyList<string> requested, StringComparison comparison)
+    {
+        var identity = ProjectionIdentity(requested, comparison);
+
+        var digest = new System.Text.StringBuilder();
+        digest.Append((int)comparison).Append('\u0000');
+        foreach (var name in identity)
+            digest.Append(name.ToLowerInvariant()).Append('\u0001');
+        var key = digest.ToString();
+
+        _projectionReachBuckets ??= [];
+        _projectionReach ??= [];
+        if (!_projectionReachBuckets.TryGetValue(key, out var bucket))
+        {
+            bucket = [];
+            _projectionReachBuckets[key] = bucket;
+        }
+
+        foreach (var entry in bucket)
+        {
+            if (entry.Comparison != comparison || entry.Identity.Length != identity.Length)
                 continue;
 
             var same = true;
-            for (int i = 0; i < entry.Requested.Length; i++)
+            for (int i = 0; i < entry.Identity.Length; i++)
             {
-                if (!string.Equals(entry.Requested[i], requested[i], StringComparison.Ordinal))
+                if (!string.Equals(entry.Identity[i], identity[i], comparison))
                 {
                     same = false;
                     break;
@@ -1828,7 +1887,13 @@ public class MarkoutWriter
                 return entry;
         }
 
-        var created = new ProjectionReach { Requested = [.. requested] };
+        var created = new ProjectionReach
+        {
+            Requested = [.. requested],
+            Identity = identity,
+            Comparison = comparison
+        };
+        bucket.Add(created);
         _projectionReach.Add(created);
         return created;
     }
@@ -1846,7 +1911,9 @@ public class MarkoutWriter
 
         // ResolveColumns honours ExcludeColumns only when there is no allow list, so a miss with
         // IncludeColumns set is an allow-list miss whether or not excludes are also present.
-        var reach = projection.IncludeColumns is { } requested ? GetProjectionReach(requested) : null;
+        var reach = projection.IncludeColumns is { } requested
+            ? GetProjectionReach(requested, projection.Comparison)
+            : null;
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
             return false;

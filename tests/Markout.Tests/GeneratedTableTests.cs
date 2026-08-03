@@ -351,6 +351,82 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_CaseDifferingNames_AreOneSelectionUnderCaseInsensitiveMatching()
+    {
+        // Reach identity compared ordinally while matching defaults to OrdinalIgnoreCase, so
+        // "NAME" and "name" became two entries for what the matcher treats as one selection. The
+        // second could never be offered anything the first had not already matched, so a document
+        // that projected correctly threw anyway.
+        var projection = new MarkoutProjection { IncludeColumns = ["NAME"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["Other"], [["x"]]);
+        projection.IncludeColumns = ["name"];
+        writer.WriteTable(["Name"], [["kept"]]);
+
+        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_CaseDifferingNames_AreDistinctSelectionsUnderOrdinalMatching()
+    {
+        // The negative of the case above: under an ordinal comparison the matcher does tell those
+        // two lists apart, so merging them would let one excuse the other's miss.
+        var projection = new MarkoutProjection { Comparison = StringComparison.Ordinal, IncludeColumns = ["NAME"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["Other"], [["x"]]);
+        projection.IncludeColumns = ["name"];
+        writer.WriteTable(["name"], [["kept"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: NAME", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_TheSameNamesUnderADifferentComparison_AreADistinctSelection()
+    {
+        // Identity has to carry the comparison as well as the names. Ignoring it let a match found
+        // case-insensitively answer for a miss that happened under ordinal matching.
+        var projection = new MarkoutProjection { Comparison = StringComparison.Ordinal, IncludeColumns = ["Name"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["name"], [["x"]]);
+        projection.Comparison = StringComparison.OrdinalIgnoreCase;
+        writer.WriteTable(["name"], [["kept"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Name", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_ARepeatedNameIsTheSameSelectionAsTheNameAlone()
+    {
+        // A repeated name selects its column once, so ["A", "A"] and ["A"] are indistinguishable to
+        // the matcher and must not become two entries.
+        var projection = new MarkoutProjection { IncludeColumns = ["A", "A"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["Other"], [["x"]]);
+        projection.IncludeColumns = ["A"];
+        writer.WriteTable(["A"], [["kept"]]);
+
+        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTableStart_RejectsHeaderNamesThatDoNotMatchZeroHeaders()
+    {
+        // The zero-column early return has to sit behind the arity check: returning first accepted
+        // a malformed call in silence on the streaming path while the buffered path rejected the
+        // same arguments.
+        var writer = MarkoutWriter.Create(new MarkdownFormatter());
+
+        var ex = Assert.Throws<ArgumentException>(() => writer.WriteTableStart([], ["a"]));
+        Assert.Contains("same length as headers", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Projection_OneAllowListSpanningAHeterogeneousDocument_DoesNotThrow()
     {
         // The negative of the case above: one allow list offered to several tables is a selection,
