@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Markout.Formatting;
 
@@ -1816,6 +1817,14 @@ public class MarkoutWriter
     // at all?" -- is answered at finalization by asking the matcher itself, against every table the
     // document offered. A list that would have matched some table is a selection the caller
     // retargeted, not a typo; only a list that matches nothing anywhere is diagnosable.
+    // Counted, not timed. Both quadratic regressions in this code -- a linear entry scan, and a
+    // re-probe per table rather than per document -- were invisible to every correctness test, and
+    // a wall-clock bound loose enough to be stable in CI was too loose to catch either. These say
+    // structurally what the design claims: entry lookup does not scan, and an unmatched list is
+    // put to the matcher once.
+    internal long ProjectionReachEntryComparisons { get; private set; }
+    internal int ProjectionReachResolveCount { get; private set; }
+
     private Dictionary<int, List<ProjectionReach>>? _projectionReachBuckets;
     private List<ProjectionReach>? _projectionReach;
     private List<string>? _projectionColumnsSeen;
@@ -1826,13 +1835,29 @@ public class MarkoutWriter
     {
         public required string[] Requested { get; init; }
         public required StringComparison Comparison { get; init; }
+
+        // A CurrentCulture comparison means whatever the culture said at the moment the list was
+        // offered, and finalization can run under a different one -- a culture scope closing, or a
+        // document built on one thread and rendered on another. Deferring the question without
+        // deferring its culture answers it under conditions that never existed: a list that matched
+        // is diagnosed as a typo, and a list that genuinely matched nothing is quietly excused.
+        public required CultureInfo Culture { get; init; }
+
         public bool Matched { get; set; }
     }
 
-    private static int SequenceDigest(StringComparison comparison, IReadOnlyList<string> names)
+    // Culture participates in identity only where it participates in matching. Splitting entries by
+    // an irrelevant culture would be harmless but would multiply them on any document that changes
+    // culture mid-render.
+    private static bool IsCultureSensitive(StringComparison comparison)
+        => comparison is StringComparison.CurrentCulture or StringComparison.CurrentCultureIgnoreCase;
+
+    private static int SequenceDigest(StringComparison comparison, CultureInfo culture, IReadOnlyList<string> names)
     {
         var digest = new HashCode();
         digest.Add((int)comparison);
+        if (IsCultureSensitive(comparison))
+            digest.Add(culture.Name, StringComparer.Ordinal);
         foreach (var name in names)
             digest.Add(name, StringComparer.Ordinal);
         return digest.ToHashCode();
@@ -1854,7 +1879,8 @@ public class MarkoutWriter
 
     private ProjectionReach GetProjectionReach(IReadOnlyList<string> requested, StringComparison comparison)
     {
-        var key = SequenceDigest(comparison, requested);
+        var culture = CultureInfo.CurrentCulture;
+        var key = SequenceDigest(comparison, culture, requested);
 
         _projectionReachBuckets ??= [];
         _projectionReach ??= [];
@@ -1866,11 +1892,16 @@ public class MarkoutWriter
 
         foreach (var entry in bucket)
         {
-            if (entry.Comparison == comparison && SequenceEqualsOrdinal(entry.Requested, requested))
-                return entry;
+            ProjectionReachEntryComparisons++;
+            if (entry.Comparison != comparison || !SequenceEqualsOrdinal(entry.Requested, requested))
+                continue;
+            if (IsCultureSensitive(comparison) && !string.Equals(entry.Culture.Name, culture.Name, StringComparison.Ordinal))
+                continue;
+
+            return entry;
         }
 
-        var created = new ProjectionReach { Requested = [.. requested], Comparison = comparison };
+        var created = new ProjectionReach { Requested = [.. requested], Comparison = comparison, Culture = culture };
         bucket.Add(created);
         _projectionReach.Add(created);
         return created;
@@ -1904,13 +1935,22 @@ public class MarkoutWriter
     // the list names. A partial match counts, exactly as it does per table: a list that named one
     // real column and one typo was never diagnosable, and this must not start diagnosing it.
     //
-    // Cost, declared rather than hidden: this runs only for a list that matched no table it was
-    // offered, so a document whose projections all match pays nothing (20,000 retargeted matching
-    // lists finalize in ~40 ms), and a document with a single bad list stops at it. A document that
-    // retargets thousands of DISTINCT lists which each miss their own table pays one probe each,
-    // and matching N glob patterns against M columns is N x M with no index. An index is exactly
-    // the second model of the matcher this design exists to delete, so the cost stays. It is
-    // bounded by caller-authored allow lists, never by inspected data.
+    // Cost, declared rather than hidden. This runs only for a list that matched no table it was
+    // offered, so a document whose projections all match pays nothing at all -- not "a little", but
+    // zero resolves, which Projection_ManyRetargetedMatchingLists_NeitherScanNorProbe asserts
+    // structurally rather than by wall clock.
+    //
+    // An unmatched list costs exactly ONE resolve against the deduplicated column universe. That is
+    // the honest bound, and it is worth stating precisely because the obvious quadratic reading is
+    // wrong in one direction and right in another. Matching P patterns against C columns is P x C
+    // with no index, so a single list of 5,000 globs against 5,000 distinct columns takes ~760 ms
+    // to probe -- thousands of separate lists are not required to reach it. But the caller already
+    // paid that same P x C to render the table (measured at ~790 ms for the same input), so the
+    // probe adds one table's worth of matching for a list that missed, not an independent blowup.
+    //
+    // An index would remove the P x C, and an index is exactly the second model of the matcher this
+    // design exists to delete, so the cost stays. It is bounded by caller-authored allow lists,
+    // never by inspected data.
     private bool ProjectionWouldHaveMatchedSomewhere(ProjectionReach entry)
     {
         if (_projectionColumnsSeen is null || _projectionColumnNamesSeen is null)
@@ -1922,11 +1962,27 @@ public class MarkoutWriter
             IncludeColumns = entry.Requested
         };
 
-        var resolution = probe.ResolveColumns(
-            CollectionsMarshal.AsSpan(_projectionColumnsSeen),
-            CollectionsMarshal.AsSpan(_projectionColumnNamesSeen));
+        // Re-put the question under the culture that was in force when the list was offered, not
+        // whatever culture happens to be current at finalization.
+        var restore = CultureInfo.CurrentCulture;
+        var swap = IsCultureSensitive(entry.Comparison) && !ReferenceEquals(restore, entry.Culture);
+        if (swap)
+            CultureInfo.CurrentCulture = entry.Culture;
 
-        return resolution.Kind != ColumnProjectionResolutionKind.NoMatches && resolution.ColumnMap.Count > 0;
+        try
+        {
+            ProjectionReachResolveCount++;
+            var resolution = probe.ResolveColumns(
+                CollectionsMarshal.AsSpan(_projectionColumnsSeen),
+                CollectionsMarshal.AsSpan(_projectionColumnNamesSeen));
+
+            return resolution.Kind != ColumnProjectionResolutionKind.NoMatches && resolution.ColumnMap.Count > 0;
+        }
+        finally
+        {
+            if (swap)
+                CultureInfo.CurrentCulture = restore;
+        }
     }
 
     private bool ResolveProjectedColumns(

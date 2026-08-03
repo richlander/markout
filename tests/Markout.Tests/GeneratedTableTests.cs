@@ -1,3 +1,4 @@
+using System.Globalization;
 using Markout;
 using Markout.Formatting;
 
@@ -460,18 +461,102 @@ public class GeneratedTableTests
     }
 
     [Fact]
-    public void Projection_ManyRetargetedMatchingLists_DoNotCostQuadraticTime()
+    public void Projection_FinalizedUnderADifferentCulture_StillJudgesByTheCultureItMatchedIn()
     {
-        // Reach has twice been rewritten into an accidental O(N^2): once when the entry lookup was
-        // a linear scan, and once when an unmatched list was re-probed against every table rather
-        // than against one deduplicated column universe. Both regressions were invisible to every
-        // correctness test. This pins the realistic shape -- a projection retargeted per table,
-        // every list matching -- which must finalize without probing anything at all.
+        // Reach records the comparison but the comparison is only half the question: a
+        // CurrentCulture match means whatever the culture said when the list was offered, and
+        // finalization can run under a different one. Turkish is the classic separator -- "I" and
+        // dotless "i" are the same letter case-insensitively in tr-TR and different in en-US.
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
+            var projection = new MarkoutProjection
+            {
+                Comparison = StringComparison.CurrentCultureIgnoreCase,
+                IncludeColumns = ["I"]
+            };
+            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+            writer.WriteTable(["Other"], [["x"]]);
+            projection.IncludeColumns = ["\u0131"];
+            writer.WriteTable(["\u0131"], [["kept"]]);
+
+            // Judging "I" under en-US finds nothing and reports a typo for a document that rendered.
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
+    public void Projection_FinalizedUnderADifferentCulture_StillReportsAListThatMatchedNothing()
+    {
+        // The fail-open direction, which matters more: a list that genuinely matched nothing under
+        // the culture it was offered in must not be excused by a culture that would have matched.
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            var projection = new MarkoutProjection
+            {
+                Comparison = StringComparison.CurrentCultureIgnoreCase,
+                IncludeColumns = ["I"]
+            };
+            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+            writer.WriteTable(["\u0131"], [["x"]]);
+
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
+            var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+            Assert.Contains("No columns matched projection", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
+    public void Projection_AProbeThatSwapsCulture_RestoresIt()
+    {
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            var projection = new MarkoutProjection
+            {
+                Comparison = StringComparison.CurrentCultureIgnoreCase,
+                IncludeColumns = ["Typo"]
+            };
+            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+            writer.WriteTable(["A"], [["x"]]);
+
+            Assert.Throws<InvalidOperationException>(() => writer.ToString());
+            Assert.Equal("en-US", CultureInfo.CurrentCulture.Name);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
+    public void Projection_ManyRetargetedMatchingLists_NeitherScanNorProbe()
+    {
+        // Reach has silently gone quadratic twice: once when the entry lookup was a linear scan,
+        // and once when an unmatched list was re-probed against every table rather than against one
+        // deduplicated column universe. A wall-clock bound did not catch either -- loose enough to
+        // be stable in CI is looser than the regression. So assert the structure instead.
+        //
+        // This is the realistic shape: a projection retargeted per table, every list matching.
         const int Tables = 20_000;
         var projection = new MarkoutProjection();
         var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
 
-        var start = System.Diagnostics.Stopwatch.GetTimestamp();
         for (int i = 0; i < Tables; i++)
         {
             projection.IncludeColumns = ["C" + i];
@@ -479,13 +564,43 @@ public class GeneratedTableTests
         }
 
         _ = writer.ToString();
-        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(start);
 
-        // Measured at ~40 ms; the linear-scan regression took 2.6 s at this size. The bound is
-        // loose on purpose -- it is here to catch a return to quadratic, not to police milliseconds.
+        // Every list matched the table it was offered, so finalization has nothing to ask.
+        Assert.Equal(0, writer.ProjectionReachResolveCount);
+
+        // Bucketed lookup compares against collisions only. A linear scan over all entries would be
+        // ~200,000,000 comparisons here; the bound is loose enough to tolerate hash collisions and
+        // still three orders of magnitude below that.
         Assert.True(
-            elapsed.TotalSeconds < 5,
-            $"Finalizing {Tables} retargeted matching projections took {elapsed.TotalSeconds:0.##}s, which suggests reach became superlinear again.");
+            writer.ProjectionReachEntryComparisons < 4 * Tables,
+            $"Entry lookup made {writer.ProjectionReachEntryComparisons} comparisons for {Tables} distinct lists, which means it is scanning rather than bucketing.");
+    }
+
+    [Fact]
+    public void Projection_ManyRetargetedMissingLists_AskTheMatcherOncePerList()
+    {
+        // The other half, and the path the timing test could not reach at all: lists that MISS the
+        // table they were offered and are excused by a later one. Re-probing each against every
+        // table was quadratic; probing one column universe is one resolve per unmatched list.
+        const int Tables = 2_000;
+        var projection = new MarkoutProjection();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        for (int i = 0; i < Tables; i++)
+        {
+            // Names the NEXT table's column, so it misses here and is excused later.
+            projection.IncludeColumns = ["C" + (i + 1)];
+            writer.WriteTable(["C" + i], [["v"]]);
+        }
+
+        // The last list names a column no table ever had, so the document is diagnosably wrong.
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("C" + Tables, ex.Message, StringComparison.Ordinal);
+
+        // At most one resolve per distinct list -- never one per (list, table) pair.
+        Assert.True(
+            writer.ProjectionReachResolveCount <= Tables,
+            $"Finalization performed {writer.ProjectionReachResolveCount} resolves for {Tables} lists, which means it is probing per table rather than against the column universe.");
     }
 
     [Fact]

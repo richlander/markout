@@ -84,12 +84,24 @@ public sealed class MarkoutTable
                 // key, so unique stable names do not save a table whose display headers repeat --
                 // it would emit duplicate JSONL keys just the same. A Markdown table with two
                 // identically titled columns is unreadable regardless of style.
-                // Compare what the emitters actually write, not the raw string. The tabular formats
-                // strip a header's inline Markdown and then collapse its newlines and tabs to
-                // spaces, so "<code>A</code>" and "A\nB" and "A B" are distinct here while the
-                // output writes "A" and "A B" -- two columns under one visible heading, and one
-                // duplicate key under DisplayName header style. Apply both steps in the emitters'
-                // order; checking only the whitespace half lets the formatting half through.
+                // Compare what the emitters actually write, not the raw string. The criterion is
+                // losing a column, and TSV is the format that loses one: it strips a header's
+                // inline Markdown and then collapses its newlines and tabs to spaces, so
+                // "<code>A</code>" and "A" are distinct here and both emit "A" -- two TSV columns
+                // under one heading, and one duplicate key under DisplayName header style. Apply
+                // both steps in the emitters' order; checking only the whitespace half lets the
+                // formatting half through.
+                //
+                // A MarkoutTable does not know which format will render it, so this is deliberately
+                // fail-closed on behalf of the strictest one. It does reject pairs that some other
+                // format would have kept apart -- JSONL preserves "<code>A</code>" and "A" as
+                // distinct keys -- but that is the same trade the newline rule above has always
+                // made, and it is the safe direction for a format-agnostic model.
+                //
+                // Purely visual collisions are NOT rejected, because no column is lost: the
+                // Unicode formatter uppercases headers, so a table of Greek sigma and final sigma
+                // prints two identical-looking headings while every format that carries keys keeps
+                // them distinct and every row value stays in its own column.
                 var displayKey = Formatting.FormatHelper.NormalizeTableCell(
                     Formatting.FormatHelper.RenderInlinePlainText(headers[i]));
                 if (!seenDisplay.Add(displayKey))

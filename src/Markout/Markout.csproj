@@ -17,6 +17,12 @@
     <ProjectReference Include="..\MarkdownTable.Formatting\MarkdownTable.Formatting.csproj" />
   </ItemGroup>
 
+  <!-- Projection reach has silently gone quadratic twice, and a timing bound was too loose to
+       catch it. The tests assert on counters instead, which needs this seam. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Markout.Tests" />
+  </ItemGroup>
+
   <!-- Include source generator in this package -->
   <ItemGroup>
     <ProjectReference Include="..\Markout.SourceGeneration\Markout.SourceGeneration.csproj"
