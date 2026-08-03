@@ -181,6 +181,7 @@ public class MarkoutProjection
         {
             // Include: output columns in the order specified by IncludeColumns
             var map = new List<int>(_includeColumns.Count);
+            var claimed = new HashSet<int>();
             var unmatched = new List<string>();
             foreach (var col in _includeColumns)
             {
@@ -190,8 +191,17 @@ public class MarkoutProjection
                 {
                     if (MatchesColumn(col, headers, headerNames, i))
                     {
+                        // A column answers to several names -- its display header, its stable name,
+                        // and that name's snake_case form -- so an allow list naming two aliases of
+                        // one column, or a glob overlapping an explicit name, would otherwise
+                        // project that column twice. The duplicate is emitted downstream of
+                        // MarkoutTable's construction-time key validation, so it reaches structured
+                        // output as a repeated JSONL key from which a consumer recovers one value.
+                        // The name still counts as matched -- it named a real column, so it is no
+                        // typo -- but the column is emitted once, at its first requested position.
                         matched = true;
-                        map.Add(i);
+                        if (claimed.Add(i))
+                            map.Add(i);
                         if (!isGlob) break;
                     }
                 }

@@ -1311,8 +1311,14 @@ public class MarkoutWriter
         if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
             return false;
 
+        // A table with no columns renders nothing, exactly as the buffered path does. Throwing here
+        // instead made the two entry points disagree about the same table: generated code hides
+        // columns with [MarkoutIgnoreColumnWhen] at run time, and a model whose columns are all
+        // hidden emits an empty header array and reaches this streaming path, where the throw
+        // turned a legitimately empty table into a crash. Returning early leaves _tableWriter null,
+        // which is what suppresses the rows that follow.
         if (headers.Length == 0)
-            throw new ArgumentException("At least one header is required.", nameof(headers));
+            return true;
         if (headerNames.Length > 0 && headerNames.Length != headers.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
@@ -1779,16 +1785,53 @@ public class MarkoutWriter
     // a typo, and rendering an empty document for it would turn a caller error into
     // success-shaped empty output. The reach is therefore tracked per document and
     // reported when the document is finished.
-    private int _projectedTablesSeen;
-    private int _projectedTablesMatched;
+    // Reach is tracked per allow list, not per document. A single pair of document-wide counters
+    // conflates projections that a caller retargeted mid-document: any one table matching would
+    // answer for every earlier list that matched nothing, so an unmatched typo followed by a
+    // working selection finalized as success-shaped empty output. Each distinct allow list gets
+    // its own entry, and each entry answers only for itself.
+    //
+    // The requested names are snapshotted at first sight rather than read back at finalization.
+    // MarkoutWriterOptions.Projection is a mutable object holding a mutable list, and re-reading
+    // either would let one projection answer for another's failure.
+    //
+    // Only an allow list is diagnosable. An exclude projection that leaves nothing behind named
+    // columns the document does have and asked for them to go, so its empty result answers a
+    // well-formed request rather than evidencing a typo, and it gets no entry at all.
+    private List<ProjectionReach>? _projectionReach;
 
-    // Captured at the miss, not read back at finalization. MarkoutWriterOptions.Projection is a
-    // mutable object a caller can retarget mid-document, and re-reading it would let a later
-    // exclude projection answer for an earlier include projection's failure -- reporting success
-    // for a typo that already cost the caller a table.
-    private bool _projectionMissRecorded;
-    private bool _projectionMissWasExclude;
-    private IReadOnlyList<string>? _projectionMissRequested;
+    private sealed class ProjectionReach
+    {
+        public required string[] Requested { get; init; }
+        public bool Matched { get; set; }
+    }
+
+    private ProjectionReach GetProjectionReach(IReadOnlyList<string> requested)
+    {
+        _projectionReach ??= [];
+        foreach (var entry in _projectionReach)
+        {
+            if (entry.Requested.Length != requested.Count)
+                continue;
+
+            var same = true;
+            for (int i = 0; i < entry.Requested.Length; i++)
+            {
+                if (!string.Equals(entry.Requested[i], requested[i], StringComparison.Ordinal))
+                {
+                    same = false;
+                    break;
+                }
+            }
+
+            if (same)
+                return entry;
+        }
+
+        var created = new ProjectionReach { Requested = [.. requested] };
+        _projectionReach.Add(created);
+        return created;
+    }
 
     private bool ResolveProjectedColumns(
         MarkoutProjection projection,
@@ -1801,19 +1844,16 @@ public class MarkoutWriter
         if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
             return true;
 
-        _projectedTablesSeen++;
-        if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
-        {
-            if (!_projectionMissRecorded)
-            {
-                _projectionMissRecorded = true;
-                _projectionMissWasExclude = projection.ExcludeColumns is { Count: > 0 };
-                _projectionMissRequested = projection.IncludeColumns;
-            }
-            return false;
-        }
+        // ResolveColumns honours ExcludeColumns only when there is no allow list, so a miss with
+        // IncludeColumns set is an allow-list miss whether or not excludes are also present.
+        var reach = projection.IncludeColumns is { } requested ? GetProjectionReach(requested) : null;
 
-        _projectedTablesMatched++;
+        if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
+            return false;
+
+        if (reach is not null)
+            reach.Matched = true;
+
         columnMap = [.. resolution.ColumnMap];
         return true;
     }
@@ -1823,20 +1863,25 @@ public class MarkoutWriter
     // than unsatisfied, and must not fail.
     private void ThrowIfProjectionMatchedNothing()
     {
-        if (_projectedTablesSeen == 0 || _projectedTablesMatched > 0)
+        if (_projectionReach is null)
             return;
 
-        // Reach only diagnoses an allow list. An exclude projection that leaves nothing behind
-        // named columns the document does have and asked for them to go, so the empty result is
-        // the answer to a well-formed request rather than evidence of a typo. Only an include
-        // projection can name a column that is simply not there.
-        if (_projectionMissWasExclude)
+        string[]? requested = null;
+        foreach (var entry in _projectionReach)
+        {
+            if (!entry.Matched)
+            {
+                requested = entry.Requested;
+                break;
+            }
+        }
+
+        if (requested is null)
             return;
 
         // An empty allow list is not an unmatched name -- there is no name. Reporting it as one
         // prints "No columns matched projection: " and tells the caller nothing about what to fix.
-        var requested = _projectionMissRequested ?? [];
-        if (requested.Count == 0)
+        if (requested.Length == 0)
             throw new InvalidOperationException(
                 "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
 

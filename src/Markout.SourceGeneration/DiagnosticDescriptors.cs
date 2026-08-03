@@ -84,10 +84,12 @@ internal static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "A table is emitted with a fixed header row before any data rows, so a row type with no " +
-                     "renderable columns throws at runtime (\"At least one header is required\"). This is rejected " +
-                     "at compile time. A [MarkoutChild] flag is a nesting marker, not a column, so a row whose only " +
-                     "property is the child flag is degenerate; give the row at least one scalar value column."
+        description: "A row type with no renderable columns can only ever emit an empty table, which is a " +
+                     "modelling error rather than a run-time condition, so it is rejected at compile time. This " +
+                     "is distinct from a row type whose columns are all hidden by a [MarkoutIgnoreColumnWhen] " +
+                     "predicate at run time: that table is legitimately empty and renders nothing. A " +
+                     "[MarkoutChild] flag is a nesting marker, not a column, so a row whose only property is the " +
+                     "child flag is degenerate; give the row at least one scalar value column."
     );
 
 }

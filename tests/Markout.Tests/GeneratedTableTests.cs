@@ -333,6 +333,122 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_ALaterMatchingAllowList_DoesNotExcuseAnEarlierUnmatchedOne()
+    {
+        // Reach used one pair of document-wide counters, so any table matching anything answered
+        // for every allow list that had matched nothing. A typo'd selection followed by a working
+        // one therefore finalized as success-shaped empty output, silently dropping the table the
+        // typo was aimed at. Each allow list has to answer only for itself.
+        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["A"], [["one"]]);
+        projection.IncludeColumns = ["B"];
+        writer.WriteTable(["B"], [["two"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_OneAllowListSpanningAHeterogeneousDocument_DoesNotThrow()
+    {
+        // The negative of the case above: one allow list offered to several tables is a selection,
+        // not a typo, and a table that does not carry the column renders nothing rather than
+        // failing the document.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["Name"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["Other"], [["one"]]);
+        writer.WriteTable(["Name"], [["two"]]);
+
+        Assert.Contains("| Name |", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_RequestedNamesAreSnapshot_NotReadBackFromTheCallersList()
+    {
+        // The recorded allow list must be a copy: MarkoutProjection.IncludeColumns is a mutable
+        // list a caller can edit in place, and holding the reference would let a later edit rewrite
+        // the diagnosis of an earlier failure.
+        var names = new List<string> { "Typo" };
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = names } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["one"]]);
+        names[0] = "A";
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_TwoAliasesOfOneColumn_ProjectItOnce()
+    {
+        // A column answers to its display header and its stable name, so naming both would project
+        // one column twice -- past MarkoutTable's construction-time key check, straight to a JSONL
+        // object with a repeated key.
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            Projection = new MarkoutProjection { IncludeColumns = ["Display", "Name"] }
+        };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTable(new MarkoutTable(["Display"], ["Name"], [["one"]]));
+
+        Assert.Equal("{\"name\":\"one\"}", writer.ToString());
+    }
+
+    [Fact]
+    public void Projection_AGlobOverlappingAnExplicitName_ProjectsEachColumnOnce()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            Projection = new MarkoutProjection { IncludeColumns = ["N*", "Name"] }
+        };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTable(new MarkoutTable(["Name", "Note"], [["one", "two"]]));
+
+        Assert.Equal("{\"name\":\"one\",\"note\":\"two\"}", writer.ToString());
+    }
+
+    [Theory]
+    [InlineData("A\nB", "A B")]
+    [InlineData("A\tB", "A B")]
+    public void MarkoutTable_RejectsDisplayHeadersThatNormalizeToTheSameEmittedHeader(string first, string second)
+    {
+        // Every table format collapses newlines and tabs in a header to spaces, so headers that
+        // differ only there are distinct at construction and identical in the output: two columns
+        // under one visible heading, and one duplicate key under DisplayName header style.
+        var ex = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable([first, second], ["n1", "n2"], [["one", "two"]]));
+
+        Assert.Contains("share the display header 'A B'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_AnEarlierExcludeMiss_DoesNotExcuseALaterIncludeTypo()
+    {
+        // Recording the first miss of any kind latched the exclude exemption: an exclude that
+        // legitimately emptied table A then answered for an include typo that missed table B,
+        // and the typo finalized as success-shaped empty output. Only an include miss is
+        // diagnosable, so an include miss is what has to be recorded.
+        var projection = new MarkoutProjection { ExcludeColumns = ["A"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["A"], [["1"]]);
+        projection.ExcludeColumns = null;
+        projection.IncludeColumns = ["Typo"];
+        writer.WriteTable(["B"], [["2"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WriteTable_RendersNothingForATableWithNoColumns()
     {
         // The generator skips an empty table, but every buffered imperative overload reached the

@@ -46,6 +46,21 @@ public class SingleCondition
 }
 
 [MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
+public class AllColumnsHidden
+{
+    [MarkoutIgnore] public string Title { get; set; } = "";
+
+    [MarkoutSection(Name = "Items")]
+    [MarkoutIgnoreColumnWhen(nameof(Always), "Pattern")]
+    [MarkoutIgnoreColumnWhen(nameof(Always), "Type")]
+    [MarkoutIgnoreColumnWhen(nameof(Always), "Kind")]
+    [MarkoutIgnoreColumnWhen(nameof(Always), "Similarity")]
+    public List<FindRow>? Items { get; set; }
+
+    public static bool Always(List<FindRow>? rows) => true;
+}
+
+[MarkoutSerializable(TitleProperty = nameof(Title), AutoFields = false)]
 public class MixedIgnore
 {
     [MarkoutIgnore] public string Title { get; set; } = "";
@@ -121,6 +136,7 @@ public class OneLineIgnoreColumnWhen
 [MarkoutContext(typeof(FindResult))]
 [MarkoutContext(typeof(SingleCondition))]
 [MarkoutContext(typeof(MixedIgnore))]
+[MarkoutContext(typeof(AllColumnsHidden))]
 [MarkoutContext(typeof(GroupByWithIgnoreColumnWhen))]
 [MarkoutContext(typeof(GroupedFindRow))]
 [MarkoutContext(typeof(DisplayNameIgnoreColumnWhen))]
@@ -463,5 +479,26 @@ public class IgnoreColumnWhenTests
         {
             Console.SetError(origErr);
         }
+    }
+}
+
+public partial class IgnoreColumnWhenZeroColumnTests
+{
+    [Fact]
+    public void EveryColumnHiddenAtRunTime_RendersNothingRatherThanThrowing()
+    {
+        // MARKOUT006 rejects a row type that can never have a column, but a row type whose columns
+        // are all hidden by predicates is legitimately empty at run time. Generated code emits an
+        // empty header array and takes the streaming path, where a zero-column throw turned that
+        // empty table into a crash while the buffered path rendered nothing for the same table.
+        var model = new AllColumnsHidden
+        {
+            Title = "T",
+            Items = [new FindRow { Pattern = "p", Type = "t", Kind = "k", Similarity = "s" }]
+        };
+
+        var output = MarkoutSerializer.Serialize(model, IgnoreColumnWhenTestContext.Default);
+
+        Assert.DoesNotContain("|", output, StringComparison.Ordinal);
     }
 }
