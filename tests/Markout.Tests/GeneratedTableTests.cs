@@ -669,15 +669,21 @@ public class GeneratedTableTests
         // Probing under a recorded culture means making it ambient, and assigning CurrentCulture --
         // including to restore it -- replaces inheritance from DefaultThreadCurrentCulture with an
         // explicit override that outlives the call. A document that rendered perfectly well must not
-        // leave that behind, so the swap happens on a thread of our own instead.
-        // DefaultThreadCurrentCulture is process-wide, and this test runs alongside others. Both
-        // values it takes are invariant in behaviour and differ only in Name, so the window cannot
-        // change how any concurrent test formats anything.
+        // leave that behind, so the probe happens on a thread whose ambient state dies with it.
+        //
+        // The culture must MOVE between recording and finalizing, or no swap happens and the test
+        // proves only that the no-swap fast path does nothing -- which is how the first version of
+        // this test passed with isolation disabled. It is moved by changing the thread default, so
+        // that the caller never acquires an explicit override of its own and the only thing that
+        // could create one is the code under test.
+        //
+        // All three cultures are invariant in behaviour and differ only in Name, so this test
+        // cannot change how any concurrently running test formats anything.
         var originalDefault = CultureInfo.DefaultThreadCurrentCulture;
         var originalCurrent = CultureInfo.CurrentCulture;
         try
         {
-            CultureInfo.DefaultThreadCurrentCulture = new NameSharingCulture("before", CultureInfo.InvariantCulture);
+            CultureInfo.DefaultThreadCurrentCulture = new NameSharingCulture("recorded", CultureInfo.InvariantCulture);
 
             var projection = new MarkoutProjection
             {
@@ -685,9 +691,14 @@ public class GeneratedTableTests
                 IncludeColumns = ["B"]
             };
             var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-            writer.WriteTable(["A"], [["a"]]);   // misses, so finalization probes under en-US
+            writer.WriteTable(["A"], [["a"]]);   // misses, so finalization must probe under "recorded"
             projection.IncludeColumns = null;
             writer.WriteTable(["B"], [["b"]]);
+
+            // Inherited, not assigned: the caller still has no override of its own.
+            CultureInfo.DefaultThreadCurrentCulture = new NameSharingCulture("finalizing", CultureInfo.InvariantCulture);
+            Assert.Equal("finalizing", CultureInfo.CurrentCulture.Name);
+
             _ = writer.ToString();
 
             // Inheritance must still be live: changing the default has to reach this context.

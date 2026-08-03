@@ -1982,23 +1982,22 @@ public class MarkoutWriter
         // Re-put the question under the cultures that were in force when the list was offered, not
         // whatever culture happens to be current at finalization. Excused if any of them matches,
         // because the list was offered in each of them.
-        if (entry.Cultures is not { Count: > 0 } cultures)
-        {
-            try
-            {
-                return Probe();
-            }
-            finally
-            {
-                _probeResolveCount += probe.ResolveColumnsCallCount;
-            }
-        }
-
+        //
+        // Assigning CurrentCulture here is safe only because the caller has already arranged for
+        // this to run somewhere the assignment cannot be observed -- see NeedsCultureIsolation and
+        // RunIsolated, which use the same ReferenceEquals test this does, so the two cannot
+        // disagree about whether an assignment is about to happen.
         try
         {
+            if (entry.Cultures is not { Count: > 0 } cultures)
+                return Probe();
+
             foreach (var culture in cultures)
             {
-                if (RunUnderCulture(culture, Probe))
+                if (!ReferenceEquals(CultureInfo.CurrentCulture, culture))
+                    CultureInfo.CurrentCulture = culture;
+
+                if (Probe())
                     return true;
             }
 
@@ -2027,21 +2026,41 @@ public class MarkoutWriter
     // document rendered perfectly well.
     //
     // So the culture is made ambient somewhere it costs nothing to leave it: a thread of our own,
-    // which dies with the answer. Only reached for a CurrentCulture-sensitive allow list that
-    // matched no table it was offered, under a culture that is not already current.
-    private static bool RunUnderCulture(CultureInfo culture, Func<bool> body)
+    // which dies with the answers. One thread for the whole check rather than one per probe --
+    // per-probe cost 2.8x the work it isolates (2,000 unmatched lists: 555 ms against 195 ms for
+    // the same probes run inline), and scaled with a count the caller controls.
+    private bool NeedsCultureIsolation()
     {
-        if (ReferenceEquals(CultureInfo.CurrentCulture, culture))
-            return body();
+        if (_projectionReach is null)
+            return false;
 
-        var result = false;
+        var current = CultureInfo.CurrentCulture;
+        foreach (var entry in _projectionReach)
+        {
+            if (entry.Matched || entry.Cultures is not { Count: > 0 } cultures)
+                continue;
+
+            foreach (var culture in cultures)
+            {
+                if (!ReferenceEquals(current, culture))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Runs body on a thread whose ambient state dies with it. ExecutionContext flows in, so body
+    // sees the caller's culture to begin with; writes inside do not flow back out.
+    private static T RunIsolated<T>(Func<T> body)
+    {
+        var result = default(T)!;
         ExceptionDispatchInfo? failure = null;
 
         var thread = new Thread(() =>
         {
             try
             {
-                CultureInfo.CurrentCulture = culture;
                 result = body();
             }
             catch (Exception ex)
@@ -2102,15 +2121,7 @@ public class MarkoutWriter
         if (_projectionReach is null)
             return;
 
-        string[]? requested = null;
-        foreach (var entry in _projectionReach)
-        {
-            if (entry.Matched || ProjectionWouldHaveMatchedSomewhere(entry))
-                continue;
-
-            requested = entry.Requested;
-            break;
-        }
+        var requested = NeedsCultureIsolation() ? RunIsolated(FindUnmatched) : FindUnmatched();
 
         if (requested is null)
             return;
@@ -2123,6 +2134,19 @@ public class MarkoutWriter
 
         throw new InvalidOperationException(
             $"No columns matched projection: {string.Join(", ", requested)}");
+
+        string[]? FindUnmatched()
+        {
+            foreach (var entry in _projectionReach)
+            {
+                if (entry.Matched || ProjectionWouldHaveMatchedSomewhere(entry))
+                    continue;
+
+                return entry.Requested;
+            }
+
+            return null;
+        }
     }
 
     // ── Private infrastructure ──
