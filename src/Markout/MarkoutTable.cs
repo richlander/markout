@@ -84,11 +84,14 @@ public sealed class MarkoutTable
                 // key, so unique stable names do not save a table whose display headers repeat --
                 // it would emit duplicate JSONL keys just the same. A Markdown table with two
                 // identically titled columns is unreadable regardless of style.
-                // Compare what the emitters actually write, not the raw string. Every table format
-                // collapses newlines and tabs in a header to spaces, so "A\nB" and "A B" are
-                // distinct here and identical in the output -- two columns under one visible
-                // heading, and one duplicate key under DisplayName header style.
-                var displayKey = Formatting.FormatHelper.NormalizeTableCell(headers[i]);
+                // Compare what the emitters actually write, not the raw string. The tabular formats
+                // strip a header's inline Markdown and then collapse its newlines and tabs to
+                // spaces, so "<code>A</code>" and "A\nB" and "A B" are distinct here while the
+                // output writes "A" and "A B" -- two columns under one visible heading, and one
+                // duplicate key under DisplayName header style. Apply both steps in the emitters'
+                // order; checking only the whitespace half lets the formatting half through.
+                var displayKey = Formatting.FormatHelper.NormalizeTableCell(
+                    Formatting.FormatHelper.RenderInlinePlainText(headers[i]));
                 if (!seenDisplay.Add(displayKey))
                     throw new ArgumentException(
                         $"Two columns share the display header '{displayKey}'. Structured output keyed on display headers would emit duplicate keys and lose a column.",

@@ -400,6 +400,111 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_NamesEqualUnderTheComparisonButNotUnderCaseFolding_AreOneSelection()
+    {
+        // Reach buckets must be keyed on a hash consistent with the comparison. Folding case by
+        // hand was not: composed "\u00e9" and decomposed "e\u0301" are equal under
+        // InvariantCultureIgnoreCase -- the matcher resolves either against the other's column --
+        // but they fold to different strings, so one selection split into two entries and the half
+        // that was never offered a matching table threw.
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCultureIgnoreCase,
+            IncludeColumns = ["\u00e9"]
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["Other"], [["x"]]);
+        projection.IncludeColumns = ["e\u0301"];
+        writer.WriteTable(["\u00e9"], [["kept"]]);
+
+        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    // The matcher resolves a display name and its snake_case alias to the same column.
+    [InlineData("My Column", "my_column", "My Column")]
+    // "A*" and "A**" are the same glob to the matcher.
+    [InlineData("A**", "A*", "Alpha")]
+    public void Projection_ListsTheMatcherCannotTellApart_DoNotThrowWhenEitherMatches(
+        string first, string second, string header)
+    {
+        // Reach used to decide this by canonicalizing the requested text, which was a second and
+        // weaker model of the matcher: it knew about case and duplicates but not about snake_case
+        // aliases or glob spelling, so a list the matcher would happily have resolved was reported
+        // as an unmatched typo. Reach now asks the matcher instead.
+        var projection = new MarkoutProjection { IncludeColumns = [first] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["Other"], [["x"]]);
+        projection.IncludeColumns = [second];
+        writer.WriteTable([header], [["kept"]]);
+
+        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_NamesEqualUnderTheDefaultComparison_AreNotSplitByCaseFolding()
+    {
+        // Greek final sigma: "\u03c3" and "\u03c2" share an invariant uppercase and so are equal
+        // under the default OrdinalIgnoreCase matching, but they lowercase differently. Any reach
+        // scheme that folds case by hand splits them and throws for a document that projected fine.
+        var projection = new MarkoutProjection { IncludeColumns = ["\u03c3"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["\u03c3"], [["kept"]]);
+        projection.IncludeColumns = ["\u03c2"];
+        writer.WriteTable(["Other"], [["x"]]);
+
+        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_ManyRetargetedMatchingLists_DoNotCostQuadraticTime()
+    {
+        // Reach has twice been rewritten into an accidental O(N^2): once when the entry lookup was
+        // a linear scan, and once when an unmatched list was re-probed against every table rather
+        // than against one deduplicated column universe. Both regressions were invisible to every
+        // correctness test. This pins the realistic shape -- a projection retargeted per table,
+        // every list matching -- which must finalize without probing anything at all.
+        const int Tables = 20_000;
+        var projection = new MarkoutProjection();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        var start = System.Diagnostics.Stopwatch.GetTimestamp();
+        for (int i = 0; i < Tables; i++)
+        {
+            projection.IncludeColumns = ["C" + i];
+            writer.WriteTable(["C" + i], [["v"]]);
+        }
+
+        _ = writer.ToString();
+        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(start);
+
+        // Measured at ~40 ms; the linear-scan regression took 2.6 s at this size. The bound is
+        // loose on purpose -- it is here to catch a return to quadratic, not to police milliseconds.
+        Assert.True(
+            elapsed.TotalSeconds < 5,
+            $"Finalizing {Tables} retargeted matching projections took {elapsed.TotalSeconds:0.##}s, which suggests reach became superlinear again.");
+    }
+
+    [Fact]
+    public void Projection_ASeparatorInsideAColumnName_CannotForgeAMatch()
+    {
+        // Bucket collisions are safe because entries are still compared exactly, so a name carrying
+        // whatever character the key is built from cannot make two distinct selections share an
+        // entry and excuse each other.
+        var projection = new MarkoutProjection { IncludeColumns = ["A\u0001B"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["Other"], [["x"]]);
+        projection.IncludeColumns = ["A", "B"];
+        writer.WriteTable(["A", "B"], [["1", "2"]]);
+
+        Assert.Throws<InvalidOperationException>(() => writer.ToString());
+    }
+
+    [Fact]
     public void Projection_ARepeatedNameIsTheSameSelectionAsTheNameAlone()
     {
         // A repeated name selects its column once, so ["A", "A"] and ["A"] are indistinguishable to
@@ -492,9 +597,15 @@ public class GeneratedTableTests
     }
 
     [Theory]
-    [InlineData("A\nB", "A B")]
-    [InlineData("A\tB", "A B")]
-    public void MarkoutTable_RejectsDisplayHeadersThatNormalizeToTheSameEmittedHeader(string first, string second)
+    [InlineData("A\nB", "A B", "A B")]
+    [InlineData("A\tB", "A B", "A B")]
+    // The tabular formats strip inline Markdown before collapsing whitespace, so a header carrying
+    // a code span emits the same text as the bare word. Validating only the whitespace half of the
+    // emitters' pipeline let this pair through to duplicate TSV and JSONL keys.
+    [InlineData("<code>A</code>", "A", "A")]
+    [InlineData("<code>A B</code>", "A\nB", "A B")]
+    public void MarkoutTable_RejectsDisplayHeadersThatNormalizeToTheSameEmittedHeader(
+        string first, string second, string emitted)
     {
         // Every table format collapses newlines and tabs in a header to spaces, so headers that
         // differ only there are distinct at construction and identical in the output: two columns
@@ -502,7 +613,24 @@ public class GeneratedTableTests
         var ex = Assert.Throws<ArgumentException>(
             () => new MarkoutTable([first, second], ["n1", "n2"], [["one", "two"]]));
 
-        Assert.Contains("share the display header 'A B'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains($"share the display header '{emitted}'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MarkoutTable_DisplayHeadersThatDifferOnlyInMarkdown_AreRejectedBeforeTheyCanCollideInTsv()
+    {
+        // The negative half: proving the pair really would have collided. Without the rejection this
+        // table emits two "A" columns in TSV and a JSONL object with one "a" key.
+        var ex = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["<code>A</code>", "A"], [["one", "two"]]));
+
+        Assert.Contains("share the display header 'A'", ex.Message, StringComparison.Ordinal);
+
+        // A header whose inline rendering stays distinct is untouched.
+        var writer = MarkoutWriter.Create(new TableFormatter());
+        writer.WriteTable(new MarkoutTable(["<code>A</code>", "B"], [["one", "two"]]));
+        var lines = writer.ToString().Split('\n');
+        Assert.Equal(["A", "B"], lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
     [Fact]

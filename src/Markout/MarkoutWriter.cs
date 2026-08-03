@@ -1803,62 +1803,58 @@ public class MarkoutWriter
     // Only an allow list is diagnosable. An exclude projection that leaves nothing behind named
     // columns the document does have and asked for them to go, so its empty result answers a
     // well-formed request rather than evidencing a typo, and it gets no entry at all.
-    // Two allow lists are the same selection when the matcher cannot tell them apart, so identity
-    // has to use the comparison the matcher uses rather than a comparison of its own. Keying
-    // ordinally split "Name" from "name" under the default OrdinalIgnoreCase matching -- two
-    // entries for one selection, of which the second could never match and so threw spuriously --
-    // while ignoring Comparison merged two genuinely different selections that happened to share
-    // their text, letting a case-insensitive match excuse an ordinal miss.
+    // Deciding when two allow lists are "the same selection" by canonicalizing their text is a
+    // second, weaker model of the matcher, and it was wrong once for every route the matcher has:
+    // case folding that disagreed with the comparison (composed "\u00e9" vs decomposed "e\u0301",
+    // and Greek "\u03c3" vs "\u03c2" under the default OrdinalIgnoreCase), globs spelled
+    // differently but matching identically ("A*" vs "A**"), and display names against their
+    // snake_case aliases ("My Column" vs "my_column"). Each fix taught the canonicalizer one more
+    // of the matcher's rules, and the next round found the rule it still did not know.
     //
-    // Buckets are keyed on a case-folded digest for lookup and then compared exactly under the
-    // entry's own comparison, so a digest that over-merges costs a short scan rather than a wrong
-    // answer. The parallel list preserves insertion order, which is what makes the reported
-    // failure the first one the caller caused rather than whichever the hash landed on first.
-    private Dictionary<string, List<ProjectionReach>>? _projectionReachBuckets;
+    // So reach no longer guesses. Lists are merged only on exact equality, which is always safe,
+    // and the question an unmatched entry actually poses -- "does this document have these columns
+    // at all?" -- is answered at finalization by asking the matcher itself, against every table the
+    // document offered. A list that would have matched some table is a selection the caller
+    // retargeted, not a typo; only a list that matches nothing anywhere is diagnosable.
+    private Dictionary<int, List<ProjectionReach>>? _projectionReachBuckets;
     private List<ProjectionReach>? _projectionReach;
+    private List<string>? _projectionColumnsSeen;
+    private List<string>? _projectionColumnNamesSeen;
+    private HashSet<(string, string)>? _projectionColumnsSeenKeys;
 
     private sealed class ProjectionReach
     {
         public required string[] Requested { get; init; }
-        public required string[] Identity { get; init; }
         public required StringComparison Comparison { get; init; }
         public bool Matched { get; set; }
     }
 
-    // Duplicates and case are both invisible to matching -- a repeated name selects its column
-    // once, and the default comparison ignores case -- so neither may split one selection into
-    // two entries. Order is preserved because it determines the projected column order.
-    private static string[] ProjectionIdentity(IReadOnlyList<string> requested, StringComparison comparison)
+    private static int SequenceDigest(StringComparison comparison, IReadOnlyList<string> names)
     {
-        var identity = new List<string>(requested.Count);
-        foreach (var name in requested)
-        {
-            var seen = false;
-            foreach (var kept in identity)
-            {
-                if (string.Equals(kept, name, comparison))
-                {
-                    seen = true;
-                    break;
-                }
-            }
+        var digest = new HashCode();
+        digest.Add((int)comparison);
+        foreach (var name in names)
+            digest.Add(name, StringComparer.Ordinal);
+        return digest.ToHashCode();
+    }
 
-            if (!seen)
-                identity.Add(name);
+    private static bool SequenceEqualsOrdinal(IReadOnlyList<string> left, IReadOnlyList<string> right)
+    {
+        if (left.Count != right.Count)
+            return false;
+
+        for (int i = 0; i < left.Count; i++)
+        {
+            if (!string.Equals(left[i], right[i], StringComparison.Ordinal))
+                return false;
         }
 
-        return [.. identity];
+        return true;
     }
 
     private ProjectionReach GetProjectionReach(IReadOnlyList<string> requested, StringComparison comparison)
     {
-        var identity = ProjectionIdentity(requested, comparison);
-
-        var digest = new System.Text.StringBuilder();
-        digest.Append((int)comparison).Append('\u0000');
-        foreach (var name in identity)
-            digest.Append(name.ToLowerInvariant()).Append('\u0001');
-        var key = digest.ToString();
+        var key = SequenceDigest(comparison, requested);
 
         _projectionReachBuckets ??= [];
         _projectionReach ??= [];
@@ -1870,32 +1866,67 @@ public class MarkoutWriter
 
         foreach (var entry in bucket)
         {
-            if (entry.Comparison != comparison || entry.Identity.Length != identity.Length)
-                continue;
-
-            var same = true;
-            for (int i = 0; i < entry.Identity.Length; i++)
-            {
-                if (!string.Equals(entry.Identity[i], identity[i], comparison))
-                {
-                    same = false;
-                    break;
-                }
-            }
-
-            if (same)
+            if (entry.Comparison == comparison && SequenceEqualsOrdinal(entry.Requested, requested))
                 return entry;
         }
 
-        var created = new ProjectionReach
-        {
-            Requested = [.. requested],
-            Identity = identity,
-            Comparison = comparison
-        };
+        var created = new ProjectionReach { Requested = [.. requested], Comparison = comparison };
         bucket.Add(created);
         _projectionReach.Add(created);
         return created;
+    }
+
+    // Recorded so that an unmatched allow list can be re-put to the matcher at finalization. The
+    // question a miss poses is "did this document ever have these columns", which is about the
+    // columns and not about how they were grouped into tables -- so one deduplicated universe of
+    // (display header, stable name) pairs answers it, and answers it in a single probe. Keeping
+    // the tables instead costs a probe per table per unmatched list, which is quadratic on a
+    // document that retargets a projection per table.
+    private void RecordProjectedTable(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
+    {
+        _projectionColumnsSeenKeys ??= [];
+        _projectionColumnsSeen ??= [];
+        _projectionColumnNamesSeen ??= [];
+
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var header = headers[i];
+            var name = i < headerNames.Length ? headerNames[i] : "";
+            if (_projectionColumnsSeenKeys.Add((header, name)))
+            {
+                _projectionColumnsSeen.Add(header);
+                _projectionColumnNamesSeen.Add(name);
+            }
+        }
+    }
+
+    // Asks the matcher, rather than a copy of its rules, whether this document ever had the columns
+    // the list names. A partial match counts, exactly as it does per table: a list that named one
+    // real column and one typo was never diagnosable, and this must not start diagnosing it.
+    //
+    // Cost, declared rather than hidden: this runs only for a list that matched no table it was
+    // offered, so a document whose projections all match pays nothing (20,000 retargeted matching
+    // lists finalize in ~40 ms), and a document with a single bad list stops at it. A document that
+    // retargets thousands of DISTINCT lists which each miss their own table pays one probe each,
+    // and matching N glob patterns against M columns is N x M with no index. An index is exactly
+    // the second model of the matcher this design exists to delete, so the cost stays. It is
+    // bounded by caller-authored allow lists, never by inspected data.
+    private bool ProjectionWouldHaveMatchedSomewhere(ProjectionReach entry)
+    {
+        if (_projectionColumnsSeen is null || _projectionColumnNamesSeen is null)
+            return false;
+
+        var probe = new MarkoutProjection
+        {
+            Comparison = entry.Comparison,
+            IncludeColumns = entry.Requested
+        };
+
+        var resolution = probe.ResolveColumns(
+            CollectionsMarshal.AsSpan(_projectionColumnsSeen),
+            CollectionsMarshal.AsSpan(_projectionColumnNamesSeen));
+
+        return resolution.Kind != ColumnProjectionResolutionKind.NoMatches && resolution.ColumnMap.Count > 0;
     }
 
     private bool ResolveProjectedColumns(
@@ -1914,6 +1945,8 @@ public class MarkoutWriter
         var reach = projection.IncludeColumns is { } requested
             ? GetProjectionReach(requested, projection.Comparison)
             : null;
+
+        RecordProjectedTable(headers, headerNames);
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
             return false;
@@ -1936,11 +1969,11 @@ public class MarkoutWriter
         string[]? requested = null;
         foreach (var entry in _projectionReach)
         {
-            if (!entry.Matched)
-            {
-                requested = entry.Requested;
-                break;
-            }
+            if (entry.Matched || ProjectionWouldHaveMatchedSomewhere(entry))
+                continue;
+
+            requested = entry.Requested;
+            break;
         }
 
         if (requested is null)
