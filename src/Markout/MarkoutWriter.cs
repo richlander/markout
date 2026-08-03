@@ -1194,6 +1194,12 @@ public class MarkoutWriter
     public bool WriteTable(MarkoutTable table)
     {
         ArgumentNullException.ThrowIfNull(table);
+
+        // A table with no columns has no Markdown spelling -- the generator already skips one,
+        // and rendering it here would emit a "|"/"|" husk that is not a table.
+        if (table.IsEmpty)
+            return true;
+
         return WriteTableCore(table.Headers, table.HeaderNames, table.Rows);
     }
 
@@ -1804,18 +1810,14 @@ public class MarkoutWriter
         if (_projectedTablesSeen == 0 || _projectedTablesMatched > 0)
             return;
 
-        // An include projection that reached nothing named columns the document does not have.
-        // An exclude projection that reached nothing named every column the document does have,
-        // which is a different mistake and must not be reported as an unmatched name -- there is
-        // no unmatched name, and the include list it would print is empty.
-        var projection = _options.Projection;
-        if (projection?.ExcludeColumns is { Count: > 0 } excluded)
-        {
-            throw new InvalidOperationException(
-                $"Projection excluded every column: {string.Join(", ", excluded)}");
-        }
+        // Reach only diagnoses an allow list. An exclude projection that leaves nothing behind
+        // named columns the document does have and asked for them to go, so the empty result is
+        // the answer to a well-formed request rather than evidence of a typo. Only an include
+        // projection can name a column that is simply not there.
+        if (_options.Projection?.ExcludeColumns is { Count: > 0 })
+            return;
 
-        var requested = projection?.IncludeColumns ?? [];
+        var requested = _options.Projection?.IncludeColumns ?? [];
         throw new InvalidOperationException(
             $"No columns matched projection: {string.Join(", ", requested)}");
     }

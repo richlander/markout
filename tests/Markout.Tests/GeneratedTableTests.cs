@@ -267,6 +267,31 @@ public class GeneratedTableTests
         _ = new MarkoutTable(["Line", "End Line"], [["1", "2"]]);
     }
 
+    [Fact]
+    public void MarkoutTable_ResolvesAnEmptyExplicitNameToTheDisplayHeaderWhenCheckingForDuplicateKeys()
+    {
+        // TableWriter.FormatHeaders falls back to the display header when an explicit name is
+        // null or empty, so validating the raw name list would check a name that never reaches
+        // the output: here "" and "A B" look distinct while both render under a_b.
+        var ex = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["A-B", "A B"], ["", "A B"], [["one", "two"]]));
+        Assert.Contains("canonical structured key 'a_b'", ex.Message, StringComparison.Ordinal);
+
+        // The fallback itself still works where it does not collide.
+        _ = new MarkoutTable(["Alpha", "Beta"], ["", "beta_name"], [["1", "2"]]);
+    }
+
+    [Fact]
+    public void WriteTable_RendersNothingForATableWithNoColumns()
+    {
+        // The generator skips an empty table, but the imperative overload reached the formatter
+        // directly and emitted a "|"/"|" husk that is not a table.
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions());
+        writer.WriteTable(new MarkoutTable([], []));
+
+        Assert.Equal("", writer.ToString());
+    }
+
     // ---- Dynamic set of named sections, each carrying a runtime-column table ----
 
     private static DynamicMetadataDocument DynamicSample() => new()

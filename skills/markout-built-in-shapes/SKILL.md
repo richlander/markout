@@ -78,14 +78,19 @@ public class Dashboard
 `MarkoutTable` carries headers and rows as runtime values, so the generator does not need to know
 the columns at compile time. It still flows through the serializer like a generated table —
 `SectionOrder`, `RowWindow`, `IncludeSections`, column projection, and TSV/JSONL decomposition all
-apply for free. Two differences from a generated table:
+apply for free. Two things to know:
 
-- **Projection is tolerant.** A projection (`IncludeColumns`) that names none of a `MarkoutTable`'s
-  columns leaves the table whole instead of throwing, because the same projection may be aimed at a
-  sibling section whose columns differ. Generated tables keep the strict throw-on-no-match.
+- **Projection is per table, checked per document.** A projection (`IncludeColumns`) that names none
+  of a table's columns renders that table as nothing, because the same projection may be aimed at a
+  sibling section whose columns differ. Generated tables and `MarkoutTable` follow the same rule. A
+  projection that matches nothing *anywhere* in the document still throws when the document is
+  finished, since that names columns the document does not have. A projection may be spelled with
+  either the display header or the canonical snake_case key that TSV/JSONL emits.
 - **Structured column keys.** Pass a second `headerNames` list to key TSV/JSONL output on stable
   names while the display headers stay human-facing:
-  `new MarkoutTable(["Property", "Value"], ["prop", "val"], rows)`.
+  `new MarkoutTable(["Property", "Value"], ["prop", "val"], rows)`. A table validates itself at
+  construction: every row must have one cell per header, and no two columns may share a canonical
+  key. It is a view over the caller's arrays, not a copy, so do not mutate them afterwards.
 
 To emit a *runtime-determined set of named sections* — each carrying its own runtime-column table —
 put the tables on title-bearing elements and `[MarkoutUnwrap]` the list. Each element becomes its

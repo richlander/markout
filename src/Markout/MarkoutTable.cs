@@ -17,7 +17,16 @@ namespace Markout;
 /// <para>
 /// A column projection that matches none of this table's columns renders nothing rather than
 /// throwing, because the same projection may be aimed at a sibling section whose columns differ.
-/// Generated tables follow the same rule, so projection behaves identically for both shapes.
+/// Generated tables follow the same rule, so projection behaves identically for both shapes. An
+/// include projection that matches nothing anywhere in the document still fails when the document
+/// is finished, since that names columns the document does not have.
+/// </para>
+/// <para>
+/// A table is a view over the caller's arrays, not a copy of them. The headers and rows are
+/// validated once at construction and then referenced as given, which keeps a large table free of
+/// a second allocation but makes the arrays the caller's to leave alone: mutating a row after
+/// construction, or reusing one row buffer for every row, bypasses the validation and is rendered
+/// as whatever the array holds at render time.
 /// </para>
 /// </remarks>
 public sealed class MarkoutTable
@@ -53,13 +62,18 @@ public sealed class MarkoutTable
         // names canonicalize alike would emit a JSONL object with duplicate keys — from which a
         // consumer recovers only the last value. Reject at construction rather than emit output
         // that silently loses a column.
-        var effectiveNames = headerNames ?? headers;
-        if (effectiveNames.Count > 1)
+        // Resolve each column the way TableWriter.FormatHeaders does -- an explicit name that is
+        // null or empty falls back to the display header. Validating the raw list instead would
+        // check a name that never reaches the output: two columns whose explicit names are "" and
+        // something else look distinct here while both render under their display headers.
+        if (headers.Count > 1)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            for (int i = 0; i < effectiveNames.Count; i++)
+            for (int i = 0; i < headers.Count; i++)
             {
-                var key = Formatting.FormatHelper.ToSnakeCase(effectiveNames[i] ?? "");
+                var explicitName = headerNames is not null && i < headerNames.Count ? headerNames[i] : null;
+                var effective = string.IsNullOrEmpty(explicitName) ? headers[i] : explicitName;
+                var key = Formatting.FormatHelper.ToSnakeCase(effective ?? "");
                 if (!seen.Add(key))
                     throw new ArgumentException(
                         $"Two columns share the canonical structured key '{key}'. Structured output would emit duplicate keys and lose a column.",
