@@ -521,6 +521,67 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_OfferedUnderTwoCultures_IsExcusedByAMatchInEither()
+    {
+        // Culture belongs to the probe, not to identity. Splitting the entry per culture makes
+        // "matched nothing anywhere it was offered" mean "anywhere under this one culture", so a
+        // list busy selecting a column in one culture is reported as an unmatched typo because a
+        // later offer under a second culture happened to miss.
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
+            var projection = new MarkoutProjection
+            {
+                Comparison = StringComparison.CurrentCultureIgnoreCase,
+                IncludeColumns = ["I"]
+            };
+            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+            writer.WriteTable(["\u0131"], [["matched"]]);
+
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            projection.IncludeColumns = ["I"];
+            writer.WriteTable(["Other"], [["x"]]);
+
+            Assert.Contains("matched", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
+    public void Projection_OfferedUnderTwoCultures_StillReportsAListThatMatchedInNeither()
+    {
+        // The other side of the same coin: merging the cultures must not become an excuse.
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            var projection = new MarkoutProjection
+            {
+                Comparison = StringComparison.CurrentCultureIgnoreCase,
+                IncludeColumns = ["Typo"]
+            };
+            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+            writer.WriteTable(["A"], [["x"]]);
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
+            projection.IncludeColumns = ["Typo"];
+            writer.WriteTable(["B"], [["y"]]);
+
+            var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+            Assert.Contains("Typo", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
     public void Projection_AProbeThatSwapsCulture_RestoresIt()
     {
         var original = CultureInfo.CurrentCulture;
@@ -544,6 +605,147 @@ public class GeneratedTableTests
         }
     }
 
+    [Theory]
+    [InlineData(0xD800, 0xD801, "")]        // two distinct lone high surrogates
+    [InlineData(0xDC00, 0xDFFF, "")]        // two distinct lone low surrogates
+    [InlineData(0xD800, 0xD801, "A")]       // and with valid text around them
+    public void MarkoutTable_RejectsHeadersThatOnlyDifferOutsideWhatCanBeEncoded(int first, int second, string prefix)
+    {
+        // Lone surrogates are not encodable, so the UTF-8 encoder substitutes U+FFFD and every
+        // distinct one arrives as the same JSONL key: {"\uFFFD":"one","\uFFFD":"two"} loses a column
+        // exactly as a literal duplicate would. Rejected for the same reason and by the same rule.
+        //
+        // The code units are passed as ints and composed here because xUnit's InlineData
+        // serialization does not round-trip a lone surrogate: handed the strings directly, both
+        // arrive already flattened to U+FFFD and the test proves only that literal duplicates are
+        // rejected -- which it did, silently, until a tamper failed to break it.
+        //
+        // Explicit stable names keep the canonical-key rule out of it, so what is under test is the
+        // display-header rule reading what the encoder will actually write.
+        var left = prefix + (char)first;
+        var right = prefix + (char)second;
+        Assert.NotEqual(left, right);
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new MarkoutTable([left, right], ["x", "y"], [["one", "two"]]));
+
+        Assert.Contains("display header", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MarkoutTable_AcceptsHeadersThatDifferOnlyOutsideTheBasicPlane()
+    {
+        // The negative case, and the one a rule about "text containing surrogates" would break:
+        // well-formed pairs encode faithfully, stay distinct in every format, and must be accepted
+        // even though they are spelled with the same surrogate code units the case above rejects.
+        var table = new MarkoutTable(["A\U0001F600", "A\U0001F601"], ["x", "y"], [["one", "two"]]);
+
+        Assert.Equal(2, table.Headers.Count);
+    }
+
+    [Fact]
+    public void Projection_AnUnprojectedTablesColumns_AreStillColumnsTheDocumentOffered()
+    {
+        // The universe answers "did this document have these columns". A table rendered while the
+        // allow list was cleared is still a table this document had, so its columns belong in the
+        // universe -- otherwise clearing IncludeColumns hides the very column an earlier list was
+        // retargeted towards, and a document that rendered it reports it as a typo.
+        var projection = new MarkoutProjection();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        projection.IncludeColumns = ["B"];
+        writer.WriteTable(["A"], [["a"]]);      // misses; excused only if "B" is known to exist
+
+        projection.IncludeColumns = null;        // cleared -- this table is rendered whole
+        writer.WriteTable(["B"], [["b"]]);
+
+        var markdown = writer.ToString();
+        Assert.Contains("| B |", markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_Finalization_DoesNotPinTheCallersAmbientCulture()
+    {
+        // Probing under a recorded culture means making it ambient, and assigning CurrentCulture --
+        // including to restore it -- replaces inheritance from DefaultThreadCurrentCulture with an
+        // explicit override that outlives the call. A document that rendered perfectly well must not
+        // leave that behind, so the swap happens on a thread of our own instead.
+        // DefaultThreadCurrentCulture is process-wide, and this test runs alongside others. Both
+        // values it takes are invariant in behaviour and differ only in Name, so the window cannot
+        // change how any concurrent test formats anything.
+        var originalDefault = CultureInfo.DefaultThreadCurrentCulture;
+        var originalCurrent = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.DefaultThreadCurrentCulture = new NameSharingCulture("before", CultureInfo.InvariantCulture);
+
+            var projection = new MarkoutProjection
+            {
+                Comparison = StringComparison.CurrentCultureIgnoreCase,
+                IncludeColumns = ["B"]
+            };
+            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+            writer.WriteTable(["A"], [["a"]]);   // misses, so finalization probes under en-US
+            projection.IncludeColumns = null;
+            writer.WriteTable(["B"], [["b"]]);
+            _ = writer.ToString();
+
+            // Inheritance must still be live: changing the default has to reach this context.
+            CultureInfo.DefaultThreadCurrentCulture = new NameSharingCulture("after", CultureInfo.InvariantCulture);
+            Assert.Equal("after", CultureInfo.CurrentCulture.Name);
+        }
+        finally
+        {
+            CultureInfo.DefaultThreadCurrentCulture = originalDefault;
+            CultureInfo.CurrentCulture = originalCurrent;
+        }
+    }
+
+    [Fact]
+    public void Projection_CulturesSharingANameButNotACompareInfo_AreBothProbed()
+    {
+        // Recorded cultures are deduplicated on CompareInfo, which is the thing that decides a
+        // match. CultureInfo.Name is virtual and does not: these two agree on Name and disagree on
+        // comparison, so keying on the name drops the second one's semantics and the list that only
+        // it can excuse is reported as a typo.
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            var turkish = new NameSharingCulture("shared", CultureInfo.GetCultureInfo("tr-TR"));
+            var english = new NameSharingCulture("shared", CultureInfo.GetCultureInfo("en-US"));
+
+            var projection = new MarkoutProjection { Comparison = StringComparison.CurrentCultureIgnoreCase };
+            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+            CultureInfo.CurrentCulture = english;
+            projection.IncludeColumns = ["Kept"];
+            writer.WriteTable(["Kept", "\u0131"], [["x", "y"]]);   // dotless i enters the universe
+
+            projection.IncludeColumns = ["I"];
+            writer.WriteTable(["Nope"], [["z"]]);                  // misses under the en flavour
+
+            CultureInfo.CurrentCulture = turkish;
+            projection.IncludeColumns = ["I"];
+            writer.WriteTable(["Nope"], [["z"]]);                  // misses under the tr flavour too
+
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+
+            // Excused: under the Turkish flavour, "I" matches the dotless i the document rendered.
+            _ = writer.ToString();
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    private sealed class NameSharingCulture(string name, CultureInfo inner) : CultureInfo(inner.Name)
+    {
+        public override string Name { get; } = name;
+
+        public override CompareInfo CompareInfo { get; } = inner.CompareInfo;
+    }
+
     [Fact]
     public void Projection_ManyRetargetedMatchingLists_NeitherScanNorProbe()
     {
@@ -565,8 +767,12 @@ public class GeneratedTableTests
 
         _ = writer.ToString();
 
-        // Every list matched the table it was offered, so finalization has nothing to ask.
-        Assert.Equal(0, writer.ProjectionReachResolveCount);
+        // Every list matched the table it was offered, so finalization has nothing to ask: the only
+        // resolves are the one each rendered table needs. Counted inside MarkoutProjection rather
+        // than at the probe site, so a resolve added anywhere -- including one this test never
+        // anticipated -- lands here. (The comparison bound below is single-site and cannot make
+        // that claim; it proves the entry lookup buckets, and nothing about other work.)
+        Assert.Equal(Tables, writer.ProjectionResolveCount);
 
         // Bucketed lookup compares against collisions only. A linear scan over all entries would be
         // ~200,000,000 comparisons here; the bound is loose enough to tolerate hash collisions and
@@ -597,10 +803,11 @@ public class GeneratedTableTests
         var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
         Assert.Contains("C" + Tables, ex.Message, StringComparison.Ordinal);
 
-        // At most one resolve per distinct list -- never one per (list, table) pair.
+        // One resolve per rendered table, plus at most one probe per distinct list -- never one per
+        // (list, table) pair, which would be 4,000,000 here.
         Assert.True(
-            writer.ProjectionReachResolveCount <= Tables,
-            $"Finalization performed {writer.ProjectionReachResolveCount} resolves for {Tables} lists, which means it is probing per table rather than against the column universe.");
+            writer.ProjectionResolveCount <= 2 * Tables,
+            $"Finalization performed {writer.ProjectionResolveCount} resolves for {Tables} lists and {Tables} tables, which means it is probing per table rather than against the column universe.");
     }
 
     [Fact]

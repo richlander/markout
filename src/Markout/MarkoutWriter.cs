@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Markout.Formatting;
 
@@ -1823,7 +1824,12 @@ public class MarkoutWriter
     // structurally what the design claims: entry lookup does not scan, and an unmatched list is
     // put to the matcher once.
     internal long ProjectionReachEntryComparisons { get; private set; }
-    internal int ProjectionReachResolveCount { get; private set; }
+    // Sums every resolve the document caused: the configured projection's (one per rendered table)
+    // plus each finalization probe's. Probes use throwaway projections, so their counts are drained
+    // into _probeResolveCount as they are discarded.
+    internal long ProjectionResolveCount => (_options.Projection?.ResolveColumnsCallCount ?? 0) + _probeResolveCount;
+
+    private long _probeResolveCount;
 
     private Dictionary<int, List<ProjectionReach>>? _projectionReachBuckets;
     private List<ProjectionReach>? _projectionReach;
@@ -1841,23 +1847,24 @@ public class MarkoutWriter
         // document built on one thread and rendered on another. Deferring the question without
         // deferring its culture answers it under conditions that never existed: a list that matched
         // is diagnosed as a typo, and a list that genuinely matched nothing is quietly excused.
-        public required CultureInfo Culture { get; init; }
+        //
+        // A list can be offered under more than one culture, so this is every culture it was seen
+        // under, not the first. "Matched nothing anywhere it was offered" has to mean anywhere,
+        // including any culture context -- splitting the entry per culture instead would report a
+        // list as unmatched in one culture while it was busy selecting a column in another. Null
+        // for a comparison that does not consult the culture, which is the usual case.
+        public List<CultureInfo>? Cultures { get; init; }
 
         public bool Matched { get; set; }
     }
 
-    // Culture participates in identity only where it participates in matching. Splitting entries by
-    // an irrelevant culture would be harmless but would multiply them on any document that changes
-    // culture mid-render.
     private static bool IsCultureSensitive(StringComparison comparison)
         => comparison is StringComparison.CurrentCulture or StringComparison.CurrentCultureIgnoreCase;
 
-    private static int SequenceDigest(StringComparison comparison, CultureInfo culture, IReadOnlyList<string> names)
+    private static int SequenceDigest(StringComparison comparison, IReadOnlyList<string> names)
     {
         var digest = new HashCode();
         digest.Add((int)comparison);
-        if (IsCultureSensitive(comparison))
-            digest.Add(culture.Name, StringComparer.Ordinal);
         foreach (var name in names)
             digest.Add(name, StringComparer.Ordinal);
         return digest.ToHashCode();
@@ -1879,8 +1886,9 @@ public class MarkoutWriter
 
     private ProjectionReach GetProjectionReach(IReadOnlyList<string> requested, StringComparison comparison)
     {
+        var cultureSensitive = IsCultureSensitive(comparison);
         var culture = CultureInfo.CurrentCulture;
-        var key = SequenceDigest(comparison, culture, requested);
+        var key = SequenceDigest(comparison, requested);
 
         _projectionReachBuckets ??= [];
         _projectionReach ??= [];
@@ -1895,13 +1903,22 @@ public class MarkoutWriter
             ProjectionReachEntryComparisons++;
             if (entry.Comparison != comparison || !SequenceEqualsOrdinal(entry.Requested, requested))
                 continue;
-            if (IsCultureSensitive(comparison) && !string.Equals(entry.Culture.Name, culture.Name, StringComparison.Ordinal))
-                continue;
+
+            // Deduplicated on CompareInfo, which is the thing that decides a match. CultureInfo.Name
+            // is virtual and does not: two cultures can share a name and compare differently, and
+            // keying on the name drops the second one's semantics on the floor.
+            if (cultureSensitive && entry.Cultures is { } seen && !seen.Any(c => Equals(c.CompareInfo, culture.CompareInfo)))
+                seen.Add(culture);
 
             return entry;
         }
 
-        var created = new ProjectionReach { Requested = [.. requested], Comparison = comparison, Culture = culture };
+        var created = new ProjectionReach
+        {
+            Requested = [.. requested],
+            Comparison = comparison,
+            Cultures = cultureSensitive ? [culture] : null
+        };
         bucket.Add(created);
         _projectionReach.Add(created);
         return created;
@@ -1962,27 +1979,84 @@ public class MarkoutWriter
             IncludeColumns = entry.Requested
         };
 
-        // Re-put the question under the culture that was in force when the list was offered, not
-        // whatever culture happens to be current at finalization.
-        var restore = CultureInfo.CurrentCulture;
-        var swap = IsCultureSensitive(entry.Comparison) && !ReferenceEquals(restore, entry.Culture);
-        if (swap)
-            CultureInfo.CurrentCulture = entry.Culture;
+        // Re-put the question under the cultures that were in force when the list was offered, not
+        // whatever culture happens to be current at finalization. Excused if any of them matches,
+        // because the list was offered in each of them.
+        if (entry.Cultures is not { Count: > 0 } cultures)
+        {
+            try
+            {
+                return Probe();
+            }
+            finally
+            {
+                _probeResolveCount += probe.ResolveColumnsCallCount;
+            }
+        }
 
         try
         {
-            ProjectionReachResolveCount++;
+            foreach (var culture in cultures)
+            {
+                if (RunUnderCulture(culture, Probe))
+                    return true;
+            }
+
+            return false;
+        }
+        finally
+        {
+            _probeResolveCount += probe.ResolveColumnsCallCount;
+        }
+
+        bool Probe()
+        {
             var resolution = probe.ResolveColumns(
                 CollectionsMarshal.AsSpan(_projectionColumnsSeen),
                 CollectionsMarshal.AsSpan(_projectionColumnNamesSeen));
 
             return resolution.Kind != ColumnProjectionResolutionKind.NoMatches && resolution.ColumnMap.Count > 0;
         }
-        finally
+    }
+
+    // Matching under a culture means making it ambient, and there is no way to make a culture
+    // ambient temporarily without a trace: assigning CurrentCulture -- even to put back the value
+    // that was already there -- replaces inheritance from DefaultThreadCurrentCulture with an
+    // explicit override that outlives the call, so a later change to the default silently stops
+    // reaching this context. That is an invisible side effect to leave behind on a caller whose
+    // document rendered perfectly well.
+    //
+    // So the culture is made ambient somewhere it costs nothing to leave it: a thread of our own,
+    // which dies with the answer. Only reached for a CurrentCulture-sensitive allow list that
+    // matched no table it was offered, under a culture that is not already current.
+    private static bool RunUnderCulture(CultureInfo culture, Func<bool> body)
+    {
+        if (ReferenceEquals(CultureInfo.CurrentCulture, culture))
+            return body();
+
+        var result = false;
+        ExceptionDispatchInfo? failure = null;
+
+        var thread = new Thread(() =>
         {
-            if (swap)
-                CultureInfo.CurrentCulture = restore;
-        }
+            try
+            {
+                CultureInfo.CurrentCulture = culture;
+                result = body();
+            }
+            catch (Exception ex)
+            {
+                failure = ExceptionDispatchInfo.Capture(ex);
+            }
+        })
+        {
+            IsBackground = true
+        };
+
+        thread.Start();
+        thread.Join();
+        failure?.Throw();
+        return result;
     }
 
     private bool ResolveProjectedColumns(
@@ -1993,6 +2067,14 @@ public class MarkoutWriter
     {
         columnMap = null;
         var resolution = projection.ResolveColumns(headers, headerNames);
+
+        // Before the NoProjection exit, not after it. The universe answers "did this document have
+        // these columns", and a table rendered while the projection was cleared is still a table
+        // this document had. Recording only projected tables makes clearing IncludeColumns hide the
+        // very columns an earlier allow list was retargeted towards, and reports that list as a
+        // typo for a document that rendered it.
+        RecordProjectedTable(headers, headerNames);
+
         if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
             return true;
 
@@ -2001,8 +2083,6 @@ public class MarkoutWriter
         var reach = projection.IncludeColumns is { } requested
             ? GetProjectionReach(requested, projection.Comparison)
             : null;
-
-        RecordProjectedTable(headers, headerNames);
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
             return false;

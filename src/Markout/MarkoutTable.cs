@@ -74,7 +74,7 @@ public sealed class MarkoutTable
             {
                 var explicitName = headerNames is not null && i < headerNames.Count ? headerNames[i] : null;
                 var effective = string.IsNullOrEmpty(explicitName) ? headers[i] : explicitName;
-                var key = Formatting.FormatHelper.ToSnakeCase(effective ?? "");
+                var key = Utf8RoundTrip(Formatting.FormatHelper.ToSnakeCase(effective ?? ""));
                 if (!seen.Add(key))
                     throw new ArgumentException(
                         $"Two columns share the canonical structured key '{key}'. Structured output would emit duplicate keys and lose a column.",
@@ -102,8 +102,15 @@ public sealed class MarkoutTable
                 // Unicode formatter uppercases headers, so a table of Greek sigma and final sigma
                 // prints two identical-looking headings while every format that carries keys keeps
                 // them distinct and every row value stays in its own column.
-                var displayKey = Formatting.FormatHelper.NormalizeTableCell(
-                    Formatting.FormatHelper.RenderInlinePlainText(headers[i]));
+                //
+                // The round-trip through UTF-8 is the same idea applied to the transport rather
+                // than the formatter: text that is not valid UTF-16 cannot be encoded, so the
+                // encoder substitutes U+FFFD and any two lone surrogates arrive as one key. Rather
+                // than model which inputs are unencodable -- a second copy of a rule the runtime
+                // already owns, and the sort of restatement that has been the source of these
+                // defects -- ask the encoder what it will emit and compare that.
+                var displayKey = Utf8RoundTrip(Formatting.FormatHelper.NormalizeTableCell(
+                    Formatting.FormatHelper.RenderInlinePlainText(headers[i])));
                 if (!seenDisplay.Add(displayKey))
                     throw new ArgumentException(
                         $"Two columns share the display header '{displayKey}'. Structured output keyed on display headers would emit duplicate keys and lose a column.",
@@ -130,6 +137,15 @@ public sealed class MarkoutTable
         HeaderNames = headerNames;
         Rows = rows;
     }
+
+    // What the bytes will say. Text containing no surrogate code unit at all is certainly
+    // encodable, so it skips the round trip; everything else is handed to the encoder rather than
+    // judged by a rule of our own. A well-formed surrogate pair round-trips to itself and merely
+    // pays an allocation, which is the right way round for a guard that must not miss.
+    private static string Utf8RoundTrip(string value)
+        => value.AsSpan().IndexOfAnyInRange('\uD800', '\uDFFF') < 0
+            ? value
+            : System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(value));
 
     /// <summary>The column display headers.</summary>
     public IReadOnlyList<string> Headers { get; }
