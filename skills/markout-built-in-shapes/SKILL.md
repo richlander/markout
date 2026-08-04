@@ -80,10 +80,14 @@ the columns at compile time. It still flows through the serializer like a genera
 `SectionOrder`, `RowWindow`, `IncludeSections`, column projection, and TSV/JSONL decomposition all
 apply for free. Two things to know:
 
-- **Projection is per table.** A projection (`IncludeColumns`) that names none of a table's columns
-  renders that table as nothing, because the same projection may be aimed at a sibling section whose
-  columns differ. Generated tables and `MarkoutTable` follow the same rule, and a miss is silent. An
-  empty `IncludeColumns` list is a caller error and is reported where the projection is offered. A
+- **Projection is per table, checked per document.** A projection (`IncludeColumns`) that names none
+  of a table's columns renders that table as nothing, because the same projection may be aimed at a
+  sibling section whose columns differ. Generated tables and `MarkoutTable` follow the same rule, and
+  a miss in any one table is silent. A selection that matched nothing in *any* table it was offered
+  to is a caller error, and `Flush`/`ToString` throws `No columns matched projection: <names>` rather
+  than hand back a document the caller's request never reached. A selection is its names and its
+  comparison, so mutating either poses a new question that must match on its own. An empty
+  `IncludeColumns` list is a caller error and is reported where the projection is offered. A
   projection may be spelled with either the display header or the canonical snake_case key that
   TSV/JSONL emits.
 - **Structured column keys.** Pass a second `headerNames` list to key TSV/JSONL output on stable

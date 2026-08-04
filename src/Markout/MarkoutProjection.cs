@@ -172,22 +172,11 @@ public class MarkoutProjection
         => ResolveColumns(headers, default);
 
     /// <summary>
-    /// Number of times this projection has been asked to resolve columns, for tests that assert
-    /// reach finalization costs one resolve per allow list rather than one per (list, table) pair.
-    /// </summary>
-    internal long ResolveColumnsCallCount { get; private set; }
-
-    /// <summary>
     /// Resolves the column projection against display headers and stable header names.
     /// Matches display headers, stable header names, and snake_case stable names.
     /// </summary>
     public ColumnProjectionResolution ResolveColumns(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
-        // Counted here rather than at the writer's probe site so that the gate measures resolves,
-        // not one chosen source location: every resolve this projection performs is counted no
-        // matter who asks for it.
-        ResolveColumnsCallCount++;
-
         if (_includeColumns != null)
         {
             // Include: output columns in the order specified by IncludeColumns

@@ -515,9 +515,9 @@ public class GeneratedTableTests
     [Fact]
     public void Projection_ATypoIsStillDiagnosedAcrossANestedStart()
     {
-        // The negative case for the gate above. Recording the superseded table's columns must widen
-        // the universe by exactly what that table offered and nothing else, so a list naming a
-        // column no table ever had is still diagnosed.
+        // A nested start supersedes the open table, and the selection offered to it must survive
+        // that: both tables were offered this list and neither matched, so the document is still
+        // holding an unsatisfied selection when it finishes.
         var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
         var options = new MarkoutWriterOptions { Projection = projection };
         var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
@@ -589,6 +589,112 @@ public class GeneratedTableTests
 
         var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
         Assert.Contains("No columns matched projection: Ghost", ex.Message, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void Projection_AListMutatedAfterItMatched_IsANewSelection()
+    {
+        // IncludeColumns is publicly mutable, so the same list object can carry two different
+        // requests. Crediting the second with the first's answer let the second table vanish from
+        // the output with no diagnostic at all -- the caller asked for "Typo", got a document
+        // containing only the "A" table, and was told nothing.
+        var names = new List<string> { "A" };
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = names } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["rendered"]]);
+        names[0] = "Typo";
+        writer.WriteTable(["B"], [["silently lost"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_TheSameNamesUnderADifferentComparison_AreADistinctSelection()
+    {
+        // Comparison is mutable too, and it is half of what a selection means: the same names
+        // matched ordinally and matched case-insensitively are two different questions. Sharing
+        // one entry between them let the ordinal miss be excused by the insensitive match.
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.Ordinal,
+            IncludeColumns = new List<string> { "Name" },
+        };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["name"], [["silently lost"]]);
+        projection.Comparison = StringComparison.OrdinalIgnoreCase;
+        writer.WriteTable(["name"], [["rendered"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Name", ex.Message, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void Projection_CaseDifferingNames_AreDistinctSelectionsUnderOrdinalMatching()
+    {
+        // The names half of a selection is compared ordinally, because that is identity of the
+        // request, not a second model of the matcher. Under ordinal matching "name" and "Name" ask
+        // different questions, and folding them together would let the answerable one excuse the
+        // typo.
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.Ordinal,
+            IncludeColumns = new List<string> { "NAME" },
+        };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["Name"], [["silently lost"]]);
+        projection.IncludeColumns = ["Name"];
+        writer.WriteTable(["Name"], [["rendered"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: NAME", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_AnEarlierUnmatchedSelection_SurvivesANestedStartThatRetargets()
+    {
+        // A nested start replaces the open table, and must not take the document's record of what
+        // has already been offered with it. The first selection matched nothing and the second
+        // matches, so a start that discarded the offer history would finish clean while the first
+        // table rendered nothing.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["Typo"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart(["A"]);
+        writer.WriteTableRow(["first"]);
+
+        options.Projection = new MarkoutProjection { IncludeColumns = ["B"] };
+        writer.WriteTableStart(["B"]);
+        writer.WriteTableRow(["second"]);
+        writer.WriteTableEnd();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_ManyOffersOfTheSameSelection_HoldOneEntry()
+    {
+        // Selections are held by what they ask, not by the object that carried the request, so a
+        // document that rebuilds an equivalent projection per table does not accumulate an entry
+        // per table. This is a memory bound on caller-driven retargeting, not a micro-optimisation.
+        var options = new MarkoutWriterOptions();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        for (int i = 0; i < 5_000; i++)
+        {
+            options.Projection = MarkoutProjection.WithColumns("Name");
+            writer.WriteTable(["Name"], [["v"]]);
+        }
+
+        Assert.Equal(1, writer.ProjectionSelectionCount);
     }
 
     [Fact]

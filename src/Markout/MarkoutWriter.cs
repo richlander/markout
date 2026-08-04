@@ -1463,8 +1463,6 @@ public class MarkoutWriter
     {
         _inTable = false;
 
-        // Taken and cleared up front so that an end which throws below cannot leave stale headers
-        // staged for whatever table is written next.
         // Deliberately NOT conditioned on _sectionExcluded. _tableWriter is non-null only if the
         // table started in an included section, so a table that reaches here must be closed even if
         // the caller has since opened an excluded section: with TableOptions set the table writer
@@ -1842,7 +1840,9 @@ public class MarkoutWriter
         // call WriteTableEnd, and tying the diagnostic to it means the writer must predict output
         // it does not control. It cannot: a conformant formatter may write nothing for an ordinary
         // table. Crediting at match time is the one point that is both decidable and correct.
-        var reach = projection.IncludeColumns is { } requested ? GetListReach(requested) : null;
+        var reach = projection.IncludeColumns is { } requested
+            ? GetListReach(requested, projection.Comparison)
+            : null;
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
             return false;
@@ -1854,28 +1854,81 @@ public class MarkoutWriter
         return true;
     }
 
-    // Keyed on the list instance, not on its contents. A caller that retargets Options.Projection
-    // hands over a new list, and a caller that keeps one list has one selection -- both of which
-    // this gets right without comparing names, which is the matcher's job and must not be modelled
-    // a second time here.
-    private Dictionary<IReadOnlyList<string>, ProjectionListReach>? _offeredLists;
+    // A selection is its NAMES and the COMPARISON they are matched under, not the list object that
+    // carried them. Both halves are load-bearing, and keying on the instance instead got both
+    // wrong: MarkoutProjection.IncludeColumns and .Comparison are publicly mutable, so a caller
+    // who edits the list in place, or who changes the comparison, poses a new question through the
+    // same object. Crediting the new question with the old question's answer let a table vanish
+    // from the output with no diagnostic at all.
+    //
+    // This compares names for IDENTITY of the request, ordinally and exactly. It is not a second
+    // model of the matcher: it never decides whether a name matches a column, which is the
+    // matcher's job and stays there. Two requests that are not character-for-character the same
+    // request are simply two requests, even if the matcher would treat them alike.
+    private Dictionary<int, List<ProjectionListReach>>? _offeredLists;
+    private List<ProjectionListReach>? _offeredOrder;
+
+    /// <summary>
+    /// Number of distinct selections this document has been offered, for the gate asserting that a
+    /// caller which rebuilds an equivalent projection per table accumulates one entry, not one per
+    /// table. A selection is its names and its comparison, so equivalent requests coincide here.
+    /// </summary>
+    internal int ProjectionSelectionCount => _offeredOrder?.Count ?? 0;
 
     private sealed class ProjectionListReach
     {
         public required string[] Requested { get; init; }
+        public required StringComparison Comparison { get; init; }
         public bool Matched { get; set; }
     }
 
-    private ProjectionListReach GetListReach(IReadOnlyList<string> requested)
+    // Bucketed so that a document retargeting a projection per table does not turn entry lookup
+    // into a scan of every selection it has already seen.
+    private static int SelectionDigest(StringComparison comparison, IReadOnlyList<string> names)
     {
-        _offeredLists ??= new(ReferenceEqualityComparer.Instance);
-        if (_offeredLists.TryGetValue(requested, out var entry))
-            return entry;
+        var digest = new HashCode();
+        digest.Add((int)comparison);
+        foreach (var name in names)
+            digest.Add(name, StringComparer.Ordinal);
+        return digest.ToHashCode();
+    }
 
-        // Snapshot, so the message reports what was asked for rather than whatever the caller's
-        // list happens to hold when the document is finished.
-        entry = new ProjectionListReach { Requested = [.. requested] };
-        _offeredLists[requested] = entry;
+    private ProjectionListReach GetListReach(IReadOnlyList<string> requested, StringComparison comparison)
+    {
+        _offeredLists ??= [];
+        _offeredOrder ??= [];
+
+        var key = SelectionDigest(comparison, requested);
+        if (!_offeredLists.TryGetValue(key, out var bucket))
+        {
+            bucket = [];
+            _offeredLists[key] = bucket;
+        }
+
+        foreach (var candidate in bucket)
+        {
+            if (candidate.Comparison != comparison || candidate.Requested.Length != requested.Count)
+                continue;
+
+            var same = true;
+            for (int i = 0; i < requested.Count; i++)
+            {
+                if (!string.Equals(candidate.Requested[i], requested[i], StringComparison.Ordinal))
+                {
+                    same = false;
+                    break;
+                }
+            }
+
+            if (same)
+                return candidate;
+        }
+
+        // Snapshot, so the message reports the request as it was made rather than whatever the
+        // caller's list happens to hold when the document is finished.
+        var entry = new ProjectionListReach { Requested = [.. requested], Comparison = comparison };
+        bucket.Add(entry);
+        _offeredOrder.Add(entry);
         return entry;
     }
 
@@ -1887,10 +1940,12 @@ public class MarkoutWriter
     /// </summary>
     private void ThrowIfProjectionMatchedNothing()
     {
-        if (_offeredLists is null)
+        if (_offeredOrder is null)
             return;
 
-        foreach (var entry in _offeredLists.Values)
+        // In offer order, so a document with more than one unsatisfied selection reports the first
+        // one the caller made rather than whichever the hashing happened to surface.
+        foreach (var entry in _offeredOrder)
         {
             if (!entry.Matched)
                 throw new InvalidOperationException(

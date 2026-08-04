@@ -25,7 +25,6 @@ public class TableWriter
     private Queue<string[]>? _tailBuffer;
     private int _tailBound;
 
-
     /// <summary>
     /// Creates a table writer with a batch table formatter.
     /// </summary>
