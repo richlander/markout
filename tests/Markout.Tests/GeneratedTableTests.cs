@@ -1,3 +1,4 @@
+using MarkdownTable.Formatting;
 using System.Globalization;
 using Markout;
 using Markout.Formatting;
@@ -869,6 +870,30 @@ public class GeneratedTableTests
 
         var output = writer.ToString();
         Assert.Contains("| A |", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_ColumnsOfASupersededTableThatNeverEmitted_DoNotExcuseATypo()
+    {
+        // The other half of the gate above, and the reason the record is conditioned on what the
+        // table writer actually wrote. With TableOptions set the writer holds the whole table and
+        // emits it at its end, so a start that supersedes it discards every byte. Recording those
+        // columns anyway let finalization re-probe a genuinely unmatched list against them and
+        // excuse it: a document that rendered nothing at all finalized as success, which is the
+        // success-shaped empty output this mechanism exists to prevent.
+        var options = new MarkoutWriterOptions { TableOptions = new TableFormatterOptions() };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        options.Projection = null;
+        writer.WriteTableStart(["Ghost"]);       // buffered; nothing of it will ever be emitted
+        writer.WriteTableRow(["never seen"]);
+        options.Projection = new MarkoutProjection { IncludeColumns = ["Ghost"] };
+        writer.WriteTableStart(["Other"]);       // supersedes, discarding the buffered table
+        writer.WriteTableRow(["x"]);
+        writer.WriteTableEnd();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("Ghost", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -26,6 +26,16 @@ public class TableWriter
     private int _tailBound;
 
     /// <summary>
+    /// Whether this table has already written bytes that cannot be taken back. True only on the
+    /// direct streaming path, where <c>BeginTable</c> ran at the start and each row was written as
+    /// it arrived. Every other configuration holds the whole table and emits it in
+    /// <see cref="WriteTableEnd"/>, so a table that never reaches its end contributed nothing at
+    /// all. Callers that must decide what an unfinished table contributed ask this rather than
+    /// inferring it from the options, which is a second model of the same decision.
+    /// </summary>
+    internal bool HasEmitted => _streamingDirect;
+
+    /// <summary>
     /// Creates a table writer with a batch table formatter.
     /// </summary>
     public TableWriter(TextWriter writer, ITableFormatter formatter, MarkoutWriterOptions? options = null)

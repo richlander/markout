@@ -1346,17 +1346,20 @@ public class MarkoutWriter
         // diagnosed at finalization as a typo -- the superseded table's header is in the output,
         // and the list that selected it was told the document has no such column.
         //
-        // Its columns therefore join the universe here, which is the weaker of the two claims
-        // reach makes: "this document offers this column", which the superseded table did offer.
-        // The stronger claim -- crediting the list with a match -- is deliberately not made,
-        // because whether the superseded table rendered at all is exactly what is in doubt: with
-        // TableOptions set its table writer buffers, and this method replaces that writer, so its
-        // content is discarded. That discard is a pre-existing defect of the streaming seam rather
-        // than of reach (it reproduces on this PR's base and at finalization for any table left
-        // open), and it is filed separately; recording only the universe keeps this mechanism
-        // honest either way, since an entry credited by a table whose bytes vanished would be the
-        // fail-open this PR spent four rounds closing.
-        if (_inTable && _pendingTableHeaders is { } supersededHeaders)
+        // "In the output" is the whole condition, and it is asked of the table writer rather than
+        // assumed. A superseded table has written bytes only on the direct streaming path; every
+        // other configuration holds the table and emits it at its end, which this start is about
+        // to make unreachable by replacing the writer. Recording unconditionally was a fail-open:
+        // a buffered table whose content was discarded still put its columns in the universe, and
+        // finalization then re-probed a genuinely unmatched list against them and excused it, so a
+        // document that rendered zero bytes finalized as success. Recording only what reached the
+        // reader keeps the weaker claim reach makes -- "this document offers this column" -- true
+        // in the only sense that matters to someone reading the output.
+        //
+        // The list is still not credited with a match even when the bytes did land, because
+        // crediting is the stronger claim and a superseded table is one whose rows stopped
+        // arriving mid-way. The universe carries the weak claim on its own.
+        if (_inTable && _pendingTableHeaders is { } supersededHeaders && _tableWriter is { HasEmitted: true })
             RecordProjectedTable(supersededHeaders, _pendingTableHeaderNames ?? supersededHeaders);
 
         _inTable = true;
