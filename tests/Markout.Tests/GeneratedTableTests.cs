@@ -592,6 +592,68 @@ public class GeneratedTableTests
     }
 
 
+
+    [Fact]
+    public void Projection_TwoSelectionsSharingADigestBucket_AreStillSeparated()
+    {
+        // The digest only chooses a bucket; what makes two selections the same is the equality check
+        // inside it. Without that check a colliding pair shares one record, and the second selection
+        // is credited with the first's match -- the table it named nothing in vanishes silently,
+        // which is the same silent data loss reference keying produced. HashCode is seeded per
+        // process, so the colliding pair has to be found now rather than written down.
+        string? first = null;
+        string? second = null;
+        var seen = new Dictionary<int, string>();
+        for (int i = 0; i < 400_000 && second is null; i++)
+        {
+            var candidate = $"C{i}";
+            var digest = MarkoutWriter.SelectionDigest(StringComparison.Ordinal, new[] { candidate });
+            if (seen.TryGetValue(digest, out var existing))
+            {
+                first = existing;
+                second = candidate;
+            }
+            else
+            {
+                seen[digest] = candidate;
+            }
+        }
+
+        Assert.NotNull(second);
+        Assert.Equal(
+            MarkoutWriter.SelectionDigest(StringComparison.Ordinal, new[] { first! }),
+            MarkoutWriter.SelectionDigest(StringComparison.Ordinal, new[] { second! }));
+
+        var projection = new MarkoutProjection { IncludeColumns = [first!] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable([first!], [["matched"]]);
+        projection.IncludeColumns = [second!];
+        writer.WriteTable(["Unrelated"], [["silently lost"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains(second!, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_TwoUnsatisfiedSelections_ReportTheFirstOneMade()
+    {
+        // Offer order is what makes the diagnostic reproducible: a caller whose document holds two
+        // unsatisfied selections is told about the one they made first, not whichever the bucketing
+        // happened to surface.
+        var projection = new MarkoutProjection { IncludeColumns = ["First"] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["X"], [["a"]]);
+        projection.IncludeColumns = ["Second"];
+        writer.WriteTable(["Y"], [["b"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("No columns matched projection: First", ex.Message);
+    }
+
     [Fact]
     public void Projection_AListMutatedAfterItMatched_IsANewSelection()
     {

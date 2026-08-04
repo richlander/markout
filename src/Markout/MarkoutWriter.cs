@@ -1773,8 +1773,15 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Flushes any buffered output to the underlying stream.
+    /// Flushes any buffered output to the underlying stream, emits any ordered sections still held
+    /// back, and reports a projection that selected nothing anywhere in the document.
     /// </summary>
+    /// <remarks>
+    /// Completing a document is explicit: this type is not <see cref="IDisposable"/>, so a
+    /// <c>using</c> block will not finish one for you. Against a stream target, call this;
+    /// <see cref="ToString"/> only completes a document written to a <see cref="StringWriter"/>.
+    /// A document that is never completed keeps its ordered sections and its projection diagnostic.
+    /// </remarks>
     public void Flush()
     {
         ThrowIfProjectionMatchedNothing();
@@ -1883,8 +1890,10 @@ public class MarkoutWriter
     }
 
     // Bucketed so that a document retargeting a projection per table does not turn entry lookup
-    // into a scan of every selection it has already seen.
-    private static int SelectionDigest(StringComparison comparison, IReadOnlyList<string> names)
+    // into a scan of every selection it has already seen. Internal rather than private so the gate
+    // for in-bucket separation can find a real colliding pair: HashCode is seeded per process, so a
+    // hard-coded pair would not collide on the next run.
+    internal static int SelectionDigest(StringComparison comparison, IReadOnlyList<string> names)
     {
         var digest = new HashCode();
         digest.Add((int)comparison);
