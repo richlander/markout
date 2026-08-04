@@ -176,14 +176,43 @@ public class MarkoutProjection
     /// Matches display headers, stable header names, and snake_case stable names.
     /// </summary>
     public ColumnProjectionResolution ResolveColumns(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
+        => _includeColumns is { } include
+            ? ResolveColumns(headers, headerNames, SnapshotSelection(include))
+            : ResolveColumns(headers, headerNames, null);
+
+    /// <summary>
+    /// Reads an allow list into an array, exactly once.
+    /// </summary>
+    /// <remarks>
+    /// IncludeColumns is an interface the caller implements, so its Count and the items it yields
+    /// are separate questions asked of a type that need not answer them consistently, or answer
+    /// either the same way twice. Every consumer of a selection -- the matcher that decides which
+    /// columns it selects, the writer that records whether it ever matched, and the message that
+    /// names it if it did not -- has to be looking at the same names, or they can disagree about
+    /// which request was even made. Reading it once, here, is what makes them agree; enumeration
+    /// is the definitive read, because it is the one that yields the names.
+    /// </remarks>
+    internal static string[] SnapshotSelection(IReadOnlyList<string> requested)
     {
-        if (_includeColumns != null)
+        List<string> snapshot = [];
+        foreach (var name in requested)
+            snapshot.Add(name);
+
+        return [.. snapshot];
+    }
+
+    internal ColumnProjectionResolution ResolveColumns(
+        ReadOnlySpan<string> headers,
+        ReadOnlySpan<string> headerNames,
+        string[]? includeColumns)
+    {
+        if (includeColumns != null)
         {
             // Include: output columns in the order specified by IncludeColumns
-            var map = new List<int>(_includeColumns.Count);
+            var map = new List<int>(includeColumns.Length);
             var claimed = new HashSet<int>();
             var unmatched = new List<string>();
-            foreach (var col in _includeColumns)
+            foreach (var col in includeColumns)
             {
                 bool matched = false;
                 bool isGlob = col.Contains('*') || col.Contains('?');
@@ -211,9 +240,9 @@ public class MarkoutProjection
             }
 
             if (map.Count == 0)
-                return ColumnProjectionResolution.NoMatches(_includeColumns);
+                return ColumnProjectionResolution.NoMatches(includeColumns);
 
-            return ColumnProjectionResolution.Matched(map, _includeColumns, unmatched);
+            return ColumnProjectionResolution.Matched(map, includeColumns, unmatched);
         }
 
         if (_excludeColumns != null)

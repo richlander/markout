@@ -712,21 +712,23 @@ public class GeneratedTableTests
     }
 
     [Fact]
-    public void Projection_AListWhoseCountDisagreesWithItsContents_CannotCorruptSelectionIdentity()
+    public void Projection_AListWhoseCountDisagreesWithItsContents_IsWhatItYields()
     {
-        // The request is read once and only the snapshot is used afterwards, so a list that reports
-        // a length it does not have cannot key itself into one selection's bucket and then be
-        // compared as another. Before the snapshot this indexed an entry past its end.
-        var honest = new MarkoutProjection { IncludeColumns = ["B"] };
-        var options = new MarkoutWriterOptions { Projection = honest };
+        // Count is a claim; the names are what the list hands over. Sizing anything by Count let a
+        // one-name request be recorded, compared, and reported as a ten-name one -- and indexed
+        // past the end of the entry it matched. Nothing reads Count now, so the request is the one
+        // name, and the message says so.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = new InconsistentNameList(10, "Typo") },
+        };
         var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
 
-        writer.WriteTable(["B"], [["rendered"]]);
-        options.Projection = new MarkoutProjection { IncludeColumns = new InconsistentNameList(10, "B") };
-        writer.WriteTable(["Unrelated"], [["silently lost"]]);
+        writer.WriteTable(["A"], [["silently lost"]]);
 
         var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.StartsWith("No columns matched projection: B, B", ex.Message, StringComparison.Ordinal);
+        Assert.Equal("No columns matched projection: Typo", ex.Message);
+        Assert.Equal(1, writer.ProjectionSelectionCount);
     }
 
     [Fact]
@@ -776,6 +778,240 @@ public class GeneratedTableTests
 
         var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
         Assert.Equal("No columns matched projection: Name", ex.Message);
+    }
+
+
+    // A list whose enumerator and indexer disagree. Neither read is obviously the wrong one, which
+    // is the point: whichever a consumer picks, every OTHER consumer has to pick the same one.
+    private sealed class SplitBrainNameList(string enumerated, string indexed) : IReadOnlyList<string>
+    {
+        public int Count => 1;
+
+        public string this[int index] => indexed;
+
+        public IEnumerator<string> GetEnumerator()
+        {
+            yield return enumerated;
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Fact]
+    public void Projection_AListWhoseReadsDisagree_CannotMakeATypoLookLikeACreditedSelection()
+    {
+        // The matcher and the reach entry are two consumers of one request. When each read
+        // IncludeColumns for itself, this list was a typo to the matcher -- which therefore
+        // rendered nothing -- and the already-credited selection "A" to the reach entry, which
+        // therefore reported nothing. The table vanished and the document was declared fine.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["A"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["rendered"]]);
+        options.Projection = new MarkoutProjection { IncludeColumns = new SplitBrainNameList("Typo", "A") };
+        writer.WriteTable(["B"], [["silently lost"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("No columns matched projection: Typo", ex.Message);
+    }
+
+    [Fact]
+    public void Projection_ASelectionIsCountedByWhatItYields_NotByWhatItClaims()
+    {
+        // The same single read, seen from the other side: two offers that yield the same names are
+        // one selection however their Count answers, so a document cannot be talked into holding
+        // two entries for one request -- nor one entry for two.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["A"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["first"]]);
+        options.Projection = new MarkoutProjection { IncludeColumns = new SplitBrainNameList("A", "Z") };
+        writer.WriteTable(["A"], [["second"]]);
+
+        Assert.Equal(1, writer.ProjectionSelectionCount);
+        Assert.Contains("second", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BufferedTable_HeaderNamesOfADifferentArity_AreRejected()
+    {
+        // Stable names are matched to headers by position, so a list of a different length has no
+        // meaning: it would silently rename the wrong columns, or leave later ones unnamed and
+        // unmatchable by a projection naming them. The streaming entry point rejects this too.
+        var writer = MarkoutWriter.Create(new MarkdownFormatter());
+
+        var ex = Assert.Throws<ArgumentException>(
+            () => writer.WriteTable(["Display A", "Display B"], ["StableA"], [["1", "2"]]));
+
+        Assert.Contains("headerNames", ex.Message, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void Projection_TwoSelectionsDifferingOnlyInComparison_ShareABucket()
+    {
+        // The digest keys on the names alone so that this pair MEETS -- the in-bucket comparison
+        // test is the only thing separating them, and a guard nothing reaches is a guard no test
+        // can defend. Sharing a bucket is observable as a probe: the second offer must inspect the
+        // first. Hashing the comparison into the key would separate them and read as zero.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["A"], Comparison = StringComparison.Ordinal },
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["one"]]);
+        var before = writer.ProjectionSelectionProbeCount;
+
+        options.Projection = new MarkoutProjection
+        {
+            IncludeColumns = ["A"],
+            Comparison = StringComparison.OrdinalIgnoreCase,
+        };
+        writer.WriteTable(["A"], [["two"]]);
+
+        Assert.True(writer.ProjectionSelectionProbeCount > before, "the second offer never met the first");
+        Assert.Equal(2, writer.ProjectionSelectionCount);
+    }
+
+    [Fact]
+    public void Projection_TwoSelectionsDifferingOnlyInCase_ShareABucket()
+    {
+        // Same property one level down: the digest hashes case-insensitively so that this pair
+        // meets and the ordinal SequenceEqual is what separates it. Hashing ordinally would part
+        // them upstream, leaving two sufficient mechanisms and therefore neither one gated.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["Name"], Comparison = StringComparison.Ordinal },
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["Name"], [["one"]]);
+        var before = writer.ProjectionSelectionProbeCount;
+
+        options.Projection = new MarkoutProjection
+        {
+            IncludeColumns = ["NAME"],
+            Comparison = StringComparison.Ordinal,
+        };
+        writer.WriteTable(["Name"], [["two"]]);
+
+        Assert.True(writer.ProjectionSelectionProbeCount > before, "the second offer never met the first");
+        Assert.Equal(2, writer.ProjectionSelectionCount);
+    }
+
+
+    // A list that yields different names each time it is enumerated. A lazily-populated or
+    // self-refreshing collection behaves exactly like this without meaning to.
+    private sealed class AlternatingNameList(params string[] perEnumeration) : IReadOnlyList<string>
+    {
+        private int _enumerations;
+
+        public int Count => 1;
+
+        public string this[int index] => perEnumeration[Math.Min(_enumerations, perEnumeration.Length - 1)];
+
+        public IEnumerator<string> GetEnumerator()
+        {
+            var name = perEnumeration[Math.Min(_enumerations++, perEnumeration.Length - 1)];
+            yield return name;
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Fact]
+    public void Projection_ARequestIsReadExactlyOnce_SoTheVerdictAndTheRecordAgree()
+    {
+        // Reading consistently is not enough; it has to be read ONCE. This list answers every
+        // enumeration honestly and differently, so two consumers each reading for themselves get
+        // two different requests: the matcher sees the typo and renders nothing, the reach entry
+        // sees the credited "A" and reports nothing, and the table is gone without a word.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["A"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["rendered"]]);
+        options.Projection = new MarkoutProjection { IncludeColumns = new AlternatingNameList("Typo", "A") };
+        writer.WriteTable(["A"], [["silently lost"]]);
+
+        // The table names A, so a second read is not merely a different request -- it is one that
+        // MATCHES, which both renders a table the caller did not ask for and credits the typo.
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("No columns matched projection: Typo", ex.Message);
+    }
+
+
+    // Claims a name, yields none. Count and the enumeration are separate questions, so nothing
+    // stops a list from answering them incompatibly.
+    private sealed class EmptyYieldingNameList : IReadOnlyList<string>
+    {
+        public int Count => 1;
+
+        public string this[int index] => "A";
+
+        public IEnumerator<string> GetEnumerator()
+        {
+            yield break;
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Fact]
+    public void Projection_AListThatYieldsNothingDespiteItsCount_IsStillRejectedAsEmpty()
+    {
+        // The eager guard reads Count at the entry point; this list says 1 there and hands over
+        // nothing when actually read. Judging emptiness on the snapshot too means the caller gets
+        // the empty-allow-list message either way, instead of a finalization diagnostic naming no
+        // column at all.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = new EmptyYieldingNameList() },
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.WriteTable(["A"], [["row"]]));
+        Assert.StartsWith("Projection selected no columns", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_UnsatisfiedSelections_AreReportedInOfferOrderNotInBucketOrder()
+    {
+        // The diagnostic names selections in the order the document was offered them, which is why
+        // there is a separate order list at all. Iterating the buckets instead differs exactly when
+        // two selections collide: a later offer sharing an earlier bucket would be pulled forward
+        // ahead of a selection offered before it. That is the only shape where the two disagree, so
+        // it is the shape this gate builds.
+        var second = FindColliding(
+            i => (StringComparison.Ordinal, [$"Ax{i}"]),
+            i => (StringComparison.Ordinal, [$"Bx{i}"]),
+            out var shared);
+
+        // shared and second occupy one bucket, in that order; "Middle" gets a bucket of its own,
+        // created between them. Offer order is therefore shared, Middle, second -- while walking
+        // the buckets yields shared, second, Middle. Letting shared MATCH is what separates the
+        // two: the first UNSATISFIED selection is Middle by offer order and second by bucket order.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = shared.Names } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable([shared.Names[0]], [["matched"]]);
+        options.Projection = new MarkoutProjection { IncludeColumns = ["Middle"] };
+        writer.WriteTable(["Unrelated"], [["r"]]);
+        options.Projection = new MarkoutProjection { IncludeColumns = second.Names };
+        writer.WriteTable(["Unrelated"], [["r"]]);
+
+        Assert.Equal(3, writer.ProjectionSelectionCount);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("No columns matched projection: Middle", ex.Message);
+    }
+
+    [Fact]
+    public void BufferedTable_ANullTable_IsRejected()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter());
+
+        Assert.Throws<ArgumentNullException>(() => writer.WriteTable((MarkoutTable)null!));
     }
 
     [Fact]

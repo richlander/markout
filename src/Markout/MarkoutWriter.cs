@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
@@ -1825,7 +1826,26 @@ public class MarkoutWriter
         out int[]? columnMap)
     {
         columnMap = null;
-        var resolution = projection.ResolveColumns(headers, headerNames);
+
+        // Read the caller's allow list ONCE, here, and hand that one array to everything below.
+        // The matcher decides what the request selects and the reach entry records whether it ever
+        // selected anything; they are two consumers of one request, and if each reads
+        // IncludeColumns for itself a list that answers differently on each read can be a typo to
+        // the matcher and an already-credited selection to the reach entry -- which suppresses the
+        // diagnostic and drops the table in silence. Snapshotting inside GetListReach was not
+        // enough, because the split had already happened by then.
+        var requested = projection.IncludeColumns is { } includeColumns
+            ? MarkoutProjection.SnapshotSelection(includeColumns)
+            : null;
+
+        // Judged on the snapshot, not on Count. The eager check at the entry point reads Count,
+        // which a list is free to answer one way there and another way here; a list claiming one
+        // name and yielding none slipped past it and reached finalization as a diagnostic naming
+        // no column at all. What the request turned out to BE is decided here, once.
+        if (requested is { Length: 0 })
+            ThrowProjectionSelectsNothing();
+
+        var resolution = projection.ResolveColumns(headers, headerNames, requested);
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
             return true;
@@ -1842,11 +1862,14 @@ public class MarkoutWriter
         // call WriteTableEnd, and tying the diagnostic to it means the writer must predict output
         // it does not control. It cannot: a conformant formatter may write nothing for an ordinary
         // table. Crediting at match time is the one point that is both decidable and correct.
-        var reach = projection.IncludeColumns is { } requested
+        var reach = requested is not null
             ? GetListReach(requested, projection.Comparison)
             : null;
 
-        if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
+        // An empty map IS the miss, whatever produced it: NoMatches carries an empty map by
+        // construction, so testing the Kind as well was a second spelling of this line that no
+        // test could tell from the first. One condition, and the exclude-everything case gates it.
+        if (resolution.ColumnMap.Count == 0)
             return false;
 
         if (reach is not null)
@@ -1875,9 +1898,13 @@ public class MarkoutWriter
     private void ThrowIfProjectionSelectsNothing()
     {
         if (_options.Projection?.IncludeColumns is { Count: 0 })
-            throw new InvalidOperationException(
-                "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
+            ThrowProjectionSelectsNothing();
     }
+
+    [DoesNotReturn]
+    private static void ThrowProjectionSelectsNothing()
+        => throw new InvalidOperationException(
+            "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
 
     // A selection is its NAMES and the COMPARISON they are matched under, not the list object that
     // carried them. Both halves are load-bearing, and keying on the instance instead got both
@@ -1926,11 +1953,14 @@ public class MarkoutWriter
     // buckets and the in-bucket comparison guard would become unreachable except through a digest
     // collision -- a guard nothing can exercise, which is a guard no test can defend. Keying on the
     // names puts that pair in one bucket, where the guard is the only thing separating them and any
-    // test of it is a test of the code that actually runs.
+    // test of it is a test of the code that actually runs. Bucket sharing is observable as a probe,
+    // so that reachability is itself gated, by
+    // Projection_TwoSelectionsDifferingOnlyInComparison_ShareABucket.
     //
     // It hashes those names case-insensitively for the same reason: a selection IS case-sensitive,
     // but the exact test belongs in one place, and a key coarser than the answer is what keeps it
-    // reachable. Two mechanisms that each suffice leave neither one gated.
+    // reachable. Two mechanisms that each suffice leave neither one gated. Gated by
+    // Projection_TwoSelectionsDifferingOnlyInCase_ShareABucket.
     internal static int SelectionDigest(IReadOnlyList<string> names)
     {
         var digest = new HashCode();
@@ -1939,25 +1969,15 @@ public class MarkoutWriter
         return digest.ToHashCode();
     }
 
-    private ProjectionListReach GetListReach(IReadOnlyList<string> requested, StringComparison comparison)
+    private ProjectionListReach GetListReach(string[] snapshot, StringComparison comparison)
     {
         _offeredLists ??= [];
         _offeredOrder ??= [];
 
-        // Snapshotted ONCE, up front, and everything below reads only the snapshot.
-        //
-        // IncludeColumns is an interface the caller implements, so its Count and its contents are
-        // whatever the caller's type says they are at the moment each is asked -- and they need not
-        // agree with each other or stay the same between two reads. Deriving the key from one read
-        // and then comparing against another let a list whose Count disagreed with what it yielded
-        // land in a bucket it did not belong to, where the entry it matched was indexed past its
-        // end. Reading a hostile or simply buggy implementation once turns that into a plain
-        // sequence of strings before it can be inconsistent with itself, and it is the same read
-        // that the reported message quotes, so the diagnostic names the request that was keyed.
-        var snapshot = new string[requested.Count];
-        for (int i = 0; i < snapshot.Length; i++)
-            snapshot[i] = requested[i];
-
+        // Takes the snapshot, never the caller's list: the single read happens above, in
+        // ResolveProjectedColumns, so the names keyed here are the same names the matcher judged.
+        // Accepting a string[] is the point -- there is no longer an interface to re-read, so this
+        // lookup cannot be made inconsistent with the verdict it is recording.
         var key = SelectionDigest(snapshot);
         if (!_offeredLists.TryGetValue(key, out var bucket))
         {
@@ -2009,7 +2029,9 @@ public class MarkoutWriter
             return;
 
         // In offer order, so a document with more than one unsatisfied selection reports the first
-        // one the caller made rather than whichever the hashing happened to surface.
+        // one the caller made rather than whichever the hashing happened to surface. The two
+        // disagree only when a selection shares a bucket with an earlier one, which is the shape
+        // Projection_UnsatisfiedSelections_AreReportedInOfferOrderNotInBucketOrder builds.
         foreach (var entry in _offeredOrder)
         {
             if (!entry.Matched)
