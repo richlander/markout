@@ -714,11 +714,90 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_ATableTheProjectionDrops_DoesNotEnumerateItsRows()
+    {
+        // A per-table miss renders nothing, and the decision is final the moment the matcher says
+        // so. Enumerating the rows anyway is a behaviour change for callers passing sequences that
+        // are expensive, infinite, or invalid for a table that was never going to render -- and it
+        // is pure waste, since not one of those rows can reach the output.
+        var projection = new MarkoutProjection { IncludeColumns = ["Keep"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+        writer.WriteTable(["Keep"], [["k"]]);
+
+        var enumerated = 0;
+        writer.WriteTable(["Dropped"], Counted());
+
+        Assert.Equal(0, enumerated);
+
+        IEnumerable<string[]> Counted()
+        {
+            enumerated++;
+            yield return ["x"];
+        }
+    }
+
+    [Fact]
+    public void Streaming_ATableOpenWhenAnExcludedSectionBegins_IsStillEmitted()
+    {
+        // A table that started in an included section belongs to that section. If the caller opens
+        // an excluded section before ending it, skipping the end silently discarded the whole
+        // table under TableOptions, where the table writer buffers everything and emits on end.
+        // Both formatter configurations must agree, and neither may lose the table.
+        foreach (var buffered in new[] { true, false })
+        {
+            var options = new MarkoutWriterOptions { IncludeSections = ["includedsection"] };
+            if (buffered)
+                options.TableOptions = new MarkdownTable.Formatting.TableFormatterOptions();
+
+            var sw = new StringWriter();
+            var writer = new MarkoutWriter(sw, new MarkdownFormatter(), options);
+
+            writer.WriteSectionStart(1, "IncludedSection");
+            writer.WriteTableStart(["X", "Y"]);
+            writer.WriteTableRow(["x", "y"]);
+            writer.WriteSectionStart(2, "ExcludedSection");
+            writer.WriteTableEnd();
+            writer.Flush();
+
+            Assert.Contains("| X | Y |", sw.ToString(), StringComparison.Ordinal);
+            Assert.Contains("| x | y |", sw.ToString(), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Projection_ColumnsOfAStreamingTableInAnExcludedSection_DoNotExcuseATypo()
+    {
+        // An excluded section renders nothing, so a table inside one contributes no columns to the
+        // document. Committing its staged headers at WriteTableEnd would excuse a typo naming one.
+        var projection = new MarkoutProjection { IncludeColumns = ["Hidden"] };
+        var options = new MarkoutWriterOptions
+        {
+            Projection = projection,
+            IncludeSections = ["keep"],
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["a"]]);
+        options.Projection = null;
+        writer.WriteSectionStart(2, "Skip");
+        writer.WriteTableStart(["Hidden"]);
+        writer.WriteTableRow(["h"]);
+        writer.WriteTableEnd();
+        writer.WriteSectionEnd();
+        options.Projection = projection;
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("Hidden", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Projection_ColumnsOfATableThatAbortedMidRender_DoNotExcuseATypo()
     {
         // Rows can be a lazy sequence that throws part-way, which aborts the table: nothing of it
-        // reaches the document. Its columns must not join the universe, or a genuine typo that
-        // happens to name one of them is excused by a table the reader never sees. Every other
+        // reaches the document. Neither its columns may join the universe NOR may the list that
+        // selected them be credited with a match -- a typo naming one of them would otherwise be
+        // excused by a table the reader never sees. Both halves matter: crediting the match alone
+        // excuses the list even with the universe kept clean. Every other
         // defect in this mechanism has been fail-closed -- a spurious throw, annoying and obvious.
         // This one is fail-open and silent, which is the direction a diagnostic must never take.
         var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };

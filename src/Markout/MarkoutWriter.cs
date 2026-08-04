@@ -1232,22 +1232,38 @@ public class MarkoutWriter
         // never project -- 20,000 five-column tables measured 26 ms against 32 ms without it, which
         // is noise -- because the universe is deduplicated and stays the size of the distinct
         // column set.
-        // Rows are materialized before the columns are recorded, and before the projection is
-        // consulted, because a lazy sequence that throws part-way aborts the table: recording
-        // first would leave the universe claiming columns the document never rendered, and excuse
-        // a genuine typo that happens to name one of them. Fail-open is the one direction this
-        // diagnostic must never take. The cost is that a table the projection drops entirely still
-        // enumerates its rows -- free for the list or array callers actually pass, and correctness
-        // is worth more than a lazy-enumeration shortcut on a table that renders nothing.
-        var rowList = rows as IList<string[]> ?? rows.ToList();
+        // Recording is transactional: the columns join the universe at the point the table's
+        // outcome is decided, never before. There are exactly two such points.
+        //
+        // The first is a projection miss. That table renders nothing, but the decision is final the
+        // moment the matcher says so -- nothing further can fail -- so the columns are recorded and
+        // the method returns WITHOUT enumerating rows. Enumerating them would be a behaviour change
+        // for callers passing lazy sequences that are expensive, infinite, or invalid for a table
+        // that was never going to render.
+        //
+        // The second is a completed render, below. Anything between here and there can abort the
+        // table -- a lazy row sequence that throws part-way, or a formatter that throws while
+        // writing -- and an aborted table contributes no bytes. Recording it anyway would leave the
+        // universe claiming columns the document never rendered and excuse a genuine typo naming
+        // one of them. Fail-open is the one direction this diagnostic must never take.
+        //
+        // The originals are captured because projection reassigns these locals below, and the
+        // universe records what the document OFFERED, not what survived projection.
+        var offeredHeaders = headerArray;
+        var offeredNames = headerNameArray ?? headerArray;
 
         int[]? columnMap = null;
-        RecordProjectedTable(headerArray, headerNameArray ?? headerArray);
+        ProjectionReach? matchedReach = null;
         if (_options.Projection is { } projection)
         {
-            if (!ResolveProjectedColumns(projection, headerArray, headerNameArray ?? headerArray, out columnMap))
+            if (!ResolveProjectedColumns(projection, headerArray, offeredNames, out columnMap, out matchedReach))
+            {
+                RecordProjectedTable(offeredHeaders, offeredNames);
                 return true;
+            }
         }
+
+        var rowList = rows as IList<string[]> ?? rows.ToList();
         if (columnMap != null)
         {
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
@@ -1274,6 +1290,12 @@ public class MarkoutWriter
             CreateTableWriter(tableOptions).WriteTable(headerArray, rowList);
         _needsBlankLine = true;
         _hasContent = true;
+
+        // The table is bytes. Only now do its columns join the universe, and only now is the list
+        // that selected them credited with a match.
+        RecordProjectedTable(offeredHeaders, offeredNames);
+        if (matchedReach is not null)
+            matchedReach.Matched = true;
         return true;
     }
 
@@ -1323,6 +1345,14 @@ public class MarkoutWriter
         _columnMap = null;
         _tableWriter = null;
 
+        // Cleared on every start, not only on the paths that re-stage below. A start that returns
+        // early -- excluded section, zero columns, a formatter that cannot do tables -- would
+        // otherwise inherit the staging of a previous table that was started and abandoned, and
+        // commit that table's columns under this one's end.
+        _pendingTableHeaders = null;
+        _pendingTableHeaderNames = null;
+        _pendingMatchedReach = null;
+
         if (_sectionExcluded)
             return true;
 
@@ -1359,7 +1389,7 @@ public class MarkoutWriter
         _pendingTableHeaderNames = (headerNames.Length > 0 ? headerNames : headers).ToArray();
         if (_options.Projection is { } projection)
         {
-            if (!ResolveProjectedColumns(projection, headers, headerNames.Length > 0 ? headerNames : headers, out _columnMap))
+            if (!ResolveProjectedColumns(projection, headers, headerNames.Length > 0 ? headerNames : headers, out _columnMap, out _pendingMatchedReach))
                 return true;
         }
         string[]? projectedHeaderNames = null;
@@ -1473,18 +1503,36 @@ public class MarkoutWriter
     {
         _inTable = false;
 
-        if (_pendingTableHeaders is { } pendingHeaders)
-        {
-            RecordProjectedTable(pendingHeaders, _pendingTableHeaderNames ?? pendingHeaders);
-            _pendingTableHeaders = null;
-            _pendingTableHeaderNames = null;
-        }
+        // Taken and cleared up front so that an end which throws below cannot leave stale headers
+        // staged for whatever table is written next.
+        var pendingHeaders = _pendingTableHeaders;
+        var pendingNames = _pendingTableHeaderNames;
+        var pendingReach = _pendingMatchedReach;
+        _pendingTableHeaders = null;
+        _pendingTableHeaderNames = null;
+        _pendingMatchedReach = null;
 
-        if (!_sectionExcluded && _tableWriter != null)
+        // Deliberately NOT conditioned on _sectionExcluded. _tableWriter is non-null only if the
+        // table started in an included section, so a table that reaches here must be closed even if
+        // the caller has since opened an excluded section: with TableOptions set the table writer
+        // buffers everything and emits on end, so skipping the end silently discarded the entire
+        // table. Dropping content because unrelated state changed after the table began is exactly
+        // the success-shaped empty output this writer must not produce.
+        if (_tableWriter != null)
         {
             _tableWriter.WriteTableEnd();
             _needsBlankLine = true;
             _hasContent = true;
+        }
+
+        // One condition, so emission and excusal cannot disagree. A null _tableWriter here is not a
+        // failure: that is the projection miss, whose columns the document still offered. A table
+        // that started inside an excluded section staged nothing, so it records nothing.
+        if (pendingHeaders is not null)
+        {
+            RecordProjectedTable(pendingHeaders, pendingNames ?? pendingHeaders);
+            if (pendingReach is not null)
+                pendingReach.Matched = true;
         }
 
         _tableWriter = null;
@@ -1970,9 +2018,11 @@ public class MarkoutWriter
     // (display header, stable name) pairs answers it, and answers it in a single probe. Keeping
     // the tables instead costs a probe per table per unmatched list, which is quadratic on a
     // document that retargets a projection per table.
-    // Headers of a streaming table that has started but not yet ended. See WriteTableStartCore.
+    // Headers of a streaming table that has started but not yet ended, and the reach entry a match
+    // would credit. Both are committed in WriteTableEnd. See WriteTableStartCore.
     private string[]? _pendingTableHeaders;
     private string[]? _pendingTableHeaderNames;
+    private ProjectionReach? _pendingMatchedReach;
 
     private void RecordProjectedTable(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
@@ -2126,9 +2176,11 @@ public class MarkoutWriter
         MarkoutProjection projection,
         ReadOnlySpan<string> headers,
         ReadOnlySpan<string> headerNames,
-        out int[]? columnMap)
+        out int[]? columnMap,
+        out ProjectionReach? matchedReach)
     {
         columnMap = null;
+        matchedReach = null;
         var resolution = projection.ResolveColumns(headers, headerNames);
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
@@ -2143,8 +2195,11 @@ public class MarkoutWriter
         if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
             return false;
 
-        if (reach is not null)
-            reach.Matched = true;
+        // Handed back rather than marked here. A match means this table WOULD render the column,
+        // not that it did: the row sequence or the formatter can still abort the table, and a list
+        // marked matched by a table that produced no bytes is excused by nothing. The caller marks
+        // it at the same point it records the columns -- when the table is bytes.
+        matchedReach = reach;
 
         columnMap = [.. resolution.ColumnMap];
         return true;
