@@ -682,27 +682,179 @@ public class GeneratedTableTests
         AssertSeparated(matching, missing);
     }
 
+
+    // IncludeColumns is an interface, so a caller can supply a list whose Count disagrees with what
+    // indexing it yields, or one that answers differently on each read. Neither is exotic: the first
+    // is an ordinary bug in a custom collection, and the second is what a lazily-populated list
+    // looks like from the writer's side.
+    private sealed class InconsistentNameList(int declaredCount, params string[] items) : IReadOnlyList<string>
+    {
+        public int Count => declaredCount;
+
+        public string this[int index] => items[index % items.Length];
+
+        public IEnumerator<string> GetEnumerator() => ((IEnumerable<string>)items).GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private sealed class GrowingNameList(params string[] items) : IReadOnlyList<string>
+    {
+        private int _reads;
+
+        public int Count => Math.Min(items.Length, 1 + _reads++);
+
+        public string this[int index] => items[index];
+
+        public IEnumerator<string> GetEnumerator() => ((IEnumerable<string>)items).GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Fact]
+    public void Projection_AListWhoseCountDisagreesWithItsContents_CannotCorruptSelectionIdentity()
+    {
+        // The request is read once and only the snapshot is used afterwards, so a list that reports
+        // a length it does not have cannot key itself into one selection's bucket and then be
+        // compared as another. Before the snapshot this indexed an entry past its end.
+        var honest = new MarkoutProjection { IncludeColumns = ["B"] };
+        var options = new MarkoutWriterOptions { Projection = honest };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["B"], [["rendered"]]);
+        options.Projection = new MarkoutProjection { IncludeColumns = new InconsistentNameList(10, "B") };
+        writer.WriteTable(["Unrelated"], [["silently lost"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.StartsWith("No columns matched projection: B, B", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_AListThatAnswersDifferentlyOnEachRead_IsKeyedByWhatWasRead()
+    {
+        // A selection whose Count changes between the read that keys it and the read that compares
+        // it would be filed under one identity and matched as another. One read makes the two the
+        // same read, so the verdict and the message agree about which request was made.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = new GrowingNameList("Typo", "Second") },
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["silently lost"]]);
+
+        // One coherent read: the message names exactly the Count items the snapshot took, in order.
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("No columns matched projection: Typo, Second", ex.Message);
+    }
+
+
+    [Fact]
+    public void Projection_NamesDifferingOnlyInCase_AreADistinctSelectionUnderAnOrdinalComparison()
+    {
+        // Under an ordinal comparison these two requests get different answers from the same table,
+        // so conflating them lets the one that matched vouch for the one that did not -- the second
+        // table is dropped and nothing is reported. Only the in-bucket ordinal comparison separates
+        // them; the digest is deliberately case-insensitive, so they always share a bucket.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection
+            {
+                IncludeColumns = ["NAME"],
+                Comparison = StringComparison.Ordinal,
+            },
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["NAME"], [["rendered"]]);
+        options.Projection = new MarkoutProjection
+        {
+            IncludeColumns = ["Name"],
+            Comparison = StringComparison.Ordinal,
+        };
+        writer.WriteTable(["NAME"], [["silently lost"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("No columns matched projection: Name", ex.Message);
+    }
+
+    [Fact]
+    public void Projection_TheSelectionProbeCounter_CountsCandidatesInspected()
+    {
+        // The counter the distribution gate reads is itself a mechanism, and a counter stuck at
+        // zero satisfies any upper bound. Re-offering one selection forces exactly the lookup the
+        // counter exists to measure: the second offer must find the first in its bucket.
+        var projection = new MarkoutProjection { IncludeColumns = ["A"] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["v"]]);
+        var afterFirst = writer.ProjectionSelectionProbeCount;
+        writer.WriteTable(["A"], [["v"]]);
+
+        Assert.Equal(0, afterFirst);
+        Assert.True(
+            writer.ProjectionSelectionProbeCount > afterFirst,
+            $"Re-offering a selection inspected no candidate: {writer.ProjectionSelectionProbeCount}");
+    }
+
     [Fact]
     public void Projection_ManyDistinctSelections_DoNotTurnLookupIntoAScan()
     {
         // The digest exists to keep lookup off a scan of every selection already seen. A digest that
         // stopped distributing would leave every verdict correct and every gate green while turning
         // a document that retargets per table quadratic, so the cost is asserted directly.
+        //
+        // The selections share BOTH their first and their last name, so a digest degraded to any one
+        // position -- not merely to a constant -- collapses them into one bucket. Distribution has to
+        // come from the whole name sequence, which is what identity is.
         const int Offers = 5_000;
-        var projection = new MarkoutProjection { IncludeColumns = ["S0"] };
+        var projection = new MarkoutProjection { IncludeColumns = ["Head", "S0", "Tail"] };
         var options = new MarkoutWriterOptions { Projection = projection };
         var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
 
         for (int i = 0; i < Offers; i++)
         {
-            projection.IncludeColumns = [$"S{i}"];
-            writer.WriteTable([$"S{i}"], [["v"]]);
+            projection.IncludeColumns = ["Head", $"S{i}", "Tail"];
+            writer.WriteTable(["Head", $"S{i}", "Tail"], [["a", "b", "c"]]);
         }
 
         Assert.Equal(Offers, writer.ProjectionSelectionCount);
         Assert.InRange(writer.ProjectionSelectionProbeCount, 0, Offers * 4L);
     }
 
+    [Fact]
+    public void Projection_AnEmptyAllowList_IsNotOfferedToAnExcludedSection()
+    {
+        // The empty-list check sits above the zero-column return but BELOW the section-exclusion
+        // return, and that order is the contract: a table in an excluded section is not written, so
+        // the projection is never offered to it and has nothing to be wrong about. Hoisting the
+        // check any higher would make a document fail because of a section its author excluded.
+        var options = new MarkoutWriterOptions
+        {
+            IncludeSections = ["kept"],
+            Projection = new MarkoutProjection { IncludeColumns = [] },
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteHeading(2, "dropped");
+
+        Assert.True(writer.WriteTable(["A"], [["v"]]));
+        Assert.True(writer.WriteTableStart(["A"]));
+    }
+
+    [Fact]
+    public void Projection_AnEmptyAllowList_IsNotOfferedToAFormatterThatHasNoTables()
+    {
+        // Below the capability return for the same reason: a formatter that cannot write a table is
+        // never asked to, so no projection is offered and an empty one is not this call's problem.
+        // Both entry points report the table unwritten rather than throwing.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = [] } };
+        var writer = MarkoutWriter.Create(new DiagramFormatter(), options);
+
+        Assert.False(writer.WriteTable(["A"], [["v"]]));
+        Assert.False(writer.WriteTableStart(["A"]));
+    }
 
     [Fact]
     public void Table_StreamingHeadersContainingTableSyntax_AreEscaped()

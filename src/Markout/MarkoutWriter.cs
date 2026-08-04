@@ -1927,11 +1927,15 @@ public class MarkoutWriter
     // collision -- a guard nothing can exercise, which is a guard no test can defend. Keying on the
     // names puts that pair in one bucket, where the guard is the only thing separating them and any
     // test of it is a test of the code that actually runs.
+    //
+    // It hashes those names case-insensitively for the same reason: a selection IS case-sensitive,
+    // but the exact test belongs in one place, and a key coarser than the answer is what keeps it
+    // reachable. Two mechanisms that each suffice leave neither one gated.
     internal static int SelectionDigest(IReadOnlyList<string> names)
     {
         var digest = new HashCode();
         foreach (var name in names)
-            digest.Add(name, StringComparer.Ordinal);
+            digest.Add(name, StringComparer.OrdinalIgnoreCase);
         return digest.ToHashCode();
     }
 
@@ -1940,7 +1944,21 @@ public class MarkoutWriter
         _offeredLists ??= [];
         _offeredOrder ??= [];
 
-        var key = SelectionDigest(requested);
+        // Snapshotted ONCE, up front, and everything below reads only the snapshot.
+        //
+        // IncludeColumns is an interface the caller implements, so its Count and its contents are
+        // whatever the caller's type says they are at the moment each is asked -- and they need not
+        // agree with each other or stay the same between two reads. Deriving the key from one read
+        // and then comparing against another let a list whose Count disagreed with what it yielded
+        // land in a bucket it did not belong to, where the entry it matched was indexed past its
+        // end. Reading a hostile or simply buggy implementation once turns that into a plain
+        // sequence of strings before it can be inconsistent with itself, and it is the same read
+        // that the reported message quotes, so the diagnostic names the request that was keyed.
+        var snapshot = new string[requested.Count];
+        for (int i = 0; i < snapshot.Length; i++)
+            snapshot[i] = requested[i];
+
+        var key = SelectionDigest(snapshot);
         if (!_offeredLists.TryGetValue(key, out var bucket))
         {
             bucket = [];
@@ -1954,36 +1972,26 @@ public class MarkoutWriter
             // The comparison test is gated: the digest keys on the names alone, so two selections
             // differing only in comparison share this bucket and this line is the only thing
             // separating them.
-            //
-            // The length test is DECLARED DEFENCE IN DEPTH, and is deliberately not gated. Two
-            // selections of different length share a bucket only under a digest collision, and it
-            // would additionally have to be a collision in which the shorter selection is a prefix
-            // of the longer -- anything else is separated by the name comparison below. A test
-            // cannot construct that pair: collisions here are found by search, and searching for
-            // one constrained to a prefix relation is a 2^32 search per candidate rather than a
-            // birthday search. Removing this line therefore leaves the suite green, and that is a
-            // limit of what is reachable, not evidence the line is unnecessary -- without it the
-            // shorter of such a pair would silently reuse the longer's record.
-            if (candidate.Comparison != comparison || candidate.Requested.Length != requested.Count)
+            if (candidate.Comparison != comparison)
                 continue;
 
-            var same = true;
-            for (int i = 0; i < requested.Count; i++)
-            {
-                if (!string.Equals(candidate.Requested[i], requested[i], StringComparison.Ordinal))
-                {
-                    same = false;
-                    break;
-                }
-            }
-
-            if (same)
+            // One call, so that length and contents cannot be weakened separately: a hand-written
+            // loop kept its length test in a line of its own, reachable only through a collision
+            // and therefore impossible to gate, while nothing stopped that line from being deleted.
+            // SequenceEqual decides both, and the collision gates decide SequenceEqual.
+            //
+            // The comparer is ordinal because identity of a request is exact, and this line is the
+            // only thing that makes it so: the digest deliberately hashes case-insensitively, which
+            // is coarser than the answer, so ["NAME"] and ["Name"] always share this bucket and
+            // arrive here. Hashing ordinally as well would be the more obvious spelling and would
+            // be strictly worse -- it would separate them before this line ran, leaving two
+            // mechanisms that each suffice and therefore neither one a test can reach. A coarse key
+            // and one exact test beats two exact ones.
+            if (candidate.Requested.AsSpan().SequenceEqual(snapshot, StringComparer.Ordinal))
                 return candidate;
         }
 
-        // Snapshot, so the message reports the request as it was made rather than whatever the
-        // caller's list happens to hold when the document is finished.
-        var entry = new ProjectionListReach { Requested = [.. requested], Comparison = comparison };
+        var entry = new ProjectionListReach { Requested = snapshot, Comparison = comparison };
         bucket.Add(entry);
         _offeredOrder.Add(entry);
         return entry;
