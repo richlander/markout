@@ -529,7 +529,15 @@ internal static class TypeParser
 
         // A collection rendered as a table (ComplexArray without nested subsections) emits a fixed
         // header row up front, so a row type whose properties are all ignored/section-ignored/child
-        // flags produces zero headers and throws at runtime. Reject it at compile time (MARKOUT006).
+        // flags produces zero headers and renders nothing at all -- a populated collection that
+        // serializes to an empty document. Reject it at compile time (MARKOUT006), where the
+        // author can see it. This used to say the runtime throws; it no longer does, because a
+        // zero-column table now returns early rather than emitting a "|"/"|" husk, which makes
+        // catching it here the only thing standing between the author and silent empty output.
+        //
+        // Unverified: no test covers this diagnostic, and a row type with NO properties at all
+        // slips past the Count > 0 test below and reaches exactly that silent empty output. Both
+        // gaps predate MarkoutTable and are tracked separately.
         if (kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
             elementProperties is { Count: > 0 })
         {

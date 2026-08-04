@@ -1213,7 +1213,7 @@ public class MarkoutWriter
         if (headerNameArray != null && headerNameArray.Length != headerArray.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        ThrowIfProjectionSelectsNothing();
+        var projection = BeginProjection(out var selection);
 
         // A table with no columns has no Markdown spelling -- rendering one emits a "|"/"|" husk
         // that is not a table. Guarded here rather than at each overload so every buffered caller
@@ -1232,9 +1232,9 @@ public class MarkoutWriter
         // sequences that are expensive, infinite, or invalid for a table that was never going
         // to render.
         int[]? columnMap = null;
-        if (_options.Projection is { } projection)
+        if (projection is not null)
         {
-            if (!ResolveProjectedColumns(projection, headerArray, headerNameArray ?? headerArray, out columnMap))
+            if (!ResolveProjectedColumns(projection, selection, headerArray, headerNameArray ?? headerArray, out columnMap))
                 return true;
         }
 
@@ -1326,7 +1326,7 @@ public class MarkoutWriter
         if (headerNames.Length > 0 && headerNames.Length != headers.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        ThrowIfProjectionSelectsNothing();
+        var projection = BeginProjection(out var selection);
 
         // A table with no columns renders nothing, exactly as the buffered path does. Throwing here
         // instead made the two entry points disagree about the same table: generated code hides
@@ -1337,12 +1337,12 @@ public class MarkoutWriter
         if (headers.Length == 0)
             return true;
 
-        if (_options.Projection is { } projection)
+        if (projection is not null)
         {
             // See WriteTableCore: a table matching none of the projection contributes nothing, and
             // leaving _tableWriter null is what suppresses the rows that follow.
             var offeredNames = headerNames.Length > 0 ? headerNames : headers;
-            if (!ResolveProjectedColumns(projection, headers, offeredNames, out _columnMap))
+            if (!ResolveProjectedColumns(projection, selection, headers, offeredNames, out _columnMap))
                 return true;
         }
         string[]? projectedHeaderNames = null;
@@ -1821,30 +1821,17 @@ public class MarkoutWriter
 
     private bool ResolveProjectedColumns(
         MarkoutProjection projection,
+        string[]? requested,
         ReadOnlySpan<string> headers,
         ReadOnlySpan<string> headerNames,
         out int[]? columnMap)
     {
         columnMap = null;
 
-        // Read the caller's allow list ONCE, here, and hand that one array to everything below.
-        // The matcher decides what the request selects and the reach entry records whether it ever
-        // selected anything; they are two consumers of one request, and if each reads
-        // IncludeColumns for itself a list that answers differently on each read can be a typo to
-        // the matcher and an already-credited selection to the reach entry -- which suppresses the
-        // diagnostic and drops the table in silence. Snapshotting inside GetListReach was not
-        // enough, because the split had already happened by then.
-        var requested = projection.IncludeColumns is { } includeColumns
-            ? MarkoutProjection.SnapshotSelection(includeColumns)
-            : null;
-
-        // Judged on the snapshot, not on Count. The eager check at the entry point reads Count,
-        // which a list is free to answer one way there and another way here; a list claiming one
-        // name and yielding none slipped past it and reached finalization as a diagnostic naming
-        // no column at all. What the request turned out to BE is decided here, once.
-        if (requested is { Length: 0 })
-            ThrowProjectionSelectsNothing();
-
+        // The request arrived already read. Snapshotting here was still one read too late and
+        // one read too many: the entry point has to judge an empty allow list before the
+        // zero-column return, so it must have the names in hand by then anyway, and taking them
+        // again here would be a second read of a source that need not answer twice the same.
         var resolution = projection.ResolveColumns(headers, headerNames, requested);
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
@@ -1880,9 +1867,17 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Rejects an empty allow list at the write site.
+    /// Reads this table's allow list once, and rejects it if it selects nothing.
     /// </summary>
     /// <remarks>
+    /// One read per table, taken here because this is the earliest point that needs it and every
+    /// later consumer needs the same answer. IncludeColumns is an interface, so Count and the
+    /// names it yields are separate questions a caller's type need not answer consistently, or
+    /// answer twice the same; asking more than once let the matcher and the record of what matched
+    /// disagree about which request was even made, and a table went missing with no diagnostic.
+    /// Enumeration is the definitive read, because it is the one that yields the names, so
+    /// emptiness is judged on what came out rather than on a Count that only claims.
+    ///
     /// An empty allow list selects nothing, and unlike a list that simply missed this table it
     /// cannot be a legitimate request: there is no name in it to match anything, in this table or
     /// any other. It is a property of the projection alone, so it is reported where the projection
@@ -1895,10 +1890,21 @@ public class MarkoutWriter
     /// zero-column table records no selection for finalization to report later. Deciding it here
     /// also keeps the two entry points agreeing about the same projection.
     /// </remarks>
-    private void ThrowIfProjectionSelectsNothing()
+    private MarkoutProjection? BeginProjection(out string[]? selection)
     {
-        if (_options.Projection?.IncludeColumns is { Count: 0 })
-            ThrowProjectionSelectsNothing();
+        selection = null;
+        var projection = _options.Projection;
+        if (projection is null)
+            return null;
+
+        if (projection.IncludeColumns is { } includeColumns)
+        {
+            selection = MarkoutProjection.SnapshotSelection(includeColumns);
+            if (selection.Length == 0)
+                ThrowProjectionSelectsNothing();
+        }
+
+        return projection;
     }
 
     [DoesNotReturn]

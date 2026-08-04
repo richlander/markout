@@ -1014,6 +1014,100 @@ public class GeneratedTableTests
         Assert.Throws<ArgumentNullException>(() => writer.WriteTable((MarkoutTable)null!));
     }
 
+
+    // Counts how many times the writer actually reads it.
+    private sealed class CountingNameList(params string[] items) : IReadOnlyList<string>
+    {
+        public int Reads { get; private set; }
+
+        public int Count => items.Length;
+
+        public string this[int index] => items[index];
+
+        public IEnumerator<string> GetEnumerator()
+        {
+            Reads++;
+            return ((IEnumerable<string>)items).GetEnumerator();
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Fact]
+    public void Projection_ARequestIsReadOncePerTable_OnBothEntryPoints()
+    {
+        // "Read exactly once" is stronger than "every consumer agrees", and only the stronger form
+        // rules out a second enumeration that throws, blocks, or costs something. Counting the
+        // reads is the only way to see the difference: an extra read that happens to agree changes
+        // no output at all.
+        var selection = new CountingNameList("A");
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = selection } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["buffered"]]);
+        Assert.Equal(1, selection.Reads);
+
+        writer.WriteTableStart(["A"]);
+        writer.WriteTableRow("streamed");
+        writer.WriteTableEnd();
+        Assert.Equal(2, selection.Reads);
+
+        // A table the projection skips entirely is still one read, not zero and not two.
+        writer.WriteTable(["Other"], [["skipped"]]);
+        Assert.Equal(3, selection.Reads);
+    }
+
+    [Fact]
+    public void Projection_AListClaimingNoNamesButYieldingOne_IsNotRejectedAsEmpty()
+    {
+        // Emptiness is decided by what the list hands over, so a Count of zero cannot veto a name
+        // the list then yields. Judging it on Count rejected this request as empty while the
+        // matcher went on to use the name -- the two halves disagreeing about the same list, in
+        // the direction that turns a real request into an exception.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = new InconsistentNameList(0, "Typo") },
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["silently lost"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("No columns matched projection: Typo", ex.Message);
+    }
+
+
+    [Fact]
+    public void Projection_AnExactNameMatchingTwoColumns_ProjectsOnlyTheFirst()
+    {
+        // An exact name stops at its first column. The claimed set only helps when ONE index is
+        // hit twice, so it does not cover this: here one name matches TWO indices, and without the
+        // stop both are projected. That is the duplicate-key shape MarkoutTable rejects at
+        // construction, re-created after projection, where structured output emits one key twice
+        // and a consumer recovers a single value from it.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["A"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A", "A"], [["first", "second"]]);
+
+        var output = writer.ToString();
+        Assert.Equal("| A |\n| - |\n| first |", output);
+    }
+
+    [Fact]
+    public void Projection_AGlobMatchingTwoColumns_ProjectsBoth()
+    {
+        // The other side of the same line: a glob is a pattern, not a name, so it keeps going and
+        // takes every column it matches. Deleting the stop would make an exact name behave like
+        // this one, which is what makes the two cases worth pinning together.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["A*"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["Ax", "Ay", "B"], [["1", "2", "3"]]);
+
+        Assert.Equal("| Ax | Ay |\n| -- | -- |\n| 1 | 2 |", writer.ToString());
+    }
+
     [Fact]
     public void Projection_TheSelectionProbeCounter_CountsCandidatesInspected()
     {
