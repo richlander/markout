@@ -868,7 +868,13 @@ internal static class SerializerEmitter
                 break;
 
             case PropertyKind.Table:
-                sb.AppendLine($"{indent}if ({propAccess} != null && !{propAccess}.IsEmpty)");
+                // No IsEmpty test here, unlike the section path above, where it is what suppresses
+                // a heading over nothing. Outside a section it decided nothing the writer does not
+                // already decide -- WriteTable returns on a zero-column table -- and the two
+                // spellings did not agree about everything: skipping the call also skipped the
+                // projection, so generated code accepted an empty allow list that a hand-written
+                // WriteTable of the same table rejects. Letting the call through keeps one rule.
+                sb.AppendLine($"{indent}if ({propAccess} != null)");
                 sb.AppendLine($"{indent}    writer.WriteTable({propAccess});");
                 break;
 

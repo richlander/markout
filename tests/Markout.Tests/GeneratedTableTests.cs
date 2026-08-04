@@ -17,6 +17,20 @@ public partial class TableContext : MarkoutSerializerContext
 {
 }
 
+// A runtime-column table that is NOT wrapped in a section, so nothing suppresses the write call
+// on the model's behalf and the writer's own rules are the only ones that apply.
+[MarkoutSerializable]
+public class BareTableContainer
+{
+    [MarkoutIgnoreInTable]
+    public MarkoutTable? Body { get; set; }
+}
+
+[MarkoutContext(typeof(BareTableContainer))]
+public partial class BareTableContext : MarkoutSerializerContext
+{
+}
+
 // A model element whose section name is a runtime value, carrying a runtime-column table body.
 // Unwrapped as a top-level list, each element becomes its own level-2 section — the "dynamic set
 // of named sections" capability — and its table participates in ordering, windowing, and
@@ -687,11 +701,33 @@ public class GeneratedTableTests
     // indexing it yields, or one that answers differently on each read. Neither is exotic: the first
     // is an ordinary bug in a custom collection, and the second is what a lazily-populated list
     // looks like from the writer's side.
-    private sealed class InconsistentNameList(int declaredCount, params string[] items) : IReadOnlyList<string>
+    // Implements ICollection<string> as well as IReadOnlyList<string> ON PURPOSE. A list that only
+    // implements IReadOnlyList cannot gate "nothing reads Count", because the obvious refactor to
+    // Enumerable.ToArray falls back to plain enumeration for it and looks correct. ICollection is
+    // what arms ToArray's Count fast path, so this type fails any consumer that trusts Count --
+    // which is the whole property.
+    private sealed class InconsistentNameList(int declaredCount, params string[] items)
+        : IReadOnlyList<string>, ICollection<string>
     {
         public int Count => declaredCount;
 
+        public bool IsReadOnly => true;
+
         public string this[int index] => items[index % items.Length];
+
+        public void CopyTo(string[] array, int arrayIndex)
+        {
+            for (int i = 0; i < declaredCount; i++)
+                array[arrayIndex + i] = this[i];
+        }
+
+        public bool Contains(string item) => Array.IndexOf(items, item) >= 0;
+
+        public void Add(string item) => throw new NotSupportedException();
+
+        public void Clear() => throw new NotSupportedException();
+
+        public bool Remove(string item) => throw new NotSupportedException();
 
         public IEnumerator<string> GetEnumerator() => ((IEnumerable<string>)items).GetEnumerator();
 
@@ -1106,6 +1142,67 @@ public class GeneratedTableTests
         writer.WriteTable(["Ax", "Ay", "B"], [["1", "2", "3"]]);
 
         Assert.Equal("| Ax | Ay |\n| -- | -- |\n| 1 | 2 |", writer.ToString());
+    }
+
+
+    [Fact]
+    public void Streaming_AProjectionNamingAStableName_MatchesItThere()
+    {
+        // The streaming entry point offers stable names to the matcher when it has them, exactly
+        // as the buffered one does. Offering the display headers instead would make a projection
+        // written against the canonical keys -- the ones structured output actually emits -- miss
+        // every table on this path while matching on the other.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["ReturnType"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart(["Name", "Return Type"], ["Name", "ReturnType"]);
+        writer.WriteTableRow("Parse", "int");
+        writer.WriteTableEnd();
+
+        Assert.Equal("| Return Type |\n| ----------- |\n| int |", writer.ToString());
+    }
+
+    [Fact]
+    public void Projection_NamingOnlyFields_LeavesTablesWhole()
+    {
+        // A projection that names fields but no columns says nothing about columns, so every table
+        // renders in full. Treating "no column projection" as a miss would suppress the table
+        // outright -- and, because it never reaches the matcher, without any diagnostic either.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeFields = ["Kept"] } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A", "B"], [["1", "2"]]);
+
+        Assert.Equal("| A | B |\n| - | - |\n| 1 | 2 |", writer.ToString());
+    }
+
+
+    [Fact]
+    public void GeneratedTable_OutsideASection_RendersNothingWhenItHasNoColumns()
+    {
+        // The writer's own zero-column rule covers this, so the emitter does not repeat it. Two
+        // spellings of one rule are one rule too many: whichever is removed, the output is the
+        // same, so neither can be gated.
+        var model = new BareTableContainer { Body = new MarkoutTable([], [], []) };
+
+        Assert.Equal("", MarkoutSerializer.Serialize(model, BareTableContext.Default));
+    }
+
+    [Fact]
+    public void GeneratedTable_OutsideASection_RejectsAnEmptyAllowListLikeAnyOtherCaller()
+    {
+        // Where the two spellings DID differ: skipping the write call on the model's behalf also
+        // skipped the projection, so generated code quietly accepted an allow list that can never
+        // select anything while a hand-written WriteTable of the same table rejected it. Whether a
+        // projection can ever select anything is a property of the projection, not of how many
+        // columns the table in hand happens to have.
+        var model = new BareTableContainer { Body = new MarkoutTable([], [], []) };
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = [] } };
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => MarkoutSerializer.Serialize(model, BareTableContext.Default, options));
+
+        Assert.StartsWith("Projection selected no columns", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
