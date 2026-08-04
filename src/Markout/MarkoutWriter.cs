@@ -1232,6 +1232,15 @@ public class MarkoutWriter
         // never project -- 20,000 five-column tables measured 26 ms against 32 ms without it, which
         // is noise -- because the universe is deduplicated and stays the size of the distinct
         // column set.
+        // Rows are materialized before the columns are recorded, and before the projection is
+        // consulted, because a lazy sequence that throws part-way aborts the table: recording
+        // first would leave the universe claiming columns the document never rendered, and excuse
+        // a genuine typo that happens to name one of them. Fail-open is the one direction this
+        // diagnostic must never take. The cost is that a table the projection drops entirely still
+        // enumerates its rows -- free for the list or array callers actually pass, and correctness
+        // is worth more than a lazy-enumeration shortcut on a table that renders nothing.
+        var rowList = rows as IList<string[]> ?? rows.ToList();
+
         int[]? columnMap = null;
         RecordProjectedTable(headerArray, headerNameArray ?? headerArray);
         if (_options.Projection is { } projection)
@@ -1246,8 +1255,6 @@ public class MarkoutWriter
                 headerNameArray = MarkoutProjection.ProjectHeaders(headerNameArray, columnMap);
         }
 
-        // Materialize and project rows
-        var rowList = rows as IList<string[]> ?? rows.ToList();
         if (columnMap != null)
         {
             var projected = new List<string[]>(rowList.Count);
@@ -1339,8 +1346,17 @@ public class MarkoutWriter
 
         // See WriteTableCore: a table matching none of the projection contributes nothing.
         // Leaving _tableWriter null is what suppresses the rows that follow.
-        // See WriteTableCore: recorded for the document, not for the projection currently set.
-        RecordProjectedTable(headers, headerNames.Length > 0 ? headerNames : headers);
+        //
+        // Recorded for the document, not for the projection currently set -- but staged here and
+        // committed in WriteTableEnd rather than recorded now. A streaming table is not bytes until
+        // it ends: with TableOptions set the Markdown table writer buffers the whole table and
+        // emits nothing until WriteTableEnd, so a table that is started and abandoned produces no
+        // output at all. Recording at start would put its columns in the universe anyway and excuse
+        // a typo naming one of them. A table abandoned without ending simply never commits; the
+        // cost is that an unbuffered abandoned table, whose header did reach the output, is no
+        // longer excused -- a spurious throw, which is the safe direction for a diagnostic.
+        _pendingTableHeaders = headers.ToArray();
+        _pendingTableHeaderNames = (headerNames.Length > 0 ? headerNames : headers).ToArray();
         if (_options.Projection is { } projection)
         {
             if (!ResolveProjectedColumns(projection, headers, headerNames.Length > 0 ? headerNames : headers, out _columnMap))
@@ -1456,6 +1472,13 @@ public class MarkoutWriter
     public void WriteTableEnd()
     {
         _inTable = false;
+
+        if (_pendingTableHeaders is { } pendingHeaders)
+        {
+            RecordProjectedTable(pendingHeaders, _pendingTableHeaderNames ?? pendingHeaders);
+            _pendingTableHeaders = null;
+            _pendingTableHeaderNames = null;
+        }
 
         if (!_sectionExcluded && _tableWriter != null)
         {
@@ -1947,6 +1970,10 @@ public class MarkoutWriter
     // (display header, stable name) pairs answers it, and answers it in a single probe. Keeping
     // the tables instead costs a probe per table per unmatched list, which is quadratic on a
     // document that retargets a projection per table.
+    // Headers of a streaming table that has started but not yet ended. See WriteTableStartCore.
+    private string[]? _pendingTableHeaders;
+    private string[]? _pendingTableHeaderNames;
+
     private void RecordProjectedTable(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
         _projectionColumnsSeenKeys ??= [];

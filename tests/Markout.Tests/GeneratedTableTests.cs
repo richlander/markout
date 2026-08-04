@@ -644,6 +644,100 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_ColumnsSharingADisplayHeaderButNotAStableName_AreBothInTheUniverse()
+    {
+        // The universe is keyed on the (display header, stable name) PAIR, not the display header
+        // alone. Two tables can show the same human-facing header while carrying different stable
+        // names, and a list may name either. Collapsing the key to the display header keeps only
+        // the first pair, so a list naming the second stable name is told the document never had
+        // that column -- a wrong diagnostic about a column that is plainly rendered.
+        //
+        // Reaching the universe at all requires the list to miss every table it is OFFERED: a list
+        // that matches even once is excused per table and never probes. So both same-display
+        // tables are written with the projection detached, and the only table the list sees has
+        // nothing to do with them.
+        var projection = new MarkoutProjection { IncludeColumns = ["size_pages"] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        options.Projection = null;
+        writer.WriteTable(new MarkoutTable(["Size"], ["size_bytes"], [["10"]]));
+        writer.WriteTable(new MarkoutTable(["Size"], ["size_pages"], [["2"]]));
+        options.Projection = projection;
+        writer.WriteTable(["Unrelated"], [["u"]]);
+
+        writer.Flush();
+    }
+
+    [Fact]
+    public void Projection_ColumnsOfAStreamingTableNeverEnded_DoNotExcuseATypo()
+    {
+        // The streaming sibling of the aborted buffered table, and the reason "the header was
+        // already written" is not a safe answer: with TableOptions set, the Markdown table writer
+        // buffers the entire table and emits NOTHING until WriteTableEnd. A table that is started
+        // and then abandoned therefore contributes zero bytes, so its columns must not join the
+        // universe and excuse a typo. Recording is staged at start and committed at end.
+        var projection = new MarkoutProjection { IncludeColumns = ["B"] };
+        var options = new MarkoutWriterOptions
+        {
+            Projection = projection,
+            TableOptions = new MarkdownTable.Formatting.TableFormatterOptions(),
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["a"]]);
+        options.Projection = null;
+        writer.WriteTableStart(["B"]);
+        options.Projection = projection;
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("B", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_ColumnsOfAStreamingTableThatEnded_DoCount()
+    {
+        // The negative half: a streaming table that completes normally must still put its columns
+        // in the universe, or deferring the record to WriteTableEnd would simply lose them.
+        var projection = new MarkoutProjection { IncludeColumns = ["B"] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["a"]]);
+        options.Projection = null;
+        writer.WriteTableStart(["B"]);
+        writer.WriteTableRow(["b"]);
+        writer.WriteTableEnd();
+        options.Projection = projection;
+
+        Assert.Contains("| B |", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_ColumnsOfATableThatAbortedMidRender_DoNotExcuseATypo()
+    {
+        // Rows can be a lazy sequence that throws part-way, which aborts the table: nothing of it
+        // reaches the document. Its columns must not join the universe, or a genuine typo that
+        // happens to name one of them is excused by a table the reader never sees. Every other
+        // defect in this mechanism has been fail-closed -- a spurious throw, annoying and obvious.
+        // This one is fail-open and silent, which is the direction a diagnostic must never take.
+        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["Valid"], [["v"]]);
+        Assert.Throws<InvalidOperationException>(() => writer.WriteTable(["Typo"], ThrowingRows()));
+
+        var ex = Assert.Throws<InvalidOperationException>(writer.Flush);
+        Assert.Contains("Typo", ex.Message, StringComparison.Ordinal);
+
+        static IEnumerable<string[]> ThrowingRows()
+        {
+            yield return ["val"];
+            throw new InvalidOperationException("row enumeration failed");
+        }
+    }
+
+    [Fact]
     public void Projection_ColumnsRenderedWhileTheProjectionWasDetached_StillCount()
     {
         // MarkoutWriterOptions.Projection is publicly mutable, so "was a projection set when this
@@ -1155,6 +1249,29 @@ public class GeneratedTableTests
         // be byte-for-byte what the writer produces writing those same headings and tables
         // directly — no post-processing, no reconciliation.
         var viaModel = MarkoutSerializer.Serialize(DynamicSample(), DynamicMetadataContext.Default);
+
+        // Anchored to a literal, not only to the hand-assembled document below. Both sides of that
+        // comparison route through the same WriteTable(MarkoutTable) implementation, so equality
+        // alone survives that method becoming a no-op -- the two sides simply go empty together.
+        // A literal is the independent oracle that makes the equality mean something.
+        Assert.Equal(
+            """
+            ## Metadata: #Strings
+
+            | Offset | Value |
+            | ------ | ----- |
+            | 0x1 | System |
+            | 0x8 | Object |
+            | 0x10 | String |
+
+            ## Metadata: #Blob
+
+            | Address | Length |
+            | ------- | ------ |
+            | 0x0 | 12 |
+            | 0xC | 4 |
+            """,
+            viaModel.Replace("\r\n", "\n").TrimEnd('\n'));
 
         var sw = new StringWriter();
         var writer = new MarkoutWriter(sw, new MarkdownFormatter());
