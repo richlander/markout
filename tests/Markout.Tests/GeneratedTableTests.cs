@@ -791,6 +791,64 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_ColumnsOfAStreamingTableWhoseStartFailed_DoNotExcuseATypo()
+    {
+        // A formatter can throw out of BeginTable, and then the table has produced nothing at all --
+        // not even the header a successful unbuffered start would have emitted. Staging the table's
+        // columns before attempting the start left that evidence behind for WriteTableEnd to
+        // commit, so a table that wrote zero bytes excused a typo naming one of its columns. The
+        // staging now happens only after the start has succeeded, which is the only point at which
+        // the table is real.
+        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
+        var writer = MarkoutWriter.Create(new ThrowingStartFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart(["Typo"]));
+        writer.WriteTableEnd();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Streaming_ATableWhoseStartFailed_WritesNothingForItsRowsOrEnd()
+    {
+        // A start that throws must leave no half-open table behind. Keeping the table writer meant
+        // the rows and the end that followed wrote into a table that never had a header, emitting
+        // fragments of a table the formatter had already refused. The caller is at fault for
+        // continuing after a throw, but the bytes are the writer's to not produce.
+        var writer = MarkoutWriter.Create(new ThrowingStartFormatter());
+
+        Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart(["A"]));
+        writer.WriteTableRow(["a"]);
+        writer.WriteTableEnd();
+
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Fact]
+    public void Projection_AStreamingTableTheProjectionDropped_JoinsTheUniverseWithoutAnEnd()
+    {
+        // A streaming table the projection drops renders nothing and can never render anything, so
+        // its outcome is decided the instant the projection misses -- decision point one, exactly
+        // as on the buffered path. Staging that outcome instead of recording it made the record
+        // wait for a WriteTableEnd that a caller is under no obligation to call, and finalization
+        // then probed an unmatched list against a universe missing a column the document really
+        // does offer. "B" below is not a typo; it is a selection the caller installed at the wrong
+        // table, which the design excuses. Withholding it turned a retarget into a diagnostic.
+        var projection = new MarkoutProjection();
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        projection.IncludeColumns = ["B"];
+        writer.WriteTable(["A"], [["a"]]);   // "B" is offered here and misses
+        projection.IncludeColumns = ["C"];
+        writer.WriteTable(["C"], [["c"]]);
+        writer.WriteTableStart(["B"]);        // "C" misses "B"; never ended
+
+        Assert.Contains("| c |", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Projection_ColumnsOfATableThatAbortedMidRender_DoNotExcuseATypo()
     {
         // Rows can be a lazy sequence that throws part-way, which aborts the table: nothing of it
@@ -975,6 +1033,33 @@ public class GeneratedTableTests
         public override string Name { get; } = name;
 
         public override CompareInfo CompareInfo { get; } = inner.CompareInfo;
+    }
+
+    [Fact]
+    public void Projection_ManyRetargetedMatchingStreamingLists_AreCreditedWithoutProbing()
+    {
+        // The streaming twin of the buffered gate below. Crediting a match is a separate line of
+        // code on each path, and the streaming one was asserting nothing: removing it left every
+        // test green, because finalization fell back to probing the universe -- which still
+        // contains the columns -- and reached the same verdict the long way round. Correct output,
+        // silently abandoned design. Only a structural claim catches that, so this asserts the same
+        // thing its buffered twin does: a list that matched the table it was offered leaves
+        // finalization with nothing to ask.
+        const int Tables = 20_000;
+        var projection = new MarkoutProjection();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        for (int i = 0; i < Tables; i++)
+        {
+            projection.IncludeColumns = ["C" + i];
+            writer.WriteTableStart(["C" + i]);
+            writer.WriteTableRow(["v"]);
+            writer.WriteTableEnd();
+        }
+
+        _ = writer.ToString();
+
+        Assert.Equal(Tables, writer.ProjectionResolveCount);
     }
 
     [Fact]
@@ -1368,4 +1453,18 @@ public class GeneratedTableTests
         // identical. Normalize only that terminator.
         Assert.Equal(viaHand.TrimEnd('\n'), viaModel.TrimEnd('\n'));
     }
+}
+
+/// <summary>
+/// A streaming formatter whose BeginTable throws, so a table can be started and produce nothing at
+/// all -- not even the header an unbuffered start normally emits immediately.
+/// </summary>
+internal sealed class ThrowingStartFormatter : IMarkoutFormatter, IStreamingTableFormatter
+{
+    public void BeginTable(TextWriter writer, ReadOnlySpan<string> headers, MarkoutWriterOptions options)
+        => throw new InvalidOperationException("begin formatter failed");
+
+    public void WriteRow(TextWriter writer, ReadOnlySpan<string> values) => writer.Write("[ROW]");
+
+    public void EndTable(TextWriter writer, int skippedRows) => writer.Write("[END]");
 }

@@ -1374,23 +1374,28 @@ public class MarkoutWriter
         if (headers.Length == 0)
             return true;
 
-        // See WriteTableCore: a table matching none of the projection contributes nothing.
-        // Leaving _tableWriter null is what suppresses the rows that follow.
-        //
-        // Recorded for the document, not for the projection currently set -- but staged here and
-        // committed in WriteTableEnd rather than recorded now. A streaming table is not bytes until
-        // it ends: with TableOptions set the Markdown table writer buffers the whole table and
-        // emits nothing until WriteTableEnd, so a table that is started and abandoned produces no
-        // output at all. Recording at start would put its columns in the universe anyway and excuse
-        // a typo naming one of them. A table abandoned without ending simply never commits; the
-        // cost is that an unbuffered abandoned table, whose header did reach the output, is no
-        // longer excused -- a spurious throw, which is the safe direction for a diagnostic.
-        _pendingTableHeaders = headers.ToArray();
-        _pendingTableHeaderNames = (headerNames.Length > 0 ? headerNames : headers).ToArray();
+        // The same two decision points the buffered path uses, split across two calls. A table's
+        // columns join the universe, and its list is credited, only once the table's outcome is
+        // decided -- never in between, because anything in between can still abort the table, and
+        // an aborted table contributes no bytes and so must contribute no evidence.
+        var offeredHeaders = headers.ToArray();
+        var offeredNames = (headerNames.Length > 0 ? headerNames : headers).ToArray();
+        ProjectionReach? matchedReach = null;
         if (_options.Projection is { } projection)
         {
-            if (!ResolveProjectedColumns(projection, headers, headerNames.Length > 0 ? headerNames : headers, out _columnMap, out _pendingMatchedReach))
+            // See WriteTableCore: a table matching none of the projection contributes nothing, and
+            // leaving _tableWriter null is what suppresses the rows that follow. This is decision
+            // point one, and it is final the instant it is taken -- there is no render left to
+            // fail -- so it records here rather than staging. Staging it instead made the record
+            // wait for a WriteTableEnd the caller is under no obligation to call: a table the
+            // projection dropped and the caller then abandoned kept its columns out of the
+            // universe, and a later list naming one of them was diagnosed as a typo against a
+            // document that does have the column.
+            if (!ResolveProjectedColumns(projection, headers, offeredNames, out _columnMap, out matchedReach))
+            {
+                RecordProjectedTable(offeredHeaders, offeredNames);
                 return true;
+            }
         }
         string[]? projectedHeaderNames = null;
         if (headerNames.Length > 0)
@@ -1400,24 +1405,50 @@ public class MarkoutWriter
                 projectedHeaderNames = MarkoutProjection.ProjectHeaders(projectedHeaderNames, _columnMap);
         }
 
-        EnsureBlankLineIfNeeded();
-        _tableWriter = CreateTableWriter();
-        if (_columnMap != null)
+        // A start that throws leaves no table behind. Clearing the writer is what keeps the rows
+        // and the end that follow from writing into a table that never began, and it is why
+        // nothing below this point can be reached by a failed start.
+        try
         {
-            var projectedHeaders = MarkoutProjection.ProjectHeaders(headers, _columnMap);
-            if (projectedHeaderNames != null)
-                _tableWriter.WriteTableStart(projectedHeaders, projectedHeaderNames);
+            EnsureBlankLineIfNeeded();
+            _tableWriter = CreateTableWriter();
+            if (_columnMap != null)
+            {
+                var projectedHeaders = MarkoutProjection.ProjectHeaders(headers, _columnMap);
+                if (projectedHeaderNames != null)
+                    _tableWriter.WriteTableStart(projectedHeaders, projectedHeaderNames);
+                else
+                    _tableWriter.WriteTableStart(projectedHeaders);
+            }
+            else if (projectedHeaderNames != null)
+            {
+                _tableWriter.WriteTableStart(headers, projectedHeaderNames);
+            }
             else
-                _tableWriter.WriteTableStart(projectedHeaders);
+            {
+                _tableWriter.WriteTableStart(headers);
+            }
         }
-        else if (projectedHeaderNames != null)
+        catch
         {
-            _tableWriter.WriteTableStart(headers, projectedHeaderNames);
+            _tableWriter = null;
+            _columnMap = null;
+            throw;
         }
-        else
-        {
-            _tableWriter.WriteTableStart(headers);
-        }
+
+        // Decision point two is WriteTableEnd, so the table is staged rather than recorded: a
+        // streaming table is not bytes until it ends, because with TableOptions set the Markdown
+        // table writer buffers the whole table and emits nothing until then. Staging after the
+        // start succeeded, rather than before it is attempted, is what keeps a formatter that
+        // throws in BeginTable from leaving evidence behind for WriteTableEnd to commit -- a
+        // table that produced nothing at all, excusing a typo naming one of its columns.
+        //
+        // A table abandoned without ending simply never commits. The cost is that an unbuffered
+        // abandoned table, whose header did reach the output, is no longer excused -- a spurious
+        // throw, which is the safe direction for a diagnostic.
+        _pendingTableHeaders = offeredHeaders;
+        _pendingTableHeaderNames = offeredNames;
+        _pendingMatchedReach = matchedReach;
 
         // A started table is content, not only a finished one. Deferring this to
         // WriteTableEnd left a table the caller never closed writing characters that
