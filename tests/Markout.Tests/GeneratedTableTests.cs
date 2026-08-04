@@ -593,6 +593,250 @@ public class GeneratedTableTests
 
 
 
+
+    // A colliding pair cannot be written down: HashCode is seeded per process, so the pair that
+    // collides today does not collide on the next run. Each axis of in-bucket identity therefore
+    // finds its own pair now, by filling a table with one family's digests and probing the other
+    // family until it lands in an occupied bucket. Expected probes are 2^32/40000, a few hundred
+    // thousand; the bound below is far beyond any plausible run.
+    private static (StringComparison Comparison, string[] Names) FindColliding(
+        Func<int, (StringComparison Comparison, string[] Names)> family,
+        Func<int, (StringComparison Comparison, string[] Names)> probeFamily,
+        out (StringComparison Comparison, string[] Names) collidesWith)
+    {
+        var seen = new Dictionary<int, (StringComparison Comparison, string[] Names)>();
+        for (int i = 0; i < 40_000; i++)
+        {
+            var candidate = family(i);
+            seen[MarkoutWriter.SelectionDigest(candidate.Names)] = candidate;
+        }
+
+        for (int i = 0; i < 50_000_000; i++)
+        {
+            var candidate = probeFamily(i);
+            if (seen.TryGetValue(MarkoutWriter.SelectionDigest(candidate.Names), out var hit))
+            {
+                collidesWith = hit;
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException("No digest collision found; the search bound is wrong.");
+    }
+
+    // Offers the matching selection first so its credit is the thing a confused identity would hand
+    // to the second, then offers the second to a table it names nothing in. Separated correctly, the
+    // second is unsatisfied and reported; confused, its table vanishes with no diagnostic at all.
+    private static void AssertSeparated(
+        (StringComparison Comparison, string[] Names) matching,
+        (StringComparison Comparison, string[] Names) missing)
+    {
+        Assert.Equal(
+            MarkoutWriter.SelectionDigest(matching.Names),
+            MarkoutWriter.SelectionDigest(missing.Names));
+
+        var projection = new MarkoutProjection
+        {
+            Comparison = matching.Comparison,
+            IncludeColumns = matching.Names,
+        };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(matching.Names, [[.. matching.Names.Select(_ => "matched")]]);
+        projection.Comparison = missing.Comparison;
+        projection.IncludeColumns = missing.Names;
+        writer.WriteTable(["Unrelated"], [["silently lost"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal($"No columns matched projection: {string.Join(", ", missing.Names)}", ex.Message);
+    }
+
+    [Fact]
+    public void Projection_ACollidingPairOfDifferentLengths_IsStillSeparated()
+    {
+        // Asking for one column and asking for two are different requests even when their digests
+        // agree, so in-bucket identity must compare length rather than assume the digest did.
+        var missing = FindColliding(
+            i => (StringComparison.Ordinal, [$"C{i}"]),
+            i => (StringComparison.Ordinal, ["Shared", $"D{i}"]),
+            out var matching);
+
+        Assert.NotEqual(matching.Names.Length, missing.Names.Length);
+        AssertSeparated(matching, missing);
+    }
+
+    [Fact]
+    public void Projection_ACollidingPairDifferingOnlyAfterTheFirstName_IsStillSeparated()
+    {
+        // In-bucket identity compares the whole name sequence. A pair that collides while agreeing
+        // on its first name is the case a check that stopped early would get wrong, and it is
+        // reachable only through a genuine collision.
+        var missing = FindColliding(
+            i => (StringComparison.Ordinal, ["Shared", $"C{i}"]),
+            i => (StringComparison.Ordinal, ["Shared", $"D{i}"]),
+            out var matching);
+
+        Assert.Equal(matching.Names[0], missing.Names[0]);
+        Assert.NotEqual(matching.Names[1], missing.Names[1]);
+        AssertSeparated(matching, missing);
+    }
+
+    [Fact]
+    public void Projection_ManyDistinctSelections_DoNotTurnLookupIntoAScan()
+    {
+        // The digest exists to keep lookup off a scan of every selection already seen. A digest that
+        // stopped distributing would leave every verdict correct and every gate green while turning
+        // a document that retargets per table quadratic, so the cost is asserted directly.
+        const int Offers = 5_000;
+        var projection = new MarkoutProjection { IncludeColumns = ["S0"] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        for (int i = 0; i < Offers; i++)
+        {
+            projection.IncludeColumns = [$"S{i}"];
+            writer.WriteTable([$"S{i}"], [["v"]]);
+        }
+
+        Assert.Equal(Offers, writer.ProjectionSelectionCount);
+        Assert.InRange(writer.ProjectionSelectionProbeCount, 0, Offers * 4L);
+    }
+
+
+    [Fact]
+    public void Table_StreamingHeadersContainingTableSyntax_AreEscaped()
+    {
+        // Runtime columns are data, and MarkoutTable exists to carry data as columns. A header that
+        // contains a pipe or a newline would otherwise close the cell and open another, letting a
+        // value forge the table it is printed in. The buffered path escapes; this is the streaming
+        // path, which is public API in its own right and was covered by nothing.
+        var writer = MarkoutWriter.Create(new MarkdownFormatter());
+
+        writer.WriteTableStart(["A|B", "C\nD"]);
+        writer.WriteTableRow(["1", "2"]);
+        writer.WriteTableEnd();
+
+        var output = writer.ToString();
+        Assert.Contains("| A&#124;B | C D |", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("A|B", output, StringComparison.Ordinal);
+        Assert.Equal(3, output.Split('\n').Length);
+    }
+
+    [Fact]
+    public void Projection_AgainstAStreamTarget_IsReportedByFlush()
+    {
+        // A caller writing to a stream never calls ToString, so Flush is the only place the
+        // document-scoped diagnostic can reach them. Losing it there would make the check
+        // StringWriter-only, which is silent for exactly the callers who cannot see the output.
+        var target = new StringWriter();
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = ["Typo"] } };
+        var writer = MarkoutWriter.Create(target, new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["v"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(writer.Flush);
+        Assert.Equal("No columns matched projection: Typo", ex.Message);
+    }
+
+    [Fact]
+    public void Projection_WhenUnsatisfied_IsReportedBeforeAnyOrderedSectionIsEmitted()
+    {
+        // The check runs before ordered sections are emitted, so a document the caller is about to
+        // be told is broken does not first deposit half of itself on the target. Ordering is the
+        // whole property here: both orders throw, and only one of them leaves the target clean.
+        var target = new StringWriter();
+        var options = new MarkoutWriterOptions
+        {
+            SectionOrder = ["second", "first"],
+            Projection = new MarkoutProjection { IncludeColumns = ["Typo"] },
+        };
+        var writer = MarkoutWriter.Create(target, new MarkdownFormatter(), options);
+
+        writer.WriteHeading(2, "first");
+        writer.WriteTable(["A"], [["v"]]);
+        writer.WriteHeading(2, "second");
+
+        Assert.Throws<InvalidOperationException>(writer.Flush);
+        Assert.Equal("", target.ToString());
+    }
+
+    [Fact]
+    public void Projection_WhenUnsatisfied_IsReportedBeforeToStringEmitsAnyOrderedSection()
+    {
+        // ToString finishes a document exactly as Flush does, and holds the same ordering. Gating
+        // Flush alone leaves this path free to deposit the document into the target and only then
+        // announce it is broken -- after which the caller who retries sees it twice.
+        var target = new StringWriter();
+        var options = new MarkoutWriterOptions
+        {
+            SectionOrder = ["second", "first"],
+            Projection = new MarkoutProjection { IncludeColumns = ["Typo"] },
+        };
+        var writer = MarkoutWriter.Create(target, new MarkdownFormatter(), options);
+
+        writer.WriteHeading(2, "first");
+        writer.WriteTable(["A"], [["v"]]);
+        writer.WriteHeading(2, "second");
+
+        Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("", target.ToString());
+    }
+
+    [Fact]
+    public void Projection_UnderTheDefaultComparison_StillTellsCaseDifferingNamesApart()
+    {
+        // The identity of a request is ordinal whatever comparison it is matched under, and the
+        // default -- OrdinalIgnoreCase -- is the one nearly every caller gets without asking. The
+        // matcher's case-insensitivity is not the request's: "Xyz" asked about a table that has no
+        // such column and went unanswered, and folding it together with "XYZ" would let the table
+        // that does have the column answer a question nobody asked.
+        var projection = new MarkoutProjection { IncludeColumns = ["Xyz"] };
+        Assert.Equal(StringComparison.OrdinalIgnoreCase, projection.Comparison);
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["Other"], [["silently lost"]]);
+        projection.IncludeColumns = ["XYZ"];
+        writer.WriteTable(["XYZ"], [["rendered"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Equal("No columns matched projection: Xyz", ex.Message);
+    }
+
+    [Fact]
+    public void Table_HeaderNamesOfADifferentLength_AreRejectedAtConstruction()
+    {
+        // The arity guard is what keeps display headers and structured keys in correspondence. A
+        // zero-header table is the case that reaches nothing downstream -- serialization skips it --
+        // so construction is the only place the mismatch can still be reported.
+        var tooMany = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["A"], ["a", "b"], []));
+        Assert.Equal("headerNames", tooMany.ParamName);
+
+        var againstNoHeaders = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable([], ["a"], []));
+        Assert.Equal("headerNames", againstNoHeaders.ParamName);
+    }
+
+    [Fact]
+    public void Projection_AnEmptyAllowList_IsRejectedEvenForAZeroColumnTable()
+    {
+        // Whether the allow list can ever select anything is a property of the projection, not of
+        // the table in hand. Both entry points return early for a zero-column table, and checking
+        // after that return made an empty list silent on precisely the tables that record no
+        // selection for finalization to report later.
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = [] } };
+
+        var buffered = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        var bufferedEx = Assert.Throws<InvalidOperationException>(() => buffered.WriteTable([], []));
+        Assert.Contains("IncludeColumns is empty", bufferedEx.Message, StringComparison.Ordinal);
+
+        var streaming = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        var streamingEx = Assert.Throws<InvalidOperationException>(() => streaming.WriteTableStart([]));
+        Assert.Contains("IncludeColumns is empty", streamingEx.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Projection_TwoSelectionsSharingADigestBucket_AreStillSeparated()
     {
@@ -607,7 +851,7 @@ public class GeneratedTableTests
         for (int i = 0; i < 400_000 && second is null; i++)
         {
             var candidate = $"C{i}";
-            var digest = MarkoutWriter.SelectionDigest(StringComparison.Ordinal, new[] { candidate });
+            var digest = MarkoutWriter.SelectionDigest(new[] { candidate });
             if (seen.TryGetValue(digest, out var existing))
             {
                 first = existing;
@@ -621,8 +865,8 @@ public class GeneratedTableTests
 
         Assert.NotNull(second);
         Assert.Equal(
-            MarkoutWriter.SelectionDigest(StringComparison.Ordinal, new[] { first! }),
-            MarkoutWriter.SelectionDigest(StringComparison.Ordinal, new[] { second! }));
+            MarkoutWriter.SelectionDigest(new[] { first! }),
+            MarkoutWriter.SelectionDigest(new[] { second! }));
 
         var projection = new MarkoutProjection { IncludeColumns = [first!] };
         var options = new MarkoutWriterOptions { Projection = projection };

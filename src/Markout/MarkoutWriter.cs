@@ -1212,6 +1212,8 @@ public class MarkoutWriter
         if (headerNameArray != null && headerNameArray.Length != headerArray.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
+        ThrowIfProjectionSelectsNothing();
+
         // A table with no columns has no Markdown spelling -- rendering one emits a "|"/"|" husk
         // that is not a table. Guarded here rather than at each overload so every buffered caller
         // is covered, including the runtime-column shape whose column count is data.
@@ -1322,6 +1324,8 @@ public class MarkoutWriter
         // silence on this path while the buffered path rejected the same arguments.
         if (headerNames.Length > 0 && headerNames.Length != headers.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
+
+        ThrowIfProjectionSelectsNothing();
 
         // A table with no columns renders nothing, exactly as the buffered path does. Throwing here
         // instead made the two entry points disagree about the same table: generated code hides
@@ -1826,15 +1830,6 @@ public class MarkoutWriter
         if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
             return true;
 
-        // An empty allow list selects nothing, and unlike a list that simply missed this table it
-        // cannot be a legitimate request: there is no name in it to match anything, in this table
-        // or any other. It is a property of the projection alone, so it is reported where the
-        // projection is offered rather than deferred to finalization -- deferring it would hand
-        // the caller an empty document and a message naming no column at all.
-        if (projection.IncludeColumns is { Count: 0 })
-            throw new InvalidOperationException(
-                "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
-
         // A projection is an allow list over a whole document, and the same list may name columns
         // belonging to a sibling section, so a table matching none of it renders nothing rather
         // than throwing. Throwing per table -- which is what this did before MarkoutTable -- made
@@ -1861,6 +1856,29 @@ public class MarkoutWriter
         return true;
     }
 
+    /// <summary>
+    /// Rejects an empty allow list at the write site.
+    /// </summary>
+    /// <remarks>
+    /// An empty allow list selects nothing, and unlike a list that simply missed this table it
+    /// cannot be a legitimate request: there is no name in it to match anything, in this table or
+    /// any other. It is a property of the projection alone, so it is reported where the projection
+    /// is offered rather than deferred to finalization -- deferring it would hand the caller an
+    /// empty document and a message naming no column at all.
+    ///
+    /// Checked before the zero-column return each entry point makes, for the same reason those
+    /// entry points validate header-name arity first: whether this projection can ever select
+    /// anything does not depend on how many columns the table in hand happens to have, and a
+    /// zero-column table records no selection for finalization to report later. Deciding it here
+    /// also keeps the two entry points agreeing about the same projection.
+    /// </remarks>
+    private void ThrowIfProjectionSelectsNothing()
+    {
+        if (_options.Projection?.IncludeColumns is { Count: 0 })
+            throw new InvalidOperationException(
+                "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
+    }
+
     // A selection is its NAMES and the COMPARISON they are matched under, not the list object that
     // carried them. Both halves are load-bearing, and keying on the instance instead got both
     // wrong: MarkoutProjection.IncludeColumns and .Comparison are publicly mutable, so a caller
@@ -1882,6 +1900,15 @@ public class MarkoutWriter
     /// </summary>
     internal int ProjectionSelectionCount => _offeredOrder?.Count ?? 0;
 
+    /// <summary>
+    /// Candidates inspected while looking a selection up in its bucket, for the gate asserting that
+    /// the digest keeps lookup off a scan of every selection the document has already seen. A digest
+    /// that stopped distributing would leave every verdict correct and turn this quadratic.
+    /// </summary>
+    internal long ProjectionSelectionProbeCount => _selectionProbes;
+
+    private long _selectionProbes;
+
     private sealed class ProjectionListReach
     {
         public required string[] Requested { get; init; }
@@ -1890,13 +1917,19 @@ public class MarkoutWriter
     }
 
     // Bucketed so that a document retargeting a projection per table does not turn entry lookup
-    // into a scan of every selection it has already seen. Internal rather than private so the gate
+    // into a scan of every selection it has already seen. Internal rather than private so the gates
     // for in-bucket separation can find a real colliding pair: HashCode is seeded per process, so a
     // hard-coded pair would not collide on the next run.
-    internal static int SelectionDigest(StringComparison comparison, IReadOnlyList<string> names)
+    //
+    // Deliberately hashes the names ALONE, though a selection is its names and its comparison. Were
+    // the comparison hashed too, two selections differing only in comparison would land in separate
+    // buckets and the in-bucket comparison guard would become unreachable except through a digest
+    // collision -- a guard nothing can exercise, which is a guard no test can defend. Keying on the
+    // names puts that pair in one bucket, where the guard is the only thing separating them and any
+    // test of it is a test of the code that actually runs.
+    internal static int SelectionDigest(IReadOnlyList<string> names)
     {
         var digest = new HashCode();
-        digest.Add((int)comparison);
         foreach (var name in names)
             digest.Add(name, StringComparer.Ordinal);
         return digest.ToHashCode();
@@ -1907,7 +1940,7 @@ public class MarkoutWriter
         _offeredLists ??= [];
         _offeredOrder ??= [];
 
-        var key = SelectionDigest(comparison, requested);
+        var key = SelectionDigest(requested);
         if (!_offeredLists.TryGetValue(key, out var bucket))
         {
             bucket = [];
@@ -1916,6 +1949,21 @@ public class MarkoutWriter
 
         foreach (var candidate in bucket)
         {
+            _selectionProbes++;
+
+            // The comparison test is gated: the digest keys on the names alone, so two selections
+            // differing only in comparison share this bucket and this line is the only thing
+            // separating them.
+            //
+            // The length test is DECLARED DEFENCE IN DEPTH, and is deliberately not gated. Two
+            // selections of different length share a bucket only under a digest collision, and it
+            // would additionally have to be a collision in which the shorter selection is a prefix
+            // of the longer -- anything else is separated by the name comparison below. A test
+            // cannot construct that pair: collisions here are found by search, and searching for
+            // one constrained to a prefix relation is a 2^32 search per candidate rather than a
+            // birthday search. Removing this line therefore leaves the suite green, and that is a
+            // limit of what is reachable, not evidence the line is unnecessary -- without it the
+            // shorter of such a pair would silently reuse the longer's record.
             if (candidate.Comparison != comparison || candidate.Requested.Length != requested.Count)
                 continue;
 
