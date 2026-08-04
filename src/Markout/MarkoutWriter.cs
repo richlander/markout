@@ -1224,43 +1224,15 @@ public class MarkoutWriter
         // unprojectable; rendering the table whole emitted the very columns the caller did not
         // ask for. Resolving the display headers as stable names too lets a projection use the
         // canonical keys that structured output actually emits.
-        // Recorded before, and independently of, whatever projection happens to be set right now.
-        // The universe answers "did this document have these columns", which is a property of the
-        // document and not of the projection in force at the moment: Options.Projection is publicly
-        // mutable, so a caller who clears or replaces it around a table would otherwise hide that
-        // table's columns and be told the column it rendered was a typo. Free for documents that
-        // never project -- 20,000 five-column tables measured 26 ms against 32 ms without it, which
-        // is noise -- because the universe is deduplicated and stays the size of the distinct
-        // column set.
-        // Recording is transactional: the columns join the universe at the point the table's
-        // outcome is decided, never before. There are exactly two such points.
         //
-        // The first is a projection miss. That table renders nothing, but the decision is final the
-        // moment the matcher says so -- nothing further can fail -- so the columns are recorded and
-        // the method returns WITHOUT enumerating rows. Enumerating them would be a behaviour change
-        // for callers passing lazy sequences that are expensive, infinite, or invalid for a table
-        // that was never going to render.
-        //
-        // The second is a completed render, below. Anything between here and there can abort the
-        // table -- a lazy row sequence that throws part-way, or a formatter that throws while
-        // writing -- and an aborted table contributes no bytes. Recording it anyway would leave the
-        // universe claiming columns the document never rendered and excuse a genuine typo naming
-        // one of them. Fail-open is the one direction this diagnostic must never take.
-        //
-        // The originals are captured because projection reassigns these locals below, and the
-        // universe records what the document OFFERED, not what survived projection.
-        var offeredHeaders = headerArray;
-        var offeredNames = headerNameArray ?? headerArray;
-
+        // A miss returns WITHOUT enumerating rows, which matters for callers passing lazy
+        // sequences that are expensive, infinite, or invalid for a table that was never going
+        // to render.
         int[]? columnMap = null;
-        ProjectionReach? matchedReach = null;
         if (_options.Projection is { } projection)
         {
-            if (!ResolveProjectedColumns(projection, headerArray, offeredNames, out columnMap, out matchedReach))
-            {
-                RecordProjectedTable(offeredHeaders, offeredNames);
+            if (!ResolveProjectedColumns(projection, headerArray, headerNameArray ?? headerArray, out columnMap))
                 return true;
-            }
         }
 
         var rowList = rows as IList<string[]> ?? rows.ToList();
@@ -1290,12 +1262,6 @@ public class MarkoutWriter
             CreateTableWriter(tableOptions).WriteTable(headerArray, rowList);
         _needsBlankLine = true;
         _hasContent = true;
-
-        // The table is bytes. Only now do its columns join the universe, and only now is the list
-        // that selected them credited with a match.
-        RecordProjectedTable(offeredHeaders, offeredNames);
-        if (matchedReach is not null)
-            matchedReach.Matched = true;
         return true;
     }
 
@@ -1341,38 +1307,9 @@ public class MarkoutWriter
         if (_inCode)
             throw new InvalidOperationException("Cannot start a table inside a code region.");
 
-        // Two tables cannot be open at once, and the state cleared just below belongs to the one
-        // already open. Dropping its staged reach meant a column the reader could plainly see was
-        // diagnosed at finalization as a typo -- the superseded table's header is in the output,
-        // and the list that selected it was told the document has no such column.
-        //
-        // "In the output" is the whole condition, and it is asked of the table writer rather than
-        // assumed. A superseded table has written bytes only on the direct streaming path; every
-        // other configuration holds the table and emits it at its end, which this start is about
-        // to make unreachable by replacing the writer. Recording unconditionally was a fail-open:
-        // a buffered table whose content was discarded still put its columns in the universe, and
-        // finalization then re-probed a genuinely unmatched list against them and excused it, so a
-        // document that rendered zero bytes finalized as success. Recording only what reached the
-        // reader keeps the weaker claim reach makes -- "this document offers this column" -- true
-        // in the only sense that matters to someone reading the output.
-        //
-        // The list is still not credited with a match even when the bytes did land, because
-        // crediting is the stronger claim and a superseded table is one whose rows stopped
-        // arriving mid-way. The universe carries the weak claim on its own.
-        if (_inTable && _pendingTableHeaders is { } supersededHeaders && _tableWriter is { HasEmitted: true })
-            RecordProjectedTable(supersededHeaders, _pendingTableHeaderNames ?? supersededHeaders);
-
         _inTable = true;
         _columnMap = null;
         _tableWriter = null;
-
-        // Cleared on every start, not only on the paths that re-stage below. A start that returns
-        // early -- excluded section, zero columns, a formatter that cannot do tables -- would
-        // otherwise inherit the staging of a previous table that was started and abandoned, and
-        // commit that table's columns under this one's end.
-        _pendingTableHeaders = null;
-        _pendingTableHeaderNames = null;
-        _pendingMatchedReach = null;
 
         if (_sectionExcluded)
             return true;
@@ -1395,28 +1332,13 @@ public class MarkoutWriter
         if (headers.Length == 0)
             return true;
 
-        // The same two decision points the buffered path uses, split across two calls. A table's
-        // columns join the universe, and its list is credited, only once the table's outcome is
-        // decided -- never in between, because anything in between can still abort the table, and
-        // an aborted table contributes no bytes and so must contribute no evidence.
-        var offeredHeaders = headers.ToArray();
-        var offeredNames = (headerNames.Length > 0 ? headerNames : headers).ToArray();
-        ProjectionReach? matchedReach = null;
         if (_options.Projection is { } projection)
         {
             // See WriteTableCore: a table matching none of the projection contributes nothing, and
-            // leaving _tableWriter null is what suppresses the rows that follow. This is decision
-            // point one, and it is final the instant it is taken -- there is no render left to
-            // fail -- so it records here rather than staging. Staging it instead made the record
-            // wait for a WriteTableEnd the caller is under no obligation to call: a table the
-            // projection dropped and the caller then abandoned kept its columns out of the
-            // universe, and a later list naming one of them was diagnosed as a typo against a
-            // document that does have the column.
-            if (!ResolveProjectedColumns(projection, headers, offeredNames, out _columnMap, out matchedReach))
-            {
-                RecordProjectedTable(offeredHeaders, offeredNames);
+            // leaving _tableWriter null is what suppresses the rows that follow.
+            var offeredNames = headerNames.Length > 0 ? headerNames : headers;
+            if (!ResolveProjectedColumns(projection, headers, offeredNames, out _columnMap))
                 return true;
-            }
         }
         string[]? projectedHeaderNames = null;
         if (headerNames.Length > 0)
@@ -1456,20 +1378,6 @@ public class MarkoutWriter
             _columnMap = null;
             throw;
         }
-
-        // Decision point two is WriteTableEnd, so the table is staged rather than recorded: a
-        // streaming table is not bytes until it ends, because with TableOptions set the Markdown
-        // table writer buffers the whole table and emits nothing until then. Staging after the
-        // start succeeded, rather than before it is attempted, is what keeps a formatter that
-        // throws in BeginTable from leaving evidence behind for WriteTableEnd to commit -- a
-        // table that produced nothing at all, excusing a typo naming one of its columns.
-        //
-        // A table abandoned without ending simply never commits. The cost is that an unbuffered
-        // abandoned table, whose header did reach the output, is no longer excused -- a spurious
-        // throw, which is the safe direction for a diagnostic.
-        _pendingTableHeaders = offeredHeaders;
-        _pendingTableHeaderNames = offeredNames;
-        _pendingMatchedReach = matchedReach;
 
         // A started table is content, not only a finished one. Deferring this to
         // WriteTableEnd left a table the caller never closed writing characters that
@@ -1557,13 +1465,6 @@ public class MarkoutWriter
 
         // Taken and cleared up front so that an end which throws below cannot leave stale headers
         // staged for whatever table is written next.
-        var pendingHeaders = _pendingTableHeaders;
-        var pendingNames = _pendingTableHeaderNames;
-        var pendingReach = _pendingMatchedReach;
-        _pendingTableHeaders = null;
-        _pendingTableHeaderNames = null;
-        _pendingMatchedReach = null;
-
         // Deliberately NOT conditioned on _sectionExcluded. _tableWriter is non-null only if the
         // table started in an included section, so a table that reaches here must be closed even if
         // the caller has since opened an excluded section: with TableOptions set the table writer
@@ -1575,16 +1476,6 @@ public class MarkoutWriter
             _tableWriter.WriteTableEnd();
             _needsBlankLine = true;
             _hasContent = true;
-        }
-
-        // One condition, so emission and excusal cannot disagree. A null _tableWriter here is not a
-        // failure: that is the projection miss, whose columns the document still offered. A table
-        // that started inside an excluded section staged nothing, so it records nothing.
-        if (pendingHeaders is not null)
-        {
-            RecordProjectedTable(pendingHeaders, pendingNames ?? pendingHeaders);
-            if (pendingReach is not null)
-                pendingReach.Matched = true;
         }
 
         _tableWriter = null;
@@ -1916,389 +1807,97 @@ public class MarkoutWriter
         return sw.ToString().TrimEnd();
     }
 
-    // ── Projection reach ──
-
-    // A projection is an allow list, so a single table matching none of it legitimately
-    // contributes nothing -- that is what makes a heterogeneous multi-section document
-    // projectable at all. An allow list matching nothing *anywhere it was offered* is a
-    // different fact: the caller named columns this document does not have, almost always
-    // a typo, and rendering an empty document for it would turn a caller error into
-    // success-shaped empty output. Reach is therefore tracked and reported when the
-    // document is finished.
-    //
-    // Reach is tracked per allow list, not per document. A single pair of document-wide counters
-    // conflates projections that a caller retargeted mid-document: any one table matching would
-    // answer for every earlier list that matched nothing, so an unmatched typo followed by a
-    // working selection finalized as success-shaped empty output. Each distinct allow list gets
-    // its own entry, and each entry answers only for itself.
-    //
-    // The requested names are snapshotted at first sight rather than read back at finalization.
-    // MarkoutWriterOptions.Projection is a mutable object holding a mutable list, and re-reading
-    // either would let one projection answer for another's failure.
-    //
-    // Only an allow list is diagnosable. An exclude projection that leaves nothing behind named
-    // columns the document does have and asked for them to go, so its empty result answers a
-    // well-formed request rather than evidencing a typo, and it gets no entry at all.
-    // Deciding when two allow lists are "the same selection" by canonicalizing their text is a
-    // second, weaker model of the matcher, and it was wrong once for every route the matcher has:
-    // case folding that disagreed with the comparison (composed "\u00e9" vs decomposed "e\u0301",
-    // and Greek "\u03c3" vs "\u03c2" under the default OrdinalIgnoreCase), globs spelled
-    // differently but matching identically ("A*" vs "A**"), and display names against their
-    // snake_case aliases ("My Column" vs "my_column"). Each fix taught the canonicalizer one more
-    // of the matcher's rules, and the next round found the rule it still did not know.
-    //
-    // So reach no longer guesses. Lists are merged only on exact equality, which is always safe,
-    // and the question an unmatched entry actually poses -- "does this document have these columns
-    // at all?" -- is answered at finalization by asking the matcher itself, against every table the
-    // document offered. A list that would have matched some table is a selection the caller
-    // retargeted, not a typo; only a list that matches nothing anywhere is diagnosable.
-    // Counted, not timed. Both quadratic regressions in this code -- a linear entry scan, and a
-    // re-probe per table rather than per document -- were invisible to every correctness test, and
-    // a wall-clock bound loose enough to be stable in CI was too loose to catch either. These say
-    // structurally what the design claims: entry lookup does not scan, and an unmatched list is
-    // put to the matcher once.
-    internal long ProjectionReachEntryComparisons { get; private set; }
-
-    /// <summary>
-    /// Size of the deduplicated column universe, for the test that asserts it stays the size of the
-    /// document's distinct column set rather than growing per table.
-    /// </summary>
-    internal int ProjectionUniverseSize => _projectionColumnsSeen?.Count ?? 0;
-    // Sums every resolve the document caused: the configured projection's (one per rendered table)
-    // plus each finalization probe's. Probes use throwaway projections, so their counts are drained
-    // into _probeResolveCount as they are discarded.
-    internal long ProjectionResolveCount => (_options.Projection?.ResolveColumnsCallCount ?? 0) + _probeResolveCount;
-
-    private long _probeResolveCount;
-
-    private Dictionary<int, List<ProjectionReach>>? _projectionReachBuckets;
-    private List<ProjectionReach>? _projectionReach;
-    private List<string>? _projectionColumnsSeen;
-    private List<string>? _projectionColumnNamesSeen;
-    private HashSet<(string, string)>? _projectionColumnsSeenKeys;
-
-    private sealed class ProjectionReach
-    {
-        public required string[] Requested { get; init; }
-        public required StringComparison Comparison { get; init; }
-
-        // A CurrentCulture comparison means whatever the culture said at the moment the list was
-        // offered, and finalization can run under a different one -- a culture scope closing, or a
-        // document built on one thread and rendered on another. Deferring the question without
-        // deferring its culture answers it under conditions that never existed: a list that matched
-        // is diagnosed as a typo, and a list that genuinely matched nothing is quietly excused.
-        //
-        // A list can be offered under more than one culture, so this is every culture it was seen
-        // under, not the first. "Matched nothing anywhere it was offered" has to mean anywhere,
-        // including any culture context -- splitting the entry per culture instead would report a
-        // list as unmatched in one culture while it was busy selecting a column in another. Null
-        // for a comparison that does not consult the culture, which is the usual case.
-        public List<CultureInfo>? Cultures { get; init; }
-
-        public bool Matched { get; set; }
-    }
-
-    private static bool IsCultureSensitive(StringComparison comparison)
-        => comparison is StringComparison.CurrentCulture or StringComparison.CurrentCultureIgnoreCase;
-
-    private static int SequenceDigest(StringComparison comparison, IReadOnlyList<string> names)
-    {
-        var digest = new HashCode();
-        digest.Add((int)comparison);
-        foreach (var name in names)
-            digest.Add(name, StringComparer.Ordinal);
-        return digest.ToHashCode();
-    }
-
-    private static bool SequenceEqualsOrdinal(IReadOnlyList<string> left, IReadOnlyList<string> right)
-    {
-        if (left.Count != right.Count)
-            return false;
-
-        for (int i = 0; i < left.Count; i++)
-        {
-            if (!string.Equals(left[i], right[i], StringComparison.Ordinal))
-                return false;
-        }
-
-        return true;
-    }
-
-    private ProjectionReach GetProjectionReach(IReadOnlyList<string> requested, StringComparison comparison)
-    {
-        var cultureSensitive = IsCultureSensitive(comparison);
-        var culture = CultureInfo.CurrentCulture;
-        var key = SequenceDigest(comparison, requested);
-
-        _projectionReachBuckets ??= [];
-        _projectionReach ??= [];
-        if (!_projectionReachBuckets.TryGetValue(key, out var bucket))
-        {
-            bucket = [];
-            _projectionReachBuckets[key] = bucket;
-        }
-
-        foreach (var entry in bucket)
-        {
-            ProjectionReachEntryComparisons++;
-            if (entry.Comparison != comparison || !SequenceEqualsOrdinal(entry.Requested, requested))
-                continue;
-
-            // Deduplicated on CompareInfo, which is the thing that decides a match. CultureInfo.Name
-            // is virtual and does not: two cultures can share a name and compare differently, and
-            // keying on the name drops the second one's semantics on the floor.
-            if (cultureSensitive && entry.Cultures is { } seen && !seen.Any(c => Equals(c.CompareInfo, culture.CompareInfo)))
-                seen.Add(culture);
-
-            return entry;
-        }
-
-        var created = new ProjectionReach
-        {
-            Requested = [.. requested],
-            Comparison = comparison,
-            Cultures = cultureSensitive ? [culture] : null
-        };
-        bucket.Add(created);
-        _projectionReach.Add(created);
-        return created;
-    }
-
-    // Recorded so that an unmatched allow list can be re-put to the matcher at finalization. The
-    // question a miss poses is "did this document ever have these columns", which is about the
-    // columns and not about how they were grouped into tables -- so one deduplicated universe of
-    // (display header, stable name) pairs answers it, and answers it in a single probe. Keeping
-    // the tables instead costs a probe per table per unmatched list, which is quadratic on a
-    // document that retargets a projection per table.
-    // Headers of a streaming table that has started but not yet ended, and the reach entry a match
-    // would credit. Both are committed in WriteTableEnd. See WriteTableStartCore.
-    private string[]? _pendingTableHeaders;
-    private string[]? _pendingTableHeaderNames;
-    private ProjectionReach? _pendingMatchedReach;
-
-    private void RecordProjectedTable(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
-    {
-        _projectionColumnsSeenKeys ??= [];
-        _projectionColumnsSeen ??= [];
-        _projectionColumnNamesSeen ??= [];
-
-        for (int i = 0; i < headers.Length; i++)
-        {
-            var header = headers[i];
-            var name = i < headerNames.Length ? headerNames[i] : "";
-            if (_projectionColumnsSeenKeys.Add((header, name)))
-            {
-                _projectionColumnsSeen.Add(header);
-                _projectionColumnNamesSeen.Add(name);
-            }
-        }
-    }
-
-    // Asks the matcher, rather than a copy of its rules, whether this document ever had the columns
-    // the list names. A partial match counts, exactly as it does per table: a list that named one
-    // real column and one typo was never diagnosable, and this must not start diagnosing it.
-    //
-    // Cost, declared rather than hidden. This runs only for a list that matched no table it was
-    // offered, so a document whose projections all match pays nothing at all -- not "a little", but
-    // zero resolves, which Projection_ManyRetargetedMatchingLists_NeitherScanNorProbe asserts
-    // structurally rather than by wall clock.
-    //
-    // An unmatched list costs exactly ONE resolve against the deduplicated column universe. That is
-    // the honest bound, and it is worth stating precisely because the obvious quadratic reading is
-    // wrong in one direction and right in another. Matching P patterns against C columns is P x C
-    // with no index, so a single list of 5,000 globs against 5,000 distinct columns takes ~760 ms
-    // to probe -- thousands of separate lists are not required to reach it. But the caller already
-    // paid that same P x C to render the table (measured at ~790 ms for the same input), so the
-    // probe adds one table's worth of matching for a list that missed, not an independent blowup.
-    //
-    // An index would remove the P x C, and an index is exactly the second model of the matcher this
-    // design exists to delete, so the cost stays. It is bounded by caller-authored allow lists,
-    // never by inspected data.
-    private bool ProjectionWouldHaveMatchedSomewhere(ProjectionReach entry)
-    {
-        if (_projectionColumnsSeen is null || _projectionColumnNamesSeen is null)
-            return false;
-
-        var probe = new MarkoutProjection
-        {
-            Comparison = entry.Comparison,
-            IncludeColumns = entry.Requested
-        };
-
-        // Re-put the question under the cultures that were in force when the list was offered, not
-        // whatever culture happens to be current at finalization. Excused if any of them matches,
-        // because the list was offered in each of them.
-        //
-        // Assigning CurrentCulture here is safe only because the caller has already arranged for
-        // this to run somewhere the assignment cannot be observed -- see NeedsCultureIsolation and
-        // RunIsolated, which use the same ReferenceEquals test this does, so the two cannot
-        // disagree about whether an assignment is about to happen.
-        try
-        {
-            if (entry.Cultures is not { Count: > 0 } cultures)
-                return Probe();
-
-            foreach (var culture in cultures)
-            {
-                if (!ReferenceEquals(CultureInfo.CurrentCulture, culture))
-                    CultureInfo.CurrentCulture = culture;
-
-                if (Probe())
-                    return true;
-            }
-
-            return false;
-        }
-        finally
-        {
-            _probeResolveCount += probe.ResolveColumnsCallCount;
-        }
-
-        bool Probe()
-        {
-            var resolution = probe.ResolveColumns(
-                CollectionsMarshal.AsSpan(_projectionColumnsSeen),
-                CollectionsMarshal.AsSpan(_projectionColumnNamesSeen));
-
-            return resolution.Kind != ColumnProjectionResolutionKind.NoMatches && resolution.ColumnMap.Count > 0;
-        }
-    }
-
-    // Matching under a culture means making it ambient, and there is no way to make a culture
-    // ambient temporarily without a trace: assigning CurrentCulture -- even to put back the value
-    // that was already there -- replaces inheritance from DefaultThreadCurrentCulture with an
-    // explicit override that outlives the call, so a later change to the default silently stops
-    // reaching this context. That is an invisible side effect to leave behind on a caller whose
-    // document rendered perfectly well.
-    //
-    // So the culture is made ambient somewhere it costs nothing to leave it: a thread of our own,
-    // which dies with the answers. One thread for the whole check rather than one per probe --
-    // per-probe cost 2.8x the work it isolates (2,000 unmatched lists: 555 ms against 195 ms for
-    // the same probes run inline), and scaled with a count the caller controls.
-    private bool NeedsCultureIsolation()
-    {
-        if (_projectionReach is null)
-            return false;
-
-        var current = CultureInfo.CurrentCulture;
-        foreach (var entry in _projectionReach)
-        {
-            if (entry.Matched || entry.Cultures is not { Count: > 0 } cultures)
-                continue;
-
-            foreach (var culture in cultures)
-            {
-                if (!ReferenceEquals(current, culture))
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
-    // Runs body on a thread whose ambient state dies with it. ExecutionContext flows in, so body
-    // sees the caller's culture to begin with; writes inside do not flow back out.
-    private static T RunIsolated<T>(Func<T> body)
-    {
-        var result = default(T)!;
-        ExceptionDispatchInfo? failure = null;
-
-        var thread = new Thread(() =>
-        {
-            try
-            {
-                result = body();
-            }
-            catch (Exception ex)
-            {
-                failure = ExceptionDispatchInfo.Capture(ex);
-            }
-        })
-        {
-            IsBackground = true
-        };
-
-        thread.Start();
-        thread.Join();
-        failure?.Throw();
-        return result;
-    }
+    // ── Projection ──
 
     private bool ResolveProjectedColumns(
         MarkoutProjection projection,
         ReadOnlySpan<string> headers,
         ReadOnlySpan<string> headerNames,
-        out int[]? columnMap,
-        out ProjectionReach? matchedReach)
+        out int[]? columnMap)
     {
         columnMap = null;
-        matchedReach = null;
         var resolution = projection.ResolveColumns(headers, headerNames);
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
             return true;
 
-        // ResolveColumns honours ExcludeColumns only when there is no allow list, so a miss with
-        // IncludeColumns set is an allow-list miss whether or not excludes are also present.
-        var reach = projection.IncludeColumns is { } requested
-            ? GetProjectionReach(requested, projection.Comparison)
-            : null;
+        // An empty allow list selects nothing, and unlike a list that simply missed this table it
+        // cannot be a legitimate request: there is no name in it to match anything, in this table
+        // or any other. It is a property of the projection alone, so it is reported where the
+        // projection is offered rather than deferred to finalization -- deferring it would hand
+        // the caller an empty document and a message naming no column at all.
+        if (projection.IncludeColumns is { Count: 0 })
+            throw new InvalidOperationException(
+                "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
+
+        // A projection is an allow list over a whole document, and the same list may name columns
+        // belonging to a sibling section, so a table matching none of it renders nothing rather
+        // than throwing. Throwing per table -- which is what this did before MarkoutTable -- made
+        // a heterogeneous multi-section document unprojectable.
+        //
+        // Whether the list matched is settled HERE, where the matcher answers it, and not at some
+        // later point that depends on what the formatter did with the result. A list has "matched"
+        // when it selected a real table's columns; whether those columns went on to become bytes
+        // is a question about the formatter, the row sequence, and the caller's willingness to
+        // call WriteTableEnd, and tying the diagnostic to it means the writer must predict output
+        // it does not control. It cannot: a conformant formatter may write nothing for an ordinary
+        // table. Crediting at match time is the one point that is both decidable and correct.
+        var reach = projection.IncludeColumns is { } requested ? GetListReach(requested) : null;
 
         if (resolution.Kind == ColumnProjectionResolutionKind.NoMatches || resolution.ColumnMap.Count == 0)
             return false;
 
-        // Handed back rather than marked here. A match means this table WOULD render the column,
-        // not that it did: the row sequence or the formatter can still abort the table, and a list
-        // marked matched by a table that produced no bytes is excused by nothing. The caller marks
-        // it at the same point it records the columns -- when the table is bytes.
-        matchedReach = reach;
+        if (reach is not null)
+            reach.Matched = true;
 
         columnMap = [.. resolution.ColumnMap];
         return true;
     }
 
-    // Only a document that actually offered the projection something can be said to have
-    // rejected it. A document with no tables at all leaves the projection vacuous rather
-    // than unsatisfied, and must not fail.
+    // Keyed on the list instance, not on its contents. A caller that retargets Options.Projection
+    // hands over a new list, and a caller that keeps one list has one selection -- both of which
+    // this gets right without comparing names, which is the matcher's job and must not be modelled
+    // a second time here.
+    private Dictionary<IReadOnlyList<string>, ProjectionListReach>? _offeredLists;
+
+    private sealed class ProjectionListReach
+    {
+        public required string[] Requested { get; init; }
+        public bool Matched { get; set; }
+    }
+
+    private ProjectionListReach GetListReach(IReadOnlyList<string> requested)
+    {
+        _offeredLists ??= new(ReferenceEqualityComparer.Instance);
+        if (_offeredLists.TryGetValue(requested, out var entry))
+            return entry;
+
+        // Snapshot, so the message reports what was asked for rather than whatever the caller's
+        // list happens to hold when the document is finished.
+        entry = new ProjectionListReach { Requested = [.. requested] };
+        _offeredLists[requested] = entry;
+        return entry;
+    }
+
+    /// <summary>
+    /// Reports an allow list that was offered to this document and selected nothing in any table
+    /// it was offered to. Only a document that actually offered the projection something can be
+    /// said to have rejected it: a document with no tables leaves the projection vacuous, not
+    /// unsatisfied, and must not fail.
+    /// </summary>
     private void ThrowIfProjectionMatchedNothing()
     {
-        if (_projectionReach is null)
+        if (_offeredLists is null)
             return;
 
-        var requested = NeedsCultureIsolation() ? RunIsolated(FindUnmatched) : FindUnmatched();
-
-        if (requested is null)
-            return;
-
-        // An empty allow list is not an unmatched name -- there is no name. Reporting it as one
-        // prints "No columns matched projection: " and tells the caller nothing about what to fix.
-        if (requested.Length == 0)
-            throw new InvalidOperationException(
-                "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
-
-        throw new InvalidOperationException(
-            $"No columns matched projection: {string.Join(", ", requested)}");
-
-        string[]? FindUnmatched()
+        foreach (var entry in _offeredLists.Values)
         {
-            foreach (var entry in _projectionReach)
-            {
-                if (entry.Matched)
-                    continue;
-
-                if (!ProjectionWouldHaveMatchedSomewhere(entry))
-                    return entry.Requested;
-
-                // Excused for good. The universe only ever grows, so a list the document has
-                // already satisfied cannot become unsatisfied, and Flush() is callable repeatedly:
-                // without this, every later finalization repeats every probe and every thread it
-                // needs.
-                entry.Matched = true;
-            }
-
-            return null;
+            if (!entry.Matched)
+                throw new InvalidOperationException(
+                    $"No columns matched projection: {string.Join(", ", entry.Requested)}");
         }
     }
+
 
     // ── Private infrastructure ──
 

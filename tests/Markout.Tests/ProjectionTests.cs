@@ -96,29 +96,25 @@ public class ProjectionTests
     [Fact]
     public void IncludeColumns_EmptyList_ReportsTheEmptyAllowListRatherThanAnUnmatchedName()
     {
-        // An empty allow list still fails closed -- it selects nothing -- but it is not an
-        // unmatched name, and reporting it as one prints a message naming no column at all.
+        // An empty allow list selects nothing and can never select anything, in this table or any
+        // other, so it is a caller error rather than a table that legitimately matched nothing.
+        // It is reported where the projection is offered -- there is nothing to learn from the
+        // rest of the document that could make an empty list meaningful.
         var options = new MarkoutWriterOptions
         {
             Projection = new MarkoutProjection { IncludeColumns = [] }
         };
         var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
 
-        orch.WriteTableStart("Name", "Version");
-        orch.WriteTableRow("Foo.dll", "1.0.0");
-        orch.WriteTableEnd();
-
-        var ex = Assert.Throws<InvalidOperationException>(() => orch.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => orch.WriteTableStart("Name", "Version"));
         Assert.Contains("IncludeColumns is empty", ex.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain("No columns matched projection:", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void ExcludeColumns_ExcludingEveryColumn_RendersNothingRatherThanFailing()
     {
-        // The reach gate diagnoses an allow list that named a column the document does not have.
         // An exclude projection that empties a table named columns that ARE there and asked for
-        // them to go, so nothing is the correct answer to a well-formed request, not a typo.
+        // them to go, so nothing is the correct answer to a well-formed request.
         var options = new MarkoutWriterOptions
         {
             Projection = new MarkoutProjection { ExcludeColumns = ["Name", "Version"] }

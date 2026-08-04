@@ -155,24 +155,6 @@ public class GeneratedTableTests
     }
 
     [Fact]
-    public void TableProperty_ThrowsWhenTheProjectionMatchesNothingInTheDocument()
-    {
-        // A projection is an allow list, so an individual table matching none of it contributes
-        // nothing -- see the sibling-section test below, which is what that rule exists for. But a
-        // projection matching nothing in the *whole* document names columns this document does not
-        // have, which is a caller error, and rendering an empty document for it would turn that
-        // error into success-shaped empty output.
-        var options = new MarkoutWriterOptions
-        {
-            Projection = new MarkoutProjection { IncludeColumns = ["ColumnThatDoesNotExist"] },
-        };
-
-        var ex = Assert.Throws<InvalidOperationException>(
-            () => MarkoutSerializer.Serialize(Sample(), TableContext.Default, options));
-        Assert.Contains("No columns matched projection: ColumnThatDoesNotExist", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void TableProperty_ProjectionMatchingASiblingSectionLeavesEachSectionItsOwnColumns()
     {
         // The case the rule exists for: one projection, two sections with different columns.
@@ -317,295 +299,6 @@ public class GeneratedTableTests
         Assert.Contains("Display Name", writer.ToString(), StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Projection_RetargetedMidDocument_StillReportsTheEarlierUnmatchedIncludeList()
-    {
-        // MarkoutWriterOptions.Projection is a mutable object. Reading it back at finalization let
-        // a later exclude projection answer for an include projection that had already cost the
-        // caller a table, turning a typo into success-shaped empty output.
-        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-        writer.WriteTable(["Name"], [["value"]]);
-
-        projection.IncludeColumns = null;
-        projection.ExcludeColumns = ["Name"];
-
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_ALaterMatchingAllowList_DoesNotExcuseAnEarlierUnmatchedOne()
-    {
-        // Reach used one pair of document-wide counters, so any table matching anything answered
-        // for every allow list that had matched nothing. A typo'd selection followed by a working
-        // one therefore finalized as success-shaped empty output, silently dropping the table the
-        // typo was aimed at. Each allow list has to answer only for itself.
-        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["A"], [["one"]]);
-        projection.IncludeColumns = ["B"];
-        writer.WriteTable(["B"], [["two"]]);
-
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_CaseDifferingNames_AreOneSelectionUnderCaseInsensitiveMatching()
-    {
-        // Reach identity compared ordinally while matching defaults to OrdinalIgnoreCase, so
-        // "NAME" and "name" became two entries for what the matcher treats as one selection. The
-        // second could never be offered anything the first had not already matched, so a document
-        // that projected correctly threw anyway.
-        var projection = new MarkoutProjection { IncludeColumns = ["NAME"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["Other"], [["x"]]);
-        projection.IncludeColumns = ["name"];
-        writer.WriteTable(["Name"], [["kept"]]);
-
-        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_CaseDifferingNames_AreDistinctSelectionsUnderOrdinalMatching()
-    {
-        // The negative of the case above: under an ordinal comparison the matcher does tell those
-        // two lists apart, so merging them would let one excuse the other's miss.
-        var projection = new MarkoutProjection { Comparison = StringComparison.Ordinal, IncludeColumns = ["NAME"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["Other"], [["x"]]);
-        projection.IncludeColumns = ["name"];
-        writer.WriteTable(["name"], [["kept"]]);
-
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("No columns matched projection: NAME", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_TheSameNamesUnderADifferentComparison_AreADistinctSelection()
-    {
-        // Identity has to carry the comparison as well as the names. Ignoring it let a match found
-        // case-insensitively answer for a miss that happened under ordinal matching.
-        var projection = new MarkoutProjection { Comparison = StringComparison.Ordinal, IncludeColumns = ["Name"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["name"], [["x"]]);
-        projection.Comparison = StringComparison.OrdinalIgnoreCase;
-        writer.WriteTable(["name"], [["kept"]]);
-
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("No columns matched projection: Name", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_NamesEqualUnderTheComparisonButNotUnderCaseFolding_AreOneSelection()
-    {
-        // Reach buckets must be keyed on a hash consistent with the comparison. Folding case by
-        // hand was not: composed "\u00e9" and decomposed "e\u0301" are equal under
-        // InvariantCultureIgnoreCase -- the matcher resolves either against the other's column --
-        // but they fold to different strings, so one selection split into two entries and the half
-        // that was never offered a matching table threw.
-        var projection = new MarkoutProjection
-        {
-            Comparison = StringComparison.InvariantCultureIgnoreCase,
-            IncludeColumns = ["\u00e9"]
-        };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["Other"], [["x"]]);
-        projection.IncludeColumns = ["e\u0301"];
-        writer.WriteTable(["\u00e9"], [["kept"]]);
-
-        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
-    }
-
-    [Theory]
-    // The matcher resolves a display name and its snake_case alias to the same column.
-    [InlineData("My Column", "my_column", "My Column")]
-    // "A*" and "A**" are the same glob to the matcher.
-    [InlineData("A**", "A*", "Alpha")]
-    public void Projection_ListsTheMatcherCannotTellApart_DoNotThrowWhenEitherMatches(
-        string first, string second, string header)
-    {
-        // Reach used to decide this by canonicalizing the requested text, which was a second and
-        // weaker model of the matcher: it knew about case and duplicates but not about snake_case
-        // aliases or glob spelling, so a list the matcher would happily have resolved was reported
-        // as an unmatched typo. Reach now asks the matcher instead.
-        var projection = new MarkoutProjection { IncludeColumns = [first] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["Other"], [["x"]]);
-        projection.IncludeColumns = [second];
-        writer.WriteTable([header], [["kept"]]);
-
-        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_NamesEqualUnderTheDefaultComparison_AreNotSplitByCaseFolding()
-    {
-        // Greek final sigma: "\u03c3" and "\u03c2" share an invariant uppercase and so are equal
-        // under the default OrdinalIgnoreCase matching, but they lowercase differently. Any reach
-        // scheme that folds case by hand splits them and throws for a document that projected fine.
-        var projection = new MarkoutProjection { IncludeColumns = ["\u03c3"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["\u03c3"], [["kept"]]);
-        projection.IncludeColumns = ["\u03c2"];
-        writer.WriteTable(["Other"], [["x"]]);
-
-        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_FinalizedUnderADifferentCulture_StillJudgesByTheCultureItMatchedIn()
-    {
-        // Reach records the comparison but the comparison is only half the question: a
-        // CurrentCulture match means whatever the culture said when the list was offered, and
-        // finalization can run under a different one. Turkish is the classic separator -- "I" and
-        // dotless "i" are the same letter case-insensitively in tr-TR and different in en-US.
-        var original = CultureInfo.CurrentCulture;
-        try
-        {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
-            var projection = new MarkoutProjection
-            {
-                Comparison = StringComparison.CurrentCultureIgnoreCase,
-                IncludeColumns = ["I"]
-            };
-            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-            writer.WriteTable(["Other"], [["x"]]);
-            projection.IncludeColumns = ["\u0131"];
-            writer.WriteTable(["\u0131"], [["kept"]]);
-
-            // Judging "I" under en-US finds nothing and reports a typo for a document that rendered.
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
-            Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
-    }
-
-    [Fact]
-    public void Projection_FinalizedUnderADifferentCulture_StillReportsAListThatMatchedNothing()
-    {
-        // The fail-open direction, which matters more: a list that genuinely matched nothing under
-        // the culture it was offered in must not be excused by a culture that would have matched.
-        var original = CultureInfo.CurrentCulture;
-        try
-        {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
-            var projection = new MarkoutProjection
-            {
-                Comparison = StringComparison.CurrentCultureIgnoreCase,
-                IncludeColumns = ["I"]
-            };
-            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-            writer.WriteTable(["\u0131"], [["x"]]);
-
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
-            var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-            Assert.Contains("No columns matched projection", ex.Message, StringComparison.Ordinal);
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
-    }
-
-    [Fact]
-    public void Projection_OfferedUnderTwoCultures_IsExcusedByAMatchInEither()
-    {
-        // Culture belongs to the probe, not to identity. Splitting the entry per culture makes
-        // "matched nothing anywhere it was offered" mean "anywhere under this one culture", so a
-        // list busy selecting a column in one culture is reported as an unmatched typo because a
-        // later offer under a second culture happened to miss.
-        var original = CultureInfo.CurrentCulture;
-        try
-        {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
-            var projection = new MarkoutProjection
-            {
-                Comparison = StringComparison.CurrentCultureIgnoreCase,
-                IncludeColumns = ["I"]
-            };
-            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-            writer.WriteTable(["\u0131"], [["matched"]]);
-
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
-            projection.IncludeColumns = ["I"];
-            writer.WriteTable(["Other"], [["x"]]);
-
-            Assert.Contains("matched", writer.ToString(), StringComparison.Ordinal);
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
-    }
-
-    [Fact]
-    public void Projection_OfferedUnderTwoCultures_StillReportsAListThatMatchedInNeither()
-    {
-        // The other side of the same coin: merging the cultures must not become an excuse.
-        var original = CultureInfo.CurrentCulture;
-        try
-        {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
-            var projection = new MarkoutProjection
-            {
-                Comparison = StringComparison.CurrentCultureIgnoreCase,
-                IncludeColumns = ["Typo"]
-            };
-            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-            writer.WriteTable(["A"], [["x"]]);
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
-            projection.IncludeColumns = ["Typo"];
-            writer.WriteTable(["B"], [["y"]]);
-
-            var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-            Assert.Contains("Typo", ex.Message, StringComparison.Ordinal);
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
-    }
-
-    [Fact]
-    public void Projection_AProbeThatSwapsCulture_RestoresIt()
-    {
-        var original = CultureInfo.CurrentCulture;
-        try
-        {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
-            var projection = new MarkoutProjection
-            {
-                Comparison = StringComparison.CurrentCultureIgnoreCase,
-                IncludeColumns = ["Typo"]
-            };
-            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-            writer.WriteTable(["A"], [["x"]]);
-
-            Assert.Throws<InvalidOperationException>(() => writer.ToString());
-            Assert.Equal("en-US", CultureInfo.CurrentCulture.Name);
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
-    }
-
     [Theory]
     [InlineData(0xD800, 0xD801, "")]        // two distinct lone high surrogates
     [InlineData(0xDC00, 0xDFFF, "")]        // two distinct lone low surrogates
@@ -642,76 +335,6 @@ public class GeneratedTableTests
         var table = new MarkoutTable(["A\U0001F600", "A\U0001F601"], ["x", "y"], [["one", "two"]]);
 
         Assert.Equal(2, table.Headers.Count);
-    }
-
-    [Fact]
-    public void Projection_ColumnsSharingADisplayHeaderButNotAStableName_AreBothInTheUniverse()
-    {
-        // The universe is keyed on the (display header, stable name) PAIR, not the display header
-        // alone. Two tables can show the same human-facing header while carrying different stable
-        // names, and a list may name either. Collapsing the key to the display header keeps only
-        // the first pair, so a list naming the second stable name is told the document never had
-        // that column -- a wrong diagnostic about a column that is plainly rendered.
-        //
-        // Reaching the universe at all requires the list to miss every table it is OFFERED: a list
-        // that matches even once is excused per table and never probes. So both same-display
-        // tables are written with the projection detached, and the only table the list sees has
-        // nothing to do with them.
-        var projection = new MarkoutProjection { IncludeColumns = ["size_pages"] };
-        var options = new MarkoutWriterOptions { Projection = projection };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
-
-        options.Projection = null;
-        writer.WriteTable(new MarkoutTable(["Size"], ["size_bytes"], [["10"]]));
-        writer.WriteTable(new MarkoutTable(["Size"], ["size_pages"], [["2"]]));
-        options.Projection = projection;
-        writer.WriteTable(["Unrelated"], [["u"]]);
-
-        writer.Flush();
-    }
-
-    [Fact]
-    public void Projection_ColumnsOfAStreamingTableNeverEnded_DoNotExcuseATypo()
-    {
-        // The streaming sibling of the aborted buffered table, and the reason "the header was
-        // already written" is not a safe answer: with TableOptions set, the Markdown table writer
-        // buffers the entire table and emits NOTHING until WriteTableEnd. A table that is started
-        // and then abandoned therefore contributes zero bytes, so its columns must not join the
-        // universe and excuse a typo. Recording is staged at start and committed at end.
-        var projection = new MarkoutProjection { IncludeColumns = ["B"] };
-        var options = new MarkoutWriterOptions
-        {
-            Projection = projection,
-            TableOptions = new MarkdownTable.Formatting.TableFormatterOptions(),
-        };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
-
-        writer.WriteTable(["A"], [["a"]]);
-        options.Projection = null;
-        writer.WriteTableStart(["B"]);
-        options.Projection = projection;
-
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("B", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_ColumnsOfAStreamingTableThatEnded_DoCount()
-    {
-        // The negative half: a streaming table that completes normally must still put its columns
-        // in the universe, or deferring the record to WriteTableEnd would simply lose them.
-        var projection = new MarkoutProjection { IncludeColumns = ["B"] };
-        var options = new MarkoutWriterOptions { Projection = projection };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
-
-        writer.WriteTable(["A"], [["a"]]);
-        options.Projection = null;
-        writer.WriteTableStart(["B"]);
-        writer.WriteTableRow(["b"]);
-        writer.WriteTableEnd();
-        options.Projection = projection;
-
-        Assert.Contains("| B |", writer.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -766,51 +389,6 @@ public class GeneratedTableTests
     }
 
     [Fact]
-    public void Projection_ColumnsOfAStreamingTableInAnExcludedSection_DoNotExcuseATypo()
-    {
-        // An excluded section renders nothing, so a table inside one contributes no columns to the
-        // document. Committing its staged headers at WriteTableEnd would excuse a typo naming one.
-        var projection = new MarkoutProjection { IncludeColumns = ["Hidden"] };
-        var options = new MarkoutWriterOptions
-        {
-            Projection = projection,
-            IncludeSections = ["keep"],
-        };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
-
-        writer.WriteTable(["A"], [["a"]]);
-        options.Projection = null;
-        writer.WriteSectionStart(2, "Skip");
-        writer.WriteTableStart(["Hidden"]);
-        writer.WriteTableRow(["h"]);
-        writer.WriteTableEnd();
-        writer.WriteSectionEnd();
-        options.Projection = projection;
-
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("Hidden", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_ColumnsOfAStreamingTableWhoseStartFailed_DoNotExcuseATypo()
-    {
-        // A formatter can throw out of BeginTable, and then the table has produced nothing at all --
-        // not even the header a successful unbuffered start would have emitted. Staging the table's
-        // columns before attempting the start left that evidence behind for WriteTableEnd to
-        // commit, so a table that wrote zero bytes excused a typo naming one of its columns. The
-        // staging now happens only after the start has succeeded, which is the only point at which
-        // the table is real.
-        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
-        var writer = MarkoutWriter.Create(new ThrowingStartFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart(["Typo"]));
-        writer.WriteTableEnd();
-
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("Typo", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Streaming_ATableWhoseStartFailed_WritesNothingForItsRowsOrEnd()
     {
         // A start that throws must leave no half-open table behind. Keeping the table writer meant
@@ -826,74 +404,112 @@ public class GeneratedTableTests
         Assert.Equal("", writer.ToString());
     }
 
-    [Fact]
-    public void Projection_AStreamingTableTheProjectionDropped_JoinsTheUniverseWithoutAnEnd()
+    private sealed class NameSharingCulture(string name, CultureInfo inner) : CultureInfo(inner.Name)
     {
-        // A streaming table the projection drops renders nothing and can never render anything, so
-        // its outcome is decided the instant the projection misses -- decision point one, exactly
-        // as on the buffered path. Staging that outcome instead of recording it made the record
-        // wait for a WriteTableEnd that a caller is under no obligation to call, and finalization
-        // then probed an unmatched list against a universe missing a column the document really
-        // does offer. "B" below is not a typo; it is a selection the caller installed at the wrong
-        // table, which the design excuses. Withholding it turned a retarget into a diagnostic.
-        var projection = new MarkoutProjection();
-        var options = new MarkoutWriterOptions { Projection = projection };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        public override string Name { get; } = name;
 
-        projection.IncludeColumns = ["B"];
-        writer.WriteTable(["A"], [["a"]]);   // "B" is offered here and misses
-        projection.IncludeColumns = ["C"];
-        writer.WriteTable(["C"], [["c"]]);
-        writer.WriteTableStart(["B"]);        // "C" misses "B"; never ended
-
-        Assert.Contains("| c |", writer.ToString(), StringComparison.Ordinal);
+        public override CompareInfo CompareInfo { get; } = inner.CompareInfo;
     }
 
     [Fact]
-    public void Projection_ColumnsOfATableSupersededByANestedStart_AreStillKnownToTheDocument()
+    public void WriteTableStart_RejectsHeaderNamesThatDoNotMatchZeroHeaders()
     {
-        // Starting a table while one is already open clears the open table's staged reach, so its
-        // columns never reached the universe -- even though its header is right there in the
-        // output. A list that selected one of them was then told at finalization that the document
-        // has no such column. "A" below is visible; diagnosing it as a typo is the writer calling
-        // its own output a lie.
-        var projection = new MarkoutProjection { IncludeColumns = ["A"] };
-        var options = new MarkoutWriterOptions { Projection = projection };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        // The zero-column early return has to sit behind the arity check: returning first accepted
+        // a malformed call in silence on the streaming path while the buffered path rejected the
+        // same arguments.
+        var writer = MarkoutWriter.Create(new MarkdownFormatter());
 
-        writer.WriteTableStart(["A"]);
-        writer.WriteTableRow(["first"]);
-        projection.IncludeColumns = ["B"];
-        writer.WriteTableStart(["B"]);   // supersedes the open table
-        writer.WriteTableRow(["second"]);
-        writer.WriteTableEnd();
-
-        var output = writer.ToString();
-        Assert.Contains("| A |", output, StringComparison.Ordinal);
+        var ex = Assert.Throws<ArgumentException>(() => writer.WriteTableStart([], ["a"]));
+        Assert.Contains("same length as headers", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Projection_ColumnsOfASupersededTableThatNeverEmitted_DoNotExcuseATypo()
+    public void TableProperty_ThrowsWhenTheProjectionMatchesNothingInTheDocument()
     {
-        // The other half of the gate above, and the reason the record is conditioned on what the
-        // table writer actually wrote. With TableOptions set the writer holds the whole table and
-        // emits it at its end, so a start that supersedes it discards every byte. Recording those
-        // columns anyway let finalization re-probe a genuinely unmatched list against them and
-        // excuse it: a document that rendered nothing at all finalized as success, which is the
-        // success-shaped empty output this mechanism exists to prevent.
-        var options = new MarkoutWriterOptions { TableOptions = new TableFormatterOptions() };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        // A projection is an allow list, so an individual table matching none of it contributes
+        // nothing -- see the sibling-section test below, which is what that rule exists for. But a
+        // projection matching nothing in the *whole* document names columns this document does not
+        // have, which is a caller error, and rendering an empty document for it would turn that
+        // error into success-shaped empty output.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["ColumnThatDoesNotExist"] },
+        };
 
-        options.Projection = null;
-        writer.WriteTableStart(["Ghost"]);       // buffered; nothing of it will ever be emitted
-        writer.WriteTableRow(["never seen"]);
-        options.Projection = new MarkoutProjection { IncludeColumns = ["Ghost"] };
-        writer.WriteTableStart(["Other"]);       // supersedes, discarding the buffered table
-        writer.WriteTableRow(["x"]);
-        writer.WriteTableEnd();
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => MarkoutSerializer.Serialize(Sample(), TableContext.Default, options));
+        Assert.Contains("No columns matched projection: ColumnThatDoesNotExist", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_RetargetedMidDocument_StillReportsTheEarlierUnmatchedIncludeList()
+    {
+        // MarkoutWriterOptions.Projection is a mutable object. Reading it back at finalization let
+        // a later exclude projection answer for an include projection that had already cost the
+        // caller a table, turning a typo into success-shaped empty output.
+        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+        writer.WriteTable(["Name"], [["value"]]);
+
+        projection.IncludeColumns = null;
+        projection.ExcludeColumns = ["Name"];
 
         var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("Ghost", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_ALaterMatchingAllowList_DoesNotExcuseAnEarlierUnmatchedOne()
+    {
+        // Reach used one pair of document-wide counters, so any table matching anything answered
+        // for every allow list that had matched nothing. A typo'd selection followed by a working
+        // one therefore finalized as success-shaped empty output, silently dropping the table the
+        // typo was aimed at. Each allow list has to answer only for itself.
+        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["A"], [["one"]]);
+        projection.IncludeColumns = ["B"];
+        writer.WriteTable(["B"], [["two"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_RequestedNamesAreSnapshot_NotReadBackFromTheCallersList()
+    {
+        // The recorded allow list must be a copy: MarkoutProjection.IncludeColumns is a mutable
+        // list a caller can edit in place, and holding the reference would let a later edit rewrite
+        // the diagnosis of an earlier failure.
+        var names = new List<string> { "Typo" };
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = names } };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTable(["A"], [["one"]]);
+        names[0] = "A";
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_AnEarlierExcludeMiss_DoesNotExcuseALaterIncludeTypo()
+    {
+        // Recording the first miss of any kind latched the exclude exemption: an exclude that
+        // legitimately emptied table A then answered for an include typo that missed table B,
+        // and the typo finalized as success-shaped empty output. Only an include miss is
+        // diagnosable, so an include miss is what has to be recorded.
+        var projection = new MarkoutProjection { ExcludeColumns = ["A"] };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
+
+        writer.WriteTable(["A"], [["1"]]);
+        projection.ExcludeColumns = null;
+        projection.IncludeColumns = ["Typo"];
+        writer.WriteTable(["B"], [["2"]]);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -917,357 +533,6 @@ public class GeneratedTableTests
     }
 
     [Fact]
-    public void Projection_ColumnsOfATableThatAbortedMidRender_DoNotExcuseATypo()
-    {
-        // Rows can be a lazy sequence that throws part-way, which aborts the table: nothing of it
-        // reaches the document. Neither its columns may join the universe NOR may the list that
-        // selected them be credited with a match -- a typo naming one of them would otherwise be
-        // excused by a table the reader never sees. Both halves matter: crediting the match alone
-        // excuses the list even with the universe kept clean. Every other
-        // defect in this mechanism has been fail-closed -- a spurious throw, annoying and obvious.
-        // This one is fail-open and silent, which is the direction a diagnostic must never take.
-        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["Valid"], [["v"]]);
-        Assert.Throws<InvalidOperationException>(() => writer.WriteTable(["Typo"], ThrowingRows()));
-
-        var ex = Assert.Throws<InvalidOperationException>(writer.Flush);
-        Assert.Contains("Typo", ex.Message, StringComparison.Ordinal);
-
-        static IEnumerable<string[]> ThrowingRows()
-        {
-            yield return ["val"];
-            throw new InvalidOperationException("row enumeration failed");
-        }
-    }
-
-    [Fact]
-    public void Projection_ColumnsRenderedWhileTheProjectionWasDetached_StillCount()
-    {
-        // MarkoutWriterOptions.Projection is publicly mutable, so "was a projection set when this
-        // table rendered" is not the same question as "did this document have this column". Only
-        // the second one is the universe's business: a caller who detaches the projection around a
-        // table must not be told the column that table rendered was a typo.
-        var projection = new MarkoutProjection { IncludeColumns = ["B"] };
-        var options = new MarkoutWriterOptions { Projection = projection };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
-
-        writer.WriteTable(["A"], [["a"]]);   // misses; excused only if "B" is known to exist
-        options.Projection = null;            // detached -- this table is rendered whole
-        writer.WriteTable(["B"], [["b"]]);
-        options.Projection = projection;
-
-        Assert.Contains("| B |", writer.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_FinalizingTwice_DoesNotRepeatTheProbes()
-    {
-        // Flush() is callable repeatedly and ToString() finalizes too, so an excused list must stay
-        // excused rather than be re-proved. The universe only ever grows, so a list the document has
-        // already satisfied cannot become unsatisfied -- repeating the probe is pure cost, and it is
-        // the expensive path, one matcher run over every distinct column in the document.
-        const int Tables = 200;
-        var projection = new MarkoutProjection();
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        for (int i = 0; i < Tables; i++)
-        {
-            projection.IncludeColumns = ["C" + (i + 1)];   // misses here, excused by the next table
-            writer.WriteTable(["C" + i], [["v"]]);
-        }
-
-        projection.IncludeColumns = ["C" + Tables];
-        writer.WriteTable(["C" + Tables], [["v"]]);
-
-        writer.Flush();
-        var afterFirst = writer.ProjectionResolveCount;
-        writer.Flush();
-        var afterSecond = writer.ProjectionResolveCount;
-
-        Assert.Equal(afterFirst, afterSecond);
-    }
-
-    [Fact]
-    public void Projection_AnUnprojectedTablesColumns_AreStillColumnsTheDocumentOffered()
-    {
-        // The universe answers "did this document have these columns". A table rendered while the
-        // allow list was cleared is still a table this document had, so its columns belong in the
-        // universe -- otherwise clearing IncludeColumns hides the very column an earlier list was
-        // retargeted towards, and a document that rendered it reports it as a typo.
-        var projection = new MarkoutProjection();
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        projection.IncludeColumns = ["B"];
-        writer.WriteTable(["A"], [["a"]]);      // misses; excused only if "B" is known to exist
-
-        projection.IncludeColumns = null;        // cleared -- this table is rendered whole
-        writer.WriteTable(["B"], [["b"]]);
-
-        var markdown = writer.ToString();
-        Assert.Contains("| B |", markdown, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Projection_Finalization_DoesNotPinTheCallersAmbientCulture()
-    {
-        // Probing under a recorded culture means making it ambient, and assigning CurrentCulture --
-        // including to restore it -- replaces inheritance from DefaultThreadCurrentCulture with an
-        // explicit override that outlives the call. A document that rendered perfectly well must not
-        // leave that behind, so the probe happens on a thread whose ambient state dies with it.
-        //
-        // The culture must MOVE between recording and finalizing, or no swap happens and the test
-        // proves only that the no-swap fast path does nothing -- which is how the first version of
-        // this test passed with isolation disabled. It is moved by changing the thread default, so
-        // that the caller never acquires an explicit override of its own and the only thing that
-        // could create one is the code under test.
-        //
-        // All three cultures are invariant in behaviour and differ only in Name, so this test
-        // cannot change how any concurrently running test formats anything.
-        var originalDefault = CultureInfo.DefaultThreadCurrentCulture;
-        var originalCurrent = CultureInfo.CurrentCulture;
-        try
-        {
-            CultureInfo.DefaultThreadCurrentCulture = new NameSharingCulture("recorded", CultureInfo.InvariantCulture);
-
-            var projection = new MarkoutProjection
-            {
-                Comparison = StringComparison.CurrentCultureIgnoreCase,
-                IncludeColumns = ["B"]
-            };
-            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-            writer.WriteTable(["A"], [["a"]]);   // misses, so finalization must probe under "recorded"
-            projection.IncludeColumns = null;
-            writer.WriteTable(["B"], [["b"]]);
-
-            // Inherited, not assigned: the caller still has no override of its own.
-            CultureInfo.DefaultThreadCurrentCulture = new NameSharingCulture("finalizing", CultureInfo.InvariantCulture);
-            Assert.Equal("finalizing", CultureInfo.CurrentCulture.Name);
-
-            _ = writer.ToString();
-
-            // Inheritance must still be live: changing the default has to reach this context.
-            CultureInfo.DefaultThreadCurrentCulture = new NameSharingCulture("after", CultureInfo.InvariantCulture);
-            Assert.Equal("after", CultureInfo.CurrentCulture.Name);
-        }
-        finally
-        {
-            CultureInfo.DefaultThreadCurrentCulture = originalDefault;
-            CultureInfo.CurrentCulture = originalCurrent;
-        }
-    }
-
-    [Fact]
-    public void Projection_CulturesSharingANameButNotACompareInfo_AreBothProbed()
-    {
-        // Recorded cultures are deduplicated on CompareInfo, which is the thing that decides a
-        // match. CultureInfo.Name is virtual and does not: these two agree on Name and disagree on
-        // comparison, so keying on the name drops the second one's semantics and the list that only
-        // it can excuse is reported as a typo.
-        var original = CultureInfo.CurrentCulture;
-        try
-        {
-            var turkish = new NameSharingCulture("shared", CultureInfo.GetCultureInfo("tr-TR"));
-            var english = new NameSharingCulture("shared", CultureInfo.GetCultureInfo("en-US"));
-
-            var projection = new MarkoutProjection { Comparison = StringComparison.CurrentCultureIgnoreCase };
-            var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-            CultureInfo.CurrentCulture = english;
-            projection.IncludeColumns = ["Kept"];
-            writer.WriteTable(["Kept", "\u0131"], [["x", "y"]]);   // dotless i enters the universe
-
-            projection.IncludeColumns = ["I"];
-            writer.WriteTable(["Nope"], [["z"]]);                  // misses under the en flavour
-
-            CultureInfo.CurrentCulture = turkish;
-            projection.IncludeColumns = ["I"];
-            writer.WriteTable(["Nope"], [["z"]]);                  // misses under the tr flavour too
-
-            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
-
-            // Excused: under the Turkish flavour, "I" matches the dotless i the document rendered.
-            _ = writer.ToString();
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
-    }
-
-    private sealed class NameSharingCulture(string name, CultureInfo inner) : CultureInfo(inner.Name)
-    {
-        public override string Name { get; } = name;
-
-        public override CompareInfo CompareInfo { get; } = inner.CompareInfo;
-    }
-
-    [Fact]
-    public void Projection_ManyRetargetedMatchingStreamingLists_AreCreditedWithoutProbing()
-    {
-        // The streaming twin of the buffered gate below. Crediting a match is a separate line of
-        // code on each path, and the streaming one was asserting nothing: removing it left every
-        // test green, because finalization fell back to probing the universe -- which still
-        // contains the columns -- and reached the same verdict the long way round. Correct output,
-        // silently abandoned design. Only a structural claim catches that, so this asserts the same
-        // thing its buffered twin does: a list that matched the table it was offered leaves
-        // finalization with nothing to ask.
-        const int Tables = 20_000;
-        var projection = new MarkoutProjection();
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        for (int i = 0; i < Tables; i++)
-        {
-            projection.IncludeColumns = ["C" + i];
-            writer.WriteTableStart(["C" + i]);
-            writer.WriteTableRow(["v"]);
-            writer.WriteTableEnd();
-        }
-
-        _ = writer.ToString();
-
-        Assert.Equal(Tables, writer.ProjectionResolveCount);
-    }
-
-    [Fact]
-    public void Projection_ManyRetargetedMatchingLists_NeitherScanNorProbe()
-    {
-        // Reach has silently gone quadratic twice: once when the entry lookup was a linear scan,
-        // and once when an unmatched list was re-probed against every table rather than against one
-        // deduplicated column universe. A wall-clock bound did not catch either -- loose enough to
-        // be stable in CI is looser than the regression. So assert the structure instead.
-        //
-        // This is the realistic shape: a projection retargeted per table, every list matching.
-        const int Tables = 20_000;
-        var projection = new MarkoutProjection();
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        for (int i = 0; i < Tables; i++)
-        {
-            projection.IncludeColumns = ["C" + i];
-            writer.WriteTable(["C" + i], [["v"]]);
-        }
-
-        _ = writer.ToString();
-
-        // Every list matched the table it was offered, so finalization has nothing to ask: the only
-        // resolves are the one each rendered table needs. Counted inside MarkoutProjection rather
-        // than at the probe site, so a resolve added anywhere -- including one this test never
-        // anticipated -- lands here. (The comparison bound below is single-site and cannot make
-        // that claim; it proves the entry lookup buckets, and nothing about other work.)
-        Assert.Equal(Tables, writer.ProjectionResolveCount);
-
-        // Bucketed lookup compares against collisions only. A linear scan over all entries would be
-        // ~200,000,000 comparisons here; the bound is loose enough to tolerate hash collisions and
-        // still three orders of magnitude below that.
-        Assert.True(
-            writer.ProjectionReachEntryComparisons < 4 * Tables,
-            $"Entry lookup made {writer.ProjectionReachEntryComparisons} comparisons for {Tables} distinct lists, which means it is scanning rather than bucketing.");
-
-        // Every column here is distinct, so this pins the universe to one entry per column and no
-        // more -- it is the no-duplication half. The deduplicating half is asserted separately by
-        // Projection_ManyTablesSharingColumns_HoldOneUniverseEntryEach, which is where repeated
-        // columns actually occur.
-        Assert.Equal(Tables, writer.ProjectionUniverseSize);
-    }
-
-    [Fact]
-    public void Projection_ManyTablesSharingColumns_HoldOneUniverseEntryEach()
-    {
-        // The universe holds distinct columns, not columns-per-table. This is the property that
-        // bounds a probe to a single matcher run over the document's column set, and so the thing
-        // that makes the resolve counter mean what it says: without it a probe is O(tables), and
-        // the quadratic this whole design exists to remove is back with every counter still green.
-        //
-        // What this does NOT prove: that insertion is O(1). That rests on the HashSet in
-        // RecordProjectedTable, which no counter here observes -- replacing it with a linear scan
-        // over the universe would keep every assertion in this file passing.
-        const int Tables = 5_000;
-        string[] headers = ["A", "B", "C", "D", "E"];
-        var projection = new MarkoutProjection { IncludeColumns = ["A"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        for (int i = 0; i < Tables; i++)
-            writer.WriteTable(headers, [["1", "2", "3", "4", "5"]]);
-
-        _ = writer.ToString();
-
-        Assert.Equal(headers.Length, writer.ProjectionUniverseSize);
-    }
-
-    [Fact]
-    public void Projection_ManyRetargetedMissingLists_AskTheMatcherOncePerList()
-    {
-        // The other half, and the path the timing test could not reach at all: lists that MISS the
-        // table they were offered and are excused by a later one. Re-probing each against every
-        // table was quadratic; probing one column universe is one resolve per unmatched list.
-        const int Tables = 2_000;
-        var projection = new MarkoutProjection();
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        for (int i = 0; i < Tables; i++)
-        {
-            // Names the NEXT table's column, so it misses here and is excused later.
-            projection.IncludeColumns = ["C" + (i + 1)];
-            writer.WriteTable(["C" + i], [["v"]]);
-        }
-
-        // The last list names a column no table ever had, so the document is diagnosably wrong.
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("C" + Tables, ex.Message, StringComparison.Ordinal);
-
-        // One resolve per rendered table, plus at most one probe per distinct list -- never one per
-        // (list, table) pair, which would be 4,000,000 here.
-        Assert.True(
-            writer.ProjectionResolveCount <= 2 * Tables,
-            $"Finalization performed {writer.ProjectionResolveCount} resolves for {Tables} lists and {Tables} tables, which means it is probing per table rather than against the column universe.");
-    }
-
-    [Fact]
-    public void Projection_ASeparatorInsideAColumnName_CannotForgeAMatch()
-    {
-        // Bucket collisions are safe because entries are still compared exactly, so a name carrying
-        // whatever character the key is built from cannot make two distinct selections share an
-        // entry and excuse each other.
-        var projection = new MarkoutProjection { IncludeColumns = ["A\u0001B"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["Other"], [["x"]]);
-        projection.IncludeColumns = ["A", "B"];
-        writer.WriteTable(["A", "B"], [["1", "2"]]);
-
-        Assert.Throws<InvalidOperationException>(() => writer.ToString());
-    }
-
-    [Fact]
-    public void Projection_ARepeatedNameIsTheSameSelectionAsTheNameAlone()
-    {
-        // A repeated name selects its column once, so ["A", "A"] and ["A"] are indistinguishable to
-        // the matcher and must not become two entries.
-        var projection = new MarkoutProjection { IncludeColumns = ["A", "A"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["Other"], [["x"]]);
-        projection.IncludeColumns = ["A"];
-        writer.WriteTable(["A"], [["kept"]]);
-
-        Assert.Contains("kept", writer.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void WriteTableStart_RejectsHeaderNamesThatDoNotMatchZeroHeaders()
-    {
-        // The zero-column early return has to sit behind the arity check: returning first accepted
-        // a malformed call in silence on the streaming path while the buffered path rejected the
-        // same arguments.
-        var writer = MarkoutWriter.Create(new MarkdownFormatter());
-
-        var ex = Assert.Throws<ArgumentException>(() => writer.WriteTableStart([], ["a"]));
-        Assert.Contains("same length as headers", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Projection_OneAllowListSpanningAHeterogeneousDocument_DoesNotThrow()
     {
         // The negative of the case above: one allow list offered to several tables is a selection,
@@ -1282,21 +547,48 @@ public class GeneratedTableTests
         Assert.Contains("| Name |", writer.ToString(), StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Projection_RequestedNamesAreSnapshot_NotReadBackFromTheCallersList()
-    {
-        // The recorded allow list must be a copy: MarkoutProjection.IncludeColumns is a mutable
-        // list a caller can edit in place, and holding the reference would let a later edit rewrite
-        // the diagnosis of an earlier failure.
-        var names = new List<string> { "Typo" };
-        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = names } };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+// from ProjectionTests.cs
 
-        writer.WriteTable(["A"], [["one"]]);
-        names[0] = "A";
+    [Fact]
+    public void Projection_AListThatMatchedATableTheCallerNeverEnded_IsStillCredited()
+    {
+        // Credit is settled where the matcher answers, not where the bytes land. This document
+        // leaves the table open -- supported usage, and what the SectionOrder fuzzer generates --
+        // and its header is plainly in the output, so diagnosing "A" as a column the document does
+        // not have would contradict the document the caller is holding.
+        var sw = new StringWriter();
+        var writer = new MarkoutWriter<MarkdownFormatter>(
+            sw,
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { Projection = MarkoutProjection.WithColumns("A") });
+
+        writer.WriteTableStart(["A"]);
+        writer.WriteTableRow(["a"]);
+        writer.Flush();
+
+        Assert.Contains("| A |", sw.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_AListOfferedOnlyToTablesItMissed_IsStillReported()
+    {
+        // The mirror of the test above: the list rendered nothing anywhere it was offered, so it
+        // is reported. A table written with the projection detached was never offered the list and
+        // so cannot excuse it -- the caller said not to project that table.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithColumns("Ghost"),
+            TableMode = MarkoutTableMode.Jsonl,
+        };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTable(["Other"], [["x"]]);
+        options.Projection = null;
+        writer.WriteTable(new MarkoutTable(["Ghost"], []));
+        options.Projection = MarkoutProjection.WithColumns("Ghost");
 
         var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("No columns matched projection: Ghost", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1367,25 +659,6 @@ public class GeneratedTableTests
         writer.WriteTable(new MarkoutTable(["<code>A</code>", "B"], [["one", "two"]]));
         var lines = writer.ToString().Split('\n');
         Assert.Equal(["A", "B"], lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries));
-    }
-
-    [Fact]
-    public void Projection_AnEarlierExcludeMiss_DoesNotExcuseALaterIncludeTypo()
-    {
-        // Recording the first miss of any kind latched the exclude exemption: an exclude that
-        // legitimately emptied table A then answered for an include typo that missed table B,
-        // and the typo finalized as success-shaped empty output. Only an include miss is
-        // diagnosable, so an include miss is what has to be recorded.
-        var projection = new MarkoutProjection { ExcludeColumns = ["A"] };
-        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions { Projection = projection });
-
-        writer.WriteTable(["A"], [["1"]]);
-        projection.ExcludeColumns = null;
-        projection.IncludeColumns = ["Typo"];
-        writer.WriteTable(["B"], [["2"]]);
-
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
-        Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

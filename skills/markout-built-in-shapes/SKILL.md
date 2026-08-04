@@ -80,12 +80,12 @@ the columns at compile time. It still flows through the serializer like a genera
 `SectionOrder`, `RowWindow`, `IncludeSections`, column projection, and TSV/JSONL decomposition all
 apply for free. Two things to know:
 
-- **Projection is per table, checked per document.** A projection (`IncludeColumns`) that names none
-  of a table's columns renders that table as nothing, because the same projection may be aimed at a
-  sibling section whose columns differ. Generated tables and `MarkoutTable` follow the same rule. A
-  projection that matches nothing *anywhere* in the document still throws when the document is
-  finished, since that names columns the document does not have. A projection may be spelled with
-  either the display header or the canonical snake_case key that TSV/JSONL emits.
+- **Projection is per table.** A projection (`IncludeColumns`) that names none of a table's columns
+  renders that table as nothing, because the same projection may be aimed at a sibling section whose
+  columns differ. Generated tables and `MarkoutTable` follow the same rule, and a miss is silent. An
+  empty `IncludeColumns` list is a caller error and is reported where the projection is offered. A
+  projection may be spelled with either the display header or the canonical snake_case key that
+  TSV/JSONL emits.
 - **Structured column keys.** Pass a second `headerNames` list to key TSV/JSONL output on stable
   names while the display headers stay human-facing:
   `new MarkoutTable(["Property", "Value"], ["prop", "val"], rows)`. A table validates itself at
