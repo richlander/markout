@@ -849,6 +849,49 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void Projection_ColumnsOfATableSupersededByANestedStart_AreStillKnownToTheDocument()
+    {
+        // Starting a table while one is already open clears the open table's staged reach, so its
+        // columns never reached the universe -- even though its header is right there in the
+        // output. A list that selected one of them was then told at finalization that the document
+        // has no such column. "A" below is visible; diagnosing it as a typo is the writer calling
+        // its own output a lie.
+        var projection = new MarkoutProjection { IncludeColumns = ["A"] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart(["A"]);
+        writer.WriteTableRow(["first"]);
+        projection.IncludeColumns = ["B"];
+        writer.WriteTableStart(["B"]);   // supersedes the open table
+        writer.WriteTableRow(["second"]);
+        writer.WriteTableEnd();
+
+        var output = writer.ToString();
+        Assert.Contains("| A |", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Projection_ATypoIsStillDiagnosedAcrossANestedStart()
+    {
+        // The negative case for the gate above. Recording the superseded table's columns must widen
+        // the universe by exactly what that table offered and nothing else, so a list naming a
+        // column no table ever had is still diagnosed.
+        var projection = new MarkoutProjection { IncludeColumns = ["Typo"] };
+        var options = new MarkoutWriterOptions { Projection = projection };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart(["A"]);
+        writer.WriteTableRow(["first"]);
+        writer.WriteTableStart(["B"]);
+        writer.WriteTableRow(["second"]);
+        writer.WriteTableEnd();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("Typo", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Projection_ColumnsOfATableThatAbortedMidRender_DoNotExcuseATypo()
     {
         // Rows can be a lazy sequence that throws part-way, which aborts the table: nothing of it

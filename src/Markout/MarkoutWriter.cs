@@ -1341,6 +1341,24 @@ public class MarkoutWriter
         if (_inCode)
             throw new InvalidOperationException("Cannot start a table inside a code region.");
 
+        // Two tables cannot be open at once, and the state cleared just below belongs to the one
+        // already open. Dropping its staged reach meant a column the reader could plainly see was
+        // diagnosed at finalization as a typo -- the superseded table's header is in the output,
+        // and the list that selected it was told the document has no such column.
+        //
+        // Its columns therefore join the universe here, which is the weaker of the two claims
+        // reach makes: "this document offers this column", which the superseded table did offer.
+        // The stronger claim -- crediting the list with a match -- is deliberately not made,
+        // because whether the superseded table rendered at all is exactly what is in doubt: with
+        // TableOptions set its table writer buffers, and this method replaces that writer, so its
+        // content is discarded. That discard is a pre-existing defect of the streaming seam rather
+        // than of reach (it reproduces on this PR's base and at finalization for any table left
+        // open), and it is filed separately; recording only the universe keeps this mechanism
+        // honest either way, since an entry credited by a table whose bytes vanished would be the
+        // fail-open this PR spent four rounds closing.
+        if (_inTable && _pendingTableHeaders is { } supersededHeaders)
+            RecordProjectedTable(supersededHeaders, _pendingTableHeaderNames ?? supersededHeaders);
+
         _inTable = true;
         _columnMap = null;
         _tableWriter = null;
