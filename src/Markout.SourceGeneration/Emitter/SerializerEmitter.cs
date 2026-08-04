@@ -823,13 +823,44 @@ internal static class SerializerEmitter
         int effectiveSectionLevel,
         string sectionName)
     {
-        if (prop.SectionEmptyText == null)
-            return;
-
         var headlessArg = prop.SectionHeadless ? ", headless: true" : "";
+
+        if (prop.SectionEmptyText == null)
+        {
+            // Without empty text there is nothing to say, so this section contributes no output at
+            // all. A runtime-column table still goes to the writer, for the reason given below: an
+            // allow list that can never select anything is rejected on the projection's own terms,
+            // not on whether this particular table turned out to have columns. The section is
+            // opened and closed around the call so exclusion is still decided first, and it stays
+            // absent from the output because a heading is written only once something follows it.
+            if (prop.Kind != PropertyKind.Table)
+                return;
+
+            sb.AppendLine($"{indent}else if ({propAccess} != null)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\", headless: true);");
+            sb.AppendLine($"{indent}    writer.WriteTable({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+            sb.AppendLine($"{indent}}}");
+            return;
+        }
+
         sb.AppendLine($"{indent}else if ({propAccess} != null)");
         sb.AppendLine($"{indent}{{");
         sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+        if (prop.Kind == PropertyKind.Table)
+        {
+            // Hand the empty table to the writer anyway. It renders nothing -- a table with no
+            // columns has no Markdown spelling -- so the empty text below is still what appears,
+            // but the projection is now validated here exactly as it is for a table that does have
+            // columns. Skipping the call would make "an allow list that can never select anything
+            // is rejected" depend on how many columns the table in hand happens to have, which is
+            // the property that rule exists to deny. Placing it inside the section scope, rather
+            // than before it, keeps exclusion authoritative: an excluded section returns before
+            // the projection is consulted, the same as for a non-empty table.
+            sb.AppendLine($"{indent}    writer.WriteTable({propAccess});");
+        }
+
         sb.AppendLine($"{indent}    writer.WriteParagraph(\"{EmitHelpers.EscapeString(prop.SectionEmptyText)}\");");
         sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
         sb.AppendLine($"{indent}}}");

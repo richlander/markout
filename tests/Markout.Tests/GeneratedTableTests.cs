@@ -31,6 +31,20 @@ public partial class BareTableContext : MarkoutSerializerContext
 {
 }
 
+// A sectioned runtime-column table with no EmptyText, so an empty one produces no fallback branch
+// and the section is absent from the output entirely.
+[MarkoutSerializable]
+public class SilentSectionTableContainer
+{
+    [MarkoutSection(Name = "Metadata: Image")]
+    public MarkoutTable? Image { get; set; }
+}
+
+[MarkoutContext(typeof(SilentSectionTableContainer))]
+public partial class SilentSectionTableContext : MarkoutSerializerContext
+{
+}
+
 // A model element whose section name is a runtime value, carrying a runtime-column table body.
 // Unwrapped as a top-level list, each element becomes its own level-2 section — the "dynamic set
 // of named sections" capability — and its table participates in ordering, windowing, and
@@ -1176,6 +1190,77 @@ public class GeneratedTableTests
         Assert.Equal("| A | B |\n| - | - |\n| 1 | 2 |", writer.ToString());
     }
 
+
+
+    [Fact]
+    public void GeneratedTable_AnEmptySectionTable_StillRejectsAnAllowListThatSelectsNothing()
+    {
+        // An empty allow list can never select a column from any table, so it is rejected on the
+        // projection's own terms. Letting an empty table skip the write call would make that
+        // rejection depend on how many columns the table in hand turned out to have -- the very
+        // coupling the rule exists to deny -- and it is the sectioned shape, not the bare one,
+        // that callers actually use.
+        var model = new TableContainer { Image = new MarkoutTable([], []) };
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = [] } };
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => MarkoutSerializer.Serialize(model, TableContext.Default, options));
+
+        Assert.StartsWith("Projection selected no columns", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratedTable_AnEmptySectionTable_StillRendersItsEmptyText()
+    {
+        // The empty table now reaches the writer, which must not change what the section says: a
+        // table with no columns renders nothing, so the empty text is still the whole section.
+        var model = new TableContainer { Image = new MarkoutTable([], []) };
+
+        Assert.Equal(
+            "## Metadata: Image\n\nNo metadata found.",
+            MarkoutSerializer.Serialize(model, TableContext.Default));
+    }
+
+    [Fact]
+    public void GeneratedTable_AnEmptySectionTableWithNoEmptyText_RejectsAnAllowListThatSelectsNothing()
+    {
+        // Same rule where there is no empty text to render, so the section contributes nothing at
+        // all. Whether the model author supplied empty text is not a projection concern.
+        var model = new SilentSectionTableContainer { Image = new MarkoutTable([], []) };
+        var options = new MarkoutWriterOptions { Projection = new MarkoutProjection { IncludeColumns = [] } };
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => MarkoutSerializer.Serialize(model, SilentSectionTableContext.Default, options));
+
+        Assert.StartsWith("Projection selected no columns", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratedTable_AnEmptySectionTableWithNoEmptyText_WritesNoHeading()
+    {
+        // The section opened for that check is headless, so it leaves no heading behind. A heading
+        // over nothing is the defect this whole shape exists to avoid, and it would be the price
+        // of validating the projection inside a section scope if the scope were an ordinary one.
+        var model = new SilentSectionTableContainer { Image = new MarkoutTable([], []) };
+
+        Assert.Equal("", MarkoutSerializer.Serialize(model, SilentSectionTableContext.Default));
+    }
+
+    [Fact]
+    public void GeneratedTable_AnExcludedSectionsEmptyTable_IsNotProjectedAtAll()
+    {
+        // Exclusion is decided before the projection, so a section the caller removed raises no
+        // projection complaint -- the same order a non-empty table follows. This is why the check
+        // is made inside the section scope rather than before it.
+        var model = new TableContainer { Image = new MarkoutTable([], []) };
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = [] },
+            IncludeSections = ["something-else"],
+        };
+
+        Assert.Equal("", MarkoutSerializer.Serialize(model, TableContext.Default, options));
+    }
 
     [Fact]
     public void GeneratedTable_OutsideASection_RendersNothingWhenItHasNoColumns()
