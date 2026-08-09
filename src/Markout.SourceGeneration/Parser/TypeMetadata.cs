@@ -524,6 +524,7 @@ internal enum PropertyKind
     MetricChange,
     MultiSource,
     CompositeCell,
+    Table,
     Other
 }
 

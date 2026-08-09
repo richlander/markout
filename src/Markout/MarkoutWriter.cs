@@ -1,3 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Markout.Formatting;
 
@@ -1185,6 +1188,18 @@ public class MarkoutWriter
     public bool WriteTable(IEnumerable<string> headers, IEnumerable<string> headerNames, IEnumerable<string[]> rows)
         => WriteTableCore(headers, headerNames, rows);
 
+    /// <summary>
+    /// Writes a <see cref="MarkoutTable"/> — a table whose columns are runtime data. A column
+    /// projection matching none of this table's columns renders nothing, the same rule generated
+    /// tables follow, because the projection may target a sibling section.
+    /// </summary>
+    /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support tables.</returns>
+    public bool WriteTable(MarkoutTable table)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        return WriteTableCore(table.Headers, table.HeaderNames, table.Rows);
+    }
+
     private bool WriteTableCore(IEnumerable<string> headers, IEnumerable<string>? headerNames, IEnumerable<string[]> rows)
     {
         if (_sectionExcluded)
@@ -1198,10 +1213,32 @@ public class MarkoutWriter
         if (headerNameArray != null && headerNameArray.Length != headerArray.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        // Apply column projection
-        var columnMap = headerNameArray == null
-            ? _options.Projection?.ComputeColumnMap(headerArray)
-            : _options.Projection?.ComputeColumnMap(headerArray, headerNameArray);
+        var projection = BeginProjection(out var selection);
+
+        // A table with no columns has no Markdown spelling -- rendering one emits a "|"/"|" husk
+        // that is not a table. Guarded here rather than at each overload so every buffered caller
+        // is covered, including the runtime-column shape whose column count is data.
+        if (headerArray.Length == 0)
+            return true;
+
+        // Apply column projection. A projection is an allow list over a whole document, and the
+        // same projection may name columns belonging to a sibling section, so a table matching
+        // none of it contributes nothing. Throwing made a heterogeneous multi-section document
+        // unprojectable; rendering the table whole emitted the very columns the caller did not
+        // ask for. Resolving the display headers as stable names too lets a projection use the
+        // canonical keys that structured output actually emits.
+        //
+        // A miss returns WITHOUT enumerating rows, which matters for callers passing lazy
+        // sequences that are expensive, infinite, or invalid for a table that was never going
+        // to render.
+        int[]? columnMap = null;
+        if (projection is not null)
+        {
+            if (!ResolveProjectedColumns(projection, selection, headerArray, headerNameArray ?? headerArray, out columnMap))
+                return true;
+        }
+
+        var rowList = rows as IList<string[]> ?? rows.ToList();
         if (columnMap != null)
         {
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
@@ -1209,8 +1246,6 @@ public class MarkoutWriter
                 headerNameArray = MarkoutProjection.ProjectHeaders(headerNameArray, columnMap);
         }
 
-        // Materialize and project rows
-        var rowList = rows as IList<string[]> ?? rows.ToList();
         if (columnMap != null)
         {
             var projected = new List<string[]>(rowList.Count);
@@ -1285,14 +1320,31 @@ public class MarkoutWriter
         if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
             return false;
 
-        if (headers.Length == 0)
-            throw new ArgumentException("At least one header is required.", nameof(headers));
+        // Validated before the zero-column return below, so that a malformed call is still reported
+        // as malformed. Returning first would have let zero headers with a stable name through in
+        // silence on this path while the buffered path rejected the same arguments.
         if (headerNames.Length > 0 && headerNames.Length != headers.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
 
-        _columnMap = headerNames.Length > 0
-            ? _options.Projection?.ComputeColumnMap(headers, headerNames)
-            : _options.Projection?.ComputeColumnMap(headers);
+        var projection = BeginProjection(out var selection);
+
+        // A table with no columns renders nothing, exactly as the buffered path does. Throwing here
+        // instead made the two entry points disagree about the same table: generated code hides
+        // columns with [MarkoutIgnoreColumnWhen] at run time, and a model whose columns are all
+        // hidden emits an empty header array and reaches this streaming path, where the throw
+        // turned a legitimately empty table into a crash. Returning early leaves _tableWriter null,
+        // which is what suppresses the rows that follow.
+        if (headers.Length == 0)
+            return true;
+
+        if (projection is not null)
+        {
+            // See WriteTableCore: a table matching none of the projection contributes nothing, and
+            // leaving _tableWriter null is what suppresses the rows that follow.
+            var offeredNames = headerNames.Length > 0 ? headerNames : headers;
+            if (!ResolveProjectedColumns(projection, selection, headers, offeredNames, out _columnMap))
+                return true;
+        }
         string[]? projectedHeaderNames = null;
         if (headerNames.Length > 0)
         {
@@ -1301,23 +1353,35 @@ public class MarkoutWriter
                 projectedHeaderNames = MarkoutProjection.ProjectHeaders(projectedHeaderNames, _columnMap);
         }
 
-        EnsureBlankLineIfNeeded();
-        _tableWriter = CreateTableWriter();
-        if (_columnMap != null)
+        // A start that throws leaves no table behind. Clearing the writer is what keeps the rows
+        // and the end that follow from writing into a table that never began, and it is why
+        // nothing below this point can be reached by a failed start.
+        try
         {
-            var projectedHeaders = MarkoutProjection.ProjectHeaders(headers, _columnMap);
-            if (projectedHeaderNames != null)
-                _tableWriter.WriteTableStart(projectedHeaders, projectedHeaderNames);
+            EnsureBlankLineIfNeeded();
+            _tableWriter = CreateTableWriter();
+            if (_columnMap != null)
+            {
+                var projectedHeaders = MarkoutProjection.ProjectHeaders(headers, _columnMap);
+                if (projectedHeaderNames != null)
+                    _tableWriter.WriteTableStart(projectedHeaders, projectedHeaderNames);
+                else
+                    _tableWriter.WriteTableStart(projectedHeaders);
+            }
+            else if (projectedHeaderNames != null)
+            {
+                _tableWriter.WriteTableStart(headers, projectedHeaderNames);
+            }
             else
-                _tableWriter.WriteTableStart(projectedHeaders);
+            {
+                _tableWriter.WriteTableStart(headers);
+            }
         }
-        else if (projectedHeaderNames != null)
+        catch
         {
-            _tableWriter.WriteTableStart(headers, projectedHeaderNames);
-        }
-        else
-        {
-            _tableWriter.WriteTableStart(headers);
+            _tableWriter = null;
+            _columnMap = null;
+            throw;
         }
 
         // A started table is content, not only a finished one. Deferring this to
@@ -1404,7 +1468,13 @@ public class MarkoutWriter
     {
         _inTable = false;
 
-        if (!_sectionExcluded && _tableWriter != null)
+        // Deliberately NOT conditioned on _sectionExcluded. _tableWriter is non-null only if the
+        // table started in an included section, so a table that reaches here must be closed even if
+        // the caller has since opened an excluded section: with TableOptions set the table writer
+        // buffers everything and emits on end, so skipping the end silently discarded the entire
+        // table. Dropping content because unrelated state changed after the table began is exactly
+        // the success-shaped empty output this writer must not produce.
+        if (_tableWriter != null)
         {
             _tableWriter.WriteTableEnd();
             _needsBlankLine = true;
@@ -1708,10 +1778,18 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Flushes any buffered output to the underlying stream.
+    /// Flushes any buffered output to the underlying stream, emits any ordered sections still held
+    /// back, and reports a projection that selected nothing anywhere in the document.
     /// </summary>
+    /// <remarks>
+    /// Completing a document is explicit: this type is not <see cref="IDisposable"/>, so a
+    /// <c>using</c> block will not finish one for you. Against a stream target, call this;
+    /// <see cref="ToString"/> only completes a document written to a <see cref="StringWriter"/>.
+    /// A document that is never completed keeps its ordered sections and its projection diagnostic.
+    /// </remarks>
     public void Flush()
     {
+        ThrowIfProjectionMatchedNothing();
         _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
 
         // _writer is either _target or the buffering wrapper in front of it, and the
@@ -1734,9 +1812,240 @@ public class MarkoutWriter
         if (_target is not StringWriter sw)
             return base.ToString() ?? "";
 
+        ThrowIfProjectionMatchedNothing();
         _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
         return sw.ToString().TrimEnd();
     }
+
+    // ── Projection ──
+
+    private bool ResolveProjectedColumns(
+        MarkoutProjection projection,
+        string[]? requested,
+        ReadOnlySpan<string> headers,
+        ReadOnlySpan<string> headerNames,
+        out int[]? columnMap)
+    {
+        columnMap = null;
+
+        // The request arrived already read. Snapshotting here was still one read too late and
+        // one read too many: the entry point has to judge an empty allow list before the
+        // zero-column return, so it must have the names in hand by then anyway, and taking them
+        // again here would be a second read of a source that need not answer twice the same.
+        var resolution = projection.ResolveColumns(headers, headerNames, requested);
+
+        if (resolution.Kind == ColumnProjectionResolutionKind.NoProjection)
+            return true;
+
+        // A projection is an allow list over a whole document, and the same list may name columns
+        // belonging to a sibling section, so a table matching none of it renders nothing rather
+        // than throwing. Throwing per table -- which is what this did before MarkoutTable -- made
+        // a heterogeneous multi-section document unprojectable.
+        //
+        // Whether the list matched is settled HERE, where the matcher answers it, and not at some
+        // later point that depends on what the formatter did with the result. A list has "matched"
+        // when it selected a real table's columns; whether those columns went on to become bytes
+        // is a question about the formatter, the row sequence, and the caller's willingness to
+        // call WriteTableEnd, and tying the diagnostic to it means the writer must predict output
+        // it does not control. It cannot: a conformant formatter may write nothing for an ordinary
+        // table. Crediting at match time is the one point that is both decidable and correct.
+        var reach = requested is not null
+            ? GetListReach(requested, projection.Comparison)
+            : null;
+
+        // An empty map IS the miss, whatever produced it: NoMatches carries an empty map by
+        // construction, so testing the Kind as well was a second spelling of this line that no
+        // test could tell from the first. One condition, and the exclude-everything case gates it.
+        if (resolution.ColumnMap.Count == 0)
+            return false;
+
+        if (reach is not null)
+            reach.Matched = true;
+
+        columnMap = [.. resolution.ColumnMap];
+        return true;
+    }
+
+    /// <summary>
+    /// Reads this table's allow list once, and rejects it if it selects nothing.
+    /// </summary>
+    /// <remarks>
+    /// One read per table, taken here because this is the earliest point that needs it and every
+    /// later consumer needs the same answer. IncludeColumns is an interface, so Count and the
+    /// names it yields are separate questions a caller's type need not answer consistently, or
+    /// answer twice the same; asking more than once let the matcher and the record of what matched
+    /// disagree about which request was even made, and a table went missing with no diagnostic.
+    /// Enumeration is the definitive read, because it is the one that yields the names, so
+    /// emptiness is judged on what came out rather than on a Count that only claims.
+    ///
+    /// An empty allow list selects nothing, and unlike a list that simply missed this table it
+    /// cannot be a legitimate request: there is no name in it to match anything, in this table or
+    /// any other. It is a property of the projection alone, so it is reported where the projection
+    /// is offered rather than deferred to finalization -- deferring it would hand the caller an
+    /// empty document and a message naming no column at all.
+    ///
+    /// Checked before the zero-column return each entry point makes, for the same reason those
+    /// entry points validate header-name arity first: whether this projection can ever select
+    /// anything does not depend on how many columns the table in hand happens to have, and a
+    /// zero-column table records no selection for finalization to report later. Deciding it here
+    /// also keeps the two entry points agreeing about the same projection.
+    /// </remarks>
+    private MarkoutProjection? BeginProjection(out string[]? selection)
+    {
+        selection = null;
+        var projection = _options.Projection;
+        if (projection is null)
+            return null;
+
+        if (projection.IncludeColumns is { } includeColumns)
+        {
+            selection = MarkoutProjection.SnapshotSelection(includeColumns);
+            if (selection.Length == 0)
+                ThrowProjectionSelectsNothing();
+        }
+
+        return projection;
+    }
+
+    [DoesNotReturn]
+    private static void ThrowProjectionSelectsNothing()
+        => throw new InvalidOperationException(
+            "Projection selected no columns: IncludeColumns is empty. Name at least one column, or leave the projection unset.");
+
+    // A selection is its NAMES and the COMPARISON they are matched under, not the list object that
+    // carried them. Both halves are load-bearing, and keying on the instance instead got both
+    // wrong: MarkoutProjection.IncludeColumns and .Comparison are publicly mutable, so a caller
+    // who edits the list in place, or who changes the comparison, poses a new question through the
+    // same object. Crediting the new question with the old question's answer let a table vanish
+    // from the output with no diagnostic at all.
+    //
+    // This compares names for IDENTITY of the request, ordinally and exactly. It is not a second
+    // model of the matcher: it never decides whether a name matches a column, which is the
+    // matcher's job and stays there. Two requests that are not character-for-character the same
+    // request are simply two requests, even if the matcher would treat them alike.
+    private Dictionary<int, List<ProjectionListReach>>? _offeredLists;
+    private List<ProjectionListReach>? _offeredOrder;
+
+    /// <summary>
+    /// Number of distinct selections this document has been offered, for the gate asserting that a
+    /// caller which rebuilds an equivalent projection per table accumulates one entry, not one per
+    /// table. A selection is its names and its comparison, so equivalent requests coincide here.
+    /// </summary>
+    internal int ProjectionSelectionCount => _offeredOrder?.Count ?? 0;
+
+    /// <summary>
+    /// Candidates inspected while looking a selection up in its bucket, for the gate asserting that
+    /// the digest keeps lookup off a scan of every selection the document has already seen. A digest
+    /// that stopped distributing would leave every verdict correct and turn this quadratic.
+    /// </summary>
+    internal long ProjectionSelectionProbeCount => _selectionProbes;
+
+    private long _selectionProbes;
+
+    private sealed class ProjectionListReach
+    {
+        public required string[] Requested { get; init; }
+        public required StringComparison Comparison { get; init; }
+        public bool Matched { get; set; }
+    }
+
+    // Bucketed so that a document retargeting a projection per table does not turn entry lookup
+    // into a scan of every selection it has already seen. Internal rather than private so the gates
+    // for in-bucket separation can find a real colliding pair: HashCode is seeded per process, so a
+    // hard-coded pair would not collide on the next run.
+    //
+    // Deliberately hashes the names ALONE, though a selection is its names and its comparison. Were
+    // the comparison hashed too, two selections differing only in comparison would land in separate
+    // buckets and the in-bucket comparison guard would become unreachable except through a digest
+    // collision -- a guard nothing can exercise, which is a guard no test can defend. Keying on the
+    // names puts that pair in one bucket, where the guard is the only thing separating them and any
+    // test of it is a test of the code that actually runs. Bucket sharing is observable as a probe,
+    // so that reachability is itself gated, by
+    // Projection_TwoSelectionsDifferingOnlyInComparison_ShareABucket.
+    //
+    // It hashes those names case-insensitively for the same reason: a selection IS case-sensitive,
+    // but the exact test belongs in one place, and a key coarser than the answer is what keeps it
+    // reachable. Two mechanisms that each suffice leave neither one gated. Gated by
+    // Projection_TwoSelectionsDifferingOnlyInCase_ShareABucket.
+    internal static int SelectionDigest(IReadOnlyList<string> names)
+    {
+        var digest = new HashCode();
+        foreach (var name in names)
+            digest.Add(name, StringComparer.OrdinalIgnoreCase);
+        return digest.ToHashCode();
+    }
+
+    private ProjectionListReach GetListReach(string[] snapshot, StringComparison comparison)
+    {
+        _offeredLists ??= [];
+        _offeredOrder ??= [];
+
+        // Takes the snapshot, never the caller's list: the single read happens above, in
+        // ResolveProjectedColumns, so the names keyed here are the same names the matcher judged.
+        // Accepting a string[] is the point -- there is no longer an interface to re-read, so this
+        // lookup cannot be made inconsistent with the verdict it is recording.
+        var key = SelectionDigest(snapshot);
+        if (!_offeredLists.TryGetValue(key, out var bucket))
+        {
+            bucket = [];
+            _offeredLists[key] = bucket;
+        }
+
+        foreach (var candidate in bucket)
+        {
+            _selectionProbes++;
+
+            // The comparison test is gated: the digest keys on the names alone, so two selections
+            // differing only in comparison share this bucket and this line is the only thing
+            // separating them.
+            if (candidate.Comparison != comparison)
+                continue;
+
+            // One call, so that length and contents cannot be weakened separately: a hand-written
+            // loop kept its length test in a line of its own, reachable only through a collision
+            // and therefore impossible to gate, while nothing stopped that line from being deleted.
+            // SequenceEqual decides both, and the collision gates decide SequenceEqual.
+            //
+            // The comparer is ordinal because identity of a request is exact, and this line is the
+            // only thing that makes it so: the digest deliberately hashes case-insensitively, which
+            // is coarser than the answer, so ["NAME"] and ["Name"] always share this bucket and
+            // arrive here. Hashing ordinally as well would be the more obvious spelling and would
+            // be strictly worse -- it would separate them before this line ran, leaving two
+            // mechanisms that each suffice and therefore neither one a test can reach. A coarse key
+            // and one exact test beats two exact ones.
+            if (candidate.Requested.AsSpan().SequenceEqual(snapshot, StringComparer.Ordinal))
+                return candidate;
+        }
+
+        var entry = new ProjectionListReach { Requested = snapshot, Comparison = comparison };
+        bucket.Add(entry);
+        _offeredOrder.Add(entry);
+        return entry;
+    }
+
+    /// <summary>
+    /// Reports an allow list that was offered to this document and selected nothing in any table
+    /// it was offered to. Only a document that actually offered the projection something can be
+    /// said to have rejected it: a document with no tables leaves the projection vacuous, not
+    /// unsatisfied, and must not fail.
+    /// </summary>
+    private void ThrowIfProjectionMatchedNothing()
+    {
+        if (_offeredOrder is null)
+            return;
+
+        // In offer order, so a document with more than one unsatisfied selection reports the first
+        // one the caller made rather than whichever the hashing happened to surface. The two
+        // disagree only when a selection shares a bucket with an earlier one, which is the shape
+        // Projection_UnsatisfiedSelections_AreReportedInOfferOrderNotInBucketOrder builds.
+        foreach (var entry in _offeredOrder)
+        {
+            if (!entry.Matched)
+                throw new InvalidOperationException(
+                    $"No columns matched projection: {string.Join(", ", entry.Requested)}");
+        }
+    }
+
 
     // ── Private infrastructure ──
 

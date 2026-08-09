@@ -112,33 +112,6 @@ public class MarkoutProjection
     }
 
     /// <summary>
-    /// Returns true if the given column header should be included in output.
-    /// </summary>
-    internal bool IsColumnIncluded(string header)
-    {
-        if (_includeColumns != null)
-        {
-            foreach (var col in _includeColumns)
-            {
-                if (MatchesName(col, header))
-                    return true;
-            }
-            return false;
-        }
-
-        if (_excludeColumns != null)
-        {
-            foreach (var col in _excludeColumns)
-            {
-                if (MatchesName(col, header))
-                    return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
     /// Returns true if the given field key should be included in output.
     /// </summary>
     internal bool IsFieldIncluded(string key)
@@ -176,13 +149,43 @@ public class MarkoutProjection
     /// Matches display headers, stable header names, and snake_case stable names.
     /// </summary>
     public ColumnProjectionResolution ResolveColumns(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
+        => _includeColumns is { } include
+            ? ResolveColumns(headers, headerNames, SnapshotSelection(include))
+            : ResolveColumns(headers, headerNames, null);
+
+    /// <summary>
+    /// Reads an allow list into an array, exactly once.
+    /// </summary>
+    /// <remarks>
+    /// IncludeColumns is an interface the caller implements, so its Count and the items it yields
+    /// are separate questions asked of a type that need not answer them consistently, or answer
+    /// either the same way twice. Every consumer of a selection -- the matcher that decides which
+    /// columns it selects, the writer that records whether it ever matched, and the message that
+    /// names it if it did not -- has to be looking at the same names, or they can disagree about
+    /// which request was even made. Reading it once, here, is what makes them agree; enumeration
+    /// is the definitive read, because it is the one that yields the names.
+    /// </remarks>
+    internal static string[] SnapshotSelection(IReadOnlyList<string> requested)
     {
-        if (_includeColumns != null)
+        List<string> snapshot = [];
+        foreach (var name in requested)
+            snapshot.Add(name);
+
+        return [.. snapshot];
+    }
+
+    internal ColumnProjectionResolution ResolveColumns(
+        ReadOnlySpan<string> headers,
+        ReadOnlySpan<string> headerNames,
+        string[]? includeColumns)
+    {
+        if (includeColumns != null)
         {
             // Include: output columns in the order specified by IncludeColumns
-            var map = new List<int>(_includeColumns.Count);
+            var map = new List<int>(includeColumns.Length);
+            var claimed = new HashSet<int>();
             var unmatched = new List<string>();
-            foreach (var col in _includeColumns)
+            foreach (var col in includeColumns)
             {
                 bool matched = false;
                 bool isGlob = col.Contains('*') || col.Contains('?');
@@ -190,8 +193,17 @@ public class MarkoutProjection
                 {
                     if (MatchesColumn(col, headers, headerNames, i))
                     {
+                        // A column answers to several names -- its display header, its stable name,
+                        // and that name's snake_case form -- so an allow list naming two aliases of
+                        // one column, or a glob overlapping an explicit name, would otherwise
+                        // project that column twice. The duplicate is emitted downstream of
+                        // MarkoutTable's construction-time key validation, so it reaches structured
+                        // output as a repeated JSONL key from which a consumer recovers one value.
+                        // The name still counts as matched -- it named a real column, so it is no
+                        // typo -- but the column is emitted once, at its first requested position.
                         matched = true;
-                        map.Add(i);
+                        if (claimed.Add(i))
+                            map.Add(i);
                         if (!isGlob) break;
                     }
                 }
@@ -201,9 +213,9 @@ public class MarkoutProjection
             }
 
             if (map.Count == 0)
-                return ColumnProjectionResolution.NoMatches(_includeColumns);
+                return ColumnProjectionResolution.NoMatches(includeColumns);
 
-            return ColumnProjectionResolution.Matched(map, _includeColumns, unmatched);
+            return ColumnProjectionResolution.Matched(map, includeColumns, unmatched);
         }
 
         if (_excludeColumns != null)
@@ -247,39 +259,16 @@ public class MarkoutProjection
         return resolution.Kind != ColumnProjectionResolutionKind.NoMatches;
     }
 
-    /// <summary>
-    /// Computes a column index map for projecting table columns.
-    /// Returns null if no column projection is needed.
-    /// Each entry maps projected position → original position.
-    /// </summary>
-    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers)
-        => ComputeColumnMap(headers, default);
-
-    /// <summary>
-    /// Computes a column index map for projecting table columns.
-    /// Matches display headers, stable header names, and snake_case stable names.
-    /// </summary>
-    internal int[]? ComputeColumnMap(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
-    {
-        var resolution = ResolveColumns(headers, headerNames);
-        return resolution.Kind switch
-        {
-            ColumnProjectionResolutionKind.NoProjection => null,
-            ColumnProjectionResolutionKind.Matched => [.. resolution.ColumnMap],
-            _ => throw new InvalidOperationException(
-                $"No columns matched projection: {string.Join(", ", resolution.RequestedColumns)}")
-        };
-    }
-
     private bool MatchesColumn(string pattern, ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames, int index)
     {
         if (MatchesName(pattern, headers[index]))
             return true;
 
-        if (index >= headerNames.Length || string.IsNullOrEmpty(headerNames[index]))
-            return false;
-
-        var stableName = headerNames[index];
+        // Resolve the stable name the way TableWriter.FormatHeaders does: an explicit name that is
+        // null or empty falls back to the display header. Returning early instead would refuse to
+        // match a column by the very key structured output emits for it.
+        var explicitName = index < headerNames.Length ? headerNames[index] : null;
+        var stableName = string.IsNullOrEmpty(explicitName) ? headers[index] : explicitName;
         return MatchesName(pattern, stableName)
             || MatchesName(pattern, Formatting.FormatHelper.ToSnakeCase(stableName));
     }

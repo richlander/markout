@@ -529,7 +529,15 @@ internal static class TypeParser
 
         // A collection rendered as a table (ComplexArray without nested subsections) emits a fixed
         // header row up front, so a row type whose properties are all ignored/section-ignored/child
-        // flags produces zero headers and throws at runtime. Reject it at compile time (MARKOUT006).
+        // flags produces zero headers and renders nothing at all -- a populated collection that
+        // serializes to an empty document. Reject it at compile time (MARKOUT006), where the
+        // author can see it. This used to say the runtime throws; it no longer does, because a
+        // zero-column table now returns early rather than emitting a "|"/"|" husk, which makes
+        // catching it here the only thing standing between the author and silent empty output.
+        //
+        // Unverified: no test covers this diagnostic, and a row type with NO properties at all
+        // slips past the Count > 0 test below and reaches exactly that silent empty output. Both
+        // gaps predate MarkoutTable and are tracked separately.
         if (kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
             elementProperties is { Count: > 0 })
         {
@@ -681,6 +689,10 @@ internal static class TypeParser
         // Graph type - lowered by the writer into a diagram, edge table, or tree
         if (knownTypes.Graph is not null && SymbolEqualityComparer.Default.Equals(type, knownTypes.Graph))
             return (PropertyKind.Graph, null, null, false, null, null, true, FieldLayoutKind.Table, false);
+
+        // MarkoutTable type - a table whose columns are runtime data, rendered by the writer
+        if (knownTypes.MarkoutTable is not null && SymbolEqualityComparer.Default.Equals(type, knownTypes.MarkoutTable))
+            return (PropertyKind.Table, null, null, false, null, null, true, FieldLayoutKind.Table, false);
 
         // Callout type - renders as admonition block
         if (SymbolEqualityComparer.Default.Equals(type, knownTypes.Callout))
@@ -928,6 +940,7 @@ internal static class TypeParser
              (p.Kind == PropertyKind.ComplexArray && p.JoinSeparator == null) ||
              p.Kind == PropertyKind.FieldCollection || p.Kind == PropertyKind.Tree ||
              p.Kind == PropertyKind.Graph ||
+             p.Kind == PropertyKind.Table ||
              p.Kind == PropertyKind.Description || p.Kind == PropertyKind.Metric ||
              p.Kind == PropertyKind.CodeSection || p.Kind == PropertyKind.Breakdown ||
              p.Kind == PropertyKind.MetricChange || p.Kind == PropertyKind.MultiSource ||

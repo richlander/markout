@@ -94,8 +94,47 @@ public class ProjectionTests
     }
 
     [Fact]
-    public void IncludeColumns_AllUnmatchedColumns_Throws()
+    public void IncludeColumns_EmptyList_ReportsTheEmptyAllowListRatherThanAnUnmatchedName()
     {
+        // An empty allow list selects nothing and can never select anything, in this table or any
+        // other, so it is a caller error rather than a table that legitimately matched nothing.
+        // It is reported where the projection is offered -- there is nothing to learn from the
+        // rest of the document that could make an empty list meaningful.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = [] }
+        };
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => orch.WriteTableStart("Name", "Version"));
+        Assert.Contains("IncludeColumns is empty", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExcludeColumns_ExcludingEveryColumn_RendersNothingRatherThanFailing()
+    {
+        // An exclude projection that empties a table named columns that ARE there and asked for
+        // them to go, so nothing is the correct answer to a well-formed request.
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { ExcludeColumns = ["Name", "Version"] }
+        };
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo.dll", "1.0.0");
+        orch.WriteTableEnd();
+
+        Assert.Equal("", orch.ToString());
+    }
+
+    [Fact]
+    public void IncludeColumns_AllUnmatchedColumns_ThrowsWhenNothingInTheDocumentMatched()
+    {
+        // One table, and the projection reaches none of it: the projection named a column this
+        // document does not have. A table that matches nothing while a sibling matches is the
+        // case that renders nothing -- see MarkoutTableTests -- but a document that offered the
+        // projection something and satisfied none of it fails closed.
         var options = new MarkoutWriterOptions
         {
             Projection = new MarkoutProjection
@@ -105,13 +144,12 @@ public class ProjectionTests
         };
         var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-        {
-            orch.WriteTableStart("Name", "Version");
-            orch.WriteTableRow("Foo.dll", "1.0.0");
-            orch.WriteTableEnd();
-        });
-        Assert.Contains("No columns matched projection: NonExistent", ex.Message);
+        orch.WriteTableStart("Name", "Version");
+        orch.WriteTableRow("Foo.dll", "1.0.0");
+        orch.WriteTableEnd();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => orch.ToString());
+        Assert.Contains("No columns matched projection: NonExistent", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

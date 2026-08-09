@@ -19,6 +19,9 @@ internal sealed class KnownTypeSymbols
     private INamedTypeSymbol? _graph;
     private bool _graphResolved;
 
+    private INamedTypeSymbol? _markoutTable;
+    private bool _markoutTableResolved;
+
     private INamedTypeSymbol? _metric;
     private bool _metricResolved;
 
@@ -73,6 +76,7 @@ internal sealed class KnownTypeSymbols
     public INamedTypeSymbol? MarkoutField => Resolve(ref _markoutField, ref _markoutFieldResolved, "Markout.MarkoutField");
     public INamedTypeSymbol? TreeNode => Resolve(ref _treeNode, ref _treeNodeResolved, "Markout.TreeNode");
     public INamedTypeSymbol? Graph => Resolve(ref _graph, ref _graphResolved, "Markout.Graph");
+    public INamedTypeSymbol? MarkoutTable => Resolve(ref _markoutTable, ref _markoutTableResolved, "Markout.MarkoutTable");
     public INamedTypeSymbol? Metric => Resolve(ref _metric, ref _metricResolved, "Markout.Metric");
     public INamedTypeSymbol? Description => Resolve(ref _description, ref _descriptionResolved, "Markout.Description");
     public INamedTypeSymbol? CodeSection => Resolve(ref _codeSection, ref _codeSectionResolved, "Markout.CodeSection");

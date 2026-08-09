@@ -635,6 +635,18 @@ internal static class SerializerEmitter
             sb.AppendLine($"{indent}}}");
             EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
         }
+        else if (prop.Kind == PropertyKind.Table)
+        {
+            // An empty table (no columns) is treated the same as an empty collection: it falls
+            // through to the section's empty text rather than emitting a heading over nothing.
+            sb.AppendLine($"{indent}if ({propAccess} != null && !{propAccess}.IsEmpty)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+            sb.AppendLine($"{indent}    writer.WriteTable({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+            sb.AppendLine($"{indent}}}");
+            EmitSectionEmptyFallback(sb, prop, propAccess, indent, effectiveSectionLevel, sectionName);
+        }
         else if (prop.Kind == PropertyKind.Metric)
         {
             if (prop.IsScalarShape)
@@ -811,13 +823,44 @@ internal static class SerializerEmitter
         int effectiveSectionLevel,
         string sectionName)
     {
-        if (prop.SectionEmptyText == null)
-            return;
-
         var headlessArg = prop.SectionHeadless ? ", headless: true" : "";
+
+        if (prop.SectionEmptyText == null)
+        {
+            // Without empty text there is nothing to say, so this section contributes no output at
+            // all. A runtime-column table still goes to the writer, for the reason given below: an
+            // allow list that can never select anything is rejected on the projection's own terms,
+            // not on whether this particular table turned out to have columns. The section is
+            // opened and closed around the call so exclusion is still decided first, and it stays
+            // absent from the output because a heading is written only once something follows it.
+            if (prop.Kind != PropertyKind.Table)
+                return;
+
+            sb.AppendLine($"{indent}else if ({propAccess} != null)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\", headless: true);");
+            sb.AppendLine($"{indent}    writer.WriteTable({propAccess});");
+            sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
+            sb.AppendLine($"{indent}}}");
+            return;
+        }
+
         sb.AppendLine($"{indent}else if ({propAccess} != null)");
         sb.AppendLine($"{indent}{{");
         sb.AppendLine($"{indent}    writer.WriteSectionStart({effectiveSectionLevel}, \"{EmitHelpers.EscapeString(sectionName)}\"{headlessArg});");
+        if (prop.Kind == PropertyKind.Table)
+        {
+            // Hand the empty table to the writer anyway. It renders nothing -- a table with no
+            // columns has no Markdown spelling -- so the empty text below is still what appears,
+            // but the projection is now validated here exactly as it is for a table that does have
+            // columns. Skipping the call would make "an allow list that can never select anything
+            // is rejected" depend on how many columns the table in hand happens to have, which is
+            // the property that rule exists to deny. Placing it inside the section scope, rather
+            // than before it, keeps exclusion authoritative: an excluded section returns before
+            // the projection is consulted, the same as for a non-empty table.
+            sb.AppendLine($"{indent}    writer.WriteTable({propAccess});");
+        }
+
         sb.AppendLine($"{indent}    writer.WriteParagraph(\"{EmitHelpers.EscapeString(prop.SectionEmptyText)}\");");
         sb.AppendLine($"{indent}    writer.WriteSectionEnd();");
         sb.AppendLine($"{indent}}}");
@@ -853,6 +896,17 @@ internal static class SerializerEmitter
             case PropertyKind.Graph:
                 sb.AppendLine($"{indent}if ({propAccess} != null && !{propAccess}.IsEmpty)");
                 sb.AppendLine($"{indent}    writer.WriteGraph({propAccess});");
+                break;
+
+            case PropertyKind.Table:
+                // No IsEmpty test here, unlike the section path above, where it is what suppresses
+                // a heading over nothing. Outside a section it decided nothing the writer does not
+                // already decide -- WriteTable returns on a zero-column table -- and the two
+                // spellings did not agree about everything: skipping the call also skipped the
+                // projection, so generated code accepted an empty allow list that a hand-written
+                // WriteTable of the same table rejects. Letting the call through keeps one rule.
+                sb.AppendLine($"{indent}if ({propAccess} != null)");
+                sb.AppendLine($"{indent}    writer.WriteTable({propAccess});");
                 break;
 
             case PropertyKind.Metric:
@@ -1123,6 +1177,8 @@ internal static class SerializerEmitter
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (code block)";
             if (prop.Kind == PropertyKind.Graph)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (graph)";
+            if (prop.Kind == PropertyKind.Table)
+                return $"H{prop.SectionLevel} Section \"{sectionName}\" (table)";
             if (prop.Kind == PropertyKind.Breakdown)
                 return $"H{prop.SectionLevel} Section \"{sectionName}\" (distribution)";
             if (prop.Kind == PropertyKind.MetricChange)
@@ -1152,6 +1208,7 @@ internal static class SerializerEmitter
             PropertyKind.Description => "Description",
             PropertyKind.CodeSection => "Code",
             PropertyKind.Graph => "Graph",
+            PropertyKind.Table => "Table",
             PropertyKind.Callout => "Callout",
             PropertyKind.Breakdown => "Breakdown",
             PropertyKind.MetricChange => "MetricChange",
