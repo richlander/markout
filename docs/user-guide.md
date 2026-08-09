@@ -1017,6 +1017,85 @@ var options = new MarkoutWriterOptions
 
 > From the [SectionFiltering](../samples/Serialization/SectionFiltering.cs) sample.
 
+### Section Ordering
+
+`IncludeSections` chooses which sections appear; `SectionOrder` chooses the order
+they appear in. Sections named there lead, in that order, and every other section
+follows in the order it was written:
+
+```csharp
+var options = new MarkoutWriterOptions
+{
+    SectionOrder = ["Summary", "Findings"]
+};
+```
+
+Matching is case-insensitive, and naming a section the document never writes is
+not an error — a caller can state a preferred order once and reuse it across
+documents that contain different subsets of it.
+
+Content written before the first section — a document title, an introductory
+paragraph — is not a section and always stays first.
+
+Ordering is applied at the writer seam rather than to rendered text, so it works
+for every format, **including TSV and JSONL**, whose output carries no heading to
+reorder. Asking for the order a document already had reproduces it byte for byte.
+
+Setting `SectionOrder` buffers the whole document, because the last section
+written may be the first one emitted. That also makes emitting the end of the
+document: `Flush()` and `ToString()` write it out, and writing again afterwards
+throws, because a section written then could no longer move ahead of one already
+written out. Finish the document before flushing. Clearing `SectionOrder` at that
+point does not lift the restriction — the buffer is installed when the writer is
+constructed — so a document that must continue past a flush needs a new writer
+created without an order.
+
+A flush that has nothing to emit is not a flush. A section whose heading a
+projection has deferred, a headless section, or a streaming table still gathering
+rows has rendered nothing yet, so flushing there writes no document and leaves
+the writer exactly as it was, still ordering and still writable.
+
+`ToString()` returns the ordered result for a writer that owns its own buffer,
+and for one you gave a `StringWriter` — in both cases there is a string to
+return, so it emits. Against any other `TextWriter` it has nothing to return and
+emits nothing, so inspecting such a writer in a debugger does not commit the
+document.
+
+One boundary: reordering assumes your writer's `NewLine` is stable for the
+duration of the document. The blank line between two sections sits between a pair
+that were never adjacent, so if `NewLine` changes partway through there is no
+single moment whose value is the right one — the newline each section was written
+under is used. Everything else, including line endings inside a section, is
+unaffected.
+
+A second boundary, and it is not the buffer's: a `Projection` defers a section's
+heading until the section writes a block — any block except a heading or a blank
+line, both of which pass the slot by — and the deferral is a single slot rather
+than one per section. A section that writes no such block and is never closed
+leaves its heading waiting, and a headless section after it flushes
+that heading into its own output — labelling that section's content with the
+previous section's name.
+
+`WriteSectionEnd()` discards a heading still pending, so pairing it with
+`WriteSectionStart()` avoids this entirely, and is worth doing whenever a section
+may turn out empty.
+
+Both halves of the condition are easy to misjudge, so neither "it renders
+something" nor "it renders nothing" is the test. A section holding only a
+sub-heading renders visible output and still leaks, because a heading does not
+flush the slot. A section holding only an empty streaming table renders nothing
+visible and does not leak, because starting the table does flush. Empty sections,
+blank-line-only sections, empty lists, and sections a projection emptied all leak
+unless closed. A rule, a quotation or a callout flushes like any other block,
+despite bringing its own separator.
+
+This is how the writer already behaves with `SectionOrder` unset, so reordering
+neither causes it nor can repair it: such a document's output depends on the order
+it was written in, and there is no order-independent output to reproduce.
+
+Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
+goes straight to your writer as before.
+
 ### Heading Level Offset
 
 `HeadingLevelOffset` shifts every rendered heading by a fixed amount (default

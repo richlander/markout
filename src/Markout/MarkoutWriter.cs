@@ -15,12 +15,15 @@ namespace Markout;
 public class MarkoutWriter
 {
     private readonly TextWriter _writer;
+    private readonly TextWriter _target;
+    private readonly SectionBufferingWriter? _sectionBuffer;
     private readonly IMarkoutFormatter _formatter;
     private readonly MarkoutWriterOptions _options;
 
     // State
-    private bool _hasContent;
+    private bool _hasContentValue;
     private bool _needsBlankLine;
+
     private bool _inTable;
     private bool _inCode;
     // Number of leading identity columns for the in-progress table write (composite decompose).
@@ -44,7 +47,11 @@ public class MarkoutWriter
     {
         var opts = options ?? new MarkoutWriterOptions();
 
-        _writer = writer;
+        _target = writer;
+        // A requested order can put the last section written first, so ordering cannot
+        // be decided until the document is complete. Only pay for that when asked.
+        _sectionBuffer = opts.SectionOrder is { Count: > 0 } ? new SectionBufferingWriter(writer) : null;
+        _writer = _sectionBuffer ?? writer;
         _formatter = formatter;
         _options = opts;
     }
@@ -110,8 +117,7 @@ public class MarkoutWriter
         if (_formatter is not IHeadingFormatter hf)
             return false;
 
-        if (_hasContent)
-            _writer.WriteLine();
+        SeparateFromPrecedingContent();
 
         hf.FormatHeading(_writer, RenderHeadingLevel(level), text, context);
         _writer.WriteLine();
@@ -1133,9 +1139,7 @@ public class MarkoutWriter
         if (_formatter is not IListFormatter lf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         lf.FormatArray(_writer, key, items, _options.BoldFieldNames);
         _needsBlankLine = true;
@@ -1155,9 +1159,7 @@ public class MarkoutWriter
         if (_formatter is not IListFormatter lf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         foreach (var item in items)
             lf.FormatListItem(_writer, item);
@@ -1317,6 +1319,12 @@ public class MarkoutWriter
         {
             _tableWriter.WriteTableStart(headers);
         }
+
+        // A started table is content, not only a finished one. Deferring this to
+        // WriteTableEnd left a table the caller never closed writing characters that
+        // nothing counted, so a block after it was separated against whatever the rest
+        // of the document had written — which reordering changes.
+        _hasContent = true;
         return true;
     }
 
@@ -1468,9 +1476,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         bf.FormatCallout(_writer, severity, message);
         _needsBlankLine = true;
@@ -1490,9 +1496,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         bf.FormatQuotation(_writer, text);
         _needsBlankLine = true;
@@ -1512,9 +1516,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         bf.FormatRule(_writer);
         _needsBlankLine = true;
@@ -1534,9 +1536,7 @@ public class MarkoutWriter
         if (_formatter is not IBlockFormatter bf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         foreach (var item in items)
             bf.FormatDescription(_writer, item);
@@ -1560,9 +1560,7 @@ public class MarkoutWriter
         if (_formatter is not IMetricsFormatter mf)
             return false;
 
-        if (_hasContent)
-            _needsBlankLine = true;
-        EnsureBlankLineIfNeeded();
+        EnsureBlankLineIfNeeded(blockSeparatesItself: true);
 
         mf.FormatBreakdown(_writer, items, maxBarWidth, uniformBarWidth, _options);
         _needsBlankLine = true;
@@ -1700,7 +1698,12 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return;
 
-        _writer.WriteLine();
+        // An explicit blank line at a section boundary is part of the seam: it is the
+        // caller's content and travels with the section, but it does not settle what
+        // separator the seam needs, because the block after it has not been seen yet.
+        if (_sectionBuffer?.TryWriteSectionOpeningBlankLine() != true)
+            _writer.WriteLine();
+
         _needsBlankLine = false;
     }
 
@@ -1709,7 +1712,13 @@ public class MarkoutWriter
     /// </summary>
     public void Flush()
     {
-        _writer.Flush();
+        _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
+
+        // _writer is either _target or the buffering wrapper in front of it, and the
+        // wrapper has nothing of its own to flush once it has emitted. Flushing both
+        // would flush the target twice whenever ordering is off, which is every
+        // caller that never asked for it.
+        _target.Flush();
     }
 
     /// <summary>
@@ -1718,9 +1727,15 @@ public class MarkoutWriter
     /// </summary>
     public override string ToString()
     {
-        if (_writer is StringWriter sw)
-            return sw.ToString().TrimEnd();
-        return base.ToString() ?? "";
+        // Emitting is a write, so only do it where ToString can actually return the
+        // result. Against a stream target this method has nothing to return, and
+        // committing the document from something a debugger calls implicitly would be
+        // a side effect no caller asked for.
+        if (_target is not StringWriter sw)
+            return base.ToString() ?? "";
+
+        _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
+        return sw.ToString().TrimEnd();
     }
 
     // ── Private infrastructure ──
@@ -1739,6 +1754,12 @@ public class MarkoutWriter
         {
             _currentSectionName = text;
             _sectionExcluded = !IsSectionIncluded();
+
+            // The boundary the writer declares, not one re-derived from rendered text.
+            // Excluded sections open a buffer too: they write nothing today, but routing
+            // them into the previous section's buffer would be a silent misattribution
+            // the moment any write path stops honoring _sectionExcluded.
+            _sectionBuffer?.BeginSection(text, _needsBlankLine);
         }
     }
 
@@ -1798,15 +1819,96 @@ public class MarkoutWriter
         return fields.ToArray();
     }
 
-    private void EnsureBlankLineIfNeeded()
+    /// <summary>
+    /// Whether anything has been written that a block after it has to separate itself
+    /// from. Ordering needs to know which section that content landed in, and "the
+    /// section's buffer is not empty" is not the same fact: a section can hold nothing
+    /// but blank lines the caller wrote, and a block the formatter does not support
+    /// returns before setting this at all. Recording it in the setter rather than at
+    /// the two dozen sites that assign it means a new block cannot come to count as
+    /// content without also coming to be recorded as content.
+    /// </summary>
+    private bool _hasContent
+    {
+        get => _hasContentValue;
+        set
+        {
+            _hasContentValue = value;
+
+            if (value)
+                _sectionBuffer?.NoteContent();
+        }
+    }
+
+    /// <summary>
+    /// Separates the heading about to be written from anything before it. A heading
+    /// separates itself, whatever preceded it, which is what makes this survive
+    /// reordering: an ordinary block separates only when the block before it left a
+    /// blank line pending, and that is a fact about the other block.
+    /// </summary>
+    private void SeparateFromPrecedingContent()
+    {
+        // Recorded whether or not one is written here. A section that opens the
+        // document has nothing to separate from, but the same section moved later does.
+        _sectionBuffer?.NoteSeam(SeamEvent.SelfSeparating);
+
+        if (_hasContent)
+            WriteSeparatorLine();
+    }
+
+    /// <summary>
+    /// Opens a block, taking whatever blank line is already owed.
+    /// </summary>
+    /// <param name="blockSeparatesItself">
+    /// Whether this block is set off by a blank line of its own rather than only
+    /// inheriting one — a quotation, a rule, a callout, an array, a description list,
+    /// a breakdown. These were the blocks the heading-only version of this missed:
+    /// their separator was dropped at a section boundary and never put back, because
+    /// nothing recorded that the block itself was what required it. It is a parameter
+    /// rather than a separate call so that a block cannot acquire the property without
+    /// acquiring the record of it.
+    /// </param>
+    private void EnsureBlankLineIfNeeded(bool blockSeparatesItself = false)
     {
         FlushPendingSection();
 
+        if (blockSeparatesItself)
+        {
+            _sectionBuffer?.NoteSeam(SeamEvent.SelfSeparating);
+
+            if (_hasContent)
+                _needsBlankLine = true;
+        }
+        else
+        {
+            _sectionBuffer?.NoteSeam(SeamEvent.Ordinary);
+        }
+
         if (_needsBlankLine)
         {
-            _writer.WriteLine();
+            WriteSeparatorLine();
             _needsBlankLine = false;
         }
+    }
+
+    /// <summary>
+    /// Writes the blank line that separates two blocks, unless it would land at a
+    /// section seam. A seam separator belongs to neither section, so capturing it with
+    /// the section that follows makes it travel when that section moves. At a seam the
+    /// buffering writer re-inserts one where the requested order actually needs it.
+    /// </summary>
+    private void WriteSeparatorLine()
+    {
+        if (_sectionBuffer is { AtSectionBoundary: true } buffer)
+        {
+            // This is where the separator would have been written, so this is the
+            // newline it would have used — earlier than the section's first content,
+            // and the one to reinstate at emit.
+            buffer.NoteSeparatorNewLine();
+            return;
+        }
+
+        _writer.WriteLine();
     }
 
     private void FlushPendingSection()
@@ -1826,8 +1928,7 @@ public class MarkoutWriter
         if (_formatter is not IHeadingFormatter hf)
             return;
 
-        if (_hasContent)
-            _writer.WriteLine();
+        SeparateFromPrecedingContent();
 
         hf.FormatHeading(_writer, RenderHeadingLevel(level), text, context);
         _writer.WriteLine();
