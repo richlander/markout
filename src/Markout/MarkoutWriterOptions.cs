@@ -13,6 +13,7 @@ public class MarkoutWriterOptions
     private bool _boldFieldNames;
     private bool _prettyTables;
     private int? _maxItems;
+    private MarkoutRowWindow? _rowWindow;
     private HashSet<string>? _includeSections;
     private MarkoutProjection? _projection;
     private MarkoutShape _suppressedShapes;
@@ -41,6 +42,7 @@ public class MarkoutWriterOptions
         _boldFieldNames = source._boldFieldNames;
         _prettyTables = source._prettyTables;
         _maxItems = source._maxItems;
+        _rowWindow = source._rowWindow;
         _includeSections = source._includeSections;
         _projection = source._projection;
         _suppressedShapes = source._suppressedShapes;
@@ -190,6 +192,29 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _maxItems = value;
+        }
+    }
+
+    /// <summary>
+    /// Which data rows tables emit, preserving headings and header rows.
+    /// Default is null (every row).
+    ///
+    /// <para>
+    /// This is <em>selection</em>, not summarization, which is what separates it
+    /// from <see cref="MaxItems"/>: a windowed table emits no ellipsis row and
+    /// reports no skipped count, so the output stays machine-consumable in every
+    /// <see cref="MarkoutTableMode"/>. When both are set the window selects
+    /// first and <see cref="MaxItems"/> then caps the selection, so any ellipsis
+    /// reports only the rows the cap dropped.
+    /// </para>
+    /// </summary>
+    public MarkoutRowWindow? RowWindow
+    {
+        get => _rowWindow;
+        set
+        {
+            ThrowIfReadOnly();
+            _rowWindow = value;
         }
     }
 
