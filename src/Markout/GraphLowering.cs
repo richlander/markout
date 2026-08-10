@@ -21,6 +21,10 @@ public static class GraphLowering
     /// </param>
     public readonly record struct GraphEdgeTable(ImmutableArray<string> Headers, List<string[]> Rows);
 
+    internal readonly record struct DeferredGraphEdgeTable(
+        ImmutableArray<string> Headers,
+        IEnumerable<string[]> Rows);
+
     /// <summary>
     /// Projects the graph as one row per edge, plus one row per isolated node.
     /// </summary>
@@ -42,6 +46,14 @@ public static class GraphLowering
     /// Defaults to <see cref="GraphNode.Label"/>.
     /// </param>
     public static GraphEdgeTable ToEdgeTable(Graph graph, Func<GraphNode, string>? label = null)
+    {
+        var deferred = ToDeferredEdgeTable(graph, label);
+        return new GraphEdgeTable(deferred.Headers, deferred.Rows.ToList());
+    }
+
+    internal static DeferredGraphEdgeTable ToDeferredEdgeTable(
+        Graph graph,
+        Func<GraphNode, string>? label = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         // A caller-supplied selector is not trusted to be total; a null cell would fault the
@@ -77,8 +89,19 @@ public static class GraphLowering
         if (hasGroups) headers.Add("To Group");
         if (hasEdgeLabels) headers.Add("Label");
 
+        return new DeferredGraphEdgeTable(
+            headers.ToImmutable(),
+            Rows(graph, select, headers.Count, hasGroups, hasEdgeLabels));
+    }
+
+    private static IEnumerable<string[]> Rows(
+        Graph graph,
+        Func<GraphNode, string> select,
+        int columnCount,
+        bool hasGroups,
+        bool hasEdgeLabels)
+    {
         var connected = new HashSet<string>(StringComparer.Ordinal);
-        var rows = new List<string[]>(graph.Edges.Length);
         foreach (var edge in graph.Edges)
         {
             var from = graph[edge.From];
@@ -86,14 +109,14 @@ public static class GraphLowering
             connected.Add(edge.From);
             connected.Add(edge.To);
 
-            var row = new string[headers.Count];
+            var row = new string[columnCount];
             var i = 0;
             row[i++] = select(from);
             if (hasGroups) row[i++] = from.Group ?? "";
             row[i++] = select(to);
             if (hasGroups) row[i++] = to.Group ?? "";
             if (hasEdgeLabels) row[i] = edge.Label ?? "";
-            rows.Add(row);
+            yield return row;
         }
 
         foreach (var node in graph.Nodes)
@@ -101,17 +124,15 @@ public static class GraphLowering
             if (connected.Contains(node.Key))
                 continue;
 
-            var row = new string[headers.Count];
+            var row = new string[columnCount];
             var i = 0;
             row[i++] = select(node);
             if (hasGroups) row[i++] = node.Group ?? "";
             row[i++] = "";
             if (hasGroups) row[i++] = "";
             if (hasEdgeLabels) row[i] = "";
-            rows.Add(row);
+            yield return row;
         }
-
-        return new GraphEdgeTable(headers.ToImmutable(), rows);
     }
 
     /// <summary>

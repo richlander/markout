@@ -10,10 +10,32 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter, IGraphFormatter
+    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter,
+    IGraphFormatter
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
+    private readonly MarkdownGraphMode _graphMode;
+
+    /// <summary>
+    /// Creates a Markdown formatter that renders graphs as edge tables.
+    /// </summary>
+    public MarkdownFormatter()
+        : this(MarkdownGraphMode.EdgeTable)
+    {
+    }
+
+    /// <summary>
+    /// Creates a Markdown formatter with the requested graph lowering.
+    /// </summary>
+    /// <param name="graphMode">How graphs are rendered inside the Markdown document.</param>
+    public MarkdownFormatter(MarkdownGraphMode graphMode)
+    {
+        if (!Enum.IsDefined(graphMode))
+            throw new ArgumentOutOfRangeException(nameof(graphMode));
+
+        _graphMode = graphMode;
+    }
 
     // ── IEmphasisFormatter ──
 
@@ -505,18 +527,44 @@ public class MarkdownFormatter : IMarkoutFormatter,
     // ── IGraphFormatter ──
 
     /// <summary>
-    /// Renders the graph as a nested list, the same lowering the other prose formatters use.
-    /// Markdown can express both a nested list and a table; the list names each node once and keeps
-    /// reachability readable, where an edge table repeats every label on both sides of every edge.
-    /// The tabular formatters own the edge-table view for callers that want one row per edge.
+    /// Renders the graph as either an edge table or a fenced Mermaid diagram.
     /// </summary>
     void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
-        => ((ITreeFormatter)this).FormatTree(
-            w,
-            GraphLowering.ToTree(
-                graph,
-                node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label).AsSpan(),
-            options);
+    {
+        if (graph.IsEmpty)
+            return;
+
+        if (_graphMode == MarkdownGraphMode.Mermaid)
+        {
+            ((ICodeBlockFormatter)this).FormatCodeStart(w, "mermaid");
+            ((IGraphFormatter)new MermaidFormatter()).FormatGraph(w, graph, options);
+            ((ICodeBlockFormatter)this).FormatCodeEnd(w);
+            return;
+        }
+
+        var table = GraphLowering.ToEdgeTable(
+            graph,
+            node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label);
+        new TableWriter(w, (IStreamingTableFormatter)this, options).WriteTable(
+            table.Headers.AsSpan(),
+            table.Rows);
+    }
+
+    internal bool TryLowerGraphToTable(
+        Graph graph,
+        out GraphLowering.DeferredGraphEdgeTable table)
+    {
+        if (_graphMode != MarkdownGraphMode.EdgeTable)
+        {
+            table = default;
+            return false;
+        }
+
+        table = GraphLowering.ToDeferredEdgeTable(
+            graph,
+            node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label);
+        return true;
+    }
 
     // ── ITreeFormatter ──
 

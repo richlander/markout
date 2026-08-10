@@ -430,17 +430,128 @@ public class GraphTests
     // ── Cross-formatter behavior ──
 
     [Fact]
-    public void Markdown_RendersATree()
+    public void Markdown_RendersAnEdgeTableByDefault()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());
         Assert.True(orch.WriteGraph(SimpleChain()));
 
         var output = orch.ToString();
-        Assert.Contains("A", output);
-        Assert.Contains("└─ B", output);
-        Assert.Contains("└─ C", output);
-        // The tree lowering names each node once; it is not the edge-table lowering.
-        Assert.DoesNotContain("| From | To |", output);
+        Assert.Contains("| From | To |", output);
+        Assert.Contains("| A | B |", output);
+        Assert.Contains("| B | C |", output);
+        Assert.DoesNotContain("└─", output);
+    }
+
+    [Fact]
+    public void Markdown_CanEmbedAMermaidGraph()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(MarkdownGraphMode.Mermaid));
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = Normalize(orch.ToString());
+        Assert.StartsWith("```mermaid\ngraph TD\n", output, StringComparison.Ordinal);
+        Assert.Contains("n0 --> n1", output, StringComparison.Ordinal);
+        Assert.EndsWith("```", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| From | To |", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MarkdownEdgeTable_HonorsTableProjectionAndRowLimits()
+    {
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions
+            {
+                MaxItems = 1,
+                Projection = new MarkoutProjection { IncludeColumns = ["To"] },
+            });
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = orch.ToString();
+        Assert.Contains("| To |", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| From |", output, StringComparison.Ordinal);
+        Assert.Contains("| B |", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| C |", output, StringComparison.Ordinal);
+        Assert.Contains("1 more", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EmbeddedMermaid_IgnoresTableProjectionAndRowLimits()
+    {
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(MarkdownGraphMode.Mermaid),
+            new MarkoutWriterOptions
+            {
+                MaxItems = 1,
+                Projection = new MarkoutProjection { IncludeColumns = ["To"] },
+            });
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = Normalize(orch.ToString());
+        Assert.Contains("n0 --> n1", output, StringComparison.Ordinal);
+        Assert.Contains("n1 --> n2", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TableGraph_HonorsRowWindows()
+    {
+        var orch = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Head(1) });
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = orch.ToString();
+        Assert.Contains("A", output, StringComparison.Ordinal);
+        Assert.Contains("B", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("C", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProjectedOutGraphTable_DoesNotMaterializeEdgeRows()
+    {
+        var nodes = Enumerable.Range(0, 10_001)
+            .Select(i => new GraphNode($"n{i}", $"N{i}"))
+            .ToArray();
+        var edges = Enumerable.Range(0, 10_000)
+            .Select(i => new GraphEdge($"n{i}", $"n{i + 1}"))
+            .ToArray();
+        var graph = new Graph(nodes, edges);
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["Name"] },
+        };
+
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        Assert.True(orch.WriteTable(["Name"], [["kept"]]));
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        Assert.True(orch.WriteGraph(graph));
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Contains("kept", orch.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("N0", orch.ToString(), StringComparison.Ordinal);
+        Assert.True(allocated < 128 * 1024, $"projection miss allocated {allocated:N0} bytes");
+    }
+
+    [Fact]
+    public void MarkdownSubclass_CanOverrideGraphRendering()
+    {
+        var orch = MarkoutWriter.Create(new CustomMarkdownGraphFormatter());
+
+        Assert.True(orch.WriteGraph(SimpleChain()));
+        Assert.Equal("custom graph", Normalize(orch.ToString()));
+    }
+
+    [Fact]
+    public void DirectMarkdownGraphFormatting_RendersTheEdgeTable()
+    {
+        var sink = new StringWriter();
+
+        ((IGraphFormatter)new MarkdownFormatter()).FormatGraph(
+            sink,
+            SimpleChain(),
+            new MarkoutWriterOptions());
+
+        Assert.Contains("| From | To |", sink.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -468,6 +579,13 @@ public class GraphTests
         orch.WriteGraph(graph);
 
         Assert.Contains("**A**", orch.ToString());
+    }
+
+    [Fact]
+    public void Markdown_RejectsAnUnknownGraphMode()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new MarkdownFormatter((MarkdownGraphMode)int.MaxValue));
     }
 
     [Fact]
@@ -776,6 +894,15 @@ public class GraphTests
     {
         void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
             => w.Write(text);
+    }
+
+    private sealed class CustomMarkdownGraphFormatter : MarkdownFormatter, IGraphFormatter
+    {
+        void IGraphFormatter.FormatGraph(
+            TextWriter writer,
+            Graph graph,
+            MarkoutWriterOptions options)
+            => writer.Write("custom graph");
     }
 
     private static string Normalize(string text) => text.Replace("\r\n", "\n");
