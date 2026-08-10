@@ -1077,30 +1077,18 @@ single moment whose value is the right one — the newline each section was writ
 under is used. Everything else, including line endings inside a section, is
 unaffected.
 
-A second boundary, and it is not the buffer's: a `Projection` defers a section's
-heading until the section writes a block — any block except a heading or a blank
-line, both of which pass the slot by — and the deferral is a single slot rather
-than one per section. A section that writes no such block and is never closed
-leaves its heading waiting, and a headless section after it flushes
-that heading into its own output — labelling that section's content with the
-previous section's name.
+A second boundary, and it is not the buffer's: a `Projection` defers each
+section's heading until content survives projection. Nested sections keep
+independent pending headings. The first surviving block flushes all open
+headings from outermost to innermost; an ordinary heading first closes pending
+sections at its level or below, then flushes any remaining parent headings.
+Opening blank lines remain behind their deferred heading.
 
-`WriteSectionEnd()` discards a heading still pending, so pairing it with
-`WriteSectionStart()` avoids this entirely, and is worth doing whenever a section
-may turn out empty.
-
-Both halves of the condition are easy to misjudge, so neither "it renders
-something" nor "it renders nothing" is the test. A section holding only a
-sub-heading renders visible output and still leaks, because a heading does not
-flush the slot. A section holding only an empty streaming table renders nothing
-visible and does not leak, because starting the table does flush. Empty sections,
-blank-line-only sections, empty lists, and sections a projection emptied all leak
-unless closed. A rule, a quotation or a callout flushes like any other block,
-despite bringing its own separator.
-
-This is how the writer already behaves with `SectionOrder` unset, so reordering
-neither causes it nor can repair it: such a document's output depends on the order
-it was written in, and there is no order-independent output to reproduce.
+`WriteSectionEnd()` discards that section's heading if it is still pending, so
+pair it with `WriteSectionStart()` whenever a section may turn out empty. Empty,
+blank-line-only, unsupported, and projection-emptied sections then leave no
+heading or separator behind. Starting a supported streaming table counts as
+content even when the selected format ultimately emits no rows.
 
 Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
 goes straight to your writer as before.

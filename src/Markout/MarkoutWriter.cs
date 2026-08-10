@@ -1844,6 +1844,9 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return;
 
+        if (!TableLeavesBlankLinePending)
+            return;
+
         if (TryDeferPendingSectionBlankLine())
         {
             _needsBlankLine = false;
@@ -1865,8 +1868,8 @@ public class MarkoutWriter
     /// </summary>
     /// <remarks>
     /// Completing a document is explicit: this type is not <see cref="IDisposable"/>, so a
-    /// <c>using</c> block will not finish one for you. Against a stream target, call this;
-    /// <see cref="ToString"/> only completes a document written to a <see cref="StringWriter"/>.
+    /// <c>using</c> block will not finish one for you. Against a stream target, call this method;
+    /// for a <see cref="StringWriter"/>-backed document, call <see cref="Complete"/>.
     /// A document that is never completed keeps its ordered sections and its projection diagnostic.
     /// </remarks>
     public void Flush()
@@ -2374,6 +2377,8 @@ public class MarkoutWriter
             if (frame.BoundaryOpened && frame.Heading is null)
                 continue;
 
+            if (frame.PendingBlankLines == 0)
+                frame.BlankLineWasPending = _needsBlankLine;
             frame.PendingBlankLines++;
             return true;
         }
@@ -2434,7 +2439,7 @@ public class MarkoutWriter
 
     private void RestorePendingBlankLine(PendingSectionFrame frame)
     {
-        if (frame.PendingBlankLines > 0 && _hasContent)
+        if (frame.PendingBlankLines > 0 && frame.BlankLineWasPending)
             _needsBlankLine = true;
     }
 
@@ -2540,4 +2545,5 @@ internal sealed class PendingSectionFrame(int level, string? sectionName)
     public bool BoundaryOpened { get; set; }
     public PendingSectionHeading? Heading { get; set; }
     public int PendingBlankLines { get; set; }
+    public bool BlankLineWasPending { get; set; }
 }

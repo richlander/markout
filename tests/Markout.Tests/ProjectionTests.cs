@@ -192,6 +192,34 @@ public class ProjectionTests
         Assert.StartsWith("## Live", writer.Complete(), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExplicitBlankLine_InDiscardedJsonlSectionDoesNotCreateARecord(
+        bool writeEmptyTableFirst)
+    {
+        var writer = MarkoutWriter.Create(new TableFormatter(), new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        });
+
+        if (writeEmptyTableFirst)
+            writer.WriteTable(["a"], []);
+        else
+            writer.WriteTable(["a"], [["first"]]);
+        writer.WriteSectionStart(2, "Discarded");
+        writer.WriteBlankLine();
+        writer.WriteSectionEnd();
+        writer.WriteTable(["a"], [["live"]]);
+
+        Assert.Equal(
+            writeEmptyTableFirst
+                ? "{\"a\":\"live\"}"
+                : "{\"a\":\"first\"}\n{\"a\":\"live\"}",
+            writer.Complete().ReplaceLineEndings("\n"));
+    }
+
     [Fact]
     public void DisablingProjection_DiscardsAnEmptyDeferredSiblingHeading()
     {
@@ -517,6 +545,21 @@ public class ProjectionTests
         Assert.Equal([0], resolution.ColumnMap);
     }
 
+    [Fact]
+    public void IncludeColumns_CultureAwareGlobPreservesIgnorableWildcardBoundary()
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCulture,
+            IncludeColumns = ["a?b"]
+        };
+
+        var resolution = projection.ResolveColumns(["a\u00adxb"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
     [Theory]
     [InlineData(StringComparison.OrdinalIgnoreCase)]
     [InlineData(StringComparison.InvariantCultureIgnoreCase)]
@@ -548,6 +591,21 @@ public class ProjectionTests
 
         Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
         Assert.True(allocated < 1_000_000, $"Glob match allocated {allocated:N0} bytes.");
+    }
+
+    [Fact(Timeout = 5_000)]
+    public void IncludeColumns_CultureAwareAdversarialGlobHasBoundedRuntime()
+    {
+        const int length = 800;
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCulture,
+            IncludeColumns = [string.Concat(Enumerable.Repeat("*\u00ad", length)) + "b"]
+        };
+
+        var resolution = projection.ResolveColumns([new string('a', length)]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
     }
 
     // --- Column projection: ExcludeColumns ---

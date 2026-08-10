@@ -529,7 +529,7 @@ internal sealed class SectionBufferingWriter : TextWriter
         {
             throw new InvalidOperationException(
                 "The document was already emitted. Ordering sections requires buffering the " +
-                "whole document, so Flush() and ToString() complete it: a section written " +
+                "whole document, so Flush() and Complete() finalize it: a section written " +
                 "afterwards could no longer be moved ahead of one already written out. " +
                 "Finish the document before flushing, or clear MarkoutWriterOptions.SectionOrder.");
         }

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Markout;
 
 /// <summary>
@@ -323,6 +325,25 @@ public class MarkoutProjection
 
     private static bool GlobMatch(string pattern, string text, StringComparison comparison)
     {
+        var ordinal = comparison is StringComparison.Ordinal or StringComparison.OrdinalIgnoreCase;
+        CompareInfo? compareInfo = null;
+        var compareOptions = CompareOptions.None;
+        if (!ordinal)
+        {
+            (compareInfo, compareOptions) = comparison switch
+            {
+                StringComparison.CurrentCulture =>
+                    (CultureInfo.CurrentCulture.CompareInfo, CompareOptions.None),
+                StringComparison.CurrentCultureIgnoreCase =>
+                    (CultureInfo.CurrentCulture.CompareInfo, CompareOptions.IgnoreCase),
+                StringComparison.InvariantCulture =>
+                    (CultureInfo.InvariantCulture.CompareInfo, CompareOptions.None),
+                StringComparison.InvariantCultureIgnoreCase =>
+                    (CultureInfo.InvariantCulture.CompareInfo, CompareOptions.IgnoreCase),
+                _ => throw new ArgumentException("The string comparison type is not supported.", nameof(comparison))
+            };
+        }
+
         var reachable = new bool[text.Length + 1];
         var next = new bool[text.Length + 1];
         reachable[0] = true;
@@ -362,7 +383,7 @@ public class MarkoutProjection
                     if (!reachable[textIndex])
                         continue;
 
-                    if (comparison is StringComparison.Ordinal or StringComparison.OrdinalIgnoreCase)
+                    if (ordinal)
                     {
                         var nextText = textIndex + literal.Length;
                         if (nextText <= text.Length &&
@@ -373,10 +394,40 @@ public class MarkoutProjection
                         continue;
                     }
 
-                    for (var nextText = textIndex; nextText <= text.Length; nextText++)
+                    if (compareInfo!.IsPrefix(
+                        text.AsSpan(textIndex),
+                        literal,
+                        compareOptions,
+                        out var matchLength))
                     {
-                        if (literal.Equals(text.AsSpan(textIndex, nextText - textIndex), comparison))
-                            next[nextText] = true;
+                        var matchEnd = textIndex + matchLength;
+                        while (!next[matchEnd])
+                        {
+                            next[matchEnd] = true;
+                            if (matchEnd == text.Length)
+                                break;
+
+                            var ignorableLength = 1;
+                            if (compareInfo.Compare(
+                                text.AsSpan(matchEnd, ignorableLength),
+                                ReadOnlySpan<char>.Empty,
+                                compareOptions) != 0)
+                            {
+                                if (!char.IsHighSurrogate(text[matchEnd]) ||
+                                    matchEnd + 1 >= text.Length ||
+                                    !char.IsLowSurrogate(text[matchEnd + 1]) ||
+                                    compareInfo.Compare(
+                                        text.AsSpan(matchEnd, 2),
+                                        ReadOnlySpan<char>.Empty,
+                                        compareOptions) != 0)
+                                {
+                                    break;
+                                }
+                                ignorableLength = 2;
+                            }
+
+                            matchEnd += ignorableLength;
+                        }
                     }
                 }
                 patternIndex = literalEnd;
