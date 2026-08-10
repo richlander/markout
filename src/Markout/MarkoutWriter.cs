@@ -40,8 +40,8 @@ public class MarkoutWriter
     private TableWriter? _tableWriter;
     private int[]? _columnMap;
 
-    // Pending section (deferred until content written)
-    private PendingSectionHeading? _pendingSection;
+    // Open sections whose headings remain deferred until content survives projection.
+    private List<PendingSectionFrame>? _pendingSections;
 
     /// <summary>
     /// Creates a writer that writes to the specified TextWriter.
@@ -60,11 +60,20 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Creates a writer that builds output in memory. Use ToString() to get the result.
+    /// Creates a writer that builds output in memory. Use <see cref="Complete"/> to finalize
+    /// the document, or <see cref="ToString"/> to inspect a non-committing preview.
     /// </summary>
     public MarkoutWriter(IMarkoutFormatter formatter, MarkoutWriterOptions? options = null)
-        : this(new StringWriter(), formatter, options)
+        : this(CreateStringWriter(options), formatter, options)
     {
+    }
+
+    private static StringWriter CreateStringWriter(MarkoutWriterOptions? options)
+    {
+        var writer = new StringWriter();
+        if (options is not null)
+            writer.NewLine = options.NewLine;
+        return writer;
     }
 
     /// <summary>
@@ -79,6 +88,9 @@ public class MarkoutWriter
     /// </summary>
     public bool DecomposesCompositeCells
         => _formatter is Formatting.ICompositeCellFormatter { DecomposesCompositeCells: true };
+
+    private bool TableLeavesBlankLinePending
+        => _formatter is not TableFormatter || _options.TableMode != MarkoutTableMode.Jsonl;
 
     /// <summary>
     /// Gets whether descriptions should be included in output.
@@ -112,6 +124,9 @@ public class MarkoutWriter
         if (level < 1 || level > 6)
             throw new ArgumentOutOfRangeException(nameof(level), "Heading level must be between 1 and 6.");
 
+        CompleteOpenTable();
+        ClosePendingSectionsAtOrAbove(level);
+        FlushPendingSections();
         UpdateSectionState(level, text);
 
         if (_sectionExcluded)
@@ -138,7 +153,21 @@ public class MarkoutWriter
     /// <returns><c>true</c> if rendered or filtered; <c>false</c> if the formatter does not support headings.</returns>
     public bool WriteSectionStart(int level, string text, string? context = null, bool headless = false)
     {
-        UpdateSectionState(level, text);
+        CompleteOpenTable();
+        ClosePendingSectionsAtOrAbove(level);
+
+        PendingSectionFrame? frame = null;
+        if (_options.Projection != null)
+        {
+            frame = new PendingSectionFrame(level, level == 2 ? text : null);
+            (_pendingSections ??= []).Add(frame);
+        }
+        else
+        {
+            FlushPendingSections();
+        }
+
+        UpdateSectionState(level, text, deferSectionBoundary: frame is not null);
 
         if (_sectionExcluded)
             return true;
@@ -151,7 +180,7 @@ public class MarkoutWriter
 
         if (_options.Projection != null)
         {
-            _pendingSection = new PendingSectionHeading(level, text, context);
+            frame!.Heading = new PendingSectionHeading(level, text, context);
             return true;
         }
 
@@ -164,7 +193,9 @@ public class MarkoutWriter
     /// </summary>
     public void WriteSectionEnd()
     {
-        _pendingSection = null;
+        CompleteOpenTable();
+        if (_pendingSections is { Count: > 0 } sections)
+            sections.RemoveAt(sections.Count - 1);
     }
 
     // ── Paragraphs ──
@@ -440,6 +471,7 @@ public class MarkoutWriter
                     break;
                 }
             }
+
         }
 
         return result.ToArray();
@@ -1202,6 +1234,8 @@ public class MarkoutWriter
 
     private bool WriteTableCore(IEnumerable<string> headers, IEnumerable<string>? headerNames, IEnumerable<string[]> rows)
     {
+        CompleteOpenTable();
+
         if (_sectionExcluded)
             return true;
 
@@ -1210,8 +1244,11 @@ public class MarkoutWriter
 
         var headerArray = headers as string[] ?? headers.ToArray();
         var headerNameArray = headerNames == null ? null : headerNames as string[] ?? headerNames.ToArray();
-        if (headerNameArray != null && headerNameArray.Length != headerArray.Length)
+        if (headerNameArray is { Length: > 0 } && headerNameArray.Length != headerArray.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
+        if (headerNameArray is { Length: 0 })
+            headerNameArray = null;
+        TableHeaderValidator.Validate(headerArray.AsSpan(), headerNameArray is null ? default : headerNameArray.AsSpan());
 
         var projection = BeginProjection(out var selection);
 
@@ -1263,7 +1300,7 @@ public class MarkoutWriter
             CreateTableWriter(tableOptions).WriteTable(headerArray, headerNameArray, rowList);
         else
             CreateTableWriter(tableOptions).WriteTable(headerArray, rowList);
-        _needsBlankLine = true;
+        _needsBlankLine = TableLeavesBlankLinePending;
         _hasContent = true;
         return true;
     }
@@ -1310,21 +1347,28 @@ public class MarkoutWriter
         if (_inCode)
             throw new InvalidOperationException("Cannot start a table inside a code region.");
 
-        _inTable = true;
+        CompleteOpenTable();
         _columnMap = null;
         _tableWriter = null;
 
         if (_sectionExcluded)
+        {
+            _inTable = true;
             return true;
+        }
 
         if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+        {
+            _inTable = true;
             return false;
+        }
 
         // Validated before the zero-column return below, so that a malformed call is still reported
         // as malformed. Returning first would have let zero headers with a stable name through in
         // silence on this path while the buffered path rejected the same arguments.
         if (headerNames.Length > 0 && headerNames.Length != headers.Length)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
+        TableHeaderValidator.Validate(headers, headerNames);
 
         var projection = BeginProjection(out var selection);
 
@@ -1335,7 +1379,10 @@ public class MarkoutWriter
         // turned a legitimately empty table into a crash. Returning early leaves _tableWriter null,
         // which is what suppresses the rows that follow.
         if (headers.Length == 0)
+        {
+            _inTable = true;
             return true;
+        }
 
         if (projection is not null)
         {
@@ -1343,7 +1390,10 @@ public class MarkoutWriter
             // leaving _tableWriter null is what suppresses the rows that follow.
             var offeredNames = headerNames.Length > 0 ? headerNames : headers;
             if (!ResolveProjectedColumns(projection, selection, headers, offeredNames, out _columnMap))
+            {
+                _inTable = true;
                 return true;
+            }
         }
         string[]? projectedHeaderNames = null;
         if (headerNames.Length > 0)
@@ -1359,6 +1409,7 @@ public class MarkoutWriter
         try
         {
             EnsureBlankLineIfNeeded();
+            _inTable = true;
             _tableWriter = CreateTableWriter();
             if (_columnMap != null)
             {
@@ -1477,12 +1528,18 @@ public class MarkoutWriter
         if (_tableWriter != null)
         {
             _tableWriter.WriteTableEnd();
-            _needsBlankLine = true;
+            _needsBlankLine = TableLeavesBlankLinePending;
             _hasContent = true;
         }
 
         _tableWriter = null;
         _columnMap = null;
+    }
+
+    private void CompleteOpenTable()
+    {
+        if (_inTable)
+            WriteTableEnd();
     }
 
     // ── Code blocks ──
@@ -1765,8 +1822,12 @@ public class MarkoutWriter
     /// </summary>
     public void WriteBlankLine()
     {
+        CompleteOpenTable();
+
         if (_sectionExcluded)
             return;
+
+        PreparePendingSectionBoundariesForBlankLine();
 
         // An explicit blank line at a section boundary is part of the seam: it is the
         // caller's content and travels with the section, but it does not settle what
@@ -1789,6 +1850,7 @@ public class MarkoutWriter
     /// </remarks>
     public void Flush()
     {
+        CompleteOpenTable();
         ThrowIfProjectionMatchedNothing();
         _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
 
@@ -1800,21 +1862,45 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Returns the generated output. Only valid when using the constructor without a TextWriter.
-    /// Trims trailing whitespace.
+    /// Completes an in-memory document and returns its output, trimming trailing whitespace.
     /// </summary>
+    /// <remarks>
+    /// Completion closes an open streaming table, reports an unsatisfied projection, and emits
+    /// ordered sections. After a non-empty ordered document is completed, further writes fail.
+    /// Use <see cref="ToString"/> for a side-effect-free preview.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// The writer is not backed by a <see cref="StringWriter"/>.
+    /// </exception>
+    public string Complete()
+    {
+        if (_target is not StringWriter sw)
+        {
+            throw new InvalidOperationException(
+                "Complete() can only return output from a StringWriter-backed MarkoutWriter. " +
+                "Call Flush() when writing to another TextWriter.");
+        }
+
+        Flush();
+        return sw.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Returns a side-effect-free preview of the output currently available from a
+    /// <see cref="StringWriter"/>-backed writer, trimming trailing whitespace.
+    /// </summary>
+    /// <remarks>
+    /// This method does not close an open table, report document-level projection diagnostics,
+    /// emit ordered sections, flush the target, or prevent later writes. Call <see cref="Complete"/>
+    /// when the document is finished.
+    /// </remarks>
     public override string ToString()
     {
-        // Emitting is a write, so only do it where ToString can actually return the
-        // result. Against a stream target this method has nothing to return, and
-        // committing the document from something a debugger calls implicitly would be
-        // a side effect no caller asked for.
         if (_target is not StringWriter sw)
             return base.ToString() ?? "";
 
-        ThrowIfProjectionMatchedNothing();
-        _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
-        return sw.ToString().TrimEnd();
+        var preview = _sectionBuffer?.RenderOrdered(_options.SectionOrder, _needsBlankLine);
+        return (sw.ToString() + preview).TrimEnd();
     }
 
     // ── Projection ──
@@ -2057,7 +2143,7 @@ public class MarkoutWriter
         return adjusted;
     }
 
-    private void UpdateSectionState(int level, string text)
+    private void UpdateSectionState(int level, string text, bool deferSectionBoundary = false)
     {
         if (level == 2)
         {
@@ -2065,10 +2151,11 @@ public class MarkoutWriter
             _sectionExcluded = !IsSectionIncluded();
 
             // The boundary the writer declares, not one re-derived from rendered text.
-            // Excluded sections open a buffer too: they write nothing today, but routing
-            // them into the previous section's buffer would be a silent misattribution
-            // the moment any write path stops honoring _sectionExcluded.
-            _sectionBuffer?.BeginSection(text, _needsBlankLine);
+            // Under projection the boundary is deferred with the heading: an empty section
+            // should create neither a heading nor an orderable chunk, while surviving content
+            // must open the chunk before either the heading or body is written.
+            if (!deferSectionBoundary)
+                _sectionBuffer?.BeginSection(text, _needsBlankLine);
         }
     }
 
@@ -2157,6 +2244,8 @@ public class MarkoutWriter
     /// </summary>
     private void SeparateFromPrecedingContent()
     {
+        CompleteOpenTable();
+
         // Recorded whether or not one is written here. A section that opens the
         // document has nothing to separate from, but the same section moved later does.
         _sectionBuffer?.NoteSeam(SeamEvent.SelfSeparating);
@@ -2179,7 +2268,9 @@ public class MarkoutWriter
     /// </param>
     private void EnsureBlankLineIfNeeded(bool blockSeparatesItself = false)
     {
-        FlushPendingSection();
+        CompleteOpenTable();
+
+        FlushPendingSections();
 
         if (blockSeparatesItself)
         {
@@ -2220,13 +2311,69 @@ public class MarkoutWriter
         _writer.WriteLine();
     }
 
-    private void FlushPendingSection()
+    private void FlushPendingSections()
     {
-        if (_pendingSection is { } pending)
+        if (_pendingSections is null)
+            return;
+
+        foreach (var frame in _pendingSections)
         {
-            _pendingSection = null;
+            OpenPendingSectionBoundary(frame);
+
+            if (frame.Heading is not { } pending)
+                continue;
+
+            frame.Heading = null;
             WriteSectionHeading(pending.Level, pending.Text, pending.Context);
         }
+    }
+
+    private void PreparePendingSectionBoundariesForBlankLine()
+    {
+        if (_pendingSections is null)
+            return;
+
+        var boundaryIndex = _pendingSections.FindIndex(frame =>
+            frame.SectionName is not null && !frame.BoundaryOpened);
+        if (boundaryIndex < 0)
+            return;
+
+        for (int i = 0; i < boundaryIndex; i++)
+            FlushPendingSectionHeading(_pendingSections[i]);
+
+        for (int i = boundaryIndex; i < _pendingSections.Count; i++)
+            OpenPendingSectionBoundary(_pendingSections[i]);
+    }
+
+    private void OpenPendingSectionBoundary(PendingSectionFrame frame)
+    {
+        if (frame.SectionName is null || frame.BoundaryOpened)
+            return;
+
+        _sectionBuffer?.BeginSection(frame.SectionName, _needsBlankLine);
+        frame.BoundaryOpened = true;
+    }
+
+    private void FlushPendingSectionHeading(PendingSectionFrame frame)
+    {
+        if (frame.Heading is not { } pending)
+            return;
+
+        frame.Heading = null;
+        WriteSectionHeading(pending.Level, pending.Text, pending.Context);
+    }
+
+    private void ClosePendingSectionsAtOrAbove(int level)
+    {
+        if (_pendingSections is not { Count: > 0 } sections)
+            return;
+
+        var keep = sections.Count;
+        while (keep > 0 && sections[keep - 1].Level >= level)
+            keep--;
+
+        if (keep < sections.Count)
+            sections.RemoveRange(keep, sections.Count - keep);
     }
 
     private void WriteSectionHeading(int level, string text, string? context)
@@ -2288,7 +2435,8 @@ public class MarkoutWriter
         => new(writer, formatter, options);
 
     /// <summary>
-    /// Creates a generic writer that builds output in memory. Use ToString() to get the result.
+    /// Creates a generic writer that builds output in memory. Use <see cref="Complete"/> to
+    /// finalize the result or <see cref="ToString"/> to inspect a preview.
     /// </summary>
     public static MarkoutWriter<TFormatter> Create<TFormatter>(
         TFormatter formatter, MarkoutWriterOptions? options = null)
@@ -2312,7 +2460,8 @@ public class MarkoutWriter<TFormatter> : MarkoutWriter where TFormatter : IMarko
     }
 
     /// <summary>
-    /// Creates a writer that builds output in memory. Use ToString() to get the result.
+    /// Creates a writer that builds output in memory. Use <see cref="MarkoutWriter.Complete"/> to
+    /// finalize the result or <see cref="object.ToString"/> to inspect a preview.
     /// </summary>
     public MarkoutWriter(TFormatter formatter, MarkoutWriterOptions? options = null)
         : base(formatter, options)
@@ -2321,3 +2470,11 @@ public class MarkoutWriter<TFormatter> : MarkoutWriter where TFormatter : IMarko
 }
 
 internal readonly record struct PendingSectionHeading(int Level, string Text, string? Context);
+
+internal sealed class PendingSectionFrame(int level, string? sectionName)
+{
+    public int Level { get; } = level;
+    public string? SectionName { get; } = sectionName;
+    public bool BoundaryOpened { get; set; }
+    public PendingSectionHeading? Heading { get; set; }
+}

@@ -22,7 +22,8 @@ public readonly record struct SchemaItem(string Name, string Kind)
     /// <summary>
     /// Canonical machine-facing key for the item.
     /// </summary>
-    public string Key => Formatting.FormatHelper.ToSnakeCase(StableName);
+    public string Key => Formatting.FormatHelper.ToSnakeCase(
+        string.IsNullOrEmpty(StableName) ? Name : StableName);
 }
 
 /// <summary>

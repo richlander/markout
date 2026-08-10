@@ -29,6 +29,7 @@ public class MarkoutWriterOptions
     private bool _inlineGoalStatus = true;
     private MarkoutGlyphs _glyphs = MarkoutGlyphs.Default;
     private Func<GlyphContext, string>? _composeGlyph;
+    private string _newLine = Environment.NewLine;
 
     /// <summary>Creates a new, writable options instance with default values.</summary>
     public MarkoutWriterOptions()
@@ -59,6 +60,7 @@ public class MarkoutWriterOptions
         _inlineGoalStatus = source._inlineGoalStatus;
         _glyphs = source._glyphs;
         _composeGlyph = source._composeGlyph;
+        _newLine = source._newLine;
     }
 
     /// <summary>
@@ -309,8 +311,9 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
-    /// Optional callback for rewriting table headers before they are rendered.
-    /// The callback receives both the stable source name and display name.
+    /// Optional callback for rewriting visual table headers before they are rendered.
+    /// The callback receives both the stable source name and display name. TSV and JSONL
+    /// ignore this callback so presentation cannot change their structured column keys.
     /// </summary>
     public Func<MarkoutTableHeader, string>? FormatTableHeader
     {
@@ -368,6 +371,22 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _headingLevelOffset = value;
+        }
+    }
+
+    /// <summary>
+    /// The line terminator used by string-returning serialization overloads and in-memory
+    /// <see cref="MarkoutWriter"/> instances. Defaults to <see cref="Environment.NewLine"/>.
+    /// This setting does not modify a caller-supplied <see cref="TextWriter"/>.
+    /// </summary>
+    public string NewLine
+    {
+        get => _newLine;
+        set
+        {
+            ThrowIfReadOnly();
+            ArgumentNullException.ThrowIfNull(value);
+            _newLine = value;
         }
     }
 

@@ -403,9 +403,41 @@ internal sealed class SectionBufferingWriter : TextWriter
         if (_emitted)
             return;
 
-        _current.SeamClosed = !AtSectionBoundary;
-        _current.EndsNeedingBlankLine = endsNeedingBlankLine;
+        if (!WriteOrdered(_target, order, endsNeedingBlankLine))
+            return;
 
+        _emitted = true;
+
+        // Drop the buffers rather than clearing them: StringBuilder.Clear allocates a
+        // fresh backing array the size of the one it discards, which on a large
+        // document is another document-sized allocation for nothing.
+        _sections.Clear();
+        _preamble = new Chunk(null, _target.NewLine);
+        _current = _preamble;
+    }
+
+    /// <summary>
+    /// Renders the currently buffered document without emitting it or making the writer
+    /// read-only. Used by <see cref="MarkoutWriter.ToString"/> for side-effect-free previews.
+    /// </summary>
+    public string RenderOrdered(IReadOnlyList<string>? order, bool endsNeedingBlankLine)
+    {
+        if (_emitted)
+            return "";
+
+        var preview = new StringWriter(_target.FormatProvider)
+        {
+            NewLine = _target.NewLine
+        };
+        WriteOrdered(preview, order, endsNeedingBlankLine);
+        return preview.ToString();
+    }
+
+    private bool WriteOrdered(
+        TextWriter output,
+        IReadOnlyList<string>? order,
+        bool currentEndsNeedingBlankLine)
+    {
         var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         if (order != null)
         {
@@ -447,7 +479,7 @@ internal sealed class SectionBufferingWriter : TextWriter
 
                 if (blankLinePending)
                 {
-                    _target.Write(chunk.SeparatorNewLine);
+                    output.Write(chunk.SeparatorNewLine);
                     blankLinePending = false;
                     emitted = true;
                 }
@@ -455,7 +487,7 @@ internal sealed class SectionBufferingWriter : TextWriter
 
             if (chunk.Content.Length > 0)
             {
-                _target.Write(chunk.Content);
+                output.Write(chunk.Content);
                 emitted = true;
             }
 
@@ -467,25 +499,21 @@ internal sealed class SectionBufferingWriter : TextWriter
             // even if nothing reached the output — every block that reaches the seam
             // consumes what is pending before writing, so what is pending after it is
             // what the block itself left, which no reordering changes. An empty table
-            // in JSONL is the case: it emits nothing and still leaves a blank line
-            // pending for whatever follows.
+            // in JSONL is the case: it emits nothing but still settles the end state,
+            // leaving the next record adjacent rather than creating an empty record.
             // Only a closed seam needs its end state supplied out of band. While the
             // seam is open every raise is recorded in it, so the replay already knows.
-            if (chunk.SeamClosed)
-                blankLinePending = chunk.EndsNeedingBlankLine;
+            var isCurrent = ReferenceEquals(chunk, _current);
+            var seamClosed = isCurrent ? !AtSectionBoundary : chunk.SeamClosed;
+            if (seamClosed)
+            {
+                blankLinePending = isCurrent
+                    ? currentEndsNeedingBlankLine
+                    : chunk.EndsNeedingBlankLine;
+            }
         }
 
-        if (!emitted)
-            return;
-
-        _emitted = true;
-
-        // Drop the buffers rather than clearing them: StringBuilder.Clear allocates a
-        // fresh backing array the size of the one it discards, which on a large
-        // document is another document-sized allocation for nothing.
-        _sections.Clear();
-        _preamble = new Chunk(null, _target.NewLine);
-        _current = _preamble;
+        return emitted;
     }
 
     private static IEnumerable<Chunk> Prepend(Chunk first, IEnumerable<Chunk> rest)

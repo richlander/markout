@@ -40,7 +40,7 @@ public class SectionOrderTests
     {
         var writer = new MarkoutWriter(formatter ?? new MarkdownFormatter(), options);
         WriteDocument(writer);
-        return writer.ToString();
+        return writer.Complete();
     }
 
     private static string Render(MarkoutTableMode mode, MarkoutWriterOptions options)
@@ -204,6 +204,27 @@ public class SectionOrderTests
     }
 
     [Fact]
+    public void PreviewingAnInMemoryWriter_DoesNotCommitIt()
+    {
+        var writer = new MarkoutWriter(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { SectionOrder = ["Beta", "Alpha"] });
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteParagraph("alpha");
+
+        var preview = writer.ToString();
+
+        writer.WriteSectionEnd();
+        writer.WriteSectionStart(2, "Beta");
+        writer.WriteParagraph("beta");
+        var completed = writer.Complete();
+
+        Assert.Contains("alpha", preview, StringComparison.Ordinal);
+        Assert.True(
+            PositionOf(completed, "beta") < PositionOf(completed, "alpha"));
+    }
+
+    [Fact]
     public void FlushingTwice_DoesNotEmitTheDocumentTwice()
     {
         var sw = new StringWriter();
@@ -220,10 +241,7 @@ public class SectionOrderTests
     }
 
     /// <summary>
-    /// Reading the result and then flushing are two emit paths, and the second must not
-    /// repeat what the first already wrote. This reads the result — the earlier version
-    /// of this test flushed twice and never called ToString, so it covered the same path
-    /// as the test above rather than the interaction it is named for.
+    /// Reading a preview and then flushing must emit the document exactly once.
     /// </summary>
     [Fact]
     public void FlushingAfterReadingTheResult_DoesNotEmitItTwice()
@@ -625,7 +643,7 @@ public class SectionOrderTests
                     WriteSingleBlock(writer, kind, name.ToLowerInvariant());
             }
 
-            return writer.ToString();
+            return writer.Complete();
         }
 
         Assert.Equal(Write(wanted, null), Write(written, wanted));
@@ -783,17 +801,17 @@ public class SectionOrderTests
 
     /// <summary>
     /// A section can be open and still have rendered nothing: a projection defers its
-    /// heading until the first block, a headless section never writes one, and a
-    /// streaming table holds its rows until it is ended. Flushing there emits an empty
-    /// document, and if that flush tore down the section state anyway, everything
+    /// heading until the first block, and a headless section never writes one.
+    /// Flushing there emits an empty document, and if that flush tore down the section state, everything
     /// written afterwards would land in the preamble — unorderable, and silently so,
     /// because a preamble is exactly what a document that has not begun a section looks
     /// like. So a flush that writes nothing leaves the writer exactly as it found it.
+    /// An open streaming table is no longer such a case: flush completes it so buffered
+    /// rows cannot be silently discarded.
     /// </summary>
     [Theory]
     [InlineData("projection")]
     [InlineData("headless")]
-    [InlineData("streaming")]
     public void AFlushThatEmitsNothing_LeavesOrderingIntact(string kind)
     {
         Assert.Equal(WriteInterrupted(kind, null), WriteInterrupted(kind, ["Beta", "Alpha"]));
@@ -1028,6 +1046,24 @@ public class SectionOrderTests
 
         Assert.False(output.StartsWith('\n'), $"Output opens with a blank record:\n{output}");
         Assert.StartsWith("{", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AReorderedJsonlDocument_HasNoEmptyRecordsBetweenSections()
+    {
+        var writer = new MarkoutWriter(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl, SectionOrder = ["Gamma", "Alpha"] });
+        foreach (var name in Sections)
+        {
+            writer.WriteSectionStart(2, name);
+            writer.WriteTable(["name"], [[name.ToLowerInvariant()]]);
+        }
+
+        var lines = writer.Complete().ReplaceLineEndings("\n").Split('\n');
+
+        Assert.Equal(3, lines.Length);
+        Assert.All(lines, line => Assert.StartsWith("{", line, StringComparison.Ordinal));
     }
 
     // ── The cost of ordering, and who pays it ──

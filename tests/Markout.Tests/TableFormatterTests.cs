@@ -118,6 +118,43 @@ public class TableFormatterTests
         Assert.Equal("0.50", root.GetProperty("Sim").GetString());
     }
 
+    [Theory]
+    [InlineData(MarkoutTableMode.Tsv)]
+    [InlineData(MarkoutTableMode.Jsonl)]
+    public void StructuredModes_IgnoreVisualHeaderFormatter(MarkoutTableMode mode)
+    {
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = mode,
+            FormatTableHeader = header => $"**{header.DisplayName}**"
+        };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTable(["My Column"], ["MyColumn"], [["1"]]);
+
+        Assert.Contains("my_column", writer.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("**", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(MarkoutTableMode.Tsv)]
+    [InlineData(MarkoutTableMode.Jsonl)]
+    public void StructuredDisplayNameStyle_IgnoresFormatterButKeepsDisplayName(MarkoutTableMode mode)
+    {
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = mode,
+            TableHeaderStyle = MarkoutTableHeaderStyle.DisplayName,
+            FormatTableHeader = header => $"**{header.DisplayName}**"
+        };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTable(["My Column"], ["MyColumn"], [["1"]]);
+
+        Assert.Contains("My Column", writer.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("**", writer.ToString(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TableFormatter_JsonlMode_EscapesJsonSyntaxAndPreservesCellText()
     {

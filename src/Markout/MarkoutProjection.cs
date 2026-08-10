@@ -168,8 +168,16 @@ public class MarkoutProjection
     internal static string[] SnapshotSelection(IReadOnlyList<string> requested)
     {
         List<string> snapshot = [];
+        var index = 0;
         foreach (var name in requested)
+        {
+            if (name is null)
+                throw new ArgumentException(
+                    $"IncludeColumns contains a null entry at index {index}.",
+                    nameof(IncludeColumns));
             snapshot.Add(name);
+            index++;
+        }
 
         return [.. snapshot];
     }
@@ -220,6 +228,7 @@ public class MarkoutProjection
 
         if (_excludeColumns != null)
         {
+            ValidateNames(_excludeColumns, nameof(ExcludeColumns));
             // Exclude: preserve original order, skip excluded columns
             var map = new List<int>(headers.Length);
             for (int i = 0; i < headers.Length; i++)
@@ -306,10 +315,10 @@ public class MarkoutProjection
         if (!pattern.Contains('*') && !pattern.Contains('?'))
             return string.Equals(pattern, name, _comparison);
 
-        return GlobMatch(pattern, name, _comparison == StringComparison.OrdinalIgnoreCase);
+        return GlobMatch(pattern, name, _comparison);
     }
 
-    private static bool GlobMatch(string pattern, string text, bool ignoreCase)
+    private static bool GlobMatch(string pattern, string text, StringComparison comparison)
     {
         int pi = 0, ti = 0, starPi = -1, starTi = -1;
         while (ti < text.Length)
@@ -322,7 +331,7 @@ public class MarkoutProjection
             {
                 starPi = pi++; starTi = ti;
             }
-            else if (pi < pattern.Length && CharEquals(pattern[pi], text[ti], ignoreCase))
+            else if (pi < pattern.Length && CharEquals(pattern[pi], text[ti], comparison))
             {
                 pi++; ti++;
             }
@@ -339,6 +348,22 @@ public class MarkoutProjection
         return pi == pattern.Length;
     }
 
-    private static bool CharEquals(char a, char b, bool ignoreCase)
-        => ignoreCase ? char.ToUpperInvariant(a) == char.ToUpperInvariant(b) : a == b;
+    private static bool CharEquals(char a, char b, StringComparison comparison)
+        => string.Equals(a.ToString(), b.ToString(), comparison);
+
+    private static void ValidateNames(IEnumerable<string>? names, string paramName)
+    {
+        if (names is null)
+            return;
+
+        var index = 0;
+        foreach (var name in names)
+        {
+            if (name is null)
+                throw new ArgumentException(
+                    $"{paramName} contains a null entry at index {index}.",
+                    paramName);
+            index++;
+        }
+    }
 }

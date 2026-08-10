@@ -1,0 +1,122 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Markout.SourceGeneration;
+
+namespace Markout.Tests;
+
+public class SourceGeneratorDiagnosticTests
+{
+    [Theory]
+    [InlineData("")]
+    [InlineData("[MarkoutIgnore] public string Value { get; set; } = \"\";")]
+    [InlineData("[MarkoutChild] public bool IsChild { get; set; }")]
+    public void Markout006_ReportsRowTypesWithoutVisibleColumns(string rowMembers)
+    {
+        var source = $$"""
+            using System.Collections.Generic;
+            using Markout;
+
+            [MarkoutSerializable]
+            public class Row
+            {
+                {{rowMembers}}
+            }
+
+            [MarkoutSerializable]
+            public class Report
+            {
+                public List<Row> Rows { get; set; } = new();
+            }
+
+            [MarkoutContext(typeof(Report))]
+            public partial class ReportContext : MarkoutSerializerContext { }
+            """;
+
+        var diagnostic = Assert.Single(RunGenerator(source), d => d.Id == "MARKOUT006");
+        Assert.Contains("Rows", diagnostic.GetMessage(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Markout006_ReportsRowsWhoseOnlyColumnIsSectionIgnored()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using Markout;
+
+            [MarkoutSerializable]
+            public class Row
+            {
+                public string Value { get; set; } = "";
+            }
+
+            [MarkoutSerializable]
+            public class Report
+            {
+                [MarkoutSection(IgnoreProperty = nameof(Row.Value))]
+                public List<Row> Rows { get; set; } = new();
+            }
+
+            [MarkoutContext(typeof(Report))]
+            public partial class ReportContext : MarkoutSerializerContext { }
+            """;
+
+        Assert.Single(RunGenerator(source), d => d.Id == "MARKOUT006");
+    }
+
+    [Fact]
+    public void Markout006_DoesNotReportRuntimeConditionalColumns()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using Markout;
+
+            [MarkoutSerializable]
+            public class Row
+            {
+                public string Value { get; set; } = "";
+            }
+
+            [MarkoutSerializable]
+            public class Report
+            {
+                [MarkoutIgnoreColumnWhen(nameof(HideValue), nameof(Row.Value))]
+                public List<Row> Rows { get; set; } = new();
+
+                public static bool HideValue(List<Row> rows) => true;
+            }
+
+            [MarkoutContext(typeof(Report))]
+            public partial class ReportContext : MarkoutSerializerContext { }
+            """;
+
+        Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
+    }
+
+    private static IReadOnlyList<Diagnostic> RunGenerator(string source)
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(
+            source,
+            CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview));
+        var compilation = CSharpCompilation.Create(
+            $"GeneratorTest_{Guid.NewGuid():N}",
+            [syntaxTree],
+            GetReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new MarkoutSourceGenerator());
+        driver = driver.RunGenerators(compilation);
+        return driver.GetRunResult().Diagnostics;
+    }
+
+    private static IEnumerable<MetadataReference> GetReferences()
+    {
+        var trustedAssemblies = (string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES");
+        Assert.NotNull(trustedAssemblies);
+
+        foreach (var path in trustedAssemblies!.Split(Path.PathSeparator))
+            yield return MetadataReference.CreateFromFile(path);
+
+        yield return MetadataReference.CreateFromFile(
+            Path.Combine(AppContext.BaseDirectory, "Markout.dll"));
+    }
+}

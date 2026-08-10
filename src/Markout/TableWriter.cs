@@ -61,6 +61,7 @@ public class TableWriter
 
     private void WriteTableCore(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames, IList<string[]> rows)
     {
+        TableHeaderValidator.Validate(headers, headerNames);
         var renderedHeaders = FormatHeaders(headers, headerNames);
         var (selected, skipped) = SelectRows(rows);
 
@@ -93,6 +94,7 @@ public class TableWriter
 
     private void WriteTableStartCore(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
+        TableHeaderValidator.Validate(headers, headerNames);
         _tableRowCount = 0;
         _tableRowsSkipped = 0;
         _streamingDirect = false;
@@ -135,6 +137,7 @@ public class TableWriter
     private string[] FormatHeaders(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
         var rendered = new string[headers.Length];
+        var structured = _options.TableMode is MarkoutTableMode.Tsv or MarkoutTableMode.Jsonl;
         for (var i = 0; i < headers.Length; i++)
         {
             var displayName = headers[i];
@@ -142,10 +145,33 @@ public class TableWriter
                 ? headerNames[i]
                 : displayName;
             var header = new MarkoutTableHeader(name, displayName, i);
-            rendered[i] = _options.FormatTableHeader?.Invoke(header)
-                ?? FormatHeader(header);
+            rendered[i] = !structured && _options.FormatTableHeader is { } format
+                ? format(header)
+                : FormatHeader(header);
         }
+
+        if (structured)
+            ValidateStructuredHeaders(rendered);
+
         return rendered;
+    }
+
+    private void ValidateStructuredHeaders(ReadOnlySpan<string> headers)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var key = _options.TableMode == MarkoutTableMode.Tsv
+                ? Formatting.FormatHelper.NormalizeTableCell(
+                    Formatting.FormatHelper.RenderInlinePlainText(headers[i]))
+                : headers[i];
+            if (!seen.Add(key))
+            {
+                throw new ArgumentException(
+                    $"Two columns share the structured key '{key}'. Structured output would emit duplicate keys and lose a column.",
+                    "headers");
+            }
+        }
     }
 
     private string FormatHeader(MarkoutTableHeader header)

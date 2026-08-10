@@ -320,6 +320,43 @@ public class MarkoutWriterTests
         Assert.True(result);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TableFormatter_Jsonl_SectionsFormOneRowStream(bool streaming)
+    {
+        var writer = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        writer.WriteSectionStart(2, "Alpha", headless: true);
+        if (streaming)
+        {
+            writer.WriteTableStart("name");
+            writer.WriteTableRow("a1");
+            writer.WriteTableRow("a2");
+        }
+        else
+        {
+            writer.WriteTable(["name"], [["a1"], ["a2"]]);
+        }
+
+        writer.WriteSectionStart(2, "Beta", headless: true);
+        if (streaming)
+        {
+            writer.WriteTableStart("name");
+            writer.WriteTableRow("b1");
+        }
+        else
+        {
+            writer.WriteTable(["name"], [["b1"]]);
+        }
+
+        Assert.Equal(
+            "{\"name\":\"a1\"}\n{\"name\":\"a2\"}\n{\"name\":\"b1\"}",
+            writer.Complete().ReplaceLineEndings("\n"));
+    }
+
     [Fact]
     public void TableFormatter_WriteFields_ReturnsTrue()
     {
@@ -916,6 +953,119 @@ public class MarkoutWriterTests
         Assert.Equal(batchWriter.ToString(), streamWriter.ToString());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void StreamingTable_NestedStartCompletesTheOpenTable(bool buffered)
+    {
+        var options = new MarkoutWriterOptions();
+        if (buffered)
+            options.TableOptions = new TableFormatterOptions();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.WriteTableStart("B");
+        writer.WriteTableRow("second");
+        writer.WriteTableEnd();
+
+        Assert.Equal(
+            "| A |\n| - |\n| first |\n\n| B |\n| - |\n| second |",
+            writer.ToString());
+    }
+
+    [Fact]
+    public void BufferedTable_ProjectionMissStillCompletesAnOpenStreamingTable()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithColumns("A"),
+            TableOptions = new TableFormatterOptions()
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.WriteTable(["B"], [["dropped"]]);
+
+        Assert.Equal("| A |\n| - |\n| first |", writer.ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void StreamingTable_LaterBlockCompletesTheOpenTableInCallOrder(bool buffered)
+    {
+        var options = new MarkoutWriterOptions();
+        if (buffered)
+            options.TableOptions = new TableFormatterOptions();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.WriteParagraph("after");
+
+        Assert.Equal(
+            "| A |\n| - |\n| first |\n\nafter",
+            writer.ToString());
+    }
+
+    [Fact]
+    public void StreamingTable_CompleteCompletesAnOpenBufferedTable()
+    {
+        var writer = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { TableOptions = new TableFormatterOptions() });
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        Assert.Equal("", writer.ToString());
+        writer.WriteTableRow("second");
+
+        Assert.Equal("| A |\n| - |\n| first |\n| second |", writer.Complete());
+    }
+
+    [Fact]
+    public void StreamingTable_FlushCompletesAnOpenBufferedTable()
+    {
+        var output = new StringWriter();
+        var writer = new MarkoutWriter(
+            output,
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { TableOptions = new TableFormatterOptions() });
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.Flush();
+
+        Assert.Equal("| A |\n| - |\n| first |\n", output.ToString());
+    }
+
+    [Fact]
+    public void StreamingTable_SectionBoundaryCompletesTheTableInItsStartingSection()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            SectionOrder = ["Beta", "Alpha"],
+            TableOptions = new TableFormatterOptions()
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.WriteSectionStart(2, "Beta");
+        writer.WriteParagraph("second");
+
+        var output = writer.ToString();
+        Assert.True(
+            output.IndexOf("## Beta", StringComparison.Ordinal) <
+            output.IndexOf("## Alpha", StringComparison.Ordinal));
+        Assert.True(
+            output.IndexOf("second", StringComparison.Ordinal) <
+            output.IndexOf("| first |", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void PrettyTable_AutoTune_ExpandsAffordableBimodalColumns()
     {
@@ -1307,7 +1457,7 @@ public class MarkoutWriterTests
 
         Assert.True(result);
         var output = orch.ToString();
-        Assert.Contains("NAME", output);
+        Assert.Contains("Name", output);
         Assert.Contains("Alice", output);
     }
 

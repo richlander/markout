@@ -276,18 +276,27 @@ internal static class CollectionEmitter
         }
         else
         {
+            var sectionStartedVar = $"__{itemVar}SectionStarted";
+            sb.AppendLine($"{indent}    var {sectionStartedVar} = false;");
+
             // Write subsection heading using TitleProperty or first string property
             if (!string.IsNullOrEmpty(prop.ElementTitleProperty))
             {
                 if (!string.IsNullOrEmpty(prop.ElementTitleContextProperty))
                 {
                     sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
-                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty}, {itemVar}.{prop.ElementTitleContextProperty});");
+                    sb.AppendLine($"{indent}    {{");
+                    sb.AppendLine($"{indent}        writer.WriteSectionStart({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty}, {itemVar}.{prop.ElementTitleContextProperty});");
+                    sb.AppendLine($"{indent}        {sectionStartedVar} = true;");
+                    sb.AppendLine($"{indent}    }}");
                 }
                 else
                 {
                     sb.AppendLine($"{indent}    if ({itemVar}.{prop.ElementTitleProperty} != null)");
-                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty});");
+                    sb.AppendLine($"{indent}    {{");
+                    sb.AppendLine($"{indent}        writer.WriteSectionStart({subsectionLevel}, {itemVar}.{prop.ElementTitleProperty});");
+                    sb.AppendLine($"{indent}        {sectionStartedVar} = true;");
+                    sb.AppendLine($"{indent}    }}");
                 }
             }
             else
@@ -300,7 +309,10 @@ internal static class CollectionEmitter
                 if (titleProp != null)
                 {
                     sb.AppendLine($"{indent}    if ({itemVar}.{titleProp.Name} != null)");
-                    sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{titleProp.Name});");
+                    sb.AppendLine($"{indent}    {{");
+                    sb.AppendLine($"{indent}        writer.WriteSectionStart({subsectionLevel}, {itemVar}.{titleProp.Name});");
+                    sb.AppendLine($"{indent}        {sectionStartedVar} = true;");
+                    sb.AppendLine($"{indent}    }}");
                 }
                 else
                 {
@@ -309,13 +321,18 @@ internal static class CollectionEmitter
                     if (firstString != null)
                     {
                         sb.AppendLine($"{indent}    if ({itemVar}.{firstString.Name} != null)");
-                        sb.AppendLine($"{indent}        writer.WriteHeading({subsectionLevel}, {itemVar}.{firstString.Name});");
+                        sb.AppendLine($"{indent}    {{");
+                        sb.AppendLine($"{indent}        writer.WriteSectionStart({subsectionLevel}, {itemVar}.{firstString.Name});");
+                        sb.AppendLine($"{indent}        {sectionStartedVar} = true;");
+                        sb.AppendLine($"{indent}    }}");
                     }
                 }
             }
 
             // Emit property serializations for each item, at a deeper level
             SerializerEmitter.EmitPropertySerializations(sb, prop.ElementProperties, itemVar, indentLevel + 1, subsectionLevel + 1, nestingDepth + 1, prop.ElementAutoFields, 0, prop.ElementFieldLayout);
+            sb.AppendLine($"{indent}    if ({sectionStartedVar})");
+            sb.AppendLine($"{indent}        writer.WriteSectionEnd();");
         }
 
         sb.AppendLine($"{indent}}}");
