@@ -73,13 +73,15 @@
         <SkillName>$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName('%(FullPath)'))))</SkillName>
       </_ShelfSkill>
     </ItemGroup>
-    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D', '').Contains('%0Aversion: $(Version)%0A'))"
+    <Error Condition="$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D%0A', '').Contains('%0D'))"
+           Text="skills/%(_ShelfSkill.SkillName)/SKILL.md contains a standalone carriage return. Use LF or CRLF line endings so frontmatter validation cannot reinterpret malformed keys." />
+    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D%0A', '%0A').Contains('%0Aversion: $(Version)%0A'))"
            Text="skills/%(_ShelfSkill.SkillName)/SKILL.md does not carry 'version: $(Version)'. The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
     <Error Condition="!$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\skills\plugin.json').Contains('&quot;version&quot;: &quot;$(Version)&quot;'))"
            Text="skills/plugin.json does not carry version $(Version). The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
     <Error Condition="'%(_ShelfSkill.SkillName)' != 'markout' AND !$([System.String]::new('%(_ShelfSkill.SkillName)').StartsWith('markout-'))"
            Text="skills/%(_ShelfSkill.SkillName)/ is not named for the package. Skill names share one flat namespace in a consuming repo, so the base skill must be 'markout' and every workflow skill 'markout-&lt;domain&gt;'." />
-    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D', '').Contains('%0Aname: %(_ShelfSkill.SkillName)%0A'))"
+    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D%0A', '%0A').Contains('%0Aname: %(_ShelfSkill.SkillName)%0A'))"
            Text="skills/%(_ShelfSkill.SkillName)/SKILL.md declares a frontmatter 'name' that is not its directory name. A skill is addressed by that name, so the two must be the same string." />
   </Target>
 
