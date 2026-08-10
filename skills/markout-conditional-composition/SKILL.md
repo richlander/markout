@@ -1,6 +1,6 @@
 ---
 name: markout-conditional-composition
-version: 0.35.0
+version: 0.35.1
 description: >-
   Use when a Markout report must adapt to its data — show or hide whole sections, drop table
   columns that are empty/uniform, filter output to a chosen set of sections, or render one
