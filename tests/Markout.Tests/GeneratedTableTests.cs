@@ -1522,6 +1522,24 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void DirectTableWriter_RejectsHeaderNamesOfADifferentLength()
+    {
+        var buffered = new TableWriter(
+            new StringWriter(),
+            (ITableFormatter)new MarkdownFormatter());
+        var bufferedException = Assert.Throws<ArgumentException>(
+            () => buffered.WriteTable(["A", "B"], ["a"], [["one", "two"]]));
+        Assert.Equal("headerNames", bufferedException.ParamName);
+
+        var streaming = new TableWriter(
+            new StringWriter(),
+            (IStreamingTableFormatter)new MarkdownFormatter());
+        var streamingException = Assert.Throws<ArgumentException>(
+            () => streaming.WriteTableStart(["A", "B"], ["a"]));
+        Assert.Equal("headerNames", streamingException.ParamName);
+    }
+
+    [Fact]
     public void WriteTable_EmptyHeaderNamesFallBackToDisplayHeadersLikeStreaming()
     {
         var buffered = MarkoutWriter.Create(new MarkdownFormatter());

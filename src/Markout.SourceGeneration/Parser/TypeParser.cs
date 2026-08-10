@@ -178,7 +178,15 @@ internal static class TypeParser
             if (prop.GetMethod == null)
                 continue;
 
-            var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes, namingPolicy.Value, skipNullByDefault);
+            var propMeta = ParseProperty(
+                prop,
+                compilation,
+                knownTypes,
+                diagnostics,
+                visitedTypes,
+                namingPolicy.Value,
+                skipNullByDefault,
+                autoFields.Value);
             if (propMeta != null)
                 properties.Add(propMeta);
         }
@@ -232,7 +240,8 @@ internal static class TypeParser
         List<DiagnosticInfo> diagnostics,
         HashSet<ITypeSymbol>? visitedTypes = null,
         NamingPolicyKind namingPolicy = NamingPolicyKind.PascalCaseWords,
-        bool skipNullByDefault = false)
+        bool skipNullByDefault = false,
+        bool containingTypeAutoFields = true)
     {
         var isIgnored = HasAttribute(prop, MarkoutIgnoreAttribute);
         var isIgnoredInTable = HasAttribute(prop, MarkoutIgnoreInTableAttribute);
@@ -549,7 +558,8 @@ internal static class TypeParser
         // zero-column table now returns early rather than emitting a "|"/"|" husk, which makes
         // catching it here the only thing standing between the author and silent empty output.
         //
-        if (!isIgnored && !elementAnalysisClosesCycle && elementIsRowType &&
+        if (!isIgnored && (containingTypeAutoFields || isSection) &&
+            !elementAnalysisClosesCycle && elementIsRowType &&
             kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
             elementProperties is not null)
         {
@@ -776,7 +786,15 @@ internal static class TypeParser
                 return (PropertyKind.MultiSource, null, null, false, null, null, true, FieldLayoutKind.Table, true);
 
             var elementSettings = GetElementTypeSettings(elementType);
-            var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes, elementSettings.NamingPolicy, elementSettings.SkipNullByDefault);
+            var elementProps = GetTypeProperties(
+                elementType,
+                compilation,
+                knownTypes,
+                diagnostics,
+                visitedTypes,
+                elementSettings.NamingPolicy,
+                elementSettings.SkipNullByDefault,
+                elementSettings.AutoFields);
             var hasNested = HasNestedContent(elementProps);
             return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, elementSettings.TitleProperty, elementSettings.TitleContextProperty, elementSettings.AutoFields, elementSettings.FieldLayout, true);
         }
@@ -917,7 +935,15 @@ internal static class TypeParser
                         return (PropertyKind.StringArray, null, null, false, null, null, true, FieldLayoutKind.Table, false);
 
                     var elementSettings = GetElementTypeSettings(elementType);
-                    var elementProps = GetTypeProperties(elementType, compilation, knownTypes, diagnostics, visitedTypes, elementSettings.NamingPolicy, elementSettings.SkipNullByDefault);
+                    var elementProps = GetTypeProperties(
+                        elementType,
+                        compilation,
+                        knownTypes,
+                        diagnostics,
+                        visitedTypes,
+                        elementSettings.NamingPolicy,
+                        elementSettings.SkipNullByDefault,
+                        elementSettings.AutoFields);
                     var hasNested = HasNestedContent(elementProps);
                     return (PropertyKind.ComplexArray, elementType.ToDisplayString(), elementProps, hasNested, elementSettings.TitleProperty, elementSettings.TitleContextProperty, elementSettings.AutoFields, elementSettings.FieldLayout, false);
                 }
@@ -935,7 +961,15 @@ internal static class TypeParser
         if (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct)
         {
             var nestedSettings = GetElementTypeSettings(type);
-            var props = GetTypeProperties(type, compilation, knownTypes, diagnostics, visitedTypes, nestedSettings.NamingPolicy, nestedSettings.SkipNullByDefault);
+            var props = GetTypeProperties(
+                type,
+                compilation,
+                knownTypes,
+                diagnostics,
+                visitedTypes,
+                nestedSettings.NamingPolicy,
+                nestedSettings.SkipNullByDefault,
+                nestedSettings.AutoFields);
             if (props.Count > 0)
                 return (PropertyKind.NestedObject, null, props, false, null, null, nestedSettings.AutoFields, nestedSettings.FieldLayout, false);
         }
@@ -1027,7 +1061,8 @@ internal static class TypeParser
         List<DiagnosticInfo>? diagnostics = null,
         HashSet<ITypeSymbol>? visitedTypes = null,
         NamingPolicyKind namingPolicy = NamingPolicyKind.PascalCaseWords,
-        bool skipNullByDefault = false)
+        bool skipNullByDefault = false,
+        bool autoFields = true)
     {
         var properties = new List<PropertyMetadata>();
         diagnostics ??= new List<DiagnosticInfo>();
@@ -1054,7 +1089,15 @@ internal static class TypeParser
                 if (prop.GetMethod == null)
                     continue;
 
-                var propMeta = ParseProperty(prop, compilation, knownTypes, diagnostics, visitedTypes, namingPolicy, skipNullByDefault);
+                var propMeta = ParseProperty(
+                    prop,
+                    compilation,
+                    knownTypes,
+                    diagnostics,
+                    visitedTypes,
+                    namingPolicy,
+                    skipNullByDefault,
+                    autoFields);
                 if (propMeta != null)
                     properties.Add(propMeta);
             }

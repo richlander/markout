@@ -61,7 +61,7 @@ public class TableWriter
 
     private void WriteTableCore(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames, IList<string[]> rows)
     {
-        TableHeaderValidator.Validate(headers, headerNames);
+        ValidateHeaders(headers, headerNames);
         var renderedHeaders = FormatHeaders(headers, headerNames);
         var (selected, skipped) = SelectRows(rows);
 
@@ -84,7 +84,7 @@ public class TableWriter
         ReadOnlySpan<string> headers,
         ReadOnlySpan<string> headerNames)
     {
-        TableHeaderValidator.Validate(headers, headerNames);
+        ValidateHeaders(headers, headerNames);
         if (_options.TableMode is MarkoutTableMode.Tsv or MarkoutTableMode.Jsonl)
             _ = FormatHeaders(headers, headerNames);
     }
@@ -103,7 +103,7 @@ public class TableWriter
 
     private void WriteTableStartCore(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
-        TableHeaderValidator.Validate(headers, headerNames);
+        ValidateHeaders(headers, headerNames);
         _tableRowCount = 0;
         _tableRowsSkipped = 0;
         _streamingDirect = false;
@@ -141,6 +141,18 @@ public class TableWriter
                 _streamingRows = [];
             }
         }
+    }
+
+    private static void ValidateHeaders(
+        ReadOnlySpan<string> headers,
+        ReadOnlySpan<string> headerNames)
+    {
+        if (headerNames.Length > 0 && headerNames.Length != headers.Length)
+            throw new ArgumentException(
+                "Header names must have the same length as headers.",
+                nameof(headerNames));
+
+        TableHeaderValidator.Validate(headers, headerNames);
     }
 
     private string[] FormatHeaders(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)

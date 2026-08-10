@@ -2380,10 +2380,11 @@ public class MarkoutWriter
 
     private void OpenPendingSectionBoundary(PendingSectionFrame frame)
     {
-        if (frame.SectionName is null || frame.BoundaryOpened)
+        if (frame.BoundaryOpened)
             return;
 
-        _sectionBuffer?.BeginSection(frame.SectionName, _needsBlankLine);
+        if (frame.SectionName is not null)
+            _sectionBuffer?.BeginSection(frame.SectionName, _needsBlankLine);
         frame.BoundaryOpened = true;
     }
 

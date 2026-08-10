@@ -195,6 +195,60 @@ public class SourceGeneratorDiagnosticTests
         Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
     }
 
+    [Fact]
+    public void Markout006_DoesNotReportCollectionsExcludedByAutoFields()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using Markout;
+
+            public class EmptyRow;
+
+            public class VisibleRow
+            {
+                public string Value { get; set; } = "";
+            }
+
+            [MarkoutSerializable(AutoFields = false)]
+            public class Report
+            {
+                [MarkoutSection]
+                public List<VisibleRow> Visible { get; set; } = new();
+
+                [MarkoutIgnoreInTable]
+                public List<EmptyRow> Cache { get; set; } = new();
+            }
+
+            [MarkoutContext(typeof(Report))]
+            public partial class ReportContext : MarkoutSerializerContext { }
+            """;
+
+        Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
+    }
+
+    [Fact]
+    public void Markout006_ReportsEmptySectionRowsWhenAutoFieldsAreDisabled()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using Markout;
+
+            public class EmptyRow;
+
+            [MarkoutSerializable(AutoFields = false)]
+            public class Report
+            {
+                [MarkoutSection]
+                public List<EmptyRow> Rows { get; set; } = new();
+            }
+
+            [MarkoutContext(typeof(Report))]
+            public partial class ReportContext : MarkoutSerializerContext { }
+            """;
+
+        Assert.Single(RunGenerator(source), d => d.Id == "MARKOUT006");
+    }
+
     private static IReadOnlyList<Diagnostic> RunGenerator(string source)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(

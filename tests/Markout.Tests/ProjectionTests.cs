@@ -129,6 +129,25 @@ public class ProjectionTests
         Assert.Equal("", writer.ToString());
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void ExplicitBlankLine_AfterDeferredSectionContentIsNotDiscarded(int level)
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        });
+
+        writer.WriteSectionStart(level, "Section");
+        writer.WriteParagraph("one");
+        writer.WriteBlankLine();
+        writer.WriteSectionEnd();
+        writer.WriteParagraph("two");
+
+        Assert.EndsWith("one\n\ntwo", writer.ToString(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void DisablingProjection_DiscardsAnEmptyDeferredSiblingHeading()
     {
