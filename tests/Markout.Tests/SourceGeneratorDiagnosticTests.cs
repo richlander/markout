@@ -123,6 +123,27 @@ public class SourceGeneratorDiagnosticTests
         Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
     }
 
+    [Fact]
+    public void Markout006_DoesNotTreatCycleTruncationAsAnEmptyRowType()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using Markout;
+
+            [MarkoutSerializable]
+            public class Node
+            {
+                public string Name { get; set; } = "";
+                public List<Node> Children { get; set; } = new();
+            }
+
+            [MarkoutContext(typeof(Node))]
+            public partial class NodeContext : MarkoutSerializerContext { }
+            """;
+
+        Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
+    }
+
     private static IReadOnlyList<Diagnostic> RunGenerator(string source)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(

@@ -542,6 +542,28 @@ public class GraphTests
     }
 
     [Fact]
+    public void TableFormatterSubclass_InheritsJsonlTableSeamBehavior()
+    {
+        var writer = MarkoutWriter.Create(
+            new DerivedTableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        writer.WriteGraph(SimpleChain());
+        writer.WriteGraph(SimpleChain());
+
+        Assert.DoesNotContain("\n\n", Normalize(writer.Complete()), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TableFormatterSubclass_CanOverrideGraphRendering()
+    {
+        var writer = MarkoutWriter.Create(new CustomTableGraphFormatter());
+
+        Assert.True(writer.WriteGraph(SimpleChain()));
+        Assert.Equal("custom table graph", Normalize(writer.Complete()));
+    }
+
+    [Fact]
     public void DirectMarkdownGraphFormatting_RendersTheEdgeTable()
     {
         var sink = new StringWriter();
@@ -903,6 +925,17 @@ public class GraphTests
             Graph graph,
             MarkoutWriterOptions options)
             => writer.Write("custom graph");
+    }
+
+    private sealed class DerivedTableFormatter : TableFormatter;
+
+    private sealed class CustomTableGraphFormatter : TableFormatter, IGraphFormatter
+    {
+        void IGraphFormatter.FormatGraph(
+            TextWriter writer,
+            Graph graph,
+            MarkoutWriterOptions options)
+            => writer.Write("custom table graph");
     }
 
     private static string Normalize(string text) => text.Replace("\r\n", "\n");

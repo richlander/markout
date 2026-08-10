@@ -30,7 +30,7 @@ public static class SectionFiltering
         writer.WriteHeading(2, "Reviews");         // included
         writer.WriteFields([new("Rating", "4.5 stars")]);
 
-        Console.WriteLine(writer.ToString());
+        Console.WriteLine(writer.Complete());
         // # Product Details
         //
         // ## Overview

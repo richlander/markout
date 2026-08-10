@@ -525,6 +525,8 @@ internal static class TypeParser
             isNullableValueType = true;
         }
 
+        var elementAnalysisClosesCycle = CollectionElementIsVisited(prop.Type, knownTypes, visitedTypes);
+
         // Ignored properties still need metadata so the emitter can omit them consistently, but
         // diagnostics from their unreachable type graphs must not escape into the containing model.
         var nestedDiagnostics = isIgnored ? null : diagnostics;
@@ -538,7 +540,8 @@ internal static class TypeParser
         // zero-column table now returns early rather than emitting a "|"/"|" husk, which makes
         // catching it here the only thing standing between the author and silent empty output.
         //
-        if (!isIgnored && kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
+        if (!isIgnored && !elementAnalysisClosesCycle &&
+            kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
             elementProperties is not null)
         {
             var columnIgnoreNames = sectionIgnoreProperty != null
@@ -648,6 +651,34 @@ internal static class TypeParser
             isScalarShape,
             isChildFlag,
             numberFormat);
+    }
+
+    private static bool CollectionElementIsVisited(
+        ITypeSymbol type,
+        KnownTypeSymbols knownTypes,
+        HashSet<ITypeSymbol>? visitedTypes)
+    {
+        if (visitedTypes is null)
+            return false;
+
+        ITypeSymbol? elementType = type is IArrayTypeSymbol arrayType
+            ? arrayType.ElementType
+            : null;
+
+        if (elementType is null && type is INamedTypeSymbol namedType)
+        {
+            var enumerable = knownTypes.IEnumerable is null
+                ? null
+                : namedType.AllInterfaces.FirstOrDefault(i =>
+                    SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, knownTypes.IEnumerable));
+            if (enumerable?.TypeArguments.Length > 0)
+                elementType = enumerable.TypeArguments[0];
+            else if (namedType.OriginalDefinition.ToDisplayString().StartsWith("System.Collections.Generic.") &&
+                     namedType.TypeArguments.Length == 1)
+                elementType = namedType.TypeArguments[0];
+        }
+
+        return elementType is not null && visitedTypes.Contains(elementType);
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

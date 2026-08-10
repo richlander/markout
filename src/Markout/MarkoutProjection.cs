@@ -166,6 +166,9 @@ public class MarkoutProjection
     /// is the definitive read, because it is the one that yields the names.
     /// </remarks>
     internal static string[] SnapshotSelection(IReadOnlyList<string> requested)
+        => SnapshotNames(requested, nameof(IncludeColumns));
+
+    internal static string[] SnapshotNames(IEnumerable<string> requested, string paramName)
     {
         List<string> snapshot = [];
         var index = 0;
@@ -173,8 +176,8 @@ public class MarkoutProjection
         {
             if (name is null)
                 throw new ArgumentException(
-                    $"IncludeColumns contains a null entry at index {index}.",
-                    nameof(IncludeColumns));
+                    $"{paramName} contains a null entry at index {index}.",
+                    paramName);
             snapshot.Add(name);
             index++;
         }

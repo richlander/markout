@@ -361,6 +361,23 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void WriterTableEntryPoints_ValidateHeadersBeforeFilteringOrCapabilityDispatch()
+    {
+        const string malformed = "\uD800";
+
+        var unsupported = MarkoutWriter.Create(new MermaidFormatter());
+        Assert.Throws<ArgumentException>(() => unsupported.WriteTable([malformed], [["value"]]));
+        Assert.Throws<ArgumentException>(() => unsupported.WriteTableStart([malformed]));
+
+        var excluded = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { IncludeSections = ["Included"] });
+        excluded.WriteSectionStart(2, "Excluded");
+        Assert.Throws<ArgumentException>(() => excluded.WriteTable([malformed], [["value"]]));
+        Assert.Throws<ArgumentException>(() => excluded.WriteTableStart([malformed]));
+    }
+
+    [Fact]
     public void MarkoutTable_AcceptsHeadersThatDifferOnlyOutsideTheBasicPlane()
     {
         // The negative case, and the one a rule about "text containing surrogates" would break:

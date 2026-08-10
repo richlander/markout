@@ -253,6 +253,26 @@ public class ProjectionTests
         Assert.Contains("index 0", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void FieldProjection_RejectsNullNamesWithTheOptionAndIndex(bool include)
+    {
+        var projection = new MarkoutProjection();
+        if (include)
+            projection.IncludeFields = [null!];
+        else
+            projection.ExcludeFields = [null!];
+        var writer = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { Projection = projection });
+
+        var ex = Assert.Throws<ArgumentException>(() => writer.WriteField("Name", "value"));
+
+        Assert.Equal(include ? "IncludeFields" : "ExcludeFields", ex.ParamName);
+        Assert.Contains("index 0", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ExcludeColumns_ExcludingEveryColumn_RendersNothingRatherThanFailing()
     {

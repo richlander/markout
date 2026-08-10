@@ -1053,24 +1053,22 @@ for every format, **including TSV and JSONL**, whose output carries no heading t
 reorder. Asking for the order a document already had reproduces it byte for byte.
 
 Setting `SectionOrder` buffers the whole document, because the last section
-written may be the first one emitted. That also makes emitting the end of the
-document: `Flush()` and `ToString()` write it out, and writing again afterwards
-throws, because a section written then could no longer move ahead of one already
-written out. Finish the document before flushing. Clearing `SectionOrder` at that
-point does not lift the restriction — the buffer is installed when the writer is
-constructed — so a document that must continue past a flush needs a new writer
-created without an order.
+written may be the first one emitted. `Flush()` completes the document and writes
+the ordered sections to the target. `Complete()` does the same for a
+`StringWriter`-backed writer and returns the resulting string. Writing again after
+a non-empty ordered document is completed throws, because a later section could
+no longer move ahead of one already emitted. Clearing `SectionOrder` does not
+lift that restriction — the buffer is installed when the writer is constructed.
 
-A flush that has nothing to emit is not a flush. A section whose heading a
-projection has deferred, a headless section, or a streaming table still gathering
-rows has rendered nothing yet, so flushing there writes no document and leaves
-the writer exactly as it was, still ordering and still writable.
+A completion first closes any open streaming table and reports a projection that
+matched nothing. If there is still no ordered content to emit, the writer remains
+writable.
 
-`ToString()` returns the ordered result for a writer that owns its own buffer,
-and for one you gave a `StringWriter` — in both cases there is a string to
-return, so it emits. Against any other `TextWriter` it has nothing to return and
-emits nothing, so inspecting such a writer in a debugger does not commit the
-document.
+`ToString()` is a side-effect-free preview for a writer that owns its buffer or
+was given a `StringWriter`. It does not close an open table, report terminal
+projection diagnostics, emit ordered sections to the target, or prevent later
+writes. Against any other `TextWriter`, it has no output string to preview. Use
+`Complete()` or `Flush()` when the document is finished.
 
 One boundary: reordering assumes your writer's `NewLine` is stable for the
 duration of the document. The blank line between two sections sits between a pair

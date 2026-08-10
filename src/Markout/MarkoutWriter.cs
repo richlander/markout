@@ -1236,12 +1236,6 @@ public class MarkoutWriter
     {
         CompleteOpenTable();
 
-        if (_sectionExcluded)
-            return true;
-
-        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
-            return false;
-
         var headerArray = headers as string[] ?? headers.ToArray();
         var headerNameArray = headerNames == null ? null : headerNames as string[] ?? headerNames.ToArray();
         if (headerNameArray is { Length: > 0 } && headerNameArray.Length != headerArray.Length)
@@ -1249,6 +1243,12 @@ public class MarkoutWriter
         if (headerNameArray is { Length: 0 })
             headerNameArray = null;
         TableHeaderValidator.Validate(headerArray.AsSpan(), headerNameArray is null ? default : headerNameArray.AsSpan());
+
+        if (_sectionExcluded)
+            return true;
+
+        if (_formatter is not ITableFormatter and not IStreamingTableFormatter)
+            return false;
 
         var projection = BeginProjection(out var selection);
 
@@ -1351,6 +1351,12 @@ public class MarkoutWriter
         _columnMap = null;
         _tableWriter = null;
 
+        // Validate the public call before filtering or capability dispatch. Unsupported and
+        // excluded output must not make malformed header text appear valid.
+        if (headerNames.Length > 0 && headerNames.Length != headers.Length)
+            throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
+        TableHeaderValidator.Validate(headers, headerNames);
+
         if (_sectionExcluded)
         {
             _inTable = true;
@@ -1362,13 +1368,6 @@ public class MarkoutWriter
             _inTable = true;
             return false;
         }
-
-        // Validated before the zero-column return below, so that a malformed call is still reported
-        // as malformed. Returning first would have let zero headers with a stable name through in
-        // silence on this path while the buffered path rejected the same arguments.
-        if (headerNames.Length > 0 && headerNames.Length != headers.Length)
-            throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
-        TableHeaderValidator.Validate(headers, headerNames);
 
         var projection = BeginProjection(out var selection);
 
@@ -1785,16 +1784,16 @@ public class MarkoutWriter
         if (graph.IsEmpty || _sectionExcluded)
             return true;
 
-        GraphLowering.DeferredGraphEdgeTable table = default;
-        bool hasTable =
-            _formatter.GetType() == typeof(MarkdownFormatter)
-                ? ((MarkdownFormatter)_formatter).TryLowerGraphToTable(graph, out table)
-                : _formatter.GetType() == typeof(TableFormatter)
-                    && ((TableFormatter)_formatter).TryLowerGraphToTable(graph, out table);
-        if (hasTable)
-        {
+        GraphLowering.DeferredGraphEdgeTable table;
+        if (_formatter is MarkdownFormatter markdown &&
+            UsesBuiltInGraphImplementation(typeof(MarkdownFormatter)) &&
+            markdown.TryLowerGraphToTable(graph, out table))
             return WriteTable(table.Headers, table.Rows);
-        }
+
+        if (_formatter is TableFormatter tabular &&
+            UsesBuiltInGraphImplementation(typeof(TableFormatter)) &&
+            tabular.TryLowerGraphToTable(graph, out table))
+            return WriteTable(table.Headers, table.Rows);
 
         if (_formatter is not IGraphFormatter gf)
             return false;
@@ -1804,6 +1803,12 @@ public class MarkoutWriter
         _needsBlankLine = true;
         _hasContent = true;
         return true;
+    }
+
+    private bool UsesBuiltInGraphImplementation(Type formatterType)
+    {
+        var map = _formatter.GetType().GetInterfaceMap(typeof(IGraphFormatter));
+        return map.TargetMethods.Any(method => method.DeclaringType == formatterType);
     }
 
     // ── Link definitions ──
@@ -2194,10 +2199,11 @@ public class MarkoutWriter
         if (projection == null)
             return fields.ToArray();
 
-        if (projection.IncludeFields != null)
+        if (projection.IncludeFields is { } includeFields)
         {
-            var result = new List<MarkoutField>(projection.IncludeFields.Count);
-            foreach (var name in projection.IncludeFields)
+            var requested = MarkoutProjection.SnapshotNames(includeFields, nameof(MarkoutProjection.IncludeFields));
+            var result = new List<MarkoutField>(requested.Length);
+            foreach (var name in requested)
             {
                 bool isGlob = name.Contains('*') || name.Contains('?');
                 for (int i = 0; i < fields.Length; i++)
@@ -2212,12 +2218,23 @@ public class MarkoutWriter
             return result.ToArray();
         }
 
-        if (projection.ExcludeFields != null)
+        if (projection.ExcludeFields is { } excludeFields)
         {
+            var excluded = MarkoutProjection.SnapshotNames(excludeFields, nameof(MarkoutProjection.ExcludeFields));
             var result = new List<MarkoutField>(fields.Length);
             for (int i = 0; i < fields.Length; i++)
             {
-                if (projection.IsFieldIncluded(fields[i].Key))
+                var isExcluded = false;
+                foreach (var name in excluded)
+                {
+                    if (projection.MatchesName(name, fields[i].Key))
+                    {
+                        isExcluded = true;
+                        break;
+                    }
+                }
+
+                if (!isExcluded)
                     result.Add(fields[i]);
             }
             return result.ToArray();
