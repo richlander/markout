@@ -1822,7 +1822,7 @@ public class GeneratedTableTests
         var exception = Assert.Throws<ArgumentException>(
             () => writer.WriteTable(["A-B", "A B"], Rows()));
 
-        Assert.Contains("canonical structured key 'a_b'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("structured key 'a_b'", exception.Message, StringComparison.Ordinal);
         Assert.False(rowsEnumerated);
     }
 
