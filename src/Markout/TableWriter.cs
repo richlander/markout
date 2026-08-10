@@ -106,42 +106,37 @@ public class TableWriter
         ValidateHeaders(headers, headerNames);
         var renderedHeaders = FormatHeaders(headers, headerNames);
 
-        _tableRowCount = 0;
-        _tableRowsSkipped = 0;
-        _streamingDirect = false;
-        _dataPosition = 0;
-        _tailBuffer = null;
-        _streamingHeaders = renderedHeaders;
-
-        // Force buffering when TableOptions is set — statistical width calculation
-        // requires all rows before rendering. A Tail window forces it for its own
-        // reason: which rows are the last ones is not known until the table ends.
-        // Head and Range decide each row from its position, so they keep streaming
-        // and retain nothing; a window is not a reason on its own to hold a table
-        // in memory.
         var window = _options.RowWindow;
-        if (_streamingFormatter != null && _options.TableOptions == null
-            && (window == null || window.Value.IsPositional))
+        var streamingDirect =
+            _streamingFormatter != null &&
+            _options.TableOptions == null &&
+            (window == null || window.Value.IsPositional);
+        Queue<string[]>? tailBuffer = null;
+        List<string[]>? streamingRows = null;
+        var tailBound = 0;
+
+        if (streamingDirect)
         {
-            _streamingDirect = true;
-            _streamingFormatter.BeginTable(_writer, _streamingHeaders, _options);
+            _streamingFormatter!.BeginTable(_writer, renderedHeaders, _options);
+        }
+        else if (window is { IsPositional: false } tail)
+        {
+            tailBound = tail.RetentionBound;
+            tailBuffer = new Queue<string[]>(Math.Min(tailBound, 1024));
         }
         else
         {
-            // A Tail window never needs more than its own count in hand, so it reads
-            // through a queue bounded by what the window can keep rather than by the
-            // size of the table. Enqueue-and-dequeue keeps that O(1) per row; trimming
-            // a list from the front would make a large Tail quadratic.
-            if (window is { IsPositional: false } tail)
-            {
-                _tailBound = tail.RetentionBound;
-                _tailBuffer = new Queue<string[]>(Math.Min(_tailBound, 1024));
-            }
-            else
-            {
-                _streamingRows = [];
-            }
+            streamingRows = [];
         }
+
+        _tableRowCount = 0;
+        _tableRowsSkipped = 0;
+        _streamingDirect = streamingDirect;
+        _dataPosition = 0;
+        _tailBuffer = tailBuffer;
+        _tailBound = tailBound;
+        _streamingRows = streamingRows;
+        _streamingHeaders = renderedHeaders;
     }
 
     private static void ValidateHeaders(

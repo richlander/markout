@@ -175,6 +175,24 @@ public class ProjectionTests
     }
 
     [Fact]
+    public void ExplicitBlankLine_InInitialDiscardedSectionDoesNotLeadTheDocument()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped"),
+            SectionOrder = ["Live"]
+        });
+
+        writer.WriteSectionStart(2, "Discarded");
+        writer.WriteBlankLine();
+        writer.WriteSectionEnd();
+        writer.WriteSectionStart(2, "Live");
+        writer.WriteParagraph("body");
+
+        Assert.StartsWith("## Live", writer.Complete(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DisablingProjection_DiscardsAnEmptyDeferredSiblingHeading()
     {
         var options = new MarkoutWriterOptions
@@ -515,6 +533,21 @@ public class ProjectionTests
 
         Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
         Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Fact]
+    public void IncludeColumns_AdversarialGlobUsesBoundedMemory()
+    {
+        const int length = 2_000;
+        var pattern = string.Concat(Enumerable.Repeat("*a", length)) + "b";
+        var projection = MarkoutProjection.WithColumns(pattern);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var resolution = projection.ResolveColumns([new string('a', length)]);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
+        Assert.True(allocated < 1_000_000, $"Glob match allocated {allocated:N0} bytes.");
     }
 
     // --- Column projection: ExcludeColumns ---

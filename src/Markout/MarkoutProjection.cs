@@ -323,63 +323,71 @@ public class MarkoutProjection
 
     private static bool GlobMatch(string pattern, string text, StringComparison comparison)
     {
-        var pending = new Stack<(int Pattern, int Text)>();
-        var visited = new HashSet<(int Pattern, int Text)>();
-        pending.Push((0, 0));
+        var reachable = new bool[text.Length + 1];
+        var next = new bool[text.Length + 1];
+        reachable[0] = true;
 
-        while (pending.TryPop(out var state))
+        for (var patternIndex = 0; patternIndex < pattern.Length;)
         {
-            var (patternIndex, textIndex) = state;
-            if (!visited.Add(state))
-                continue;
-
-            if (patternIndex == pattern.Length)
-            {
-                if (textIndex == text.Length)
-                    return true;
-                continue;
-            }
+            Array.Clear(next);
 
             if (pattern[patternIndex] == '*')
             {
                 while (patternIndex + 1 < pattern.Length && pattern[patternIndex + 1] == '*')
                     patternIndex++;
 
-                pending.Push((patternIndex + 1, textIndex));
-                if (textIndex < text.Length)
-                    pending.Push((patternIndex, textIndex + 1));
-                continue;
+                var canReach = false;
+                for (var textIndex = 0; textIndex <= text.Length; textIndex++)
+                {
+                    canReach |= reachable[textIndex];
+                    next[textIndex] = canReach;
+                }
+                patternIndex++;
             }
-
-            if (pattern[patternIndex] == '?')
+            else if (pattern[patternIndex] == '?')
             {
-                if (textIndex < text.Length)
-                    pending.Push((patternIndex + 1, textIndex + 1));
-                continue;
+                for (var textIndex = 0; textIndex < text.Length; textIndex++)
+                    next[textIndex + 1] = reachable[textIndex];
+                patternIndex++;
             }
-
-            var literalEnd = patternIndex;
-            while (literalEnd < pattern.Length && pattern[literalEnd] is not '*' and not '?')
-                literalEnd++;
-            var literal = pattern.AsSpan(patternIndex, literalEnd - patternIndex);
-
-            if (comparison is StringComparison.Ordinal or StringComparison.OrdinalIgnoreCase)
+            else
             {
-                var nextText = textIndex + literal.Length;
-                if (nextText <= text.Length &&
-                    literal.Equals(text.AsSpan(textIndex, literal.Length), comparison))
-                    pending.Push((literalEnd, nextText));
-                continue;
+                var literalEnd = patternIndex;
+                while (literalEnd < pattern.Length && pattern[literalEnd] is not '*' and not '?')
+                    literalEnd++;
+                var literal = pattern.AsSpan(patternIndex, literalEnd - patternIndex);
+
+                for (var textIndex = 0; textIndex <= text.Length; textIndex++)
+                {
+                    if (!reachable[textIndex])
+                        continue;
+
+                    if (comparison is StringComparison.Ordinal or StringComparison.OrdinalIgnoreCase)
+                    {
+                        var nextText = textIndex + literal.Length;
+                        if (nextText <= text.Length &&
+                            literal.Equals(text.AsSpan(textIndex, literal.Length), comparison))
+                        {
+                            next[nextText] = true;
+                        }
+                        continue;
+                    }
+
+                    for (var nextText = textIndex; nextText <= text.Length; nextText++)
+                    {
+                        if (literal.Equals(text.AsSpan(textIndex, nextText - textIndex), comparison))
+                            next[nextText] = true;
+                    }
+                }
+                patternIndex = literalEnd;
             }
 
-            for (var nextText = text.Length; nextText >= textIndex; nextText--)
-            {
-                if (literal.Equals(text.AsSpan(textIndex, nextText - textIndex), comparison))
-                    pending.Push((literalEnd, nextText));
-            }
+            (reachable, next) = (next, reachable);
+            if (!reachable.Contains(true))
+                return false;
         }
 
-        return false;
+        return reachable[text.Length];
     }
 
     private static void ValidateNames(IEnumerable<string>? names, string paramName)

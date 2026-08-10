@@ -267,6 +267,21 @@ public class TableFormatterTests
     }
 
     [Fact]
+    public void FailedFormatterBegin_DoesNotCreateAnOpenTable()
+    {
+        var sink = new StringWriter();
+        var writer = new TableWriter(
+            sink,
+            (IStreamingTableFormatter)new ThrowingStartFormatter());
+
+        Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart("A"));
+        writer.WriteTableRow("orphan");
+        writer.WriteTableEnd();
+
+        Assert.Equal("", sink.ToString());
+    }
+
+    [Fact]
     public void WriteListItem_RendersPlainText()
     {
         var sw = new StringWriter();

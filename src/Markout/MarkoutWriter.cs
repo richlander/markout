@@ -2434,7 +2434,7 @@ public class MarkoutWriter
 
     private void RestorePendingBlankLine(PendingSectionFrame frame)
     {
-        if (frame.PendingBlankLines > 0)
+        if (frame.PendingBlankLines > 0 && _hasContent)
             _needsBlankLine = true;
     }
 
