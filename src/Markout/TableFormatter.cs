@@ -11,7 +11,7 @@ namespace Markout;
 /// space-padded table from the same row/column projection.
 /// </summary>
 public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatter, IListFormatter,
-    ICompositeCellFormatter, IGraphFormatter, IGraphTableLowering
+    ICompositeCellFormatter, IGraphFormatter
 {
     // ── IGraphFormatter ──
 
@@ -24,15 +24,15 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         if (graph.IsEmpty)
             return;
 
-        ((IGraphTableLowering)this).TryLowerGraphToTable(graph, out var table);
+        var table = GraphLowering.ToEdgeTable(graph);
         new TableWriter(w, (ITableFormatter)this, options).WriteTable(table.Headers.AsSpan(), table.Rows);
     }
 
-    bool IGraphTableLowering.TryLowerGraphToTable(
+    internal bool TryLowerGraphToTable(
         Graph graph,
-        out GraphLowering.GraphEdgeTable table)
+        out GraphLowering.DeferredGraphEdgeTable table)
     {
-        table = GraphLowering.ToEdgeTable(graph);
+        table = GraphLowering.ToDeferredEdgeTable(graph);
         return true;
     }
 

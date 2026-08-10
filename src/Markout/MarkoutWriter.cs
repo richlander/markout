@@ -1728,8 +1728,13 @@ public class MarkoutWriter
         if (graph.IsEmpty || _sectionExcluded)
             return true;
 
-        if (_formatter is IGraphTableLowering tableLowering
-            && tableLowering.TryLowerGraphToTable(graph, out var table))
+        GraphLowering.DeferredGraphEdgeTable table = default;
+        bool hasTable =
+            _formatter.GetType() == typeof(MarkdownFormatter)
+                ? ((MarkdownFormatter)_formatter).TryLowerGraphToTable(graph, out table)
+                : _formatter.GetType() == typeof(TableFormatter)
+                    && ((TableFormatter)_formatter).TryLowerGraphToTable(graph, out table);
+        if (hasTable)
         {
             return WriteTable(table.Headers, table.Rows);
         }

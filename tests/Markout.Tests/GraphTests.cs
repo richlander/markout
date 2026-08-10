@@ -507,6 +507,54 @@ public class GraphTests
     }
 
     [Fact]
+    public void ProjectedOutGraphTable_DoesNotMaterializeEdgeRows()
+    {
+        var nodes = Enumerable.Range(0, 10_001)
+            .Select(i => new GraphNode($"n{i}", $"N{i}"))
+            .ToArray();
+        var edges = Enumerable.Range(0, 10_000)
+            .Select(i => new GraphEdge($"n{i}", $"n{i + 1}"))
+            .ToArray();
+        var graph = new Graph(nodes, edges);
+        var options = new MarkoutWriterOptions
+        {
+            Projection = new MarkoutProjection { IncludeColumns = ["Name"] },
+        };
+
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        Assert.True(orch.WriteTable(["Name"], [["kept"]]));
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        Assert.True(orch.WriteGraph(graph));
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Contains("kept", orch.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("N0", orch.ToString(), StringComparison.Ordinal);
+        Assert.True(allocated < 128 * 1024, $"projection miss allocated {allocated:N0} bytes");
+    }
+
+    [Fact]
+    public void MarkdownSubclass_CanOverrideGraphRendering()
+    {
+        var orch = MarkoutWriter.Create(new CustomMarkdownGraphFormatter());
+
+        Assert.True(orch.WriteGraph(SimpleChain()));
+        Assert.Equal("custom graph", Normalize(orch.ToString()));
+    }
+
+    [Fact]
+    public void DirectMarkdownGraphFormatting_RendersTheEdgeTable()
+    {
+        var sink = new StringWriter();
+
+        ((IGraphFormatter)new MarkdownFormatter()).FormatGraph(
+            sink,
+            SimpleChain(),
+            new MarkoutWriterOptions());
+
+        Assert.Contains("| From | To |", sink.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Table_RendersAnEdgeTable()
     {
         var orch = MarkoutWriter.Create(new TableFormatter());
@@ -846,6 +894,15 @@ public class GraphTests
     {
         void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
             => w.Write(text);
+    }
+
+    private sealed class CustomMarkdownGraphFormatter : MarkdownFormatter, IGraphFormatter
+    {
+        void IGraphFormatter.FormatGraph(
+            TextWriter writer,
+            Graph graph,
+            MarkoutWriterOptions options)
+            => writer.Write("custom graph");
     }
 
     private static string Normalize(string text) => text.Replace("\r\n", "\n");

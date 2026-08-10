@@ -11,7 +11,7 @@ namespace Markout;
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter,
-    IGraphFormatter, IGraphTableLowering
+    IGraphFormatter
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
@@ -542,13 +542,17 @@ public class MarkdownFormatter : IMarkoutFormatter,
             return;
         }
 
-        ((IGraphTableLowering)this).TryLowerGraphToTable(graph, out var table);
-        new TableWriter(w, (ITableFormatter)this, options).WriteTable(table.Headers.AsSpan(), table.Rows);
+        var table = GraphLowering.ToEdgeTable(
+            graph,
+            node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label);
+        new TableWriter(w, (IStreamingTableFormatter)this, options).WriteTable(
+            table.Headers.AsSpan(),
+            table.Rows);
     }
 
-    bool IGraphTableLowering.TryLowerGraphToTable(
+    internal bool TryLowerGraphToTable(
         Graph graph,
-        out GraphLowering.GraphEdgeTable table)
+        out GraphLowering.DeferredGraphEdgeTable table)
     {
         if (_graphMode != MarkdownGraphMode.EdgeTable)
         {
@@ -556,7 +560,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
             return false;
         }
 
-        table = GraphLowering.ToEdgeTable(
+        table = GraphLowering.ToDeferredEdgeTable(
             graph,
             node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label);
         return true;
