@@ -104,13 +104,14 @@ public class TableWriter
     private void WriteTableStartCore(ReadOnlySpan<string> headers, ReadOnlySpan<string> headerNames)
     {
         ValidateHeaders(headers, headerNames);
+        var renderedHeaders = FormatHeaders(headers, headerNames);
+
         _tableRowCount = 0;
         _tableRowsSkipped = 0;
         _streamingDirect = false;
         _dataPosition = 0;
         _tailBuffer = null;
-
-        _streamingHeaders = FormatHeaders(headers, headerNames);
+        _streamingHeaders = renderedHeaders;
 
         // Force buffering when TableOptions is set — statistical width calculation
         // requires all rows before rendering. A Tail window forces it for its own

@@ -148,6 +148,32 @@ public class ProjectionTests
         Assert.EndsWith("one\n\ntwo", writer.ToString(), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExplicitBlankLine_InDiscardedDeferredSectionPreservesSeparation(
+        bool closeWithSibling)
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithColumns("A", "B")
+        });
+
+        writer.WriteParagraph("Intro paragraph.");
+        writer.WriteSectionStart(3, "Empty");
+        writer.WriteBlankLine();
+        if (closeWithSibling)
+            writer.WriteSectionStart(3, "Replacement", headless: true);
+        else
+            writer.WriteSectionEnd();
+        writer.WriteTable(["A", "B"], [["1", "2"]]);
+
+        Assert.Contains(
+            "Intro paragraph.\n\n| A | B |",
+            writer.Complete(),
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public void DisablingProjection_DiscardsAnEmptyDeferredSiblingHeading()
     {
@@ -438,6 +464,21 @@ public class ProjectionTests
         Assert.Equal([0], resolution.ColumnMap);
     }
 
+    [Fact]
+    public void IncludeColumns_OrdinalIgnoreCaseGlobMatchesSupplementaryLetters()
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.OrdinalIgnoreCase,
+            IncludeColumns = ["\U00010400*"]
+        };
+
+        var resolution = projection.ResolveColumns(["\U00010428 Value"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
     [Theory]
     [InlineData(StringComparison.InvariantCulture)]
     [InlineData(StringComparison.InvariantCultureIgnoreCase)]
@@ -453,6 +494,24 @@ public class ProjectionTests
         };
 
         var resolution = projection.ResolveColumns(["Cafe\u0301 Value"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Theory]
+    [InlineData(StringComparison.OrdinalIgnoreCase)]
+    [InlineData(StringComparison.InvariantCultureIgnoreCase)]
+    public void IncludeColumns_LongGlobDoesNotUseTheCallStack(StringComparison comparison)
+    {
+        const int length = 30_000;
+        var projection = new MarkoutProjection
+        {
+            Comparison = comparison,
+            IncludeColumns = [new string('?', length)]
+        };
+
+        var resolution = projection.ResolveColumns([new string('a', length)]);
 
         Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
         Assert.Equal([0], resolution.ColumnMap);

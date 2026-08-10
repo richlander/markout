@@ -195,7 +195,10 @@ public class MarkoutWriter
     {
         CompleteOpenTable();
         if (_pendingSections is { Count: > 0 } sections)
+        {
+            RestorePendingBlankLine(sections[^1]);
             sections.RemoveAt(sections.Count - 1);
+        }
     }
 
     // ── Paragraphs ──
@@ -2422,7 +2425,17 @@ public class MarkoutWriter
             keep--;
 
         if (keep < sections.Count)
+        {
+            for (var i = keep; i < sections.Count; i++)
+                RestorePendingBlankLine(sections[i]);
             sections.RemoveRange(keep, sections.Count - keep);
+        }
+    }
+
+    private void RestorePendingBlankLine(PendingSectionFrame frame)
+    {
+        if (frame.PendingBlankLines > 0)
+            _needsBlankLine = true;
     }
 
     private void WriteSectionHeading(int level, string text, string? context)

@@ -545,9 +545,12 @@ internal static class TypeParser
                 TypeKind: TypeKind.Class or TypeKind.Struct or TypeKind.Interface
             };
 
-        // Ignored properties still need metadata so the emitter can omit them consistently, but
+        // Unrendered properties still need metadata so the emitter can omit them consistently, but
         // diagnostics from their unreachable type graphs must not escape into the containing model.
-        var nestedDiagnostics = isIgnored ? null : diagnostics;
+        var nestedDiagnostics =
+            isIgnored || (!containingTypeAutoFields && !isSection)
+                ? null
+                : diagnostics;
         var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, nestedDiagnostics, prop.Name, prop.Locations.FirstOrDefault(), visitedTypes);
 
         // A collection rendered as a table (ComplexArray without nested subsections) emits a fixed

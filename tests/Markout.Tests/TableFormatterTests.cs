@@ -244,6 +244,29 @@ public class TableFormatterTests
     }
 
     [Fact]
+    public void FailedStreamingStart_DoesNotResetTheOpenTable()
+    {
+        var sink = new StringWriter();
+        var writer = new TableWriter(
+            sink,
+            (ITableFormatter)new TableFormatter(),
+            new MarkoutWriterOptions
+            {
+                TableMode = MarkoutTableMode.Jsonl,
+                MaxItems = 1
+            });
+
+        writer.WriteTableStart(["A"]);
+        writer.WriteTableRow(["first"]);
+        Assert.Throws<ArgumentException>(
+            () => writer.WriteTableStart(["A-B", "A B"]));
+        writer.WriteTableRow(["second"]);
+        writer.WriteTableEnd();
+
+        Assert.Equal("{\"a\":\"first\"}\n", sink.ToString().ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
     public void WriteListItem_RendersPlainText()
     {
         var sw = new StringWriter();

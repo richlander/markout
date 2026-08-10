@@ -323,35 +323,39 @@ public class MarkoutProjection
 
     private static bool GlobMatch(string pattern, string text, StringComparison comparison)
     {
-        var results = new Dictionary<(int Pattern, int Text), bool>();
-        return Match(0, 0);
+        var pending = new Stack<(int Pattern, int Text)>();
+        var visited = new HashSet<(int Pattern, int Text)>();
+        pending.Push((0, 0));
 
-        bool Match(int patternIndex, int textIndex)
+        while (pending.TryPop(out var state))
         {
-            if (results.TryGetValue((patternIndex, textIndex), out var result))
-                return result;
+            var (patternIndex, textIndex) = state;
+            if (!visited.Add(state))
+                continue;
 
             if (patternIndex == pattern.Length)
-                return results[(patternIndex, textIndex)] = textIndex == text.Length;
+            {
+                if (textIndex == text.Length)
+                    return true;
+                continue;
+            }
 
             if (pattern[patternIndex] == '*')
             {
                 while (patternIndex + 1 < pattern.Length && pattern[patternIndex + 1] == '*')
                     patternIndex++;
 
-                for (var nextText = textIndex; nextText <= text.Length; nextText++)
-                {
-                    if (Match(patternIndex + 1, nextText))
-                        return results[(patternIndex, textIndex)] = true;
-                }
-
-                return results[(patternIndex, textIndex)] = false;
+                pending.Push((patternIndex + 1, textIndex));
+                if (textIndex < text.Length)
+                    pending.Push((patternIndex, textIndex + 1));
+                continue;
             }
 
             if (pattern[patternIndex] == '?')
             {
-                return results[(patternIndex, textIndex)] =
-                    textIndex < text.Length && Match(patternIndex + 1, textIndex + 1);
+                if (textIndex < text.Length)
+                    pending.Push((patternIndex + 1, textIndex + 1));
+                continue;
             }
 
             var literalEnd = patternIndex;
@@ -359,17 +363,23 @@ public class MarkoutProjection
                 literalEnd++;
             var literal = pattern.AsSpan(patternIndex, literalEnd - patternIndex);
 
-            for (var nextText = textIndex; nextText <= text.Length; nextText++)
+            if (comparison is StringComparison.Ordinal or StringComparison.OrdinalIgnoreCase)
             {
-                if (literal.Equals(text.AsSpan(textIndex, nextText - textIndex), comparison) &&
-                    Match(literalEnd, nextText))
-                {
-                    return results[(patternIndex, textIndex)] = true;
-                }
+                var nextText = textIndex + literal.Length;
+                if (nextText <= text.Length &&
+                    literal.Equals(text.AsSpan(textIndex, literal.Length), comparison))
+                    pending.Push((literalEnd, nextText));
+                continue;
             }
 
-            return results[(patternIndex, textIndex)] = false;
+            for (var nextText = text.Length; nextText >= textIndex; nextText--)
+            {
+                if (literal.Equals(text.AsSpan(textIndex, nextText - textIndex), comparison))
+                    pending.Push((literalEnd, nextText));
+            }
         }
+
+        return false;
     }
 
     private static void ValidateNames(IEnumerable<string>? names, string paramName)
