@@ -1275,7 +1275,6 @@ public class MarkoutWriter
                 return true;
         }
 
-        var rowList = rows as IList<string[]> ?? rows.ToList();
         if (columnMap != null)
         {
             headerArray = MarkoutProjection.ProjectHeaders(headerArray, columnMap);
@@ -1283,6 +1282,15 @@ public class MarkoutWriter
                 headerNameArray = MarkoutProjection.ProjectHeaders(headerNameArray, columnMap);
         }
 
+        // Resolve identity (never-typed) columns to their post-projection positions, since
+        // projection can drop or reorder the leading identity column.
+        var tableOptions = ResolveIdentityColumns(headerArray.Length, columnMap);
+        var tableWriter = CreateTableWriter(tableOptions);
+        tableWriter.ValidateHeadersBeforeRows(
+            headerArray,
+            headerNameArray is null ? default : headerNameArray);
+
+        var rowList = rows as IList<string[]> ?? rows.ToList();
         if (columnMap != null)
         {
             var projected = new List<string[]>(rowList.Count);
@@ -1291,15 +1299,11 @@ public class MarkoutWriter
             rowList = projected;
         }
 
-        // Resolve identity (never-typed) columns to their post-projection positions, since
-        // projection can drop or reorder the leading identity column.
-        var tableOptions = ResolveIdentityColumns(headerArray.Length, columnMap);
-
         EnsureBlankLineIfNeeded();
         if (headerNameArray != null)
-            CreateTableWriter(tableOptions).WriteTable(headerArray, headerNameArray, rowList);
+            tableWriter.WriteTable(headerArray, headerNameArray, rowList);
         else
-            CreateTableWriter(tableOptions).WriteTable(headerArray, rowList);
+            tableWriter.WriteTable(headerArray, rowList);
         _needsBlankLine = TableLeavesBlankLinePending;
         _hasContent = true;
         return true;
@@ -1784,15 +1788,13 @@ public class MarkoutWriter
         if (graph.IsEmpty || _sectionExcluded)
             return true;
 
-        GraphLowering.DeferredGraphEdgeTable table;
-        if (_formatter is MarkdownFormatter markdown &&
-            UsesBuiltInGraphImplementation(typeof(MarkdownFormatter)) &&
-            markdown.TryLowerGraphToTable(graph, out table))
-            return WriteTable(table.Headers, table.Rows);
-
-        if (_formatter is TableFormatter tabular &&
-            UsesBuiltInGraphImplementation(typeof(TableFormatter)) &&
-            tabular.TryLowerGraphToTable(graph, out table))
+        GraphLowering.DeferredGraphEdgeTable table = default;
+        bool hasTable =
+            _formatter.GetType() == typeof(MarkdownFormatter)
+                ? ((MarkdownFormatter)_formatter).TryLowerGraphToTable(graph, out table)
+                : _formatter.GetType() == typeof(TableFormatter)
+                    && ((TableFormatter)_formatter).TryLowerGraphToTable(graph, out table);
+        if (hasTable)
             return WriteTable(table.Headers, table.Rows);
 
         if (_formatter is not IGraphFormatter gf)
@@ -1800,15 +1802,11 @@ public class MarkoutWriter
 
         EnsureBlankLineIfNeeded();
         gf.FormatGraph(_writer, graph, _options);
-        _needsBlankLine = true;
+        _needsBlankLine = _formatter is TableFormatter
+            ? TableLeavesBlankLinePending
+            : true;
         _hasContent = true;
         return true;
-    }
-
-    private bool UsesBuiltInGraphImplementation(Type formatterType)
-    {
-        var map = _formatter.GetType().GetInterfaceMap(typeof(IGraphFormatter));
-        return map.TargetMethods.Any(method => method.DeclaringType == formatterType);
     }
 
     // ── Link definitions ──
@@ -1843,7 +1841,11 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return;
 
-        PreparePendingSectionBoundariesForBlankLine();
+        if (TryDeferPendingSectionBlankLine())
+        {
+            _needsBlankLine = false;
+            return;
+        }
 
         // An explicit blank line at a section boundary is part of the seam: it is the
         // caller's content and travels with the section, but it does not settle what
@@ -2348,29 +2350,32 @@ public class MarkoutWriter
         {
             OpenPendingSectionBoundary(frame);
 
-            if (frame.Heading is not { } pending)
-                continue;
+            if (frame.Heading is { } pending)
+            {
+                frame.Heading = null;
+                WriteSectionHeading(pending.Level, pending.Text, pending.Context);
+            }
 
-            frame.Heading = null;
-            WriteSectionHeading(pending.Level, pending.Text, pending.Context);
+            FlushPendingSectionBlankLines(frame);
         }
     }
 
-    private void PreparePendingSectionBoundariesForBlankLine()
+    private bool TryDeferPendingSectionBlankLine()
     {
         if (_pendingSections is null)
-            return;
+            return false;
 
-        var boundaryIndex = _pendingSections.FindIndex(frame =>
-            frame.SectionName is not null && !frame.BoundaryOpened);
-        if (boundaryIndex < 0)
-            return;
+        for (var i = _pendingSections.Count - 1; i >= 0; i--)
+        {
+            var frame = _pendingSections[i];
+            if (frame.BoundaryOpened && frame.Heading is null)
+                continue;
 
-        for (int i = 0; i < boundaryIndex; i++)
-            FlushPendingSectionHeading(_pendingSections[i]);
+            frame.PendingBlankLines++;
+            return true;
+        }
 
-        for (int i = boundaryIndex; i < _pendingSections.Count; i++)
-            OpenPendingSectionBoundary(_pendingSections[i]);
+        return false;
     }
 
     private void OpenPendingSectionBoundary(PendingSectionFrame frame)
@@ -2389,6 +2394,21 @@ public class MarkoutWriter
 
         frame.Heading = null;
         WriteSectionHeading(pending.Level, pending.Text, pending.Context);
+        FlushPendingSectionBlankLines(frame);
+    }
+
+    private void FlushPendingSectionBlankLines(PendingSectionFrame frame)
+    {
+        var hadPendingBlankLines = frame.PendingBlankLines > 0;
+        while (frame.PendingBlankLines > 0)
+        {
+            if (_sectionBuffer?.TryWriteSectionOpeningBlankLine() != true)
+                _writer.WriteLine();
+            frame.PendingBlankLines--;
+        }
+
+        if (hadPendingBlankLines)
+            _needsBlankLine = false;
     }
 
     private void ClosePendingSectionsAtOrAbove(int level)
@@ -2505,4 +2525,5 @@ internal sealed class PendingSectionFrame(int level, string? sectionName)
     public string? SectionName { get; } = sectionName;
     public bool BoundaryOpened { get; set; }
     public PendingSectionHeading? Heading { get; set; }
+    public int PendingBlankLines { get; set; }
 }

@@ -80,6 +80,15 @@ public class TableWriter
         }
     }
 
+    internal void ValidateHeadersBeforeRows(
+        ReadOnlySpan<string> headers,
+        ReadOnlySpan<string> headerNames)
+    {
+        TableHeaderValidator.Validate(headers, headerNames);
+        if (_options.TableMode is MarkoutTableMode.Tsv or MarkoutTableMode.Jsonl)
+            _ = FormatHeaders(headers, headerNames);
+    }
+
     /// <summary>
     /// Starts a streaming table.
     /// </summary>

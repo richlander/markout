@@ -295,6 +295,19 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void MarkoutTable_EmptyHeaderNameSequenceFallsBackToDisplayHeaders()
+    {
+        var table = new MarkoutTable(["Display Name"], [], [["value"]]);
+        var writer = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        writer.WriteTable(table);
+
+        Assert.Equal("{\"display_name\":\"value\"}", writer.ToString());
+    }
+
+    [Fact]
     public void MarkoutTable_RejectsColumnsThatShareADisplayHeader()
     {
         // Under MarkoutTableHeaderStyle.DisplayName the display header IS the structured key, so
@@ -1790,6 +1803,27 @@ public class GeneratedTableTests
         writer.WriteTable(new MarkoutTable(["<code>A</code>", "B"], [["one", "two"]]));
         var lines = writer.ToString().Split('\n');
         Assert.Equal(["A", "B"], lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    [Fact]
+    public void WriteTable_RejectsDuplicateStructuredHeadersBeforeEnumeratingRows()
+    {
+        var rowsEnumerated = false;
+        IEnumerable<string[]> Rows()
+        {
+            rowsEnumerated = true;
+            yield return ["one", "two"];
+        }
+
+        var writer = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => writer.WriteTable(["A-B", "A B"], Rows()));
+
+        Assert.Contains("canonical structured key 'a_b'", exception.Message, StringComparison.Ordinal);
+        Assert.False(rowsEnumerated);
     }
 
     [Fact]

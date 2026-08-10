@@ -525,7 +525,16 @@ internal static class TypeParser
             isNullableValueType = true;
         }
 
-        var elementAnalysisClosesCycle = CollectionElementIsVisited(prop.Type, knownTypes, visitedTypes);
+        var collectionElementType = GetCollectionElementType(prop.Type, knownTypes);
+        var elementAnalysisClosesCycle =
+            collectionElementType is not null &&
+            visitedTypes?.Contains(collectionElementType) == true;
+        var elementIsRowType =
+            collectionElementType is INamedTypeSymbol
+            {
+                SpecialType: SpecialType.None,
+                TypeKind: TypeKind.Class or TypeKind.Struct or TypeKind.Interface
+            };
 
         // Ignored properties still need metadata so the emitter can omit them consistently, but
         // diagnostics from their unreachable type graphs must not escape into the containing model.
@@ -540,7 +549,7 @@ internal static class TypeParser
         // zero-column table now returns early rather than emitting a "|"/"|" husk, which makes
         // catching it here the only thing standing between the author and silent empty output.
         //
-        if (!isIgnored && !elementAnalysisClosesCycle &&
+        if (!isIgnored && !elementAnalysisClosesCycle && elementIsRowType &&
             kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
             elementProperties is not null)
         {
@@ -653,14 +662,10 @@ internal static class TypeParser
             numberFormat);
     }
 
-    private static bool CollectionElementIsVisited(
+    private static ITypeSymbol? GetCollectionElementType(
         ITypeSymbol type,
-        KnownTypeSymbols knownTypes,
-        HashSet<ITypeSymbol>? visitedTypes)
+        KnownTypeSymbols knownTypes)
     {
-        if (visitedTypes is null)
-            return false;
-
         ITypeSymbol? elementType = type is IArrayTypeSymbol arrayType
             ? arrayType.ElementType
             : null;
@@ -678,7 +683,7 @@ internal static class TypeParser
                 elementType = namedType.TypeArguments[0];
         }
 
-        return elementType is not null && visitedTypes.Contains(elementType);
+        return elementType;
     }
 
     private static (PropertyKind Kind, string? ElementTypeName, IReadOnlyList<PropertyMetadata>? ElementProperties, bool HasNestedContent, string? ElementTitleProperty, string? ElementTitleContextProperty, bool ElementAutoFields, FieldLayoutKind ElementFieldLayout, bool IsArray)

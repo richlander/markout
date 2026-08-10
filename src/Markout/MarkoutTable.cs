@@ -55,6 +55,8 @@ public sealed class MarkoutTable
     {
         ArgumentNullException.ThrowIfNull(headers);
         ArgumentNullException.ThrowIfNull(rows);
+        if (headerNames is { Count: 0 })
+            headerNames = null;
         if (headerNames != null && headerNames.Count != headers.Count)
             throw new ArgumentException("Header names must have the same length as headers.", nameof(headerNames));
         TableHeaderValidator.Validate(headers, headerNames);

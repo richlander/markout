@@ -323,36 +323,54 @@ public class MarkoutProjection
 
     private static bool GlobMatch(string pattern, string text, StringComparison comparison)
     {
-        int pi = 0, ti = 0, starPi = -1, starTi = -1;
-        while (ti < text.Length)
-        {
-            if (pi < pattern.Length && pattern[pi] == '?')
-            {
-                pi++; ti++;
-            }
-            else if (pi < pattern.Length && pattern[pi] == '*')
-            {
-                starPi = pi++; starTi = ti;
-            }
-            else if (pi < pattern.Length && CharEquals(pattern[pi], text[ti], comparison))
-            {
-                pi++; ti++;
-            }
-            else if (starPi >= 0)
-            {
-                pi = starPi + 1; ti = ++starTi;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        while (pi < pattern.Length && pattern[pi] == '*') pi++;
-        return pi == pattern.Length;
-    }
+        var results = new Dictionary<(int Pattern, int Text), bool>();
+        return Match(0, 0);
 
-    private static bool CharEquals(char a, char b, StringComparison comparison)
-        => string.Equals(a.ToString(), b.ToString(), comparison);
+        bool Match(int patternIndex, int textIndex)
+        {
+            if (results.TryGetValue((patternIndex, textIndex), out var result))
+                return result;
+
+            if (patternIndex == pattern.Length)
+                return results[(patternIndex, textIndex)] = textIndex == text.Length;
+
+            if (pattern[patternIndex] == '*')
+            {
+                while (patternIndex + 1 < pattern.Length && pattern[patternIndex + 1] == '*')
+                    patternIndex++;
+
+                for (var nextText = textIndex; nextText <= text.Length; nextText++)
+                {
+                    if (Match(patternIndex + 1, nextText))
+                        return results[(patternIndex, textIndex)] = true;
+                }
+
+                return results[(patternIndex, textIndex)] = false;
+            }
+
+            if (pattern[patternIndex] == '?')
+            {
+                return results[(patternIndex, textIndex)] =
+                    textIndex < text.Length && Match(patternIndex + 1, textIndex + 1);
+            }
+
+            var literalEnd = patternIndex;
+            while (literalEnd < pattern.Length && pattern[literalEnd] is not '*' and not '?')
+                literalEnd++;
+            var literal = pattern.AsSpan(patternIndex, literalEnd - patternIndex);
+
+            for (var nextText = textIndex; nextText <= text.Length; nextText++)
+            {
+                if (literal.Equals(text.AsSpan(textIndex, nextText - textIndex), comparison) &&
+                    Match(literalEnd, nextText))
+                {
+                    return results[(patternIndex, textIndex)] = true;
+                }
+            }
+
+            return results[(patternIndex, textIndex)] = false;
+        }
+    }
 
     private static void ValidateNames(IEnumerable<string>? names, string paramName)
     {

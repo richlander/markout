@@ -99,6 +99,37 @@ public class ProjectionTests
     }
 
     [Fact]
+    public void DeferredHeading_PrecedesAnExplicitOpeningBlankLine()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        });
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteBlankLine();
+        writer.WriteParagraph("body");
+
+        Assert.Equal("## Alpha\n\nbody", writer.ToString());
+    }
+
+    [Fact]
+    public void ExplicitBlankLine_DoesNotKeepAnOtherwiseEmptyDeferredSection()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        });
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteField("dropped", "gone");
+        writer.WriteBlankLine();
+        writer.WriteSectionEnd();
+
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Fact]
     public void DisablingProjection_DiscardsAnEmptyDeferredSiblingHeading()
     {
         var options = new MarkoutWriterOptions
@@ -383,6 +414,26 @@ public class ProjectionTests
         };
 
         var resolution = projection.ResolveColumns(["Alpha"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Theory]
+    [InlineData(StringComparison.InvariantCulture)]
+    [InlineData(StringComparison.InvariantCultureIgnoreCase)]
+    [InlineData(StringComparison.CurrentCulture)]
+    [InlineData(StringComparison.CurrentCultureIgnoreCase)]
+    public void IncludeColumns_CultureAwareGlobMatchesCanonicalUnicodeEquivalents(
+        StringComparison comparison)
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = comparison,
+            IncludeColumns = ["Caf\u00e9*"]
+        };
+
+        var resolution = projection.ResolveColumns(["Cafe\u0301 Value"]);
 
         Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
         Assert.Equal([0], resolution.ColumnMap);

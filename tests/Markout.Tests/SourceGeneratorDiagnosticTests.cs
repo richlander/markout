@@ -144,6 +144,57 @@ public class SourceGeneratorDiagnosticTests
         Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
     }
 
+    [Fact]
+    public void Markout006_DoesNotReportScalarCollections()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using Markout;
+
+            public enum State { Ready }
+
+            [MarkoutSerializable]
+            public class Report
+            {
+                public List<int> Counts { get; set; } = new();
+                public int[] Values { get; set; } = [];
+                public List<State> States { get; set; } = new();
+            }
+
+            [MarkoutContext(typeof(Report))]
+            public partial class ReportContext : MarkoutSerializerContext { }
+            """;
+
+        Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
+    }
+
+    [Fact]
+    public void Markout006_DoesNotTreatMutualRecursionAsAnEmptyRowType()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using Markout;
+
+            [MarkoutSerializable]
+            public class Parent
+            {
+                public string Name { get; set; } = "";
+                public List<Child> Children { get; set; } = new();
+            }
+
+            public class Child
+            {
+                public string Name { get; set; } = "";
+                public List<Parent> Parents { get; set; } = new();
+            }
+
+            [MarkoutContext(typeof(Parent))]
+            public partial class ParentContext : MarkoutSerializerContext { }
+            """;
+
+        Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
+    }
+
     private static IReadOnlyList<Diagnostic> RunGenerator(string source)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(
