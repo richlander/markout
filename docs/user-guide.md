@@ -883,7 +883,18 @@ Each formatter renders the graph as whatever its format can express:
 |---|---|
 | `MermaidFormatter` | `graph TD` flowchart; focus declared first, groups as subgraphs |
 | `TableFormatter` | edge table, one row per edge |
-| `MarkdownFormatter`, `PlainTextFormatter`, `DiagramFormatter`, `UnicodeFormatter` | tree rooted at the focus node |
+| `MarkdownFormatter` | Markdown edge table by default; fenced Mermaid with `MarkdownGraphMode.Mermaid` |
+| `PlainTextFormatter`, `DiagramFormatter`, `UnicodeFormatter` | tree rooted at the focus node |
+
+Use one graph model for either Markdown presentation:
+
+```csharp
+var table = new MarkdownFormatter();
+var diagram = new MarkdownFormatter(MarkdownGraphMode.Mermaid);
+```
+
+The Mermaid mode writes a fenced `mermaid` code block, so the graph can compose
+with headings, fields, and other sections in the same Markdown document.
 
 `GraphLowering` exposes those projections directly, so a custom formatter can reuse them:
 

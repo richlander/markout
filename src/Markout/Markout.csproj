@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.35.0</Version>
-    <PackageReleaseNotes>Adds the MarkoutTable built-in shape: a table whose columns are runtime data (headers and rows) rather than a fixed set of attributed properties. Attach a MarkoutTable-typed model property with [MarkoutSection] and the source generator routes it through the writer like any generated table, so it participates in section ordering, row windowing, column projection, inclusion filtering, and TSV/JSONL decomposition with no imperative writer calls. Combined with [MarkoutUnwrap] over a list of title-bearing elements, a caller can emit a runtime-determined set of named sections, each carrying a runtime-column table, entirely through the serializer model. A MarkoutTable validates its own invariants at construction: every row must carry exactly one cell per header, and no two columns may share a canonical structured key, because a mismatched row rendered differently in each format and colliding keys emitted JSONL a consumer could only read the last value from. Table headers are now escaped the same way cells are, which matters because a MarkoutTable header is runtime text that could otherwise change the column count or end the table. BEHAVIOR CHANGE: a column projection that matches none of an individual table's columns now renders that table as nothing instead of throwing. Throwing made a document with heterogeneous sections impossible to project at all -- any projection naming one section's columns aborted the whole render. Projection is an allow list, so a table with nothing the caller asked for contributes nothing, and the sections the projection does match render normally. Reach is still checked, but per document rather than per table: a projection that matches nothing anywhere in a document that had tables to offer it still throws when the document is finished, because that names columns the document does not have and is almost always a typo. A document with no tables at all leaves the projection vacuous and does not throw. A projection may also now be spelled with the canonical snake_case keys that TSV and JSONL actually emit, so a projection copied from structured output matches instead of silently selecting the wrong columns.</PackageReleaseNotes>
+    <Version>0.35.1</Version>
+    <PackageReleaseNotes>Markdown graphs now render as edge tables by default and can opt into fenced Mermaid with MarkdownGraphMode.Mermaid. Built-in graph tables flow through the normal table pipeline, so column projection, row windows, limits, ordering, and structured header formatting apply consistently without rebuilding the graph. Custom formatter subclasses retain their graph overrides, and projection rejects graph tables before edge rows are materialized.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -73,13 +73,15 @@
         <SkillName>$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName('%(FullPath)'))))</SkillName>
       </_ShelfSkill>
     </ItemGroup>
-    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Contains('%0Aversion: $(Version)%0A'))"
+    <Error Condition="$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D%0A', '').Contains('%0D'))"
+           Text="skills/%(_ShelfSkill.SkillName)/SKILL.md contains a standalone carriage return. Use LF or CRLF line endings so frontmatter validation cannot reinterpret malformed keys." />
+    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D%0A', '%0A').Contains('%0Aversion: $(Version)%0A'))"
            Text="skills/%(_ShelfSkill.SkillName)/SKILL.md does not carry 'version: $(Version)'. The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
     <Error Condition="!$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\skills\plugin.json').Contains('&quot;version&quot;: &quot;$(Version)&quot;'))"
            Text="skills/plugin.json does not carry version $(Version). The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
     <Error Condition="'%(_ShelfSkill.SkillName)' != 'markout' AND !$([System.String]::new('%(_ShelfSkill.SkillName)').StartsWith('markout-'))"
            Text="skills/%(_ShelfSkill.SkillName)/ is not named for the package. Skill names share one flat namespace in a consuming repo, so the base skill must be 'markout' and every workflow skill 'markout-&lt;domain&gt;'." />
-    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Contains('%0Aname: %(_ShelfSkill.SkillName)%0A'))"
+    <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D%0A', '%0A').Contains('%0Aname: %(_ShelfSkill.SkillName)%0A'))"
            Text="skills/%(_ShelfSkill.SkillName)/SKILL.md declares a frontmatter 'name' that is not its directory name. A skill is addressed by that name, so the two must be the same string." />
   </Target>
 

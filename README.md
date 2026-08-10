@@ -306,7 +306,7 @@ Markout ships five formatters. The serializer writes through `MarkoutWriter` (th
 
 | Formatter | Output | Use case |
 |---|---|---|
-| **MarkdownFormatter** | GitHub-Flavored Markdown | Documentation, LLM tool output, rendered reports |
+| **MarkdownFormatter** | GitHub-Flavored Markdown; graphs as edge tables or fenced Mermaid | Documentation, LLM tool output, rendered reports |
 | **PlainTextFormatter** | Plain text without markup | Minimal output, no syntax characters |
 | **UnicodeFormatter** | Box-drawing characters | Rich tables with borders, no color |
 | **TableFormatter** | Tables, lists, fields | Compact summaries, pretty tables, TSV/JSONL rows |
