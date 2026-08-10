@@ -430,17 +430,29 @@ public class GraphTests
     // ── Cross-formatter behavior ──
 
     [Fact]
-    public void Markdown_RendersATree()
+    public void Markdown_RendersAnEdgeTableByDefault()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());
         Assert.True(orch.WriteGraph(SimpleChain()));
 
         var output = orch.ToString();
-        Assert.Contains("A", output);
-        Assert.Contains("└─ B", output);
-        Assert.Contains("└─ C", output);
-        // The tree lowering names each node once; it is not the edge-table lowering.
-        Assert.DoesNotContain("| From | To |", output);
+        Assert.Contains("| From | To |", output);
+        Assert.Contains("| A | B |", output);
+        Assert.Contains("| B | C |", output);
+        Assert.DoesNotContain("└─", output);
+    }
+
+    [Fact]
+    public void Markdown_CanEmbedAMermaidGraph()
+    {
+        var orch = MarkoutWriter.Create(new MarkdownFormatter(MarkdownGraphMode.Mermaid));
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = Normalize(orch.ToString());
+        Assert.StartsWith("```mermaid\ngraph TD\n", output, StringComparison.Ordinal);
+        Assert.Contains("n0 --> n1", output, StringComparison.Ordinal);
+        Assert.EndsWith("```", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| From | To |", output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -468,6 +480,13 @@ public class GraphTests
         orch.WriteGraph(graph);
 
         Assert.Contains("**A**", orch.ToString());
+    }
+
+    [Fact]
+    public void Markdown_RejectsAnUnknownGraphMode()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new MarkdownFormatter((MarkdownGraphMode)int.MaxValue));
     }
 
     [Fact]

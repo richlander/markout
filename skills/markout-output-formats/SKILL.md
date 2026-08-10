@@ -56,6 +56,17 @@ MarkoutSerializer.Serialize(r, Console.Out, new SpectreFormatter(AnsiConsole.Con
 
 `Markout.Ansi.Spectre` is a separate NuGet package; Markdown/plain/table/TSV/JSONL need only `Markout`.
 
+`Graph` sections become Markdown edge tables by default. To embed the same
+graph as Mermaid without rebuilding it, select the Markdown graph mode:
+
+```csharp
+MarkoutSerializer.Serialize(
+    report,
+    Console.Out,
+    new MarkdownFormatter(MarkdownGraphMode.Mermaid),
+    ctx);
+```
+
 ## TableFormatter modes + writer options
 
 `TableFormatter` + `MarkoutWriterOptions.TableMode` selects the tabular shape:

@@ -40,10 +40,28 @@ public class GeneratedGraphTests
         var mdf = MarkoutSerializer.Serialize(Sample(), GraphContext.Default);
 
         Assert.Contains("## Call Graph", mdf, StringComparison.Ordinal);
-        // Markdown lowers a graph to its tree projection.
-        Assert.Contains("└─ B", mdf, StringComparison.Ordinal);
-        Assert.Contains("A", mdf, StringComparison.Ordinal);
+        Assert.Contains("| From | To |", mdf, StringComparison.Ordinal);
+        Assert.Contains("| A | B |", mdf, StringComparison.Ordinal);
         Assert.DoesNotContain("No calls found.", mdf, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GraphProperty_ComposesAsEmbeddedMermaidInMarkdown()
+    {
+        var sink = new StringWriter();
+        MarkoutSerializer.Serialize(
+            Sample(),
+            sink,
+            new MarkdownFormatter(MarkdownGraphMode.Mermaid),
+            GraphContext.Default);
+        var output = sink.ToString();
+
+        Assert.Contains("| Member | Run |", output, StringComparison.Ordinal);
+        Assert.Contains("## Call Graph", output, StringComparison.Ordinal);
+        Assert.Contains("```mermaid", output, StringComparison.Ordinal);
+        Assert.Contains("graph TD", output, StringComparison.Ordinal);
+        Assert.Contains("n0 --> n1", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| From | To |", output, StringComparison.Ordinal);
     }
 
     [Fact]
