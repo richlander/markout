@@ -525,7 +525,10 @@ internal static class TypeParser
             isNullableValueType = true;
         }
 
-        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, diagnostics, prop.Name, prop.Locations.FirstOrDefault(), visitedTypes);
+        // Ignored properties still need metadata so the emitter can omit them consistently, but
+        // diagnostics from their unreachable type graphs must not escape into the containing model.
+        var nestedDiagnostics = isIgnored ? null : diagnostics;
+        var (kind, elementTypeName, elementProperties, hasNestedContent, elementTitleProperty, elementTitleContextProperty, elementAutoFields, elementFieldLayout, isArray) = DeterminePropertyKind(prop.Type, compilation, knownTypes, nestedDiagnostics, prop.Name, prop.Locations.FirstOrDefault(), visitedTypes);
 
         // A collection rendered as a table (ComplexArray without nested subsections) emits a fixed
         // header row up front, so a row type whose properties are all ignored/section-ignored/child
@@ -535,7 +538,7 @@ internal static class TypeParser
         // zero-column table now returns early rather than emitting a "|"/"|" husk, which makes
         // catching it here the only thing standing between the author and silent empty output.
         //
-        if (kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
+        if (!isIgnored && kind == PropertyKind.ComplexArray && !hasNestedContent && joinSeparator == null &&
             elementProperties is not null)
         {
             var columnIgnoreNames = sectionIgnoreProperty != null

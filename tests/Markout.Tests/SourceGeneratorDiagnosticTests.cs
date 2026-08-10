@@ -92,6 +92,37 @@ public class SourceGeneratorDiagnosticTests
         Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
     }
 
+    [Fact]
+    public void Markout006_DoesNotReportIgnoredTypeGraphs()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using Markout;
+
+            public class EmptyRow;
+
+            public class Details
+            {
+                public List<EmptyRow> Rows { get; set; } = new();
+            }
+
+            [MarkoutSerializable]
+            public class Report
+            {
+                [MarkoutIgnore]
+                public List<EmptyRow> DirectRows { get; set; } = new();
+
+                [MarkoutIgnore]
+                public Details HiddenDetails { get; set; } = new();
+            }
+
+            [MarkoutContext(typeof(Report))]
+            public partial class ReportContext : MarkoutSerializerContext { }
+            """;
+
+        Assert.DoesNotContain(RunGenerator(source), d => d.Id == "MARKOUT006");
+    }
+
     private static IReadOnlyList<Diagnostic> RunGenerator(string source)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(
