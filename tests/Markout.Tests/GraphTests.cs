@@ -456,6 +456,57 @@ public class GraphTests
     }
 
     [Fact]
+    public void MarkdownEdgeTable_HonorsTableProjectionAndRowLimits()
+    {
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions
+            {
+                MaxItems = 1,
+                Projection = new MarkoutProjection { IncludeColumns = ["To"] },
+            });
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = orch.ToString();
+        Assert.Contains("| To |", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| From |", output, StringComparison.Ordinal);
+        Assert.Contains("| B |", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| C |", output, StringComparison.Ordinal);
+        Assert.Contains("1 more", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EmbeddedMermaid_IgnoresTableProjectionAndRowLimits()
+    {
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(MarkdownGraphMode.Mermaid),
+            new MarkoutWriterOptions
+            {
+                MaxItems = 1,
+                Projection = new MarkoutProjection { IncludeColumns = ["To"] },
+            });
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = Normalize(orch.ToString());
+        Assert.Contains("n0 --> n1", output, StringComparison.Ordinal);
+        Assert.Contains("n1 --> n2", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TableGraph_HonorsRowWindows()
+    {
+        var orch = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Head(1) });
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = orch.ToString();
+        Assert.Contains("A", output, StringComparison.Ordinal);
+        Assert.Contains("B", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("C", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Table_RendersAnEdgeTable()
     {
         var orch = MarkoutWriter.Create(new TableFormatter());

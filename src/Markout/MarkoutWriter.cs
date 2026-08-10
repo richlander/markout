@@ -1728,6 +1728,12 @@ public class MarkoutWriter
         if (graph.IsEmpty || _sectionExcluded)
             return true;
 
+        if (_formatter is IGraphTableLowering tableLowering
+            && tableLowering.TryLowerGraphToTable(graph, out var table))
+        {
+            return WriteTable(table.Headers, table.Rows);
+        }
+
         if (_formatter is not IGraphFormatter gf)
             return false;
 

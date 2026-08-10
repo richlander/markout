@@ -10,7 +10,8 @@ namespace Markout;
 /// ``` code fences, and trailing double-space hard line breaks.
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter, IGraphFormatter
+    IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter,
+    IGraphFormatter, IGraphTableLowering
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
@@ -541,10 +542,24 @@ public class MarkdownFormatter : IMarkoutFormatter,
             return;
         }
 
-        var table = GraphLowering.ToEdgeTable(
+        ((IGraphTableLowering)this).TryLowerGraphToTable(graph, out var table);
+        new TableWriter(w, (ITableFormatter)this, options).WriteTable(table.Headers.AsSpan(), table.Rows);
+    }
+
+    bool IGraphTableLowering.TryLowerGraphToTable(
+        Graph graph,
+        out GraphLowering.GraphEdgeTable table)
+    {
+        if (_graphMode != MarkdownGraphMode.EdgeTable)
+        {
+            table = default;
+            return false;
+        }
+
+        table = GraphLowering.ToEdgeTable(
             graph,
             node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label);
-        ((ITableFormatter)this).FormatTable(w, table.Headers.AsSpan(), table.Rows, skippedRows: 0, options);
+        return true;
     }
 
     // ── ITreeFormatter ──
