@@ -40,8 +40,11 @@ public class NoProjectionAllocationTests
     ///
     /// What still escapes is a cost that recurs on a period longer than the asserted span and
     /// misses it by phase, which was true of the original at a quarter of the span; and a cost that
-    /// occurs exactly once during the warmup, which no encoding can assert on, because a one-time
-    /// cost before the first measurement is precisely what the warmup exists to absorb.
+    /// occurs exactly once outside the measured calls, whether during the warmup or after the last
+    /// batch. The warmup case no encoding can assert on, because absorbing a one-time cost before
+    /// the first measurement is precisely what a warmup is for. The tail case is a consequence of
+    /// measuring a bounded number of calls at all, and moves further out as the span grows: a 4KB
+    /// allocation on call 5000 escapes four batches and is caught by five.
     /// </remarks>
     private static long AllocatedPerBatch(Action op, int warmup = 200, int batch = 1000, int batches = 4)
     {
