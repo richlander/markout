@@ -11,41 +11,44 @@ public class NoProjectionAllocationTests
 
     /// <summary>
     /// The most any single batch of <paramref name="batch"/> calls to <paramref name="op"/>
-    /// allocates, measured over <paramref name="batches"/> batches once the operation has settled.
+    /// allocates, over <paramref name="batches"/> consecutive batches.
     /// </summary>
     /// <remarks>
-    /// Two things had to be true at once, and the obvious repair only bought one of them.
+    /// A gate may be made harder to trip by accident, but it may never be made easier to pass. Two
+    /// earlier attempts here failed that test, both by giving up coverage to buy calm:
     ///
-    /// The measurement has to survive a one-time cost. A window is not hermetic: the same product,
-    /// the same operation and the same warmup read 1464 bytes or 0 depending only on how the
-    /// measuring code around it was written, so a single batch asserted at exactly zero is a gate
-    /// that a settling runtime can turn red. That is what CI hit in #201, with 7416 bytes on a
-    /// commit that could not reach this code. Discarding a full batch after the warmup answers it:
-    /// the discarded batch absorbs whatever is one-time, and nothing one-time is ever asserted on.
+    /// Taking the minimum of several batches is satisfied by the single cleanest batch, so a cost
+    /// recurring on a period longer than one batch hides in whichever window misses it. A 4KB
+    /// allocation on every 1200th call in WriteFieldsInline was caught 3 runs of 3 by one batch and
+    /// missed 3 of 3 by the minimum of five.
     ///
-    /// The measurement also has to see a cost that recurs but does not recur every call. Taking the
-    /// minimum of several batches survives the transient too, and was the first repair tried here --
-    /// but a minimum is satisfied by the single cleanest batch, so an allocation whose period
-    /// exceeds the batch size hides in whichever window happens to miss it. That is not
-    /// hypothetical: a 4KB allocation on every 1200th call, injected into WriteFieldsInline, is
-    /// caught 3 runs out of 3 by one batch and missed 3 out of 3 by the minimum of five. The
-    /// minimum is strictly weaker than what it replaced, which is the one thing a repair to a gate
-    /// may not be.
+    /// Discarding the first batch and asserting the rest fixes that, but sacrifices op's first
+    /// thousand calls to the settling -- and a cost occurring there and not again is then missed
+    /// where the original caught it. GPT-5.6 Sol demonstrated it with an allocation on call 1000 of
+    /// every 5000: caught by the original, missed by the discard.
     ///
-    /// So the batches after the discarded one are all asserted, by returning the largest. Every
-    /// settled batch must allocate exactly zero -- no tolerance, and four windows in which a
-    /// recurring cost can appear rather than the one window the original measured.
+    /// Both attempts paid with op's call sequence because they treated the settling as something op
+    /// must fund. It is not. What needs settling is this measuring frame -- the batch loop and the
+    /// GC accounting around it, whose one-time cost lands wherever it is first executed, which is
+    /// why the same operation reads 1464 bytes or 0 depending only on how the measuring code around
+    /// it was written. That frame can be settled on a no-op instead, before op is called at all.
+    ///
+    /// So the prologue is the warmup and nothing else, exactly as it was, and every batch after it
+    /// is asserted at exactly zero. Anything the single original batch could catch lies inside a
+    /// span four times its size that begins on the same call, which makes this strictly stronger,
+    /// with no window the original covered left uncovered.
+    ///
+    /// What still escapes is a cost that recurs on a period longer than the asserted span and
+    /// misses it by phase, which was true of the original at a quarter of the span; and a cost that
+    /// occurs exactly once during the warmup, which no encoding can assert on, because a one-time
+    /// cost before the first measurement is precisely what the warmup exists to absorb.
     /// </remarks>
     private static long AllocatedPerBatch(Action op, int warmup = 200, int batch = 1000, int batches = 4)
     {
+        SettleMeasurementFrame(batch);
+
         for (int i = 0; i < warmup; i++)
             op();
-
-        // One full batch, measured and thrown away, so that the readings that count are settled.
-        var settling = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < batch; i++)
-            op();
-        _ = GC.GetAllocatedBytesForCurrentThread() - settling;
 
         long highest = 0;
         for (int b = 0; b < batches; b++)
@@ -60,6 +63,27 @@ public class NoProjectionAllocationTests
         }
 
         return highest;
+    }
+
+    /// <summary>
+    /// Runs the measurement over an operation that does nothing, and throws the readings away.
+    /// </summary>
+    /// <remarks>
+    /// This exists so that the first batch that counts is not also the first time this loop and the
+    /// GC accounting around it have run. It deliberately takes no argument from the caller: the
+    /// point is to spend calls that are not op's, so that op's own call sequence is asserted on
+    /// from its first post-warmup call.
+    /// </remarks>
+    private static void SettleMeasurementFrame(int batch)
+    {
+        Action nothing = static () => { };
+        for (int round = 0; round < 3; round++)
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < batch; i++)
+                nothing();
+            _ = GC.GetAllocatedBytesForCurrentThread() - before;
+        }
     }
 
     /// <summary>
