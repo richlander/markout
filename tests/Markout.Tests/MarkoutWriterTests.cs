@@ -1577,6 +1577,68 @@ public class MarkoutWriterTests
     }
 
     /// <summary>
+    /// ToString() previews only what has reached the target, so an open table whose rows the
+    /// formatter is buffering is absent from the preview. Complete() is what renders it.
+    /// </summary>
+    /// <remarks>
+    /// This is documented rather than fixed because it is not a regression: the committing
+    /// ToString() of 0.35.1 dropped the same rows, for the same reason -- neither closes the open
+    /// table, and a buffering formatter has written nothing until the table closes. Rendering a
+    /// buffered table without ending it needs a non-mutating render path that does not exist, which
+    /// is its own change and not a release fix. The gate exists so that the documented boundary is
+    /// the tested one, and so that adding that path is a visible test change rather than a silent
+    /// one.
+    /// </remarks>
+    [Fact]
+    public void ToString_WithOpenBufferedTable_OmitsItAndCompleteRendersIt()
+    {
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTableStart(["Col1"]);
+        writer.WriteTableRow(["Value1"]);
+
+        Assert.DoesNotContain("Value1", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Value1", writer.Complete(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The truncation footer that follows a shortened table is library-generated text, so it has
+    /// to use the writer's terminator like every other line the library emits.
+    /// </summary>
+    /// <remarks>
+    /// It was previously written as <c>WriteLine("\n... and N more")</c> at six sites across the
+    /// three formatters. The embedded newline is a literal LF whatever the writer is set to, so a
+    /// CRLF <see cref="MarkoutWriterOptions.NewLine"/> produced a document with mixed endings --
+    /// and nothing noticed, because the existing NewLine tests serialize a record that is never
+    /// truncated. A sentinel terminator is used so that any surviving literal newline is visible
+    /// on every platform, rather than only where Environment.NewLine is CRLF.
+    /// </remarks>
+    [Theory]
+    [InlineData("markdown")]
+    [InlineData("table")]
+    [InlineData("plaintext")]
+    public void TruncationFooter_UsesConfiguredNewLine(string formatterName)
+    {
+        IMarkoutFormatter formatter = formatterName switch
+        {
+            "markdown" => new MarkdownFormatter(),
+            "table" => new TableFormatter(),
+            _ => new PlainTextFormatter(),
+        };
+        var options = new MarkoutWriterOptions { NewLine = "<NL>", MaxItems = 2 };
+        var writer = new MarkoutWriter(formatter, options);
+
+        writer.WriteTable(["A"], [["1"], ["2"], ["3"], ["4"]]);
+        var output = writer.Complete();
+
+        Assert.Contains("... and 2 more", output, StringComparison.Ordinal);
+        Assert.Contains("<NL>", output, StringComparison.Ordinal);
+        Assert.DoesNotContain('\n', output);
+        Assert.DoesNotContain('\r', output);
+    }
+
+    /// <summary>
     /// A minimal formatter that only implements IMarkoutFormatter — no capabilities.
     /// Used to test that all shapes return false.
     /// </summary>

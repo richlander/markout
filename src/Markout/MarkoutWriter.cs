@@ -1918,6 +1918,15 @@ public class MarkoutWriter
     /// emit ordered sections, flush the target, or prevent later writes. Call <see cref="Complete"/>
     /// when the document is finished.
     /// </remarks>
+    /// <remarks>
+    /// Leaving an open table open has a consequence worth stating outright, because a preview that
+    /// quietly omits data is worse than one that refuses: when a table is still open and the
+    /// formatter buffers rather than streams rows -- any <c>ITableFormatter</c> that is not also an
+    /// <c>IStreamingTableFormatter</c>, which includes TSV and JSONL mode -- those buffered rows
+    /// have not reached the target yet, so the preview omits the table entirely. This is not new in
+    /// this release; the committing <c>ToString()</c> it replaced dropped them too, because it
+    /// never closed the table either. <c>Complete()</c> is what renders them.
+    /// </remarks>
     public override string ToString()
     {
         if (_target is not StringWriter sw)
