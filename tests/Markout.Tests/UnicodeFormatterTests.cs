@@ -60,11 +60,24 @@ public class UnicodeFormatterTests
             [["Alice", "30"], ["Bob", "25"]]);
         var output = sw.ToString();
         
-        Assert.Contains("NAME", output);
-        Assert.Contains("AGE", output);
+        Assert.Contains("Name", output);
+        Assert.Contains("Age", output);
         Assert.Contains("Alice", output);
         Assert.Contains("Bob", output);
         Assert.Contains("─", output); // Unicode rule separator
+    }
+
+    [Fact]
+    public void WriteTable_PreservesDistinctHeaderCaseMappings()
+    {
+        var writer = MarkoutWriter.Create(new UnicodeFormatter());
+
+        writer.WriteTable(["\u03c3", "\u03c2"], [["one", "two"]]);
+
+        var header = writer.ToString().Split('\n')[0];
+        Assert.Contains("\u03c3", header, StringComparison.Ordinal);
+        Assert.Contains("\u03c2", header, StringComparison.Ordinal);
+        Assert.DoesNotContain("\u03a3", header, StringComparison.Ordinal);
     }
 
     [Fact]

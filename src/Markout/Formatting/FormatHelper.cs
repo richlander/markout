@@ -12,6 +12,23 @@ public static class FormatHelper
     private static readonly SearchValues<char> InlineTagSentinel = SearchValues.Create("<");
 
     /// <summary>
+    /// Writes the "... and N more" footer that follows a truncated table or list, preceded by a
+    /// blank line.
+    /// </summary>
+    /// <remarks>
+    /// The blank line is written as an empty <see cref="TextWriter.WriteLine()"/> rather than as a
+    /// <c>"\n"</c> embedded in the footer text, so that it uses the writer's own terminator. An
+    /// embedded newline is a literal LF whatever the writer is set to, which under a CRLF
+    /// <see cref="MarkoutWriterOptions.NewLine"/> put a bare LF into library-generated output and
+    /// produced a document with mixed line endings.
+    /// </remarks>
+    public static void WriteTruncationFooter(TextWriter w, int skippedRows)
+    {
+        w.WriteLine();
+        w.WriteLine($"... and {skippedRows} more");
+    }
+
+    /// <summary>
     /// Renders semantic inline tags for Markdown output.
     /// </summary>
     public static string RenderInlineMarkdown(string? value)

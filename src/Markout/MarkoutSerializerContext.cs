@@ -106,7 +106,7 @@ public abstract class MarkoutSerializerContext
 
         var orch = new MarkoutWriter(new MarkdownFormatter(), options);
         typeInfo.Serialize(orch, value);
-        return orch.ToString();
+        return orch.Complete();
     }
 
     /// <summary>

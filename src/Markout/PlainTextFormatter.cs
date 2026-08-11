@@ -116,7 +116,7 @@ public class PlainTextFormatter : IMarkoutFormatter,
         }
 
         if (skippedRows > 0)
-            w.WriteLine($"\n... and {skippedRows} more");
+            FormatHelper.WriteTruncationFooter(w, skippedRows);
     }
 
     // ── ICodeBlockFormatter ──

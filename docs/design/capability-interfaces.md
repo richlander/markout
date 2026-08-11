@@ -283,7 +283,7 @@ var rendered = orch.WriteBreakdown(items); // false if formatter can't
 // Convenience — string result
 var orch = new MarkoutOrchestrator(new MarkdownFormatter());
 orch.WriteHeading(1, "Title");
-string md = orch.ToString();
+string md = orch.Complete();
 
 // dotnet-inspect — format selection
 var formatter = format switch

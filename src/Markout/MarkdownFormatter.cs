@@ -149,7 +149,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
         }
 
         if (skippedRows > 0)
-            w.WriteLine($"\n... and {skippedRows} more");
+            FormatHelper.WriteTruncationFooter(w, skippedRows);
     }
 
     private static void WritePrettyPipeTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, TableFormatterOptions? tableOptions = null)
@@ -236,7 +236,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
         }
 
         if (skippedRows > 0)
-            w.WriteLine($"\n... and {skippedRows} more");
+            FormatHelper.WriteTruncationFooter(w, skippedRows);
     }
 
     // ── Shared helpers ──
@@ -425,7 +425,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
         _streamingWidths = null;
         _streamingDefaultEnd = null;
         if (skippedRows > 0)
-            w.WriteLine($"\n... and {skippedRows} more");
+            FormatHelper.WriteTruncationFooter(w, skippedRows);
     }
 
     // ── ICodeBlockFormatter ──

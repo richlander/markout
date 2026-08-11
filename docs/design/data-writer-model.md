@@ -132,6 +132,9 @@ Output (markdown, plain text, ANSI, etc.)
 - **Lists** - Rendered as plain lines
 - **Fields** - Rendered as a two-column table (via shape adaptation)
 
+In JSONL mode, section boundaries are presentation metadata and do not add records or
+blank lines. Rows from adjacent sections therefore form one uninterrupted JSONL stream.
+
 When `WriteField()` or `WriteFields()` is called, `TableFormatter` adapts field-compatible data to compact tabular output.
 
 ## Projection System

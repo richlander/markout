@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.35.1</Version>
-    <PackageReleaseNotes>Markdown graphs now render as edge tables by default and can opt into fenced Mermaid with MarkdownGraphMode.Mermaid. Built-in graph tables flow through the normal table pipeline, so column projection, row windows, limits, ordering, and structured header formatting apply consistently without rebuilding the graph. Custom formatter subclasses retain their graph overrides, and projection rejects graph tables before edge rows are materialized.</PackageReleaseNotes>
+    <Version>0.35.2</Version>
+    <PackageReleaseNotes>Includes Markdown graph edge-table and Mermaid rendering from 0.35.1. Fixes serializer and writer lifecycle, projection integrity, table completion, structured output keys, Unicode headers, configurable in-memory newlines, and source-generator diagnostics. ToString() now provides a non-committing preview; use Complete() to finalize and return in-memory output. JSONL sections now form one uninterrupted row stream without blank records.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Markout;
 
 /// <summary>
@@ -166,10 +168,21 @@ public class MarkoutProjection
     /// is the definitive read, because it is the one that yields the names.
     /// </remarks>
     internal static string[] SnapshotSelection(IReadOnlyList<string> requested)
+        => SnapshotNames(requested, nameof(IncludeColumns));
+
+    internal static string[] SnapshotNames(IEnumerable<string> requested, string paramName)
     {
         List<string> snapshot = [];
+        var index = 0;
         foreach (var name in requested)
+        {
+            if (name is null)
+                throw new ArgumentException(
+                    $"{paramName} contains a null entry at index {index}.",
+                    paramName);
             snapshot.Add(name);
+            index++;
+        }
 
         return [.. snapshot];
     }
@@ -220,6 +233,7 @@ public class MarkoutProjection
 
         if (_excludeColumns != null)
         {
+            ValidateNames(_excludeColumns, nameof(ExcludeColumns));
             // Exclude: preserve original order, skip excluded columns
             var map = new List<int>(headers.Length);
             for (int i = 0; i < headers.Length; i++)
@@ -306,39 +320,153 @@ public class MarkoutProjection
         if (!pattern.Contains('*') && !pattern.Contains('?'))
             return string.Equals(pattern, name, _comparison);
 
-        return GlobMatch(pattern, name, _comparison == StringComparison.OrdinalIgnoreCase);
+        return GlobMatch(pattern, name, _comparison);
     }
 
-    private static bool GlobMatch(string pattern, string text, bool ignoreCase)
+    private static bool GlobMatch(string pattern, string text, StringComparison comparison)
     {
-        int pi = 0, ti = 0, starPi = -1, starTi = -1;
-        while (ti < text.Length)
+        var ordinal = comparison is StringComparison.Ordinal or StringComparison.OrdinalIgnoreCase;
+        CompareInfo? compareInfo = null;
+        var compareOptions = CompareOptions.None;
+        if (!ordinal)
         {
-            if (pi < pattern.Length && pattern[pi] == '?')
+            (compareInfo, compareOptions) = comparison switch
             {
-                pi++; ti++;
+                StringComparison.CurrentCulture =>
+                    (CultureInfo.CurrentCulture.CompareInfo, CompareOptions.None),
+                StringComparison.CurrentCultureIgnoreCase =>
+                    (CultureInfo.CurrentCulture.CompareInfo, CompareOptions.IgnoreCase),
+                StringComparison.InvariantCulture =>
+                    (CultureInfo.InvariantCulture.CompareInfo, CompareOptions.None),
+                StringComparison.InvariantCultureIgnoreCase =>
+                    (CultureInfo.InvariantCulture.CompareInfo, CompareOptions.IgnoreCase),
+                _ => throw new ArgumentException("The string comparison type is not supported.", nameof(comparison))
+            };
+        }
+
+        var reachable = new bool[text.Length + 1];
+        var next = new bool[text.Length + 1];
+        reachable[0] = true;
+
+        for (var patternIndex = 0; patternIndex < pattern.Length;)
+        {
+            Array.Clear(next);
+
+            if (pattern[patternIndex] == '*')
+            {
+                while (patternIndex + 1 < pattern.Length && pattern[patternIndex + 1] == '*')
+                    patternIndex++;
+
+                var canReach = false;
+                for (var textIndex = 0; textIndex <= text.Length; textIndex++)
+                {
+                    canReach |= reachable[textIndex];
+                    next[textIndex] = canReach;
+                }
+                patternIndex++;
             }
-            else if (pi < pattern.Length && pattern[pi] == '*')
+            else if (pattern[patternIndex] == '?')
             {
-                starPi = pi++; starTi = ti;
-            }
-            else if (pi < pattern.Length && CharEquals(pattern[pi], text[ti], ignoreCase))
-            {
-                pi++; ti++;
-            }
-            else if (starPi >= 0)
-            {
-                pi = starPi + 1; ti = ++starTi;
+                for (var textIndex = 0; textIndex < text.Length; textIndex++)
+                    next[textIndex + 1] = reachable[textIndex];
+                patternIndex++;
             }
             else
             {
-                return false;
+                var literalEnd = patternIndex;
+                while (literalEnd < pattern.Length && pattern[literalEnd] is not '*' and not '?')
+                    literalEnd++;
+                var literal = pattern.AsSpan(patternIndex, literalEnd - patternIndex);
+                var literalMatchesEmpty =
+                    !ordinal &&
+                    compareInfo!.Compare(
+                        literal,
+                        ReadOnlySpan<char>.Empty,
+                        compareOptions) == 0;
+
+                for (var textIndex = 0; textIndex <= text.Length; textIndex++)
+                {
+                    if (!reachable[textIndex])
+                        continue;
+
+                    if (ordinal)
+                    {
+                        var nextText = textIndex + literal.Length;
+                        if (nextText <= text.Length &&
+                            literal.Equals(text.AsSpan(textIndex, literal.Length), comparison))
+                        {
+                            next[nextText] = true;
+                        }
+                        continue;
+                    }
+
+                    var matches = compareInfo!.IsPrefix(
+                        text.AsSpan(textIndex),
+                        literal,
+                        compareOptions,
+                        out var matchLength);
+                    if (!matches && literalMatchesEmpty)
+                    {
+                        matches = true;
+                        matchLength = 0;
+                    }
+
+                    if (matches)
+                    {
+                        var matchEnd = textIndex + matchLength;
+                        while (!next[matchEnd])
+                        {
+                            next[matchEnd] = true;
+                            if (matchEnd == text.Length)
+                                break;
+
+                            var ignorableLength = 1;
+                            if (compareInfo.Compare(
+                                text.AsSpan(matchEnd, ignorableLength),
+                                ReadOnlySpan<char>.Empty,
+                                compareOptions) != 0)
+                            {
+                                if (!char.IsHighSurrogate(text[matchEnd]) ||
+                                    matchEnd + 1 >= text.Length ||
+                                    !char.IsLowSurrogate(text[matchEnd + 1]) ||
+                                    compareInfo.Compare(
+                                        text.AsSpan(matchEnd, 2),
+                                        ReadOnlySpan<char>.Empty,
+                                        compareOptions) != 0)
+                                {
+                                    break;
+                                }
+                                ignorableLength = 2;
+                            }
+
+                            matchEnd += ignorableLength;
+                        }
+                    }
+                }
+                patternIndex = literalEnd;
             }
+
+            (reachable, next) = (next, reachable);
+            if (!reachable.Contains(true))
+                return false;
         }
-        while (pi < pattern.Length && pattern[pi] == '*') pi++;
-        return pi == pattern.Length;
+
+        return reachable[text.Length];
     }
 
-    private static bool CharEquals(char a, char b, bool ignoreCase)
-        => ignoreCase ? char.ToUpperInvariant(a) == char.ToUpperInvariant(b) : a == b;
+    private static void ValidateNames(IEnumerable<string>? names, string paramName)
+    {
+        if (names is null)
+            return;
+
+        var index = 0;
+        foreach (var name in names)
+        {
+            if (name is null)
+                throw new ArgumentException(
+                    $"{paramName} contains a null entry at index {index}.",
+                    paramName);
+            index++;
+        }
+    }
 }

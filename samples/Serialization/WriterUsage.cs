@@ -24,7 +24,7 @@ public static class WriterUsage
 
         writer.WriteArray("Features", new[] { "Durable", "Lightweight", "Waterproof" });
 
-        Console.WriteLine(writer.ToString());
+        Console.WriteLine(writer.Complete());
         // # Product Report
         //
         // Product: Widget Pro  
@@ -56,7 +56,7 @@ public static class WriterUsage
 
         writer.WriteTableEnd();
 
-        Console.WriteLine(writer.ToString());
+        Console.WriteLine(writer.Complete());
         // # Inventory
         //
         // | Product | Category | Price | Stock |
@@ -86,7 +86,7 @@ public static class WriterUsage
                     new TreeNode("Account Manager"),
                     new TreeNode("Sales Rep")])]));
 
-        Console.WriteLine(writer.ToString());
+        Console.WriteLine(writer.Complete());
         // # Organization
         //
         // └─ CEO

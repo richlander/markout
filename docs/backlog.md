@@ -188,4 +188,4 @@ would be lost.
 
 If tables get Spectre box borders while everything else stays hand-drawn, the output
 may look inconsistent. Mitigate by using `NoBorder()` or `MinimalBorder()` and matching
-the existing uppercase header + `─` separator style.
+the existing header + `─` separator style.

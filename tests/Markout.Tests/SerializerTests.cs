@@ -125,6 +125,35 @@ public class SerializerTests
     }
 
     [Fact]
+    public void Serialize_StringOverloads_UseConfiguredNewLine()
+    {
+        var record = new SimpleRecord { Name = "Test", Count = 1 };
+        var options = new MarkoutWriterOptions { NewLine = "<NL>" };
+
+        var fromContext = MarkoutSerializer.Serialize(record, TestMarkoutContext.Default, options);
+        var typeInfo = TestMarkoutContext.Default.GetTypeInfo<SimpleRecord>();
+        var fromTypeInfo = MarkoutSerializer.Serialize(record, typeInfo!, options);
+
+        Assert.Contains("<NL>", fromContext, StringComparison.Ordinal);
+        Assert.Contains("<NL>", fromTypeInfo, StringComparison.Ordinal);
+        Assert.DoesNotContain(Environment.NewLine, fromContext, StringComparison.Ordinal);
+        Assert.DoesNotContain(Environment.NewLine, fromTypeInfo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Serialize_CallerSuppliedTextWriter_KeepsItsOwnNewLine()
+    {
+        var record = new SimpleRecord { Name = "Test", Count = 1 };
+        var output = new StringWriter { NewLine = "<WRITER>" };
+        var options = new MarkoutWriterOptions { NewLine = "<OPTIONS>" };
+
+        MarkoutSerializer.Serialize(record, output, TestMarkoutContext.Default, options);
+
+        Assert.Contains("<WRITER>", output.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("<OPTIONS>", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Serialize_Package_WithScalarFields()
     {
         var package = new Package

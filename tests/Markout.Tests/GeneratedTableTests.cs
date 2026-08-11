@@ -203,6 +203,7 @@ public class GeneratedTableTests
 
         Assert.Contains("| Only Beta |", mdf, StringComparison.Ordinal);
         Assert.Contains("| b |", mdf, StringComparison.Ordinal);
+        Assert.DoesNotContain("## Alpha", mdf, StringComparison.Ordinal);
         Assert.DoesNotContain("Only Alpha", mdf, StringComparison.Ordinal);
         Assert.DoesNotContain("| a |", mdf, StringComparison.Ordinal);
     }
@@ -294,6 +295,19 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void MarkoutTable_EmptyHeaderNameSequenceFallsBackToDisplayHeaders()
+    {
+        var table = new MarkoutTable(["Display Name"], [], [["value"]]);
+        var writer = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        writer.WriteTable(table);
+
+        Assert.Equal("{\"display_name\":\"value\"}", writer.ToString());
+    }
+
+    [Fact]
     public void MarkoutTable_RejectsColumnsThatShareADisplayHeader()
     {
         // Under MarkoutTableHeaderStyle.DisplayName the display header IS the structured key, so
@@ -328,30 +342,52 @@ public class GeneratedTableTests
     }
 
     [Theory]
-    [InlineData(0xD800, 0xD801, "")]        // two distinct lone high surrogates
-    [InlineData(0xDC00, 0xDFFF, "")]        // two distinct lone low surrogates
-    [InlineData(0xD800, 0xD801, "A")]       // and with valid text around them
-    public void MarkoutTable_RejectsHeadersThatOnlyDifferOutsideWhatCanBeEncoded(int first, int second, string prefix)
+    [InlineData(0xD800)]
+    [InlineData(0xDC00)]
+    public void TableEntryPoints_RejectMalformedUtf16Headers(int codeUnit)
     {
-        // Lone surrogates are not encodable, so the UTF-8 encoder substitutes U+FFFD and every
-        // distinct one arrives as the same JSONL key: {"\uFFFD":"one","\uFFFD":"two"} loses a column
-        // exactly as a literal duplicate would. Rejected for the same reason and by the same rule.
-        //
-        // The code units are passed as ints and composed here because xUnit's InlineData
-        // serialization does not round-trip a lone surrogate: handed the strings directly, both
-        // arrive already flattened to U+FFFD and the test proves only that literal duplicates are
-        // rejected -- which it did, silently, until a tamper failed to break it.
-        //
-        // Explicit stable names keep the canonical-key rule out of it, so what is under test is the
-        // display-header rule reading what the encoder will actually write.
-        var left = prefix + (char)first;
-        var right = prefix + (char)second;
-        Assert.NotEqual(left, right);
+        var malformed = ((char)codeUnit).ToString();
 
-        var ex = Assert.Throws<ArgumentException>(() =>
-            new MarkoutTable([left, right], ["x", "y"], [["one", "two"]]));
+        var tableDisplay = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable([malformed], [["value"]]));
+        Assert.Equal("headers", tableDisplay.ParamName);
 
-        Assert.Contains("display header", ex.Message, StringComparison.Ordinal);
+        var tableStable = Assert.Throws<ArgumentException>(
+            () => new MarkoutTable(["Display"], [malformed], [["value"]]));
+        Assert.Equal("headerNames", tableStable.ParamName);
+
+        var buffered = MarkoutWriter.Create(new MarkdownFormatter());
+        Assert.Throws<ArgumentException>(() => buffered.WriteTable([malformed], [["value"]]));
+        Assert.Throws<ArgumentException>(() => buffered.WriteTable(["Display"], [malformed], [["value"]]));
+
+        var streaming = MarkoutWriter.Create(new MarkdownFormatter());
+        Assert.Throws<ArgumentException>(() => streaming.WriteTableStart([malformed]));
+        Assert.Throws<ArgumentException>(() => streaming.WriteTableStart(["Display"], [malformed]));
+
+        var tableWriter = new TableWriter(
+            new StringWriter(),
+            (ITableFormatter)new MarkdownFormatter());
+        Assert.Throws<ArgumentException>(() => tableWriter.WriteTable([malformed], [["value"]]));
+        Assert.Throws<ArgumentException>(() => tableWriter.WriteTable(["Display"], [malformed], [["value"]]));
+        Assert.Throws<ArgumentException>(() => tableWriter.WriteTableStart([malformed]));
+        Assert.Throws<ArgumentException>(() => tableWriter.WriteTableStart(["Display"], [malformed]));
+    }
+
+    [Fact]
+    public void WriterTableEntryPoints_ValidateHeadersBeforeFilteringOrCapabilityDispatch()
+    {
+        const string malformed = "\uD800";
+
+        var unsupported = MarkoutWriter.Create(new MermaidFormatter());
+        Assert.Throws<ArgumentException>(() => unsupported.WriteTable([malformed], [["value"]]));
+        Assert.Throws<ArgumentException>(() => unsupported.WriteTableStart([malformed]));
+
+        var excluded = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { IncludeSections = ["Included"] });
+        excluded.WriteSectionStart(2, "Excluded");
+        Assert.Throws<ArgumentException>(() => excluded.WriteTable([malformed], [["value"]]));
+        Assert.Throws<ArgumentException>(() => excluded.WriteTableStart([malformed]));
     }
 
     [Fact]
@@ -482,7 +518,7 @@ public class GeneratedTableTests
         projection.IncludeColumns = null;
         projection.ExcludeColumns = ["Name"];
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
     }
 
@@ -500,7 +536,7 @@ public class GeneratedTableTests
         projection.IncludeColumns = ["B"];
         writer.WriteTable(["B"], [["two"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
     }
 
@@ -517,7 +553,7 @@ public class GeneratedTableTests
         writer.WriteTable(["A"], [["one"]]);
         names[0] = "A";
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
     }
 
@@ -536,7 +572,7 @@ public class GeneratedTableTests
         projection.IncludeColumns = ["Typo"];
         writer.WriteTable(["B"], [["2"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
     }
 
@@ -556,7 +592,7 @@ public class GeneratedTableTests
         writer.WriteTableRow(["second"]);
         writer.WriteTableEnd();
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("Typo", ex.Message, StringComparison.Ordinal);
     }
 
@@ -615,7 +651,7 @@ public class GeneratedTableTests
         writer.WriteTable(new MarkoutTable(["Ghost"], []));
         options.Projection = MarkoutProjection.WithColumns("Ghost");
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: Ghost", ex.Message, StringComparison.Ordinal);
     }
 
@@ -676,7 +712,7 @@ public class GeneratedTableTests
         projection.IncludeColumns = missing.Names;
         writer.WriteTable(["Unrelated"], [["silently lost"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal($"No columns matched projection: {string.Join(", ", missing.Names)}", ex.Message);
     }
 
@@ -776,7 +812,7 @@ public class GeneratedTableTests
 
         writer.WriteTable(["A"], [["silently lost"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: Typo", ex.Message);
         Assert.Equal(1, writer.ProjectionSelectionCount);
     }
@@ -796,7 +832,7 @@ public class GeneratedTableTests
         writer.WriteTable(["A"], [["silently lost"]]);
 
         // One coherent read: the message names exactly the Count items the snapshot took, in order.
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: Typo, Second", ex.Message);
     }
 
@@ -826,7 +862,7 @@ public class GeneratedTableTests
         };
         writer.WriteTable(["NAME"], [["silently lost"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: Name", ex.Message);
     }
 
@@ -861,7 +897,7 @@ public class GeneratedTableTests
         options.Projection = new MarkoutProjection { IncludeColumns = new SplitBrainNameList("Typo", "A") };
         writer.WriteTable(["B"], [["silently lost"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: Typo", ex.Message);
     }
 
@@ -986,7 +1022,7 @@ public class GeneratedTableTests
 
         // The table names A, so a second read is not merely a different request -- it is one that
         // MATCHES, which both renders a table the caller did not ask for and credits the typo.
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: Typo", ex.Message);
     }
 
@@ -1052,7 +1088,7 @@ public class GeneratedTableTests
 
         Assert.Equal(3, writer.ProjectionSelectionCount);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: Middle", ex.Message);
     }
 
@@ -1122,7 +1158,7 @@ public class GeneratedTableTests
 
         writer.WriteTable(["A"], [["silently lost"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: Typo", ex.Message);
     }
 
@@ -1426,11 +1462,10 @@ public class GeneratedTableTests
     }
 
     [Fact]
-    public void Projection_WhenUnsatisfied_IsReportedBeforeToStringEmitsAnyOrderedSection()
+    public void Projection_WhenUnsatisfied_IsReportedBeforeCompleteEmitsAnyOrderedSection()
     {
-        // ToString finishes a document exactly as Flush does, and holds the same ordering. Gating
-        // Flush alone leaves this path free to deposit the document into the target and only then
-        // announce it is broken -- after which the caller who retries sees it twice.
+        // A preview is side-effect free and does not run terminal diagnostics. Complete holds the
+        // same fail-before-emit contract as Flush, so a broken document never reaches the target.
         var target = new StringWriter();
         var options = new MarkoutWriterOptions
         {
@@ -1443,7 +1478,10 @@ public class GeneratedTableTests
         writer.WriteTable(["A"], [["v"]]);
         writer.WriteHeading(2, "second");
 
-        Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        Assert.Contains("second", writer.ToString(), StringComparison.Ordinal);
+        Assert.Equal("", target.ToString());
+
+        Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("", target.ToString());
     }
 
@@ -1464,7 +1502,7 @@ public class GeneratedTableTests
         projection.IncludeColumns = ["XYZ"];
         writer.WriteTable(["XYZ"], [["rendered"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: Xyz", ex.Message);
     }
 
@@ -1481,6 +1519,54 @@ public class GeneratedTableTests
         var againstNoHeaders = Assert.Throws<ArgumentException>(
             () => new MarkoutTable([], ["a"], []));
         Assert.Equal("headerNames", againstNoHeaders.ParamName);
+    }
+
+    [Fact]
+    public void DirectTableWriter_RejectsHeaderNamesOfADifferentLength()
+    {
+        var buffered = new TableWriter(
+            new StringWriter(),
+            (ITableFormatter)new MarkdownFormatter());
+        var bufferedException = Assert.Throws<ArgumentException>(
+            () => buffered.WriteTable(["A", "B"], ["a"], [["one", "two"]]));
+        Assert.Equal("headerNames", bufferedException.ParamName);
+
+        var streaming = new TableWriter(
+            new StringWriter(),
+            (IStreamingTableFormatter)new MarkdownFormatter());
+        var streamingException = Assert.Throws<ArgumentException>(
+            () => streaming.WriteTableStart(["A", "B"], ["a"]));
+        Assert.Equal("headerNames", streamingException.ParamName);
+    }
+
+    [Fact]
+    public void WriteTable_EmptyHeaderNamesFallBackToDisplayHeadersLikeStreaming()
+    {
+        var buffered = MarkoutWriter.Create(new MarkdownFormatter());
+        buffered.WriteTable(["A", "B"], [], [["one", "two"]]);
+
+        var streaming = MarkoutWriter.Create(new MarkdownFormatter());
+        streaming.WriteTableStart(["A", "B"], []);
+        streaming.WriteTableRow(["one", "two"]);
+        streaming.WriteTableEnd();
+
+        Assert.Equal(streaming.ToString(), buffered.ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ImperativeWriteTable_RejectsDuplicateStructuredKeys(bool streaming)
+    {
+        var writer = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        var ex = streaming
+            ? Assert.Throws<ArgumentException>(() => writer.WriteTableStart(["A-B", "A B"]))
+            : Assert.Throws<ArgumentException>(() => writer.WriteTable(["A-B", "A B"], [["one", "two"]]));
+
+        Assert.Contains("structured key 'a_b'", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1540,7 +1626,7 @@ public class GeneratedTableTests
         projection.IncludeColumns = [second!];
         writer.WriteTable(["Unrelated"], [["silently lost"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains(second!, ex.Message, StringComparison.Ordinal);
     }
 
@@ -1558,7 +1644,7 @@ public class GeneratedTableTests
         projection.IncludeColumns = ["Second"];
         writer.WriteTable(["Y"], [["b"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Equal("No columns matched projection: First", ex.Message);
     }
 
@@ -1577,7 +1663,7 @@ public class GeneratedTableTests
         names[0] = "Typo";
         writer.WriteTable(["B"], [["silently lost"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
     }
 
@@ -1599,7 +1685,7 @@ public class GeneratedTableTests
         projection.Comparison = StringComparison.OrdinalIgnoreCase;
         writer.WriteTable(["name"], [["rendered"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: Name", ex.Message, StringComparison.Ordinal);
     }
 
@@ -1623,7 +1709,7 @@ public class GeneratedTableTests
         projection.IncludeColumns = ["Name"];
         writer.WriteTable(["Name"], [["rendered"]]);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: NAME", ex.Message, StringComparison.Ordinal);
     }
 
@@ -1645,7 +1731,7 @@ public class GeneratedTableTests
         writer.WriteTableRow(["second"]);
         writer.WriteTableEnd();
 
-        var ex = Assert.Throws<InvalidOperationException>(() => writer.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => writer.Complete());
         Assert.Contains("No columns matched projection: Typo", ex.Message, StringComparison.Ordinal);
     }
 
@@ -1735,6 +1821,27 @@ public class GeneratedTableTests
         writer.WriteTable(new MarkoutTable(["<code>A</code>", "B"], [["one", "two"]]));
         var lines = writer.ToString().Split('\n');
         Assert.Equal(["A", "B"], lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    [Fact]
+    public void WriteTable_RejectsDuplicateStructuredHeadersBeforeEnumeratingRows()
+    {
+        var rowsEnumerated = false;
+        IEnumerable<string[]> Rows()
+        {
+            rowsEnumerated = true;
+            yield return ["one", "two"];
+        }
+
+        var writer = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => writer.WriteTable(["A-B", "A B"], Rows()));
+
+        Assert.Contains("structured key 'a_b'", exception.Message, StringComparison.Ordinal);
+        Assert.False(rowsEnumerated);
     }
 
     [Fact]

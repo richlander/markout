@@ -132,6 +132,6 @@ public static class ShapeGallery
         // Separator
         writer.WriteRule();
 
-        Console.WriteLine(writer.ToString());
+        Console.WriteLine(writer.Complete());
     }
 }

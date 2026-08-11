@@ -108,10 +108,10 @@ public class UnicodeFormatter : IMarkoutFormatter,
                 widths[i] = Math.Max(widths[i], FormatHelper.RenderInlinePlainText(row[i]).Length);
         }
 
-        // Headers (uppercase)
+        // Headers
         for (int i = 0; i < headers.Length; i++)
         {
-            var text = headers[i].ToUpperInvariant();
+            var text = headers[i];
             if (i < headers.Length - 1)
                 w.Write(text.PadRight(widths[i] + ColumnGap));
             else

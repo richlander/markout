@@ -1053,24 +1053,22 @@ for every format, **including TSV and JSONL**, whose output carries no heading t
 reorder. Asking for the order a document already had reproduces it byte for byte.
 
 Setting `SectionOrder` buffers the whole document, because the last section
-written may be the first one emitted. That also makes emitting the end of the
-document: `Flush()` and `ToString()` write it out, and writing again afterwards
-throws, because a section written then could no longer move ahead of one already
-written out. Finish the document before flushing. Clearing `SectionOrder` at that
-point does not lift the restriction — the buffer is installed when the writer is
-constructed — so a document that must continue past a flush needs a new writer
-created without an order.
+written may be the first one emitted. `Flush()` completes the document and writes
+the ordered sections to the target. `Complete()` does the same for a
+`StringWriter`-backed writer and returns the resulting string. Writing again after
+a non-empty ordered document is completed throws, because a later section could
+no longer move ahead of one already emitted. Clearing `SectionOrder` does not
+lift that restriction — the buffer is installed when the writer is constructed.
 
-A flush that has nothing to emit is not a flush. A section whose heading a
-projection has deferred, a headless section, or a streaming table still gathering
-rows has rendered nothing yet, so flushing there writes no document and leaves
-the writer exactly as it was, still ordering and still writable.
+A completion first closes any open streaming table and reports a projection that
+matched nothing. If there is still no ordered content to emit, the writer remains
+writable.
 
-`ToString()` returns the ordered result for a writer that owns its own buffer,
-and for one you gave a `StringWriter` — in both cases there is a string to
-return, so it emits. Against any other `TextWriter` it has nothing to return and
-emits nothing, so inspecting such a writer in a debugger does not commit the
-document.
+`ToString()` is a side-effect-free preview for a writer that owns its buffer or
+was given a `StringWriter`. It does not close an open table, report terminal
+projection diagnostics, emit ordered sections to the target, or prevent later
+writes. Against any other `TextWriter`, it has no output string to preview. Use
+`Complete()` or `Flush()` when the document is finished.
 
 One boundary: reordering assumes your writer's `NewLine` is stable for the
 duration of the document. The blank line between two sections sits between a pair
@@ -1079,30 +1077,18 @@ single moment whose value is the right one — the newline each section was writ
 under is used. Everything else, including line endings inside a section, is
 unaffected.
 
-A second boundary, and it is not the buffer's: a `Projection` defers a section's
-heading until the section writes a block — any block except a heading or a blank
-line, both of which pass the slot by — and the deferral is a single slot rather
-than one per section. A section that writes no such block and is never closed
-leaves its heading waiting, and a headless section after it flushes
-that heading into its own output — labelling that section's content with the
-previous section's name.
+A second boundary, and it is not the buffer's: a `Projection` defers each
+section's heading until content survives projection. Nested sections keep
+independent pending headings. The first surviving block flushes all open
+headings from outermost to innermost; an ordinary heading first closes pending
+sections at its level or below, then flushes any remaining parent headings.
+Opening blank lines remain behind their deferred heading.
 
-`WriteSectionEnd()` discards a heading still pending, so pairing it with
-`WriteSectionStart()` avoids this entirely, and is worth doing whenever a section
-may turn out empty.
-
-Both halves of the condition are easy to misjudge, so neither "it renders
-something" nor "it renders nothing" is the test. A section holding only a
-sub-heading renders visible output and still leaks, because a heading does not
-flush the slot. A section holding only an empty streaming table renders nothing
-visible and does not leak, because starting the table does flush. Empty sections,
-blank-line-only sections, empty lists, and sections a projection emptied all leak
-unless closed. A rule, a quotation or a callout flushes like any other block,
-despite bringing its own separator.
-
-This is how the writer already behaves with `SectionOrder` unset, so reordering
-neither causes it nor can repair it: such a document's output depends on the order
-it was written in, and there is no order-independent output to reproduce.
+`WriteSectionEnd()` discards that section's heading if it is still pending, so
+pair it with `WriteSectionStart()` whenever a section may turn out empty. Empty,
+blank-line-only, unsupported, and projection-emptied sections then leave no
+heading or separator behind. Starting a supported streaming table counts as
+content even when the selected format ultimately emits no rows.
 
 Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
 goes straight to your writer as before.

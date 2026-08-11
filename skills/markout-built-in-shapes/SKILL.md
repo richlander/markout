@@ -1,6 +1,6 @@
 ---
 name: markout-built-in-shapes
-version: 0.35.1
+version: 0.35.2
 description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn
@@ -84,7 +84,7 @@ apply for free. Two things to know:
   of a table's columns renders that table as nothing, because the same projection may be aimed at a
   sibling section whose columns differ. Generated tables and `MarkoutTable` follow the same rule, and
   a miss in any one table is silent. A selection that matched nothing in *any* table it was offered
-  to is a caller error, and `Flush`/`ToString` throws `No columns matched projection: <names>` rather
+  to is a caller error, and `Flush`/`Complete` throws `No columns matched projection: <names>` rather
   than hand back a document the caller's request never reached. A selection is its names and its
   comparison, so mutating either poses a new question that must match on its own. An empty
   `IncludeColumns` list is a caller error and is reported where the projection is offered. A

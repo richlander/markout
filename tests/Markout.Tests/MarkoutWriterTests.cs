@@ -320,6 +320,43 @@ public class MarkoutWriterTests
         Assert.True(result);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TableFormatter_Jsonl_SectionsFormOneRowStream(bool streaming)
+    {
+        var writer = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        writer.WriteSectionStart(2, "Alpha", headless: true);
+        if (streaming)
+        {
+            writer.WriteTableStart("name");
+            writer.WriteTableRow("a1");
+            writer.WriteTableRow("a2");
+        }
+        else
+        {
+            writer.WriteTable(["name"], [["a1"], ["a2"]]);
+        }
+
+        writer.WriteSectionStart(2, "Beta", headless: true);
+        if (streaming)
+        {
+            writer.WriteTableStart("name");
+            writer.WriteTableRow("b1");
+        }
+        else
+        {
+            writer.WriteTable(["name"], [["b1"]]);
+        }
+
+        Assert.Equal(
+            "{\"name\":\"a1\"}\n{\"name\":\"a2\"}\n{\"name\":\"b1\"}",
+            writer.Complete().ReplaceLineEndings("\n"));
+    }
+
     [Fact]
     public void TableFormatter_WriteFields_ReturnsTrue()
     {
@@ -916,6 +953,119 @@ public class MarkoutWriterTests
         Assert.Equal(batchWriter.ToString(), streamWriter.ToString());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void StreamingTable_NestedStartCompletesTheOpenTable(bool buffered)
+    {
+        var options = new MarkoutWriterOptions();
+        if (buffered)
+            options.TableOptions = new TableFormatterOptions();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.WriteTableStart("B");
+        writer.WriteTableRow("second");
+        writer.WriteTableEnd();
+
+        Assert.Equal(
+            "| A |\n| - |\n| first |\n\n| B |\n| - |\n| second |",
+            writer.ToString());
+    }
+
+    [Fact]
+    public void BufferedTable_ProjectionMissStillCompletesAnOpenStreamingTable()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithColumns("A"),
+            TableOptions = new TableFormatterOptions()
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.WriteTable(["B"], [["dropped"]]);
+
+        Assert.Equal("| A |\n| - |\n| first |", writer.ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void StreamingTable_LaterBlockCompletesTheOpenTableInCallOrder(bool buffered)
+    {
+        var options = new MarkoutWriterOptions();
+        if (buffered)
+            options.TableOptions = new TableFormatterOptions();
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.WriteParagraph("after");
+
+        Assert.Equal(
+            "| A |\n| - |\n| first |\n\nafter",
+            writer.ToString());
+    }
+
+    [Fact]
+    public void StreamingTable_CompleteCompletesAnOpenBufferedTable()
+    {
+        var writer = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { TableOptions = new TableFormatterOptions() });
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        Assert.Equal("", writer.ToString());
+        writer.WriteTableRow("second");
+
+        Assert.Equal("| A |\n| - |\n| first |\n| second |", writer.Complete());
+    }
+
+    [Fact]
+    public void StreamingTable_FlushCompletesAnOpenBufferedTable()
+    {
+        var output = new StringWriter();
+        var writer = new MarkoutWriter(
+            output,
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { TableOptions = new TableFormatterOptions() });
+
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.Flush();
+
+        Assert.Equal("| A |\n| - |\n| first |\n", output.ToString());
+    }
+
+    [Fact]
+    public void StreamingTable_SectionBoundaryCompletesTheTableInItsStartingSection()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            SectionOrder = ["Beta", "Alpha"],
+            TableOptions = new TableFormatterOptions()
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteTableStart("A");
+        writer.WriteTableRow("first");
+        writer.WriteSectionStart(2, "Beta");
+        writer.WriteParagraph("second");
+
+        var output = writer.ToString();
+        Assert.True(
+            output.IndexOf("## Beta", StringComparison.Ordinal) <
+            output.IndexOf("## Alpha", StringComparison.Ordinal));
+        Assert.True(
+            output.IndexOf("second", StringComparison.Ordinal) <
+            output.IndexOf("| first |", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void PrettyTable_AutoTune_ExpandsAffordableBimodalColumns()
     {
@@ -1307,7 +1457,7 @@ public class MarkoutWriterTests
 
         Assert.True(result);
         var output = orch.ToString();
-        Assert.Contains("NAME", output);
+        Assert.Contains("Name", output);
         Assert.Contains("Alice", output);
     }
 
@@ -1424,6 +1574,68 @@ public class MarkoutWriterTests
             writer.Write($"[END:{skippedRows}]");
             writer.WriteLine();
         }
+    }
+
+    /// <summary>
+    /// ToString() previews only what has reached the target, so an open table whose rows the
+    /// formatter is buffering is absent from the preview. Complete() is what renders it.
+    /// </summary>
+    /// <remarks>
+    /// This is documented rather than fixed because it is not a regression: the committing
+    /// ToString() of 0.35.1 dropped the same rows, for the same reason -- neither closes the open
+    /// table, and a buffering formatter has written nothing until the table closes. Rendering a
+    /// buffered table without ending it needs a non-mutating render path that does not exist, which
+    /// is its own change and not a release fix. The gate exists so that the documented boundary is
+    /// the tested one, and so that adding that path is a visible test change rather than a silent
+    /// one.
+    /// </remarks>
+    [Fact]
+    public void ToString_WithOpenBufferedTable_OmitsItAndCompleteRendersIt()
+    {
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTableStart(["Col1"]);
+        writer.WriteTableRow(["Value1"]);
+
+        Assert.DoesNotContain("Value1", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Value1", writer.Complete(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The truncation footer that follows a shortened table is library-generated text, so it has
+    /// to use the writer's terminator like every other line the library emits.
+    /// </summary>
+    /// <remarks>
+    /// It was previously written as <c>WriteLine("\n... and N more")</c> at six sites across the
+    /// three formatters. The embedded newline is a literal LF whatever the writer is set to, so a
+    /// CRLF <see cref="MarkoutWriterOptions.NewLine"/> produced a document with mixed endings --
+    /// and nothing noticed, because the existing NewLine tests serialize a record that is never
+    /// truncated. A sentinel terminator is used so that any surviving literal newline is visible
+    /// on every platform, rather than only where Environment.NewLine is CRLF.
+    /// </remarks>
+    [Theory]
+    [InlineData("markdown")]
+    [InlineData("table")]
+    [InlineData("plaintext")]
+    public void TruncationFooter_UsesConfiguredNewLine(string formatterName)
+    {
+        IMarkoutFormatter formatter = formatterName switch
+        {
+            "markdown" => new MarkdownFormatter(),
+            "table" => new TableFormatter(),
+            _ => new PlainTextFormatter(),
+        };
+        var options = new MarkoutWriterOptions { NewLine = "<NL>", MaxItems = 2 };
+        var writer = new MarkoutWriter(formatter, options);
+
+        writer.WriteTable(["A"], [["1"], ["2"], ["3"], ["4"]]);
+        var output = writer.Complete();
+
+        Assert.Contains("... and 2 more", output, StringComparison.Ordinal);
+        Assert.Contains("<NL>", output, StringComparison.Ordinal);
+        Assert.DoesNotContain('\n', output);
+        Assert.DoesNotContain('\r', output);
     }
 
     /// <summary>

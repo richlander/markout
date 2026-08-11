@@ -5,6 +5,239 @@ namespace Markout.Tests;
 
 public class ProjectionTests
 {
+    [Fact]
+    public void DeferredHeading_DoesNotLeakIntoFollowingHeadlessSection()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteField("dropped", "gone");
+        writer.WriteSectionStart(2, "Beta", headless: true);
+        writer.WriteParagraph("beta-body");
+
+        Assert.Equal("beta-body", writer.ToString());
+    }
+
+    [Fact]
+    public void DeferredNestedHeadings_FlushFromOuterToInnerWhenContentSurvives()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteSectionStart(2, "Outer");
+        writer.WriteSectionStart(3, "Inner");
+        writer.WriteParagraph("body");
+        writer.WriteSectionEnd();
+        writer.WriteSectionEnd();
+
+        Assert.Equal("## Outer\n\n### Inner\n\nbody", writer.ToString());
+    }
+
+    [Fact]
+    public void DeferredAncestorHeading_PrecedesAnOrdinaryNestedHeading()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteSectionStart(2, "Outer");
+        writer.WriteHeading(3, "Inner");
+
+        Assert.Equal("## Outer\n\n### Inner", writer.ToString());
+    }
+
+    [Fact]
+    public void DeferredDocumentTitle_RemainsBeforeReorderedSections()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped"),
+            SectionOrder = ["Beta", "Alpha"]
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteSectionStart(1, "Title");
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteParagraph("alpha-body");
+        writer.WriteSectionStart(2, "Beta");
+        writer.WriteParagraph("beta-body");
+
+        var output = writer.ToString();
+        Assert.StartsWith("# Title", output, StringComparison.Ordinal);
+        Assert.True(
+            output.IndexOf("## Beta", StringComparison.Ordinal) <
+            output.IndexOf("## Alpha", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DeferredDocumentTitle_RemainsBeforeSectionWithOpeningBlankLine()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped"),
+            SectionOrder = ["Beta", "Alpha"]
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteSectionStart(1, "Title");
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteBlankLine();
+        writer.WriteParagraph("alpha-body");
+        writer.WriteSectionStart(2, "Beta");
+        writer.WriteParagraph("beta-body");
+
+        Assert.StartsWith("# Title", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeferredHeading_PrecedesAnExplicitOpeningBlankLine()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        });
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteBlankLine();
+        writer.WriteParagraph("body");
+
+        Assert.Equal("## Alpha\n\nbody", writer.ToString());
+    }
+
+    [Fact]
+    public void ExplicitBlankLine_DoesNotKeepAnOtherwiseEmptyDeferredSection()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        });
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteField("dropped", "gone");
+        writer.WriteBlankLine();
+        writer.WriteSectionEnd();
+
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void ExplicitBlankLine_AfterDeferredSectionContentIsNotDiscarded(int level)
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        });
+
+        writer.WriteSectionStart(level, "Section");
+        writer.WriteParagraph("one");
+        writer.WriteBlankLine();
+        writer.WriteSectionEnd();
+        writer.WriteParagraph("two");
+
+        Assert.EndsWith("one\n\ntwo", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExplicitBlankLine_InDiscardedDeferredSectionPreservesSeparation(
+        bool closeWithSibling)
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithColumns("A", "B")
+        });
+
+        writer.WriteParagraph("Intro paragraph.");
+        writer.WriteSectionStart(3, "Empty");
+        writer.WriteBlankLine();
+        if (closeWithSibling)
+            writer.WriteSectionStart(3, "Replacement", headless: true);
+        else
+            writer.WriteSectionEnd();
+        writer.WriteTable(["A", "B"], [["1", "2"]]);
+
+        Assert.Contains(
+            "Intro paragraph.\n\n| A | B |",
+            writer.Complete(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExplicitBlankLine_InInitialDiscardedSectionDoesNotLeadTheDocument()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped"),
+            SectionOrder = ["Live"]
+        });
+
+        writer.WriteSectionStart(2, "Discarded");
+        writer.WriteBlankLine();
+        writer.WriteSectionEnd();
+        writer.WriteSectionStart(2, "Live");
+        writer.WriteParagraph("body");
+
+        Assert.StartsWith("## Live", writer.Complete(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExplicitBlankLine_InDiscardedJsonlSectionDoesNotCreateARecord(
+        bool writeEmptyTableFirst)
+    {
+        var writer = MarkoutWriter.Create(new TableFormatter(), new MarkoutWriterOptions
+        {
+            TableMode = MarkoutTableMode.Jsonl,
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        });
+
+        if (writeEmptyTableFirst)
+            writer.WriteTable(["a"], []);
+        else
+            writer.WriteTable(["a"], [["first"]]);
+        writer.WriteSectionStart(2, "Discarded");
+        writer.WriteBlankLine();
+        writer.WriteSectionEnd();
+        writer.WriteTable(["a"], [["live"]]);
+
+        Assert.Equal(
+            writeEmptyTableFirst
+                ? "{\"a\":\"live\"}"
+                : "{\"a\":\"first\"}\n{\"a\":\"live\"}",
+            writer.Complete().ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void DisablingProjection_DiscardsAnEmptyDeferredSiblingHeading()
+    {
+        var options = new MarkoutWriterOptions
+        {
+            Projection = MarkoutProjection.WithoutFields("dropped")
+        };
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteSectionStart(2, "Alpha");
+        writer.WriteField("dropped", "gone");
+        options.Projection = null;
+        writer.WriteSectionStart(2, "Beta", headless: true);
+        writer.WriteParagraph("beta-body");
+
+        Assert.Equal("beta-body", writer.ToString());
+    }
+
     // --- Column projection: IncludeColumns ---
 
     [Fact]
@@ -110,6 +343,58 @@ public class ProjectionTests
         Assert.Contains("IncludeColumns is empty", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ColumnProjection_RejectsNullNamesWithTheOptionAndIndex(bool include)
+    {
+        var projection = new MarkoutProjection();
+        if (include)
+            projection.IncludeColumns = [null!];
+        else
+            projection.ExcludeColumns = [null!];
+
+        var ex = Assert.Throws<ArgumentException>(
+            () => projection.ResolveColumns(["Name"]));
+
+        Assert.Equal(include ? "IncludeColumns" : "ExcludeColumns", ex.ParamName);
+        Assert.Contains("index 0", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void IncludeColumns_MutatedToContainNull_IsRejectedWhenSnapshotted()
+    {
+        var names = new List<string> { "Name" };
+        var projection = new MarkoutProjection { IncludeColumns = names };
+        names[0] = null!;
+
+        var ex = Assert.Throws<ArgumentException>(
+            () => projection.ResolveColumns(["Name"]));
+
+        Assert.Equal("IncludeColumns", ex.ParamName);
+        Assert.Contains("index 0", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void FieldProjection_RejectsNullNamesWithTheOptionAndIndex(bool include)
+    {
+        var projection = new MarkoutProjection();
+        if (include)
+            projection.IncludeFields = [null!];
+        else
+            projection.ExcludeFields = [null!];
+        var writer = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { Projection = projection });
+
+        var ex = Assert.Throws<ArgumentException>(() => writer.WriteField("Name", "value"));
+
+        Assert.Equal(include ? "IncludeFields" : "ExcludeFields", ex.ParamName);
+        Assert.Contains("index 0", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ExcludeColumns_ExcludingEveryColumn_RendersNothingRatherThanFailing()
     {
@@ -148,7 +433,7 @@ public class ProjectionTests
         orch.WriteTableRow("Foo.dll", "1.0.0");
         orch.WriteTableEnd();
 
-        var ex = Assert.Throws<InvalidOperationException>(() => orch.ToString());
+        var ex = Assert.Throws<InvalidOperationException>(() => orch.Complete());
         Assert.Contains("No columns matched projection: NonExistent", ex.Message, StringComparison.Ordinal);
     }
 
@@ -191,6 +476,166 @@ public class ProjectionTests
         Assert.True(validation.IsValid);
         Assert.Equal(["return_type", "ReturnType"], validation.Resolved);
         Assert.Empty(validation.Unresolved);
+    }
+
+    [Fact]
+    public void SchemaItem_EmptyStableNameFallsBackToTheEmittedDisplayKey()
+    {
+        var item = new SchemaItem("Display Name", "column", "");
+        var writer = MarkoutWriter.Create(
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl });
+
+        writer.WriteTable(["Display Name"], [""], [["value"]]);
+
+        Assert.Equal("display_name", item.Key);
+        Assert.Contains($"\"{item.Key}\"", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(StringComparison.InvariantCultureIgnoreCase)]
+    [InlineData(StringComparison.CurrentCultureIgnoreCase)]
+    [InlineData(StringComparison.OrdinalIgnoreCase)]
+    public void IncludeColumns_GlobHonorsIgnoreCaseComparison(StringComparison comparison)
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = comparison,
+            IncludeColumns = ["a*"]
+        };
+
+        var resolution = projection.ResolveColumns(["Alpha"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Fact]
+    public void IncludeColumns_OrdinalIgnoreCaseGlobMatchesSupplementaryLetters()
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.OrdinalIgnoreCase,
+            IncludeColumns = ["\U00010400*"]
+        };
+
+        var resolution = projection.ResolveColumns(["\U00010428 Value"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Theory]
+    [InlineData(StringComparison.InvariantCulture)]
+    [InlineData(StringComparison.InvariantCultureIgnoreCase)]
+    [InlineData(StringComparison.CurrentCulture)]
+    [InlineData(StringComparison.CurrentCultureIgnoreCase)]
+    public void IncludeColumns_CultureAwareGlobMatchesCanonicalUnicodeEquivalents(
+        StringComparison comparison)
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = comparison,
+            IncludeColumns = ["Caf\u00e9*"]
+        };
+
+        var resolution = projection.ResolveColumns(["Cafe\u0301 Value"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Fact]
+    public void IncludeColumns_CultureAwareGlobPreservesIgnorableWildcardBoundary()
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCulture,
+            IncludeColumns = ["a?b"]
+        };
+
+        var resolution = projection.ResolveColumns(["a\u00adxb"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Fact]
+    public void IncludeColumns_CultureAwareGlobMatchesEmptyLiteralBeforeCombiningMark()
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCulture,
+            IncludeColumns = ["\u00ad??"]
+        };
+
+        var resolution = projection.ResolveColumns(["\u0301x"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Theory]
+    [InlineData(StringComparison.OrdinalIgnoreCase)]
+    [InlineData(StringComparison.InvariantCultureIgnoreCase)]
+    public void IncludeColumns_LongGlobDoesNotUseTheCallStack(StringComparison comparison)
+    {
+        const int length = 30_000;
+        var projection = new MarkoutProjection
+        {
+            Comparison = comparison,
+            IncludeColumns = [new string('?', length)]
+        };
+
+        var resolution = projection.ResolveColumns([new string('a', length)]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
+    [Fact]
+    public void IncludeColumns_AdversarialGlobUsesBoundedMemory()
+    {
+        const int length = 2_000;
+        var pattern = string.Concat(Enumerable.Repeat("*a", length)) + "b";
+        var projection = MarkoutProjection.WithColumns(pattern);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var resolution = projection.ResolveColumns([new string('a', length)]);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
+        Assert.True(allocated < 1_000_000, $"Glob match allocated {allocated:N0} bytes.");
+    }
+
+    [Fact(Timeout = 5_000)]
+    public void IncludeColumns_CultureAwareAdversarialGlobHasBoundedRuntime()
+    {
+        const int length = 800;
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCulture,
+            IncludeColumns = [string.Concat(Enumerable.Repeat("*\u00ad", length)) + "b"]
+        };
+
+        var resolution = projection.ResolveColumns([new string('a', length)]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
+    }
+
+    [Fact(Timeout = 5_000)]
+    public void IncludeColumns_CultureAwareIgnorableTextHasBoundedRuntime()
+    {
+        const int length = 4_000;
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCulture,
+            IncludeColumns = ["*b"]
+        };
+
+        var resolution = projection.ResolveColumns([new string('\u00ad', length)]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
     }
 
     // --- Column projection: ExcludeColumns ---

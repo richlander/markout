@@ -182,7 +182,7 @@ public class MarkoutTemplate
     {
         var orch = new MarkoutWriter(new MarkdownFormatter());
         Render(orch);
-        return orch.ToString();
+        return orch.Complete();
     }
 
     /// <summary>
@@ -193,7 +193,7 @@ public class MarkoutTemplate
     {
         var orch = new MarkoutWriter(new MarkdownFormatter(), options);
         Render(orch);
-        return orch.ToString();
+        return orch.Complete();
     }
 
     /// <summary>

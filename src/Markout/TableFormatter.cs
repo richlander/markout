@@ -115,7 +115,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
             WriteTsvRow(w, row);
 
         if (skippedRows > 0)
-            w.WriteLine($"\n... and {skippedRows} more");
+            FormatHelper.WriteTruncationFooter(w, skippedRows);
     }
 
     private void WritePrettyTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows)
@@ -137,7 +137,7 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
             WritePrettyRow(w, row, widths);
 
         if (skippedRows > 0)
-            w.WriteLine($"\n... and {skippedRows} more");
+            FormatHelper.WriteTruncationFooter(w, skippedRows);
     }
 
     private static void WriteJsonlTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, MarkoutWriterOptions options)

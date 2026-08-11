@@ -118,6 +118,43 @@ public class TableFormatterTests
         Assert.Equal("0.50", root.GetProperty("Sim").GetString());
     }
 
+    [Theory]
+    [InlineData(MarkoutTableMode.Tsv)]
+    [InlineData(MarkoutTableMode.Jsonl)]
+    public void StructuredModes_IgnoreVisualHeaderFormatter(MarkoutTableMode mode)
+    {
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = mode,
+            FormatTableHeader = header => $"**{header.DisplayName}**"
+        };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTable(["My Column"], ["MyColumn"], [["1"]]);
+
+        Assert.Contains("my_column", writer.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("**", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(MarkoutTableMode.Tsv)]
+    [InlineData(MarkoutTableMode.Jsonl)]
+    public void StructuredDisplayNameStyle_IgnoresFormatterButKeepsDisplayName(MarkoutTableMode mode)
+    {
+        var options = new MarkoutWriterOptions
+        {
+            TableMode = mode,
+            TableHeaderStyle = MarkoutTableHeaderStyle.DisplayName,
+            FormatTableHeader = header => $"**{header.DisplayName}**"
+        };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTable(["My Column"], ["MyColumn"], [["1"]]);
+
+        Assert.Contains("My Column", writer.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("**", writer.ToString(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TableFormatter_JsonlMode_EscapesJsonSyntaxAndPreservesCellText()
     {
@@ -204,6 +241,44 @@ public class TableFormatterTests
         Assert.Contains("Alice", output);
         Assert.DoesNotContain("Bob", output);
         Assert.Contains("... and 2 more", output);
+    }
+
+    [Fact]
+    public void FailedStreamingStart_DoesNotResetTheOpenTable()
+    {
+        var sink = new StringWriter();
+        var writer = new TableWriter(
+            sink,
+            (ITableFormatter)new TableFormatter(),
+            new MarkoutWriterOptions
+            {
+                TableMode = MarkoutTableMode.Jsonl,
+                MaxItems = 1
+            });
+
+        writer.WriteTableStart(["A"]);
+        writer.WriteTableRow(["first"]);
+        Assert.Throws<ArgumentException>(
+            () => writer.WriteTableStart(["A-B", "A B"]));
+        writer.WriteTableRow(["second"]);
+        writer.WriteTableEnd();
+
+        Assert.Equal("{\"a\":\"first\"}\n", sink.ToString().ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void FailedFormatterBegin_DoesNotCreateAnOpenTable()
+    {
+        var sink = new StringWriter();
+        var writer = new TableWriter(
+            sink,
+            (IStreamingTableFormatter)new ThrowingStartFormatter());
+
+        Assert.Throws<InvalidOperationException>(() => writer.WriteTableStart("A"));
+        writer.WriteTableRow("orphan");
+        writer.WriteTableEnd();
+
+        Assert.Equal("", sink.ToString());
     }
 
     [Fact]
