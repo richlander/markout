@@ -10,43 +10,56 @@ public class NoProjectionAllocationTests
     ];
 
     /// <summary>
-    /// Allocation charged to the settled state of <paramref name="op"/>: the smallest total any
-    /// single batch of <paramref name="batch"/> calls costs, across up to
-    /// <paramref name="attempts"/> batches.
+    /// The most any single batch of <paramref name="batch"/> calls to <paramref name="op"/>
+    /// allocates, measured over <paramref name="batches"/> batches once the operation has settled.
     /// </summary>
     /// <remarks>
-    /// The minimum, rather than the first batch, because a first batch is not necessarily settled.
-    /// A fresh process charges the first batch for one-time work -- tiered-compilation transitions
-    /// and whatever else the runtime does once -- so measuring once asks "did this batch allocate",
-    /// when the property under test is "does this operation allocate". CI answered the first
-    /// question with 7416 bytes on a run whose commit could not reach this code (see #201), and a
-    /// gate that a loaded machine can turn red is a gate people learn to re-run.
+    /// Two things had to be true at once, and the obvious repair only bought one of them.
     ///
-    /// This is not a tolerance: every assertion still demands exactly zero, and an operation that
-    /// really allocates per call allocates in every batch, so no minimum rescues it. It moves the
-    /// demand from the first measurement to the settled one. Early exit on zero keeps the common
-    /// case to a single batch.
+    /// The measurement has to survive a one-time cost. A window is not hermetic: the same product,
+    /// the same operation and the same warmup read 1464 bytes or 0 depending only on how the
+    /// measuring code around it was written, so a single batch asserted at exactly zero is a gate
+    /// that a settling runtime can turn red. That is what CI hit in #201, with 7416 bytes on a
+    /// commit that could not reach this code. Discarding a full batch after the warmup answers it:
+    /// the discarded batch absorbs whatever is one-time, and nothing one-time is ever asserted on.
+    ///
+    /// The measurement also has to see a cost that recurs but does not recur every call. Taking the
+    /// minimum of several batches survives the transient too, and was the first repair tried here --
+    /// but a minimum is satisfied by the single cleanest batch, so an allocation whose period
+    /// exceeds the batch size hides in whichever window happens to miss it. That is not
+    /// hypothetical: a 4KB allocation on every 1200th call, injected into WriteFieldsInline, is
+    /// caught 3 runs out of 3 by one batch and missed 3 out of 3 by the minimum of five. The
+    /// minimum is strictly weaker than what it replaced, which is the one thing a repair to a gate
+    /// may not be.
+    ///
+    /// So the batches after the discarded one are all asserted, by returning the largest. Every
+    /// settled batch must allocate exactly zero -- no tolerance, and four windows in which a
+    /// recurring cost can appear rather than the one window the original measured.
     /// </remarks>
-    private static long AllocatedPerBatch(Action op, int warmup = 200, int batch = 1000, int attempts = 5)
+    private static long AllocatedPerBatch(Action op, int warmup = 200, int batch = 1000, int batches = 4)
     {
         for (int i = 0; i < warmup; i++)
             op();
 
-        var lowest = long.MaxValue;
-        for (int attempt = 0; attempt < attempts; attempt++)
+        // One full batch, measured and thrown away, so that the readings that count are settled.
+        var settling = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < batch; i++)
+            op();
+        _ = GC.GetAllocatedBytesForCurrentThread() - settling;
+
+        long highest = 0;
+        for (int b = 0; b < batches; b++)
         {
             var before = GC.GetAllocatedBytesForCurrentThread();
             for (int i = 0; i < batch; i++)
                 op();
             var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-            if (allocated <= 0)
-                return 0;
-
-            lowest = Math.Min(lowest, allocated);
+            if (allocated > highest)
+                highest = allocated;
         }
 
-        return lowest;
+        return highest;
     }
 
     /// <summary>
@@ -55,9 +68,8 @@ public class NoProjectionAllocationTests
     /// <remarks>
     /// This is the non-vacuity test for every assertion in this class. They all read
     /// <c>Assert.Equal(0, AllocatedPerBatch(...))</c>, so a helper that returned zero unconditionally
-    /// -- or one whose minimum-of-attempts loop stopped measuring what it claims to -- would leave
-    /// the whole file green and proving nothing. Taking a minimum makes that failure mode cheaper to
-    /// reach than it was, which is why the guard arrives with it.
+    /// -- or one whose batch loop stopped measuring what it claims to -- would leave the whole file
+    /// green and proving nothing.
     /// </remarks>
     [Fact]
     public void AllocatedPerBatch_ForAnAllocatingOperation_ReportsNonZero()
