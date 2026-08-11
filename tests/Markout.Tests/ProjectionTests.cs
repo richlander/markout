@@ -560,6 +560,21 @@ public class ProjectionTests
         Assert.Equal([0], resolution.ColumnMap);
     }
 
+    [Fact]
+    public void IncludeColumns_CultureAwareGlobMatchesEmptyLiteralBeforeCombiningMark()
+    {
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCulture,
+            IncludeColumns = ["\u00ad??"]
+        };
+
+        var resolution = projection.ResolveColumns(["\u0301x"]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.Matched, resolution.Kind);
+        Assert.Equal([0], resolution.ColumnMap);
+    }
+
     [Theory]
     [InlineData(StringComparison.OrdinalIgnoreCase)]
     [InlineData(StringComparison.InvariantCultureIgnoreCase)]
@@ -604,6 +619,21 @@ public class ProjectionTests
         };
 
         var resolution = projection.ResolveColumns([new string('a', length)]);
+
+        Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
+    }
+
+    [Fact(Timeout = 5_000)]
+    public void IncludeColumns_CultureAwareIgnorableTextHasBoundedRuntime()
+    {
+        const int length = 4_000;
+        var projection = new MarkoutProjection
+        {
+            Comparison = StringComparison.InvariantCulture,
+            IncludeColumns = ["*b"]
+        };
+
+        var resolution = projection.ResolveColumns([new string('\u00ad', length)]);
 
         Assert.Equal(ColumnProjectionResolutionKind.NoMatches, resolution.Kind);
     }

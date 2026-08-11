@@ -77,8 +77,8 @@ var opts = new MarkoutWriterOptions
     TableMode = MarkoutTableMode.Tsv,          // Pretty | Tsv | Jsonl
     IncludeDescription = false,
     IncludeSections = new HashSet<string> { "Results" },
-    JsonTypedValues = true,                    // JSONL/TSV: emit numbers as numbers, not quoted
-    MaxItems = 3,                              // cap rows; appends a "... and {N} more" notice
+    JsonTypedValues = true,                    // JSONL: emit numbers and booleans as JSON values
+    MaxItems = 3,                              // cap rows; JSONL stays record-only when rows are skipped
 };
 MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ctx, opts);
 ```
@@ -86,9 +86,10 @@ MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ctx, opts
 - `MarkoutTableMode.Pretty` — columns aligned to a uniform start position.
 - `MarkoutTableMode.Tsv` — stable `snake_case` headers; never emits embedded tabs/newlines in cells.
 - `MarkoutTableMode.Jsonl` — one record per row, carrying only that row's keys (heterogeneous).
-- `MaxItems = N` caps EVERY table to N rows and appends `... and {count} more`; works with any formatter,
-  so a Markdown view can show the first N rows while TSV/JSONL export them all. (Or per-property:
-  `[MarkoutMaxItems(3)]`, with an optional `EllipsisFormat`.)
+- `MaxItems = N` caps every table to N rows. Presentation and TSV output append
+  `... and {count} more`; JSONL omits the notice because every line must remain a data record.
+  Apply the cap only to presentation options when TSV/JSONL exports must remain complete.
+  (Or cap a property with `[MarkoutMaxItems(3)]` and an optional `EllipsisFormat`.)
 
 ## Central multi-format dispatch (the CLI `--format` pattern)
 

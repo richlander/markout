@@ -377,6 +377,12 @@ public class MarkoutProjection
                 while (literalEnd < pattern.Length && pattern[literalEnd] is not '*' and not '?')
                     literalEnd++;
                 var literal = pattern.AsSpan(patternIndex, literalEnd - patternIndex);
+                var literalMatchesEmpty =
+                    !ordinal &&
+                    compareInfo!.Compare(
+                        literal,
+                        ReadOnlySpan<char>.Empty,
+                        compareOptions) == 0;
 
                 for (var textIndex = 0; textIndex <= text.Length; textIndex++)
                 {
@@ -394,11 +400,18 @@ public class MarkoutProjection
                         continue;
                     }
 
-                    if (compareInfo!.IsPrefix(
+                    var matches = compareInfo!.IsPrefix(
                         text.AsSpan(textIndex),
                         literal,
                         compareOptions,
-                        out var matchLength))
+                        out var matchLength);
+                    if (!matches && literalMatchesEmpty)
+                    {
+                        matches = true;
+                        matchLength = 0;
+                    }
+
+                    if (matches)
                     {
                         var matchEnd = textIndex + matchLength;
                         while (!next[matchEnd])
