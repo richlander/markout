@@ -114,33 +114,6 @@ public class MarkoutProjection
     }
 
     /// <summary>
-    /// Returns true if the given field key should be included in output.
-    /// </summary>
-    internal bool IsFieldIncluded(string key)
-    {
-        if (_includeFields != null)
-        {
-            foreach (var field in _includeFields)
-            {
-                if (MatchesName(field, key))
-                    return true;
-            }
-            return false;
-        }
-
-        if (_excludeFields != null)
-        {
-            foreach (var field in _excludeFields)
-            {
-                if (MatchesName(field, key))
-                    return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
     /// Resolves the column projection against display headers.
     /// </summary>
     public ColumnProjectionResolution ResolveColumns(ReadOnlySpan<string> headers)
