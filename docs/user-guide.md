@@ -698,9 +698,9 @@ reintroduces `MaxItems`' own ellipsis line in TSV, as it does without a window.)
 The window applies to tables written through the writer — `WriteTable`,
 `WriteTableStart`/`WriteTableRow`/`WriteTableEnd`, and `WriteCompositeTable`.
 Table-shaped formatter lowerings use the same pipeline: graph edge tables and
-Markdown metric and breakdown tables honor the window over their visible rows.
-Visual bar and diagram renderers are not tables, so row windows do not apply to
-them.
+Markdown metric and breakdown tables honor the window over their visible rows,
+and `MaxItems` caps those rows. Visual bar and diagram renderers are not tables,
+so row windows and table caps do not apply to them.
 
 When both are set, **the window selects and `MaxItems` then caps the selection**,
 so the reported overflow count describes only what the cap dropped:

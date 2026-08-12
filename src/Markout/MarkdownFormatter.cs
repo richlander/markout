@@ -614,16 +614,18 @@ public class MarkdownFormatter : IMarkoutFormatter,
             if (total == 0) total = 1;
 
             var headers = new[] { "Category", "Count", "%" };
+            var headerNames = new[] { "Category", "Count", "Percent" };
             var rows = item.Slices
                 .Where(s => s.Count > 0)
                 .Select(s => new[] { s.Category, s.Count.ToString(), $"{s.Count * 100.0 / total:F0}" })
                 .ToList();
 
-            new TableWriter(w, (ITableFormatter)this, options).WriteTable(headers, rows);
+            new TableWriter(w, (ITableFormatter)this, options).WriteTable(headers, headerNames, rows);
         }
         else
         {
             var headers = new[] { "Label", "Category", "Count", "%" };
+            var headerNames = new[] { "Label", "Category", "Count", "Percent" };
             var rows = new List<string[]>();
             foreach (var item in items)
             {
@@ -635,7 +637,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
                     rows.Add([item.Label, seg.Category, seg.Count.ToString(), $"{seg.Count * 100.0 / total:F0}"]);
             }
 
-            new TableWriter(w, (ITableFormatter)this, options).WriteTable(headers, rows);
+            new TableWriter(w, (ITableFormatter)this, options).WriteTable(headers, headerNames, rows);
         }
     }
 
