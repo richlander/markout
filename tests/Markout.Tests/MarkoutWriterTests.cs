@@ -231,6 +231,19 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void MarkdownFormatter_WriteBreakdown_UsesPercentAsTheStableHeaderName()
+    {
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { TableHeaderStyle = MarkoutTableHeaderStyle.StableName });
+        var breakdown = new Breakdown("Test", [new Slice("Pass", 8), new Slice("Fail", 2)]);
+
+        Assert.True(orch.WriteBreakdown([breakdown]));
+
+        Assert.Contains("| category | count | percent |", orch.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MarkdownFormatter_WriteMetrics_Renders()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());

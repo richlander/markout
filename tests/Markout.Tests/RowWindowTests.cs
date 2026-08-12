@@ -49,8 +49,34 @@ public class RowWindowTests
         return sw.ToString();
     }
 
+    private static string RenderMetrics(
+        MarkoutRowWindow window,
+        Action<MarkoutWriter, IReadOnlyList<Metric>> write)
+    {
+        var writer = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { RowWindow = window });
+        write(
+            writer,
+            [
+                new Metric("m1", 1),
+                new Metric("m2", 2),
+                new Metric("m3", 3),
+                new Metric("m4", 4)
+            ]);
+        return writer.Complete();
+    }
+
     public static TheoryData<MarkoutTableMode> AllModes =>
         new(Enum.GetValues<MarkoutTableMode>());
+
+    public static TheoryData<MarkoutRowWindow, string[], string[]> MetricWindows =>
+        new()
+        {
+            { MarkoutRowWindow.Head(2), ["m1", "m2"], ["m3", "m4"] },
+            { MarkoutRowWindow.Tail(2), ["m3", "m4"], ["m1", "m2"] },
+            { MarkoutRowWindow.Range(2, 3), ["m2", "m3"], ["m1", "m4"] }
+        };
 
     // ── Resolution ──
 
@@ -108,6 +134,93 @@ public class RowWindowTests
     {
         Assert.Equal((0, 0), MarkoutRowWindow.Head(0).Resolve(4));
         Assert.Equal((4, 4), MarkoutRowWindow.Tail(0).Resolve(4));
+    }
+
+    [Theory]
+    [MemberData(nameof(MetricWindows))]
+    public void MarkdownMetrics_HonorRowWindows(
+        MarkoutRowWindow window,
+        string[] included,
+        string[] excluded)
+    {
+        var output = RenderMetrics(window, static (writer, items) => writer.WriteMetrics(items));
+
+        foreach (var label in included)
+            Assert.Contains(label, output, StringComparison.Ordinal);
+        foreach (var label in excluded)
+            Assert.DoesNotContain(label, output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [MemberData(nameof(MetricWindows))]
+    public void MarkdownVerticalMetrics_HonorRowWindows(
+        MarkoutRowWindow window,
+        string[] included,
+        string[] excluded)
+    {
+        var output = RenderMetrics(window, static (writer, items) => writer.WriteVerticalMetrics(items));
+
+        foreach (var label in included)
+            Assert.Contains(label, output, StringComparison.Ordinal);
+        foreach (var label in excluded)
+            Assert.DoesNotContain(label, output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MetricsWriter_WindowSelectsBeforeMaxItemsCaps()
+    {
+        var sw = new StringWriter();
+        var writer = new MetricsWriter(
+            sw,
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions
+            {
+                RowWindow = MarkoutRowWindow.Range(2, 4),
+                MaxItems = 2
+            });
+
+        writer.WriteMetrics(
+        [
+            new Metric("m1", 1),
+            new Metric("m2", 2),
+            new Metric("m3", 3),
+            new Metric("m4", 4)
+        ]);
+
+        var output = sw.ToString();
+        Assert.Contains("m2", output, StringComparison.Ordinal);
+        Assert.Contains("m3", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("m1", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("m4", output, StringComparison.Ordinal);
+        Assert.Contains("... and 1 more", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MarkdownBreakdown_WindowSelectsFlattenedTableRows()
+    {
+        var writer = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Range(2, 3) });
+
+        writer.WriteBreakdown(
+        [
+            new Breakdown("first",
+            [
+                new Slice("a1", 1),
+                new Slice("a2", 2)
+            ]),
+            new Breakdown("second",
+            [
+                new Slice("b1", 3),
+                new Slice("b2", 4)
+            ])
+        ]);
+
+        var output = writer.Complete();
+        Assert.Contains("a2", output, StringComparison.Ordinal);
+        Assert.Contains("b1", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("a1", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("b2", output, StringComparison.Ordinal);
     }
 
     /// <summary>

@@ -614,16 +614,18 @@ public class MarkdownFormatter : IMarkoutFormatter,
             if (total == 0) total = 1;
 
             var headers = new[] { "Category", "Count", "%" };
+            var headerNames = new[] { "Category", "Count", "Percent" };
             var rows = item.Slices
                 .Where(s => s.Count > 0)
                 .Select(s => new[] { s.Category, s.Count.ToString(), $"{s.Count * 100.0 / total:F0}" })
                 .ToList();
 
-            ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);
+            new TableWriter(w, (ITableFormatter)this, options).WriteTable(headers, headerNames, rows);
         }
         else
         {
             var headers = new[] { "Label", "Category", "Count", "%" };
+            var headerNames = new[] { "Label", "Category", "Count", "Percent" };
             var rows = new List<string[]>();
             foreach (var item in items)
             {
@@ -635,7 +637,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
                     rows.Add([item.Label, seg.Category, seg.Count.ToString(), $"{seg.Count * 100.0 / total:F0}"]);
             }
 
-            ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);
+            new TableWriter(w, (ITableFormatter)this, options).WriteTable(headers, headerNames, rows);
         }
     }
 
@@ -644,7 +646,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
         // Render as a pipe table: Label | Value
         var headers = new[] { "Label", "Value" };
         var rows = items.Select(m => new[] { m.Label, FormatHelper.FormatBarValue(m.Value) }).ToList();
-        ((ITableFormatter)this).FormatTable(w, headers, rows, 0, options);
+        new TableWriter(w, (ITableFormatter)this, options).WriteTable(headers, rows);
     }
 
     void IMetricsFormatter.FormatVerticalMetrics(TextWriter w, IReadOnlyList<Metric> items, int maxBarHeight, int? barWidth, MarkoutWriterOptions options)
