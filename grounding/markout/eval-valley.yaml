@@ -1,0 +1,1290 @@
+# Markout evaluation: CT01–CT24.
+# Run the with/without-skills experiment from the repository root with:
+#   npx @microsoft/vally-cli experiment run grounding/markout/skills-experiment.yaml --dry-run
+#   npx @microsoft/vally-cli experiment run grounding/markout/skills-experiment.yaml
+# Compare the completed experiment (replace <run-directory> with its timestamped output directory):
+#   npx @microsoft/vally-cli compare vally-experiment-results/<run-directory> --verbose
+#
+# This shared eval declares no skills. The experiment supplies either no skills (baseline) or all five
+# skills (treatment). Graders intentionally measure only completion, source, build, and output outcomes
+# so both variants are scored by identical rules.
+# Fixtures remain pinned to Markout 0.23.0 so results stay comparable with the existing benchmark.
+# CT25/CT26 remain held out because they target a skill that is not shipped in the current shelf.
+name: markout-ct24
+description: Measures Markout task performance across the 24-scenario workflow ladder.
+version: 0.23.0
+type: capability
+tags:
+  package: markout
+  benchmark: ct-24
+defaults:
+  runs: 1
+  timeout: 20m
+  executor: copilot-sdk
+stimuli:
+  - name: 'CT01: minimal report — title + scalar field table'
+    tags:
+      skill: markout
+    prompt: |
+      This console project references a source-generated .NET serializer that projects annotated objects into Markdown (see the package reference in the .csproj). Program.cs holds
+      one plain BuildReport object. Using the serializer, print a Markdown report whose H1 title is the
+      project name, followed by a Field | Value table of the remaining scalar values (Configuration,
+      Warnings, Errors). Drive the output through the serializer — do not hand-write the
+      Markdown. Build and run the project to confirm it prints the expected report.
+    environment:
+      files:
+        - src: fixtures/ct/CT01/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT01/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutContext
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*# Web\.Api)(?=[\s\S]*\| Configuration \| Release \|)(?=[\s\S]*\| Warnings \| 3 \|)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT02: scalar cell formatters (number, date, bool)'
+    tags:
+      skill: markout
+    prompt: |
+      This console project references a source-generated Markdown serializer (see the .csproj).
+      Program.cs holds one plain PackageInfo object. Using the serializer, print a Markdown report with an H1
+      title from the package Id and a Field | Value table where:
+        - Downloads is shown thousands-separated AND suffixed with the word "downloads", as one cell
+          (e.g. 5,100,000,000 downloads) — the label text must be produced by the formatter, not by
+          concatenating a string yourself
+        - Published is shown as an ISO date (yyyy-MM-dd)
+        - Signed is shown as "Yes"/"No"
+      Presentation must live on the model via the serializer's formatting attributes — do NOT pre-format the
+      values with inline ToString/string.Format or a ternary. Drive output through the serializer; do
+      not hand-write Markdown. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT02/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT02/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutBoolFormat
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*# Newtonsoft\.Json)(?=[\s\S]*5,100,000,000 downloads)(?=[\s\S]*2023-03-08)(?=[\s\S]*\|
+            Signed \| Yes \|)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT03: rename and hide fields'
+    tags:
+      skill: markout
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain TestRun
+      object. Using the serializer, print a Markdown report with an H1 from the suite name and a Field | Value
+      table that (a) shows the TotalTests value under the column name "Total", and (b) OMITS the
+      InternalRunId field entirely. Use the serializer's attributes to rename and hide — do not restructure
+      the data or hand-write the table. Drive output through the serializer. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT03/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT03/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutPropertyName
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutIgnore
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*# Integration)(?=[\s\S]*\| Total \| 214 \|)(?=[\s\S]*\| Passed \| 210 \|)(?![\s\S]*InternalRunId)(?![\s\S]*TotalTests)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT04: simple list section'
+    tags:
+      skill: markout
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain
+      DependencyReport with a project name and a list of dependencies. Using the serializer, print a Markdown
+      report with an H1 from the project name and a "## Dependencies" section rendering the list as a
+      table (Name, Version). Drive output through the serializer — do not hand-write the heading or the
+      table. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT04/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT04/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSection
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*# Web\.Api)(?=[\s\S]*## Dependencies)(?=[\s\S]*\| Serilog \| 3\.1\.1 \|)(?=[\s\S]*\| Polly
+            \| 8\.2\.0 \|)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT05: one model, two output formats (Markdown + plain text)'
+    tags:
+      skill: markout
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain
+      ReleaseReport. Using the serializer, print the SAME report twice from ONE model definition, giving each
+      report an H1 heading taken from the release version: first as
+      GitHub-flavored Markdown, then as plain text — ASCII, space-aligned columns, no pipe tables and no
+      box-drawing characters (the library ships a dedicated plain-text formatter for exactly this). Do not
+      hand-write either rendering or define two models. Build and run to confirm both are printed.
+    environment:
+      files:
+        - src: fixtures/ct/CT05/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT05/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: PlainTextFormatter
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*# v2\.4\.0)(?=[\s\S]*Field {2,}Value)(?=[\s\S]*-{4,} +-{3,})(?=[\s\S]*\| Commits \| 87
+            \|)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT06: description paragraph + inline field layout'
+    tags:
+      skill: markout
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain Component
+      with a Name, a one-sentence Summary, and two more scalar fields. Using the serializer, print a Markdown
+      report where the H1 is the component Name, the Summary renders as a description paragraph
+      (not a table row), and the remaining fields render INLINE (on one line, e.g. "Owner: ... | Status:
+      ...") rather than as a Field | Value table. Use the serializer's attributes for the title, description,
+      and field layout. Drive output through the serializer. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT06/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT06/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: FieldLayout
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: DescriptionProperty
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: '(?=[\s\S]*# Auth Service)(?=[\s\S]*Issues and validates access tokens)(?=[\s\S]*Owner: Platform
+            Team)(?=[\s\S]*Status: Healthy)(?![\s\S]*\| Owner \|)[\s\S]*'
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT07: conditional section via ShowWhenProperty'
+    tags:
+      skill: markout-conditional-composition
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageInfo
+      objects — one WITH deprecations, one WITHOUT. Using the serializer, print a Markdown report for each with
+      an H1 from the Id, a Field | Value table of the scalars, and a "## Deprecations" section that
+      appears ONLY for a package that has deprecations. ONE rendering definition must handle both
+      packages. Drive output through the serializer; do not hand-write the heading or gate it with
+      imperative string-building. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT07/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT07/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: ShowWhenProperty
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*# Newtonsoft\.Json)(?=[\s\S]*# System\.Text\.Json)(?=[\s\S]*JsonConvert)^(?:(?!## Deprecations)[\s\S])*##
+            Deprecations(?:(?!## Deprecations)[\s\S])*$
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT08: render a section subset with IncludeSections'
+    tags:
+      skill: markout-conditional-composition
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain ServiceStatus
+      with scalar fields and two list sections (Incidents, Metrics). Using the serializer, print the SAME model
+      TWICE from ONE definition: first a "quiet" report that shows only the title and scalar fields (no
+      named sections), then a "full" report that includes the Incidents and Metrics sections. Select the
+      rendered sections at serialize time (do not define two models or hand-write the omitted sections).
+      Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT08/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT08/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: IncludeSections
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*latency spike)(?=^(?:(?!## Incidents)[\s\S])*## Incidents(?:(?!## Incidents)[\s\S])*$)(?=^(?:(?!##
+            Metrics)[\s\S])*## Metrics(?:(?!## Metrics)[\s\S])*$)
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT09: machine-readable TSV output'
+    tags:
+      skill: markout-output-formats
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain Roster with a
+      list of members. Using the serializer, print the members as tab-separated values (TSV) — one header row of
+      column names, then one tab-delimited row per member — using the serializer's table formatter and TSV mode.
+      Do not hand-build the TSV strings. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT09/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT09/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: TableMode
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*name\trole\tstatus)(?=[\s\S]*Ada\tLead\tActive)(?![\s\S]*\| Name \|)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT10: metric bars and a breakdown'
+    tags:
+      skill: markout-built-in-shapes
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PerfReport
+      with a list of timing measurements (label + seconds) and a coverage breakdown (covered vs
+      uncovered). Using the serializer, render this for a TERMINAL (Unicode) so the timings display as labeled
+      bars and the coverage renders as a breakdown. Use the serializer's built-in shape types for the metrics
+      and the breakdown rather than hand-built rows. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT10/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT10/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: UnicodeFormatter
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*Build Performance)(?=[\s\S]*Restore[\s\S]*█)(?=[\s\S]*Compile[\s\S]*█)(?=[\s\S]*Test[\s\S]*█)(?=[\s\S]*Coverage[\s\S]*█)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT11: before -> after change cells'
+    tags:
+      skill: markout-composite-cells-cards
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain
+      RegressionReport with two before -> after change values (Change cells) for Errors and
+      Coverage. Using the serializer, print a Markdown report with an H1 title and a Field | Value table where
+      each change renders as "before -> after (signed absolute delta)", e.g. "12 -> 3 (-9)". Annotate the
+      change cells so the absolute delta is appended. Do not hand-format the arrows/deltas. Build and run.
+    environment:
+      files:
+        - src: fixtures/ct/CT11/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT11/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutDelta
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*12 → 3 \(-9\))(?=[\s\S]*78 → 85 \(\+7\))[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT12: conditional table column via IgnoreColumnWhen'
+    tags:
+      skill: markout-conditional-composition
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageDeps
+      objects — one whose dependencies are ALL required, and one with a MIX of required and optional.
+      Using the serializer, print a Markdown report for each with an H1 from the Id and a "## Dependencies"
+      table (Name, Version, and whether each dependency is Optional). The "Optional" column must be
+      HIDDEN for the all-required package (it carries no information there) and SHOWN for the mixed one.
+      ONE rendering definition must handle both. Drive output through the serializer; do not hand-write
+      or imperatively build the table. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT12/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT12/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutIgnoreColumnWhen
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*# Serilog)(?=[\s\S]*# MyApp)(?=[\s\S]*BenchmarkDotNet)^(?:(?!Optional)[\s\S])*Optional(?:(?!Optional)[\s\S])*$
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT13: verbosity-gated detail sections (quiet vs verbose)'
+    tags:
+      skill: markout-conditional-composition
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
+      (scalars plus Dependencies and Tags collections). Using the serializer, print BOTH a quiet and a verbose
+      report from ONE model definition: the quiet report shows only the H1 and scalar fields; the verbose
+      report additionally includes a "## Dependencies" table and a "## Tags" section. The detail sections
+      must be DECLARED ONCE on the model and gated on a verbosity flag (do not define two models or
+      hand-write the omitted sections). Drive output through the serializer. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT13/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT13/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-matches
+        config:
+          path: '*.cs'
+          pattern: ShowWhenProperty|IncludeSections
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*logging)(?=^(?:(?!## Dependencies)[\s\S])*## Dependencies(?:(?!## Dependencies)[\s\S])*$)(?=^(?:(?!##
+            Tags)[\s\S])*## Tags(?:(?!## Tags)[\s\S])*$)
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT14: JSONL with typed numeric values'
+    tags:
+      skill: markout-output-formats
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain BenchReport
+      with a list of benchmark rows (a name plus numeric OpsPerSec and AllocatedKb). Using the serializer, print
+      the rows as JSONL (one JSON object per line) using the serializer's table formatter and JSONL mode, with
+      the numeric columns emitted as JSON NUMBERS (not quoted strings). Do not hand-build the JSON.
+      Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT14/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT14/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: JsonTypedValues
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*"ops_per_sec":1250000)(?=[\s\S]*"allocated_kb":1\.4)(?![\s\S]*"ops_per_sec":"1250000")[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT15: dependency tree with badges'
+    tags:
+      skill: markout-built-in-shapes
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain DependencyTree
+      whose Root is a TreeNode with nested children (some carrying a badge marker). Using the serializer,
+      render this for a TERMINAL (Unicode) so the dependency hierarchy displays as a tree with branch
+      connectors and the badges appear next to their nodes. Use the serializer's tree shape rather than
+      hand-built indentation. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT15/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT15/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: UnicodeFormatter
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*MyApp)(?=[\s\S]*└─)(?=[\s\S]*Serilog\.Sinks\.Console)(?=[\s\S]*✓)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT16: gated metric-change card with goals'
+    tags:
+      skill: markout-composite-cells-cards
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain QualityGate
+      with a list of MetricChange rows (Failures 7 -> 0, Coverage 78 -> 85). Using the serializer, render a
+      "## Gates" card as a Markdown table where each metric shows its before -> after change with the goal
+      applied — Failures should be treated as "lower is better" and Coverage as "higher is better", and the
+      derived good/bad status should appear inline. Use the serializer's MetricChange card shape and goals rather
+      than computing status by hand. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT16/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT16/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MetricChange
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: Goal
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*Failures \(-\))(?=[\s\S]*7 → 0 \(good\))(?=[\s\S]*Coverage \(\+\))(?=[\s\S]*85 \(good\))[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT17: same-name polymorphic sections (one heading, two shapes)'
+    tags:
+      skill: markout-conditional-composition
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds two plain PackageInfo
+      objects — one that exposes APIs, one that is types-only. Using the serializer, print a Markdown report for
+      each with an H1 from the Id and a "## Signals" section that renders an API table (Member, Kind)
+      when the package exposes APIs, OR a types table (Type Name, Category) when it is types-only —
+      exactly one variant, under the SAME "Signals" heading, chosen by the data. Drive output through the
+      serializer; do not hand-write the heading or branch with imperative string-building. Build and run.
+    environment:
+      files:
+        - src: fixtures/ct/CT17/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT17/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: ShowWhenProperty
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*## Signals[\s\S]*## Signals)(?=[\s\S]*\| Member \| Kind \|)(?=[\s\S]*\| Type Name \| Category
+            \|)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT18: one model rendered at three verbosity levels'
+    tags:
+      skill: markout-conditional-composition
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
+      with scalar fields and two list sections (Dependencies, Diagnostics). Using the serializer, print the SAME
+      model at THREE levels from ONE definition: quiet (title + scalars only), normal (adds the
+      Dependencies section), and detailed (adds both Dependencies and Diagnostics). Choose the rendered
+      sections at serialize time (do not define separate models or hand-write omitted sections). Drive
+      output through the serializer. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT18/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT18/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: IncludeSections
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*## Dependencies)(?=[\s\S]*transitive version conflict)^(?:(?!## Diagnostics)[\s\S])*##
+            Diagnostics(?:(?!## Diagnostics)[\s\S])*$
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT19: central multi-format dispatch with row cap'
+    tags:
+      skill: markout-output-formats
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain SearchReport
+      with a Query and a list of hits. Using the serializer, write ONE dispatch that renders the SAME model in a
+      format chosen at runtime by a string — "md" (Markdown, capped to the first 3 rows), "tsv"
+      (tab-separated), and "jsonl" (one JSON object per line) — by selecting the formatter and writer
+      options per format. Print all three. Do not hand-build any format or duplicate the model. Build and
+      run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT19/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT19/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MaxItems
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: TableMode
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*and 2 more)(?=[\s\S]*package\tdownloads)(?=[\s\S]*\{"package":"Serilog")[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 20m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT20: advisory with a callout, code block, and definitions'
+    tags:
+      skill: markout-built-in-shapes
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain Advisory with
+      a warning Callout, a Repro CodeSection (a C# snippet), and a list of Description terms. Using
+      the serializer, print a Markdown advisory where the callout renders as a GitHub alert (e.g. "> [!WARNING]"),
+      the repro renders as a fenced ```csharp code block, and the terms render as a definition-style list.
+      Use the serializer's shape types (Callout, CodeSection, Description) as model properties. Build and run to
+      confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT20/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT20/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutIgnoreInTable
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*> \[!WARNING\])(?=[\s\S]*Upgrade to 13\.0\.3)(?=[\s\S]*```csharp)(?=[\s\S]*\*\*CVSS:\*\*
+            8\.1)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT21: multi-source comparison matrix with verdicts'
+    tags:
+      skill: markout-composite-cells-cards
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain ModelComparison
+      whose rows compare a "baseline" and a "grounded" source across several metrics, using composite cells (Fraction, Share, Percent, Segments) and a Verdict. Using the serializer, render a "##
+      Results" Markdown matrix where the two sources pivot to COLUMNS and each metric is a row (the label
+      column headed "Metric"). Use the serializer's MultiSourceRow / Source / Verdict shapes rather than a
+      hand-built table. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT21/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT21/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MultiSourceRow
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: Verdict
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*\| Metric \| baseline \| grounded \|)(?=[\s\S]*4/6[\s\S]*6/6)(?=[\s\S]*5056 \(24%\))(?=[\s\S]*67%)(?=[\s\S]*hedged)(?=[\s\S]*clean)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 15m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT22: full composed inspection report'
+    tags:
+      skill: markout-conditional-composition
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageInfo.
+      Using the serializer, print ONE Markdown report composed of these sections in order:
+        1. an H1 = Id, then a field table where Downloads is thousands-separated AND suffixed with the
+           word "downloads" as one cell (label text produced by the formatter, not concatenated), and
+           Signed is Yes/No
+        2. a "## Deprecations" section, shown only when the package has deprecations
+        3. a "## Dependencies" table whose "Optional" column is hidden when all deps are required
+        4. a "## Signals" section rendering an API table when the package exposes APIs, or a types table
+           when it is types-only (exactly one variant, under the same heading)
+      A single rendering definition must drive all of it. Drive output through the serializer; do not
+      hand-write headings or tables. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT22/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT22/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: ShowWhenProperty
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutIgnoreColumnWhen
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*5,100,000,000 downloads)(?=[\s\S]*\| Signed \| Yes \|)(?=[\s\S]*## Deprecations[\s\S]*##
+            Dependencies[\s\S]*## Signals)(?=[\s\S]*\| Optional \|)(?=[\s\S]*JsonConvert\.SerializeObject)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 20m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT23: dense composite cell that decomposes into columns'
+    tags:
+      skill: markout-output-formats
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain BenchReport
+      whose rows each carry a before -> after change value (a Change cell). Using the serializer, print
+      the SAME model THREE ways: as Markdown (each change shown DENSELY in one cell, e.g. "98555 -> 61190
+      (-38%)"), as TSV, and as JSONL — where the structured (TSV/JSONL) outputs DECOMPOSE each change
+      into separate typed columns (before / after / delta). Annotate the change so the delta is a signed
+      percent. Do not hand-build any format. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT23/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT23/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutDelta
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*98555 → 61190 \(-38%\))(?=[\s\S]*ops_before\tops_after\tops_delta_pct)(?=[\s\S]*"ops_delta_pct":-38)[\s\S]*
+          timeout: 2m
+    constraints:
+      max_duration: 20m
+      reject_tools:
+        - web_search
+        - web_fetch
+  - name: 'CT24: section-targeted verbosity views from one model (-D / -S)'
+    tags:
+      skill: markout-conditional-composition
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj). Program.cs holds one plain PackageReport
+      with scalar fields and two detail sections (Dependencies, Diagnostics), where Diagnostics is the
+      deepest/most expensive detail. Using the serializer, print THREE reports from ONE model definition:
+        1. a quiet report (title + scalars only, no detail sections);
+        2. a report that targets ONLY the Diagnostics section by name — render Diagnostics and NOT
+           Dependencies;
+        3. a detailed report that includes both Dependencies and Diagnostics.
+      Select the rendered sections at serialize time (IncludeSections). Do not hand-write omitted
+      sections. Build and run to confirm.
+    environment:
+      files:
+        - src: fixtures/ct/CT24/Report.csproj
+          dest: Report.csproj
+        - src: fixtures/ct/CT24/Program.cs
+          dest: Program.cs
+    graders:
+      - type: completed
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - build
+          expected_exit_code: 0
+          timeout: 10m
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: MarkoutSerializer.Serialize
+      - type: file-contains
+        config:
+          path: '*.cs'
+          value: IncludeSections
+      - type: file-not-contains
+        config:
+          path: Program.cs
+          value: '| ---'
+      - type: run-command
+        config:
+          command: dotnet
+          args:
+            - run
+            - --no-build
+          expected_exit_code: 0
+          stdout_matches: (?=[\s\S]*transitive version conflict)(?=[\s\S]*## Diagnostics[\s\S]*## Diagnostics)^(?:(?!## Dependencies)[\s\S])*##
+            Dependencies(?:(?!## Dependencies)[\s\S])*$
+          timeout: 2m
+    constraints:
+      max_duration: 20m
+      reject_tools:
+        - web_search
+        - web_fetch
+scoring:
+  threshold: 1.0

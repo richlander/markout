@@ -1,0 +1,25 @@
+# Controlled A/B experiment: identical eval, model, fixtures, and graders; only the skill set varies.
+name: markout-skills-ab
+evals:
+  - eval-valley.yaml
+
+vary:
+  - /environment/skills
+
+baseline: without-skills
+variants:
+  without-skills:
+    environment:
+      skills: []
+
+  with-skills:
+    environment:
+      skills:
+        - ../../skills/markout
+        - ../../skills/markout-conditional-composition
+        - ../../skills/markout-output-formats
+        - ../../skills/markout-built-in-shapes
+        - ../../skills/markout-composite-cells-cards
+
+execution:
+  workers: 2
