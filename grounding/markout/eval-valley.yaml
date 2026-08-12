@@ -6,8 +6,9 @@
 #   npx @microsoft/vally-cli compare vally-experiment-results/<run-directory> --verbose
 #
 # This shared eval declares no skills. The experiment supplies either no skills (baseline) or all five
-# skills (treatment). Graders intentionally measure only completion, source, build, and output outcomes
-# so both variants are scored by identical rules.
+# skills (treatment). Scenario prompts, fixtures, rubrics, assertions, and timeouts mirror eval.yaml;
+# only their representation changes to Vally's current schema. A common completion health gate is added
+# to both experiment arms.
 # Fixtures remain pinned to Markout 0.23.0 so results stay comparable with the existing benchmark.
 # CT25/CT26 remain held out because they target a skill that is not shipped in the current shelf.
 name: markout-ct24
@@ -46,14 +47,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutContext
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutContext
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -67,11 +84,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*# Web\.Api)(?=[\s\S]*\| Configuration \| Release \|)(?=[\s\S]*\| Warnings \| 3 \|)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Registers the model on a partial MarkoutSerializerContext and drives output through MarkoutSerializer.Serialize
+      - Uses TitleProperty for the H1 and lets scalars render as Field | Value rows — does NOT hand-write headings or tables
+      - Builds and prints the report
   - name: 'CT02: scalar cell formatters (number, date, bool)'
     tags:
       skill: markout
@@ -102,14 +126,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutBoolFormat
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutBoolFormat
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -121,14 +161,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*# Newtonsoft\.Json)(?=[\s\S]*5,100,000,000 downloads)(?=[\s\S]*2023-03-08)(?=[\s\S]*\|
-            Signed \| Yes \|)[\s\S]*
+          stdout_matches: (?=[\s\S]*# Newtonsoft\.Json)(?=[\s\S]*5,100,000,000 downloads)(?=[\s\S]*2023-03-08)(?=[\s\S]*\| Signed \| Yes \|)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Produces the Downloads cell (thousands-separated value + the word "downloads") through a declarative formatter — any of [MarkoutDisplayFormat("{0:N0} downloads")], [MarkoutFormat] with a literal-section numeric format, or a custom IMarkoutCell + [MarkoutUnit] — plus [MarkoutBoolFormat("Yes","No")] for the flag and a format for the ISO date
+      - Formatting lives on the view via attributes — does NOT inline ToString/string.Format/ternary
+      - Drives output through the serializer; builds and prints the formatted table
   - name: 'CT03: rename and hide fields'
     tags:
       skill: markout
@@ -153,18 +199,42 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutPropertyName
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutPropertyName
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutIgnore
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutIgnore
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -178,11 +248,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*# Integration)(?=[\s\S]*\| Total \| 214 \|)(?=[\s\S]*\| Passed \| 210 \|)(?![\s\S]*InternalRunId)(?![\s\S]*TotalTests)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses [MarkoutPropertyName("Total")] to rename and [MarkoutIgnore] to hide the id field
+      - Output shows 'Total' (not 'TotalTests') and no InternalRunId row
+      - Drives output through the serializer; does NOT hand-write the table
   - name: 'CT04: simple list section'
     tags:
       skill: markout
@@ -207,14 +284,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSection
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSection
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -226,14 +319,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*# Web\.Api)(?=[\s\S]*## Dependencies)(?=[\s\S]*\| Serilog \| 3\.1\.1 \|)(?=[\s\S]*\| Polly
-            \| 8\.2\.0 \|)[\s\S]*
+          stdout_matches: (?=[\s\S]*# Web\.Api)(?=[\s\S]*## Dependencies)(?=[\s\S]*\| Serilog \| 3\.1\.1 \|)(?=[\s\S]*\| Polly \| 8\.2\.0 \|)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses [MarkoutSection(Name = "Dependencies")] on the List<T> so it renders as a titled table
+      - Registers the element type on the context; both rows render
+      - Drives output through the serializer; does NOT hand-write the heading or table
   - name: 'CT05: one model, two output formats (Markdown + plain text)'
     tags:
       skill: markout
@@ -259,14 +358,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: PlainTextFormatter
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - PlainTextFormatter
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -278,14 +393,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*# v2\.4\.0)(?=[\s\S]*Field {2,}Value)(?=[\s\S]*-{4,} +-{3,})(?=[\s\S]*\| Commits \| 87
-            \|)[\s\S]*
+          stdout_matches: (?=[\s\S]*# v2\.4\.0)(?=[\s\S]*Field {2,}Value)(?=[\s\S]*-{4,} +-{3,})(?=[\s\S]*\| Commits \| 87 \|)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Renders ONE model twice, passing a PlainTextFormatter for the second (ASCII, space-aligned) rendering
+      - Markdown output uses '#'/pipe tables; plain-text output is space-aligned with ASCII rules (no pipe table, no Unicode box-drawing)
+      - Drives both through the serializer; does NOT hand-write either format
   - name: 'CT06: description paragraph + inline field layout'
     tags:
       skill: markout
@@ -311,18 +432,42 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: FieldLayout
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - FieldLayout
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: DescriptionProperty
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - DescriptionProperty
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -334,14 +479,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: '(?=[\s\S]*# Auth Service)(?=[\s\S]*Issues and validates access tokens)(?=[\s\S]*Owner: Platform
-            Team)(?=[\s\S]*Status: Healthy)(?![\s\S]*\| Owner \|)[\s\S]*'
+          stdout_matches: '(?=[\s\S]*# Auth Service)(?=[\s\S]*Issues and validates access tokens)(?=[\s\S]*Owner: Platform Team)(?=[\s\S]*Status: Healthy)(?![\s\S]*\| Owner \|)[\s\S]*'
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses TitleProperty, DescriptionProperty, and FieldLayout = FieldLayout.Inline on [MarkoutSerializable]
+      - Summary is a paragraph; Owner/Status render inline, NOT as a Field | Value table
+      - Drives output through the serializer
   - name: 'CT07: conditional section via ShowWhenProperty'
     tags:
       skill: markout-conditional-composition
@@ -367,14 +518,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: ShowWhenProperty
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - ShowWhenProperty
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -386,14 +553,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*# Newtonsoft\.Json)(?=[\s\S]*# System\.Text\.Json)(?=[\s\S]*JsonConvert)^(?:(?!## Deprecations)[\s\S])*##
-            Deprecations(?:(?!## Deprecations)[\s\S])*$
+          stdout_matches: (?=[\s\S]*# Newtonsoft\.Json)(?=[\s\S]*# System\.Text\.Json)(?=[\s\S]*JsonConvert)^(?:(?!## Deprecations)[\s\S])*## Deprecations(?:(?!## Deprecations)[\s\S])*$
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Defines ONE view with [MarkoutSection(ShowWhenProperty = ...)] that both packages flow through
+      - The Deprecations section renders for the deprecated package and is omitted for the clean one (appears exactly once total)
+      - Uses the declarative gate — does NOT hand-write or imperatively gate the section
   - name: 'CT08: render a section subset with IncludeSections'
     tags:
       skill: markout-conditional-composition
@@ -419,14 +592,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: IncludeSections
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - IncludeSections
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -438,14 +627,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*latency spike)(?=^(?:(?!## Incidents)[\s\S])*## Incidents(?:(?!## Incidents)[\s\S])*$)(?=^(?:(?!##
-            Metrics)[\s\S])*## Metrics(?:(?!## Metrics)[\s\S])*$)
+          stdout_matches: (?=[\s\S]*latency spike)(?=^(?:(?!## Incidents)[\s\S])*## Incidents(?:(?!## Incidents)[\s\S])*$)(?=^(?:(?!## Metrics)[\s\S])*## Metrics(?:(?!## Metrics)[\s\S])*$)
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Renders one model twice, using MarkoutWriterOptions.IncludeSections to select which sections appear
+      - Quiet omits both sections; full includes each exactly once (each heading appears exactly once total)
+      - Does not fork into two models or hand-write sections
   - name: 'CT09: machine-readable TSV output'
     tags:
       skill: markout-output-formats
@@ -469,14 +664,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: TableMode
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - TableMode
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -490,11 +701,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*name\trole\tstatus)(?=[\s\S]*Ada\tLead\tActive)(?![\s\S]*\| Name \|)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses a TableFormatter with MarkoutWriterOptions.TableMode = MarkoutTableMode.Tsv
+      - Output is tab-delimited with a header row; no Markdown pipe table
+      - Does NOT hand-build the TSV
   - name: 'CT10: metric bars and a breakdown'
     tags:
       skill: markout-built-in-shapes
@@ -519,14 +737,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: UnicodeFormatter
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - UnicodeFormatter
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -540,11 +774,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*Build Performance)(?=[\s\S]*Restore[\s\S]*█)(?=[\s\S]*Compile[\s\S]*█)(?=[\s\S]*Test[\s\S]*█)(?=[\s\S]*Coverage[\s\S]*█)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses Metric (and Breakdown/Slice) shape types as model properties, rendered via a UnicodeFormatter
+      - Terminal output shows the timing metric bars (block glyphs) and the coverage rendered as a proportional breakdown bar (Unicode breakdown shows the group label + bar, not per-slice text labels)
+      - Does NOT hand-build the bars/rows
   - name: 'CT11: before -> after change cells'
     tags:
       skill: markout-composite-cells-cards
@@ -569,14 +810,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutDelta
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutDelta
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -590,11 +847,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*12 → 3 \(-9\))(?=[\s\S]*78 → 85 \(\+7\))[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Models each value as a Change<int> cell with [MarkoutDelta(Delta.Absolute)]
+      - Output shows 'before → after (signed delta)' for each row
+      - Does NOT hand-format the arrow or delta
   - name: 'CT12: conditional table column via IgnoreColumnWhen'
     tags:
       skill: markout-conditional-composition
@@ -621,14 +885,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutIgnoreColumnWhen
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutIgnoreColumnWhen
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -642,11 +922,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*# Serilog)(?=[\s\S]*# MyApp)(?=[\s\S]*BenchmarkDotNet)^(?:(?!Optional)[\s\S])*Optional(?:(?!Optional)[\s\S])*$
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Applies [MarkoutIgnoreColumnWhen(nameof(<predicate>), "Optional")] with a static bool predicate that hides the column when values are uniform
+      - Optional column is absent for the all-required package and present for the mixed one (appears exactly once total)
+      - Does NOT hand-write or imperatively gate the column
   - name: 'CT13: verbosity-gated detail sections (quiet vs verbose)'
     tags:
       skill: markout-conditional-composition
@@ -672,14 +959,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-matches
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          pattern: ShowWhenProperty|IncludeSections
+          command: grep
+          args:
+            - -rqE
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - ShowWhenProperty|IncludeSections
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -691,14 +994,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*logging)(?=^(?:(?!## Dependencies)[\s\S])*## Dependencies(?:(?!## Dependencies)[\s\S])*$)(?=^(?:(?!##
-            Tags)[\s\S])*## Tags(?:(?!## Tags)[\s\S])*$)
+          stdout_matches: (?=[\s\S]*logging)(?=^(?:(?!## Dependencies)[\s\S])*## Dependencies(?:(?!## Dependencies)[\s\S])*$)(?=^(?:(?!## Tags)[\s\S])*## Tags(?:(?!## Tags)[\s\S])*$)
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Declares the detail sections once, each gated by a verbosity flag (via ShowWhenProperty or IncludeSections)
+      - 'Renders the same model twice: quiet omits both; verbose includes each exactly once'
+      - Does not fork into two models or hand-write the sections
   - name: 'CT14: JSONL with typed numeric values'
     tags:
       skill: markout-output-formats
@@ -723,14 +1032,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: JsonTypedValues
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - JsonTypedValues
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -744,11 +1069,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*"ops_per_sec":1250000)(?=[\s\S]*"allocated_kb":1\.4)(?![\s\S]*"ops_per_sec":"1250000")[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses TableFormatter with TableMode = MarkoutTableMode.Jsonl and MarkoutWriterOptions.JsonTypedValues = true
+      - Numeric columns are emitted as JSON numbers (unquoted); one object per line
+      - Does NOT hand-build the JSON
   - name: 'CT15: dependency tree with badges'
     tags:
       skill: markout-built-in-shapes
@@ -773,14 +1105,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: UnicodeFormatter
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - UnicodeFormatter
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -794,11 +1142,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*MyApp)(?=[\s\S]*└─)(?=[\s\S]*Serilog\.Sinks\.Console)(?=[\s\S]*✓)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Renders the TreeNode hierarchy via a UnicodeFormatter (branch connectors like └─/├─)
+      - Nested children render under their parents and badges appear next to nodes
+      - Uses the tree shape — does NOT hand-build indentation
   - name: 'CT16: gated metric-change card with goals'
     tags:
       skill: markout-composite-cells-cards
@@ -824,18 +1179,42 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MetricChange
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MetricChange
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: Goal
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - Goal
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -849,11 +1228,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*Failures \(-\))(?=[\s\S]*7 → 0 \(good\))(?=[\s\S]*Coverage \(\+\))(?=[\s\S]*85 \(good\))[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses List<MetricChange<int>> with { Goal = Goal.Lower } / { Goal = Goal.Higher } to derive polarity
+      - Card shows the goal marker on the label ((-)/(+)) and an inline good/bad status per row
+      - Does NOT compute status/direction by hand
   - name: 'CT17: same-name polymorphic sections (one heading, two shapes)'
     tags:
       skill: markout-conditional-composition
@@ -879,14 +1265,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: ShowWhenProperty
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - ShowWhenProperty
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -898,14 +1300,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*## Signals[\s\S]*## Signals)(?=[\s\S]*\| Member \| Kind \|)(?=[\s\S]*\| Type Name \| Category
-            \|)[\s\S]*
+          stdout_matches: (?=[\s\S]*## Signals[\s\S]*## Signals)(?=[\s\S]*\| Member \| Kind \|)(?=[\s\S]*\| Type Name \| Category \|)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Declares TWO sections with the same Name = "Signals" and mutually-exclusive ShowWhenProperty gates
+      - Each package shows exactly one Signals variant (API table for one, types table for the other)
+      - Uses declarative gates — does NOT hand-write headings or imperatively branch the output
   - name: 'CT18: one model rendered at three verbosity levels'
     tags:
       skill: markout-conditional-composition
@@ -931,14 +1339,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: IncludeSections
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - IncludeSections
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -950,14 +1374,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*## Dependencies)(?=[\s\S]*transitive version conflict)^(?:(?!## Diagnostics)[\s\S])*##
-            Diagnostics(?:(?!## Diagnostics)[\s\S])*$
+          stdout_matches: (?=[\s\S]*## Dependencies)(?=[\s\S]*transitive version conflict)^(?:(?!## Diagnostics)[\s\S])*## Diagnostics(?:(?!## Diagnostics)[\s\S])*$
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Renders one model at three levels via MarkoutWriterOptions.IncludeSections (progressively adding sections)
+      - Diagnostics appears only in the detailed render (exactly once total); Dependencies appears in normal and detailed
+      - Does not define separate models or hand-write sections
   - name: 'CT19: central multi-format dispatch with row cap'
     tags:
       skill: markout-output-formats
@@ -983,18 +1413,42 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MaxItems
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MaxItems
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: TableMode
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - TableMode
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -1008,11 +1462,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*and 2 more)(?=[\s\S]*package\tdownloads)(?=[\s\S]*\{"package":"Serilog")[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 20m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - One reusable dispatch selects formatter + MarkoutWriterOptions per format (Markdown/TSV/JSONL) for one model
+      - Markdown render is capped via MaxItems (shows a truncation notice); TSV is tab-delimited; JSONL is one object per line
+      - Does NOT hand-build any format or duplicate the model
   - name: 'CT20: advisory with a callout, code block, and definitions'
     tags:
       skill: markout-built-in-shapes
@@ -1038,14 +1499,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutIgnoreInTable
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutIgnoreInTable
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -1057,14 +1534,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*> \[!WARNING\])(?=[\s\S]*Upgrade to 13\.0\.3)(?=[\s\S]*```csharp)(?=[\s\S]*\*\*CVSS:\*\*
-            8\.1)[\s\S]*
+          stdout_matches: (?=[\s\S]*> \[!WARNING\])(?=[\s\S]*Upgrade to 13\.0\.3)(?=[\s\S]*```csharp)(?=[\s\S]*\*\*CVSS:\*\* 8\.1)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses Callout, CodeSection, and Description shape types as model properties (with MarkoutIgnoreInTable on the non-tabular list)
+      - Callout renders as a GitHub alert, repro as a fenced csharp code block, terms as a definition list
+      - Does NOT hand-write the alert/code fence/definitions
   - name: 'CT21: multi-source comparison matrix with verdicts'
     tags:
       skill: markout-composite-cells-cards
@@ -1089,18 +1572,42 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MultiSourceRow
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MultiSourceRow
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: Verdict
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - Verdict
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -1114,11 +1621,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*\| Metric \| baseline \| grounded \|)(?=[\s\S]*4/6[\s\S]*6/6)(?=[\s\S]*5056 \(24%\))(?=[\s\S]*67%)(?=[\s\S]*hedged)(?=[\s\S]*clean)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 15m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Uses List<MultiSourceRow> with Source values (Fraction/Share/Percent/Segments) and Verdict; roles pivot to columns
+      - Label column is headed 'Metric'; baseline/grounded appear as columns with the composite cells rendered
+      - Does NOT hand-build the matrix
   - name: 'CT22: full composed inspection report'
     tags:
       skill: markout-conditional-composition
@@ -1149,18 +1663,42 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: ShowWhenProperty
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - ShowWhenProperty
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutIgnoreColumnWhen
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutIgnoreColumnWhen
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -1172,14 +1710,20 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*5,100,000,000 downloads)(?=[\s\S]*\| Signed \| Yes \|)(?=[\s\S]*## Deprecations[\s\S]*##
-            Dependencies[\s\S]*## Signals)(?=[\s\S]*\| Optional \|)(?=[\s\S]*JsonConvert\.SerializeObject)[\s\S]*
+          stdout_matches: (?=[\s\S]*5,100,000,000 downloads)(?=[\s\S]*\| Signed \| Yes \|)(?=[\s\S]*## Deprecations[\s\S]*## Dependencies[\s\S]*## Signals)(?=[\s\S]*\| Optional \|)(?=[\s\S]*JsonConvert\.SerializeObject)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 20m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - 'Composes all four sections in order through ONE view: formatted fields, conditional Deprecations, Dependencies with a conditional Optional column, and a polymorphic Signals section'
+      - Uses declarative attributes throughout (formatters, ShowWhenProperty, IgnoreColumnWhen, same-name Signals gates)
+      - Does NOT hand-write headings or tables; builds and prints the composed report
   - name: 'CT23: dense composite cell that decomposes into columns'
     tags:
       skill: markout-output-formats
@@ -1205,14 +1749,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutDelta
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutDelta
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -1226,11 +1786,18 @@ stimuli:
           expected_exit_code: 0
           stdout_matches: (?=[\s\S]*98555 → 61190 \(-38%\))(?=[\s\S]*ops_before\tops_after\tops_delta_pct)(?=[\s\S]*"ops_delta_pct":-38)[\s\S]*
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 20m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - Models the change as a Change<V> cell with [MarkoutDelta(Delta.Percent)]; Markdown shows the dense cell
+      - TSV/JSONL decompose the cell into {col}_before / {col}_after / {col}_delta_pct columns from one declaration
+      - Does NOT hand-build any of the three formats
   - name: 'CT24: section-targeted verbosity views from one model (-D / -S)'
     tags:
       skill: markout-conditional-composition
@@ -1259,14 +1826,30 @@ stimuli:
             - build
           expected_exit_code: 0
           timeout: 10m
-      - type: file-contains
+      - type: run-command
         config:
-          path: '*.cs'
-          value: MarkoutSerializer.Serialize
-      - type: file-contains
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - MarkoutSerializer.Serialize
+            - .
+          expected_exit_code: 0
+          timeout: 30s
+      - type: run-command
         config:
-          path: '*.cs'
-          value: IncludeSections
+          command: grep
+          args:
+            - -rq
+            - --include=*.cs
+            - --exclude-dir=obj
+            - --exclude-dir=bin
+            - IncludeSections
+            - .
+          expected_exit_code: 0
+          timeout: 30s
       - type: file-not-contains
         config:
           path: Program.cs
@@ -1278,13 +1861,19 @@ stimuli:
             - run
             - --no-build
           expected_exit_code: 0
-          stdout_matches: (?=[\s\S]*transitive version conflict)(?=[\s\S]*## Diagnostics[\s\S]*## Diagnostics)^(?:(?!## Dependencies)[\s\S])*##
-            Dependencies(?:(?!## Dependencies)[\s\S])*$
+          stdout_matches: (?=[\s\S]*transitive version conflict)(?=[\s\S]*## Diagnostics[\s\S]*## Diagnostics)^(?:(?!## Dependencies)[\s\S])*## Dependencies(?:(?!## Dependencies)[\s\S])*$
           timeout: 2m
+      - type: prompt
+        config:
+          scoring: binary
     constraints:
       max_duration: 20m
       reject_tools:
         - web_search
         - web_fetch
+    rubric:
+      - A section-targeted request renders ONLY the requested section
+      - Diagnostics appears in both the targeted render and the detailed render (>= twice); Dependencies appears only in the detailed render (exactly once total)
+      - Section selection uses IncludeSections; omitted sections are never hand-written
 scoring:
   threshold: 1.0
