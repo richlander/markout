@@ -876,3 +876,124 @@ scenarios:
       - "The quiet selector gathers neither section (no scans run)"
       - "The all selector renders and gathers both; collection is gated per requested section (backpressure), selection uses IncludeSections"
     timeout: 1200
+
+  # ── CT27-CT29: adopter-driven held-outs from markout#149. These are current 0.35.2 idioms
+  #    that were absent from CT-24. Keep them held out until their marginal skill value is measured.
+  #    CT28 replaces the removed MarkoutInline.Code API with its current format-neutral semantic tag.
+  - name: "CT27: typed custom value formatter"
+    held_out: true
+    expected_skill: markout
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj).
+      Program.cs holds a PackageStats object whose PackageSizeBytes property must remain a long.
+      Render a Markdown report with the package id as the H1 and a "Package Size" field whose value
+      is formatted as a human-readable binary size ("2.3 MB"). Implement a typed custom formatter
+      for long values and wire it to the property with the serializer's formatter attribute. Do not
+      replace the long with a preformatted string, format it in a getter, or hand-write Markdown.
+      Build and run to confirm.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT27/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT27/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through the serializer.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Implement a typed custom formatter for long values.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin 'IMarkoutValueFormatter<long>' .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Wire the formatter to the numeric property with the serializer attribute.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin '[MarkoutValueFormatter(' .", expected_exit_code: 0, command_timeout: 30 }
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the package id and human-readable package size."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*# Acme\\.Tools)(?=[\\s\\S]*\\| Package Size \\| 2\\.3 MB \\|)[\\s\\S]*"
+        command_timeout: 120
+    rubric:
+      - "Implements IMarkoutValueFormatter<long> and wires it with [MarkoutValueFormatter(typeof(...))]"
+      - "Keeps PackageSizeBytes numeric; formatting is not baked into the model value or getter"
+      - "Renders the report through the generated serializer context"
+    timeout: 900
+
+  - name: "CT28: semantic inline code across Markdown and JSONL"
+    held_out: true
+    expected_skill: markout-output-formats
+    prompt: |
+      This console project references a source-generated .NET serializer with Markdown and JSONL
+      output (see the .csproj). Program.cs holds one command and one generic API signature as plain
+      strings. Render Markdown by default and typed JSON Lines when the `jsonl` argument is present,
+      using one annotated report model and generated serializer context. In Markdown, both values
+      must render as inline code spans. Store format-neutral semantic inline-code tags in the values,
+      XML-escaping the generic angle brackets; do not store raw Markdown backticks. In JSONL, the
+      same values must be decoded plain text with no tags or backticks. Do not hand-write Markdown
+      or JSON. Build and run both modes.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT28/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT28/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive both formats through the serializer.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Store format-neutral semantic inline-code tags in the values.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin '<code>' .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "XML-escape generic angle brackets inside semantic code tags.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin '&lt;' .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Do not store raw Markdown backticks.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin '`' .", expected_exit_code: 1, command_timeout: 30 }
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render both values as Markdown inline code spans."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*\\| `dotnet test` \\| `List<T> Parse<T>\\(string input\\)` \\|)[\\s\\S]*"
+        command_timeout: 120
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render decoded plain-text values as JSON Lines with no tags or backticks."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build -- jsonl"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*\"command\":\"dotnet test\")(?=[\\s\\S]*\"signature\":\"List<T> Parse<T>\\(string input\\)\")(?![\\s\\S]*<code>)(?![\\s\\S]*`)[\\s\\S]*"
+        command_timeout: 120
+    rubric:
+      - "Uses <code>...</code> semantic tags with XML-escaped generic brackets, never raw backticks"
+      - "Markdown renders code spans while JSONL emits decoded plain text from the same values"
+      - "Routes both formats through one serializer context; does not hand-write Markdown or JSON"
+    timeout: 900
+
+  - name: "CT29: context-level suppression of expected table warnings"
+    held_out: true
+    expected_skill: markout
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj).
+      Program.cs holds a DependencyReport plus domain types from a dependency that cannot be
+      annotated. DependencyGroup contains a nested Packages collection, so registering it normally
+      produces the expected MARKOUT001 table warning. Render the full report, including target
+      framework and package rows, and configure the generated serializer context to suppress
+      expected table warnings globally. Do not modify DependencyGroup with a per-property ignore
+      attribute, use a pragma, or hand-write Markdown. Build with MARKOUT001 treated as an error and
+      run to confirm.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT29/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT29/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Suppress MARKOUT001 through the generated serializer context.", command_to_run: "dotnet", command_arguments: "build -warnaserror:MARKOUT001", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Configure context-level serializer options.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutContextOptions .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Enable SuppressTableWarnings on the context.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin 'SuppressTableWarnings *= *true' .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not modify the domain property with a per-property ignore.", path: "Program.cs", value: "MarkoutIgnoreInTable" }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not suppress the warning with a pragma.", path: "Program.cs", value: "#pragma" }
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render target framework and nested package rows."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?m)(?=[\\s\\S]*# Dependencies)(?=[\\s\\S]*^### net10\\.0$)(?=[\\s\\S]*\\| Markout \\| 0\\.35\\.2 \\|)(?=[\\s\\S]*\\| Spectre\\.Console \\| 0\\.49\\.1 \\|)[\\s\\S]*"
+        command_timeout: 120
+    rubric:
+      - "Uses [MarkoutContextOptions(SuppressTableWarnings = true)] on the generated context"
+      - "Does not alter the dependency-owned domain type with [MarkoutIgnoreInTable] or a pragma"
+      - "Renders the complete nested report through the serializer while MARKOUT001 is treated as an error"
+    timeout: 900
