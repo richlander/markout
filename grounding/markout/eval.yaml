@@ -997,3 +997,155 @@ scenarios:
       - "Does not alter the dependency-owned domain type with [MarkoutIgnoreInTable] or a pragma"
       - "Renders the complete nested report through the serializer while MARKOUT001 is treated as an error"
     timeout: 900
+
+  # ── CT30-CT33: held-out gaps recovered from the superseded AGENTS.md coverage oracle. ──
+  - name: "CT30: numeric formatting for Change cells"
+    held_out: true
+    expected_skill: markout-composite-cells-cards
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj).
+      Program.cs holds a NumberFormatReport with a numeric Change<int> from 165 to 1168. Keep that
+      property strongly typed and render "Build Delta" as the H1 plus a Methods field whose before,
+      after, and absolute delta all use the N0 numeric format: "165 → 1,168 (+1,003)". Apply the
+      serializer's number-format attribute to the Change cell; do not preformat the operands or
+      delta, replace Change<int> with a string, or hand-write Markdown. Build and run to confirm.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT30/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT30/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through the serializer.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Keep the report value as a typed Change<int> cell.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin Change<int> .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Apply the serializer's numeric format attribute.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutNumberFormat .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not format N0 manually in a getter or helper.", path: "Program.cs", value: "ToString(\"N0\")" }
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the grouped operands and absolute delta."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*# Build Delta)(?=[\\s\\S]*\\| Methods \\| 165 → 1,168 \\(\\+1,003\\) \\|)[\\s\\S]*"
+        command_timeout: 120
+    rubric:
+      - "Uses [MarkoutNumberFormat(\"N0\")] on a Change<int> cell"
+      - "Keeps operands and delta numeric so structured decomposition remains available"
+      - "Renders grouped before, after, and absolute-delta values through the serializer"
+    timeout: 900
+
+  - name: "CT31: recover from MARKOUT006 with a visible table column"
+    held_out: true
+    expected_skill: markout
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj)
+      and currently fails with MARKOUT006 because PackageRow has no visible table columns. Preserve
+      Rows as a List<PackageRow>, keep InternalId excluded, and fix the model by exposing Name as the
+      visible "Package" column. Render "Packages" as the H1 and an Inventory table containing Markout
+      and Spectre.Console. Do not suppress the diagnostic with a pragma or project setting, remove
+      the Rows collection, or hand-write Markdown. Build and run to confirm.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT31/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT31/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build after correcting the row model.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Keep the package rows as a typed collection.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin List<PackageRow> .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through the serializer.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not suppress MARKOUT006 with a pragma.", path: "Program.cs", value: "#pragma" }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not suppress MARKOUT006 in the project.", path: "Report.csproj", value: "NoWarn" }
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the visible package column while keeping InternalId hidden."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?m)(?=[\\s\\S]*# Packages)(?=[\\s\\S]*^## Inventory$)(?=[\\s\\S]*\\| Package \\|)(?=[\\s\\S]*\\| Markout \\|)(?=[\\s\\S]*\\| Spectre\\.Console \\|)(?![\\s\\S]*Internal Id)[\\s\\S]*"
+        command_timeout: 120
+    rubric:
+      - "Recovers from MARKOUT006 by exposing a real scalar table column"
+      - "Preserves List<PackageRow> and keeps the internal identifier excluded"
+      - "Does not bypass the diagnostic, collection, or serializer"
+    timeout: 900
+
+  - name: "CT32: semantic child rows in an element table"
+    held_out: true
+    expected_skill: markout
+    prompt: |
+      This console project references a source-generated .NET Markdown serializer (see the .csproj).
+      Program.cs holds an OrganizationReport whose IsChild bool marks Runtime and Tools as children
+      of Platform. Render "Organization" as the H1 and a Teams table where true rows receive the
+      serializer's child-row prefix in the first visible cell, while IsChild itself is not a column.
+      Mark the bool with the serializer's semantic child attribute; do not embed an arrow/glyph in
+      Name values or hand-write Markdown. Build and run to confirm.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT32/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT32/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through the serializer.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Mark the bool as the semantic child-row flag.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutChild .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Keep IsChild as a typed bool.", command_to_run: "grep", command_arguments: "-Erq --include=*.cs --exclude-dir=obj --exclude-dir=bin bool[[:space:]]+IsChild .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not embed the child glyph in source values.", path: "Program.cs", value: "↳" }
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render nested rows without an IsChild column."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*# Organization)(?=[\\s\\S]*\\| Name \\| Count \\|)(?=[\\s\\S]*\\| Platform \\| 12 \\|)(?=[\\s\\S]*\\| ↳ Runtime \\| 5 \\|)(?=[\\s\\S]*\\| ↳ Tools \\| 3 \\|)(?![\\s\\S]*Is Child)[\\s\\S]*"
+        command_timeout: 120
+    rubric:
+      - "Uses [MarkoutChild] on the bool child flag"
+      - "Child rows receive the serializer glyph while the flag is omitted as a column"
+      - "Does not encode hierarchy in Name strings or hand-written Markdown"
+    timeout: 900
+
+  - name: "CT33: conditional emphasis across Markdown and TSV"
+    held_out: true
+    expected_skills:
+      - markout-composite-cells-cards
+      - markout-output-formats
+    prompt: |
+      This console project references a source-generated .NET serializer with Markdown and TSV
+      output (see the .csproj). Program.cs holds a MultiSourceRow scalar series for mini=5, mid=1,
+      and frontier=0. Render Markdown by default and TSV for the `tsv` argument through one model and
+      generated context, with the label column headed "Metric". Declaratively emphasize values at
+      least 2: Markdown must bold only 5 while preserving the goal and polarity glyphs; TSV must emit
+      the same raw numeric series with no Markdown markers. Use MarkoutEmphasis rather than adding
+      bold markers to labels or values. Build and run both modes.
+    setup:
+      files:
+        - { path: Report.csproj, source: fixtures/ct/CT33/Report.csproj }
+        - { path: Program.cs,    source: fixtures/ct/CT33/Program.cs }
+    reject_tools: [web_search, web_fetch]
+    assertions:
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive both formats through the serializer.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Keep the report as a MultiSourceRow series.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MultiSourceRow .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Declare the inclusive emphasis threshold.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutEmphasis.AtLeast( .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hard-code Markdown bold markers.", path: "Program.cs", value: "**" }
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render Markdown with only the qualifying scalar emphasized."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*\\| Metric \\| mini \\| mid \\| frontier \\|)(?=[\\s\\S]*\\| grounded-only unlocks ↑ \\| \\*\\*5\\*\\* \\| 1 ✗ \\| 0 ✗ \\|)(?![\\s\\S]*\\*\\*1\\*\\*)[\\s\\S]*"
+        command_timeout: 120
+      - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render TSV with raw values and no Markdown emphasis markers."
+        command_to_run: "dotnet"
+        command_arguments: "run --no-build -- tsv"
+        expected_exit_code: 0
+        expected_std_output_matches: "(?=[\\s\\S]*metric\\tmini\\tmid\\tfrontier)(?=[\\s\\S]*grounded-only unlocks\\t5\\t1\\t0)(?![\\s\\S]*\\*\\*)[\\s\\S]*"
+        command_timeout: 120
+    rubric:
+      - "Uses MarkoutEmphasis.AtLeast(2) on the MultiSourceRow"
+      - "Markdown emphasizes only qualifying scalar cells and composes with goal/polarity glyphs"
+      - "TSV preserves raw numeric values with no presentation markup"
+    timeout: 1200
