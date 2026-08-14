@@ -899,8 +899,8 @@ scenarios:
     assertions:
       - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
       - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through the serializer.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Implement a typed custom formatter for long values.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin 'IMarkoutValueFormatter<long>' .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Wire the formatter to the numeric property with the serializer attribute.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin '[MarkoutValueFormatter(' .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Implement a typed custom formatter for long values.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IMarkoutValueFormatter<long> .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Wire the formatter to the numeric property with the serializer attribute.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin [MarkoutValueFormatter( .", expected_exit_code: 0, command_timeout: 30 }
       - type: run_command_and_assert
         tier: satisfies
         mini_prompt: "Render the package id and human-readable package size."
@@ -921,12 +921,12 @@ scenarios:
     prompt: |
       This console project references a source-generated .NET serializer with Markdown and JSONL
       output (see the .csproj). Program.cs holds one command and one generic API signature as plain
-      strings. Render Markdown by default and typed JSON Lines when the `jsonl` argument is present,
-      using one annotated report model and generated serializer context. In Markdown, both values
-      must render as inline code spans. Store format-neutral semantic inline-code tags in the values,
-      XML-escaping the generic angle brackets; do not store raw Markdown backticks. In JSONL, the
-      same values must be decoded plain text with no tags or backticks. Do not hand-write Markdown
-      or JSON. Build and run both modes.
+      strings. Render the Rows collection as a one-row Markdown table by default and as typed JSON
+      Lines when the `jsonl` argument is present, using annotated report and row models plus one
+      generated serializer context. In Markdown, both values must render as inline code spans. Store
+      format-neutral semantic inline-code tags in the values, XML-escaping the generic angle brackets;
+      do not store raw Markdown backticks. In JSONL, the same values must be decoded plain text with
+      no tags or backticks. Do not hand-write Markdown or JSON. Build and run both modes.
     setup:
       files:
         - { path: Report.csproj, source: fixtures/ct/CT28/Report.csproj }
@@ -935,9 +935,9 @@ scenarios:
     assertions:
       - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
       - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive both formats through the serializer.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Store format-neutral semantic inline-code tags in the values.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin '<code>' .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, tier: delivers, mini_prompt: "XML-escape generic angle brackets inside semantic code tags.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin '&lt;' .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Do not store raw Markdown backticks.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin '`' .", expected_exit_code: 1, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Store format-neutral semantic inline-code tags in the values.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin <code> .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "XML-escape generic angle brackets inside semantic code tags.", command_to_run: "grep", command_arguments: "-rqF --include=*.cs --exclude-dir=obj --exclude-dir=bin &lt; .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Do not store raw Markdown backticks.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin ` .", expected_exit_code: 1, command_timeout: 30 }
       - type: run_command_and_assert
         tier: satisfies
         mini_prompt: "Render both values as Markdown inline code spans."
@@ -969,9 +969,9 @@ scenarios:
       annotated. DependencyGroup contains a nested Packages collection, so registering it normally
       produces the expected MARKOUT001 table warning. Render the full report, including target
       framework and package rows, and configure the generated serializer context to suppress
-      expected table warnings globally. Do not modify DependencyGroup with a per-property ignore
-      attribute, use a pragma, or hand-write Markdown. Build with MARKOUT001 treated as an error and
-      run to confirm.
+      expected table warnings globally. Render "Dependencies" as the H1 report title. Do not modify
+      DependencyGroup with a per-property ignore attribute, use a pragma, or hand-write Markdown.
+      Build with MARKOUT001 treated as an error and run to confirm.
     setup:
       files:
         - { path: Report.csproj, source: fixtures/ct/CT29/Report.csproj }
@@ -981,7 +981,7 @@ scenarios:
       - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
       - { type: run_command_and_assert, tier: delivers, mini_prompt: "Suppress MARKOUT001 through the generated serializer context.", command_to_run: "dotnet", command_arguments: "build -warnaserror:MARKOUT001", expected_exit_code: 0, command_timeout: 600 }
       - { type: run_command_and_assert, tier: delivers, mini_prompt: "Configure context-level serializer options.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutContextOptions .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Enable SuppressTableWarnings on the context.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin 'SuppressTableWarnings *= *true' .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Enable SuppressTableWarnings on the context.", command_to_run: "grep", command_arguments: "-Erq --include=*.cs --exclude-dir=obj --exclude-dir=bin SuppressTableWarnings[[:space:]]*=[[:space:]]*true .", expected_exit_code: 0, command_timeout: 30 }
       - { type: file_not_contains, tier: delivers, mini_prompt: "Do not modify the domain property with a per-property ignore.", path: "Program.cs", value: "MarkoutIgnoreInTable" }
       - { type: file_not_contains, tier: delivers, mini_prompt: "Do not suppress the warning with a pragma.", path: "Program.cs", value: "#pragma" }
       - type: run_command_and_assert

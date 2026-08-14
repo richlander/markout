@@ -14,9 +14,9 @@ var report = new ApiReport
     },
 };
 
-// TODO: Render Markdown by default and typed JSON Lines for the "jsonl" argument through the
-// referenced serializer. Mark Command and Signature as semantic inline code without storing raw
-// Markdown backticks. JSONL must contain decoded plain text, not tags or Markdown.
+// TODO: Render Rows as a Markdown table by default and typed JSON Lines for the "jsonl" argument
+// through the referenced serializer. Mark Command and Signature as semantic inline code without
+// storing raw Markdown backticks. JSONL must contain decoded plain text, not tags or Markdown.
 
 public sealed class ApiReport
 {
