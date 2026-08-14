@@ -4,7 +4,8 @@ version: 0.35.2
 description: >-
   Use when a single value must render dense in Markdown but decompose into typed columns in
   TSV/JSONL — before/after changes, fractions, shares, percentages, segment breakdowns, deltas
-  and goal polarity — or when building metric / role-matrix / verdict cards from one model
+  and goal polarity — including MarkoutNumberFormat for Change<V> counts — or when building
+  metric / role-matrix / verdict cards with threshold-based MarkoutEmphasis
   (Change<V>, Fraction, Share, Percent, Segments, Delta/Goal, MetricChange<T>, MultiSourceRow,
   Verdict). This is Markout's most advanced tier.
   Don't decompile the assembly or web-search the API — these composite types are here.
@@ -17,11 +18,15 @@ a row: Markdown renders a dense human value, and `TableFormatter` (TSV/JSONL) de
 cell into typed columns — no pre-stringifying, one declaration serves both. This replaces
 pre-formatting numbers into strings (which loses the machine-readable form).
 
+> **Routing gate:** if the task requires TSV, JSONL, plain/pretty/ANSI output, or a runtime format
+> switch, also invoke `markout-output-formats` before coding.
+
 ## Required setup
 
-Markout has **no reflection fallback**. Every report needs an annotated model, a partial context
-registering each model type, and a `Serialize` call that passes it — there is no `Serialize(obj)`
-overload, and omitting the context does not compile.
+Markout has **no reflection fallback**. Every report needs a partial context registering each model
+type and a `Serialize` call that passes it. `[MarkoutSerializable]` is optional customization, not
+a prerequisite for registration. When the report needs an H1, use a scalar title property with
+`[MarkoutSerializable(TitleProperty = nameof(Title))]`.
 
 ```csharp
 using Markout;
@@ -66,6 +71,9 @@ public class QualityCard
 - `[MarkoutDelta(Delta.Percent|Absolute|Multiple)]` appends the signed change to a numeric
   `Change<V>`: `(−38%)`, `(+120)`, `15 → 5 (3× fewer)`.
 - `[MarkoutDeltaNoun("solved")]` adds a caller noun: `4/6 → 6/6 (+2 solved)`.
+- `[MarkoutNumberFormat("N0")]` applies one .NET numeric format to scalar `Change<V>` operands and
+  an absolute/noun delta: `165 → 1,168 (+1,003)`. Structured TSV/JSONL decomposition stays numeric
+  and ungrouped. Keep the property typed; do not preformat the operands or delta.
 - `[MarkoutGoal(Goal.Higher|Lower)]` makes Markout derive two columns — a structural `direction`
   (`increased`/`decreased`/`introduced`/`resolved`/`unchanged`) and a goal-applied `status`
   (`good`/`bad`/`neutral`) — so you don't hand-code ceiling/floor polarity. `Goal.Higher, 0.001`
@@ -95,7 +103,10 @@ cell. `[MarkoutIgnoreColumnWhen]`-hidden columns drop from the decomposition too
 - `List<MultiSourceRow>` — a role matrix. `MultiSourceRow(label, params Source[])`,
   `Source(role, IMarkoutCell? value)`; roles pivot to columns in Markdown (absent role → `-`), JSONL
   emits `{role}_{side}_{field}` keys. Scalars work: `new Source("baseline", 2)`; `Source.Text(role, s)`.
-  Set the label header with `[MarkoutLabelHeader("Metric")]`.
+  Set the label header with `[MarkoutLabelHeader("Metric")]`. To declaratively bold scalar cells
+  that clear a threshold in rich output, set emphasis on the row:
+  `new MultiSourceRow(label, sources) { Emphasis = MarkoutEmphasis.AtLeast(cut) }` (or `.AtMost(cut)`).
+  Plain text and TSV/JSONL ignore emphasis and preserve raw values.
 - `Verdict(GateStatus Status, string? Label = null)` — a first-class verdict cell; use as a `Source`.
 - `[MarkoutSection(Name="…", IncludeSectionInStructuredRows = true)]` prepends a `section` column to
   TSV/JSONL — multiplex several card sections into one stream. Decomposition keys are `snake_case`.

@@ -3,15 +3,15 @@ name: markout
 version: 0.35.2
 description: >-
   Use when generating Markdown or other structured output (plain text, ANSI, pretty tables,
-  TSV/JSONL) from C# objects instead of hand-built strings — CLIs, tools, reports, agent
-  output. Markout is a source-generated .NET serializer: it looks like System.Text.Json
-  source-gen but the rules differ (NO reflection fallback), so it needs a generated
-  MarkoutSerializerContext and Markout-specific attributes. Covers the required pattern:
-  registered models, the partial context, scalar field shaping, typed value formatters,
-  context-wide options, and serialization. For TSV/JSONL or one model serving multiple formats,
-  also invoke markout-output-formats. Conditional composition, built-in shapes, and composite
-  cells are covered separately. Don't decompile the Markout assembly or web-search its API —
-  every idiom you need is in the Markout skills.
+  TSV/JSONL) from C# objects, or when diagnosing Markout source-generator errors such as
+  MARKOUT006. Markout replaces hand-built strings in CLIs, tools, reports, and agent output.
+  It looks like System.Text.Json source-gen but the rules differ (NO reflection fallback), so it
+  needs a generated MarkoutSerializerContext and Markout-specific attributes. Covers the required
+  pattern: registered models, the partial context, scalar field shaping, typed value formatters,
+  context-wide options, table diagnostics, semantic child rows, and serialization.
+  For TSV/JSONL or one model serving multiple formats, also invoke markout-output-formats.
+  Conditional composition, built-in shapes, and composite cells are covered separately. Don't
+  decompile the Markout assembly or web-search its API — every idiom you need is in the skills.
 ---
 
 # Markout — structured output from objects
@@ -142,6 +142,30 @@ public partial class ReportContext : MarkoutSerializerContext { }
 Use `SuppressTableWarnings` when registered dependency-owned types intentionally contain
 non-tabular properties that produce `MARKOUT001`. Do not mutate those types with
 `[MarkoutIgnoreInTable]`, add a pragma, or suppress the diagnostic in the project file.
+
+## Table-row diagnostics and semantic children
+
+`MARKOUT006` means a `List<T>` is being rendered as a table but its row type has no visible
+columns. Fix the model: expose at least one scalar property, or intentionally render the data as
+sections instead. Do not suppress the diagnostic, remove the collection, or stringify the rows.
+
+Use `[MarkoutChild]` on a bool row property when `true` rows are semantic children of the preceding
+parent:
+
+```csharp
+public sealed class OrganizationRow
+{
+    public string Name { get; set; } = "";
+    public int Count { get; set; }
+
+    [MarkoutChild]
+    public bool IsChild { get; set; }
+}
+```
+
+The flag is not a column. Rich output prefixes the first visible cell of child rows with the child
+glyph; TSV/JSONL/plain output keeps the row data unstyled. A child flag does not count as a visible
+column, so the row still needs a scalar such as `Name`.
 
 ## Most common workflow: JSON API → model → report
 

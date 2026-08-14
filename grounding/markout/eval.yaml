@@ -1107,6 +1107,7 @@ scenarios:
   - name: "CT33: conditional emphasis across Markdown and TSV"
     held_out: true
     expected_skills:
+      - markout
       - markout-composite-cells-cards
       - markout-output-formats
     prompt: |
