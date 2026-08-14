@@ -1041,9 +1041,9 @@ scenarios:
       This console project references a source-generated .NET Markdown serializer (see the .csproj)
       and currently fails with MARKOUT006 because PackageRow has no visible table columns. Preserve
       Rows as a List<PackageRow>, keep InternalId excluded, and fix the model by exposing Name as the
-      visible "Package" column. Render "Packages" as the H1 and an Inventory table containing Markout
-      and Spectre.Console. Do not suppress the diagnostic with a pragma or project setting, remove
-      the Rows collection, or hand-write Markdown. Build and run to confirm.
+      visible "Package" column. Render "Packages" as the H1 and an Inventory table containing both
+      package rows. Do not suppress the diagnostic with a pragma or project setting, remove the Rows
+      collection, or hand-write Markdown. Build and run to confirm.
     setup:
       files:
         - { path: Report.csproj, source: fixtures/ct/CT31/Report.csproj }
@@ -1115,8 +1115,8 @@ scenarios:
       and frontier=0. Render Markdown by default and TSV for the `tsv` argument through one model and
       generated context, with the label column headed "Metric". Declaratively emphasize values at
       least 2: Markdown must bold only 5 while preserving the goal and polarity glyphs; TSV must emit
-      the same raw numeric series with no Markdown markers. Use MarkoutEmphasis rather than adding
-      bold markers to labels or values. Build and run both modes.
+      the same raw numeric series with no Markdown markers. Use the serializer's emphasis API rather
+      than adding bold markers to labels or values. Build and run both modes.
     setup:
       files:
         - { path: Report.csproj, source: fixtures/ct/CT33/Report.csproj }
