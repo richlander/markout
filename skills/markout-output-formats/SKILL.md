@@ -4,9 +4,10 @@ version: 0.35.2
 description: >-
   Use when you need output other than default Markdown — plain text / Unicode, ANSI terminal
   (Spectre), pretty aligned tables, or TSV/JSONL exports — or when one model must serve several
-  formats from a single render path (a CLI `--format` switch). Pick the format with a formatter
-  + MarkoutWriterOptions; never hand-build TSV/JSONL.
-  Don't decompile the assembly or web-search the API — the TSV/JSONL/formatter idioms are all here.
+  formats from a single render path (a CLI `--format` switch). Also covers semantic inline code
+  that renders as Markdown code spans but decodes to plain text in TSV/JSONL. Pick the format with
+  a formatter + MarkoutWriterOptions; never hand-build TSV/JSONL.
+  Don't decompile the assembly or web-search the API — the multi-format idioms are all here.
 ---
 
 # Output formats — one model, many formats
@@ -17,9 +18,9 @@ Markout project the same model to each format so columns/headers stay consistent
 
 ## Required setup
 
-Markout has **no reflection fallback**. Every report needs an annotated model, a partial context
-registering each model type, and a `Serialize` call that passes it — there is no `Serialize(obj)`
-overload, and omitting the context does not compile.
+Markout has **no reflection fallback**. Every report needs a partial context registering each model
+type and a `Serialize` call that passes it. `[MarkoutSerializable]` is optional customization, not
+a prerequisite for registration.
 
 ```csharp
 using Markout;
@@ -120,6 +121,34 @@ keep Markout for the structured formats — don't try to force it.
 - Markdown table cells normalize `|` to `&#124;` (not `\|`).
 - TSV uses stable `snake_case` headers and never embeds tabs/newlines in cells.
 - Pretty renders the same projection as TSV, aligned.
+
+## Format-neutral inline code
+
+Store code-like values with semantic `<code>...</code>` tags. XML-escape angle brackets inside
+the tags:
+
+```csharp
+row.Operation = "<code>dotnet test</code>";
+row.Signature = "<code>Result&lt;T&gt; Parse&lt;T&gt;(string value)</code>";
+```
+
+Markdown renders code spans such as `` `Result<T> Parse<T>(string value)` ``. Pretty, TSV, and
+JSONL remove the tags, decode the entities, and emit plain text. Do not store raw backticks or use
+``[MarkoutDisplayFormat("`{0}`")]``; that hard-codes Markdown into the model.
+
+JSONL must still go through Markout:
+
+```csharp
+var jsonl = new MarkoutWriterOptions
+{
+    TableMode = MarkoutTableMode.Jsonl,
+    JsonTypedValues = true,
+};
+MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ctx, jsonl);
+```
+
+Do not substitute `System.Text.Json`: it does not apply Markout's table projection, stable property
+names, or semantic-tag decoding.
 
 ## Guardrails
 
