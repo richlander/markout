@@ -18,9 +18,9 @@ var report = new DependencyReport
     },
 };
 
-// TODO: Render the report through the referenced serializer. Configure the generated serializer
-// context to suppress expected table warnings globally; do not modify DependencyGroup with a
-// per-property ignore attribute or a pragma.
+// TODO: Render the report with Dependencies as its H1 title through the referenced serializer.
+// Configure the generated serializer context to suppress expected table warnings globally; do not
+// modify DependencyGroup with a per-property ignore attribute or a pragma.
 
 public sealed class DependencyReport
 {
