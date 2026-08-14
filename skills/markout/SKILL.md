@@ -7,10 +7,11 @@ description: >-
   output. Markout is a source-generated .NET serializer: it looks like System.Text.Json
   source-gen but the rules differ (NO reflection fallback), so it needs a generated
   MarkoutSerializerContext and Markout-specific attributes. Covers the required pattern:
-  annotated models, the partial context, scalar field shaping (title, description,
-  per-value formatting), and serializing through the context. Conditional composition, output
-  formats, built-in shapes, and composite cells are covered separately. Don't decompile the
-  Markout assembly or web-search its API — every idiom you need is in the Markout skills.
+  registered models, the partial context, scalar field shaping, typed value formatters,
+  context-wide options, and serialization. For TSV/JSONL or one model serving multiple formats,
+  also invoke markout-output-formats. Conditional composition, built-in shapes, and composite
+  cells are covered separately. Don't decompile the Markout assembly or web-search its API —
+  every idiom you need is in the Markout skills.
 ---
 
 # Markout — structured output from objects
@@ -23,13 +24,16 @@ Markdown. Reach for Markout whenever a tool would otherwise build strings with
 > Markout usage — they are authoritative and version-matched to the package. This skill covers
 > the core pattern; conditional composition, output formats, built-in shapes, and composite
 > cells are covered separately.
+>
+> **Routing gate:** if the task mentions TSV, JSONL, plain/pretty/ANSI output, or one model
+> serving multiple formats, invoke `markout-output-formats` before coding.
 
-## The required pattern (3 parts — all mandatory)
+## The required pattern (registration + serialization are mandatory)
 
 ```csharp
 using Markout;
 
-// 1. Annotate every model type. List<T> -> table, scalar -> field.
+// 1. Annotate a model when you need to customize its rendering. Registration is what is required.
 [MarkoutSerializable(TitleProperty = nameof(Title))]   // TitleProperty -> the H1 heading
 public class Report
 {
@@ -50,6 +54,9 @@ public partial class ReportContext : MarkoutSerializerContext { }
 // 3. Serialize THROUGH the context.
 MarkoutSerializer.Serialize(report, Console.Out, ReportContext.Default);
 ```
+
+`[MarkoutSerializable]` is optional. Types from dependencies can remain untouched; register them
+on the context and put serializer-wide behavior on that context.
 
 ## Scalar field shaping (title, description, per-value formatting)
 
@@ -85,14 +92,56 @@ public class Component
 
 - **No reflection fallback.** There is no `Serialize(obj)` overload. EVERY `Serialize` call takes a
   `MarkoutSerializerContext`. Omitting it does not compile — the #1 mistake.
-- **Register every type.** A model missing `[MarkoutSerializable]` + `[MarkoutContext(typeof(T))]`
-  won't serialize. The context class MUST be `partial`.
+- **Register every type.** `[MarkoutContext(typeof(T))]` is mandatory; `[MarkoutSerializable]` is
+  optional customization. The context class MUST be `partial`.
 - **Markout attributes, not Json:** `[MarkoutSerializable]` (not `[JsonSerializable]`),
   `[MarkoutContext]`, `[MarkoutSection(Name=...)]`, `[MarkoutPropertyName]`, `[MarkoutIgnore]`.
 - **Type drives rendering, not markup:** `List<T>` -> table; scalar -> `Field | Value` row;
   `[MarkoutSection(Name="X")]` -> a `## X` heading above the property.
+- **Inline code needs semantic tags.** Raw backticks are escaped in table cells. Store
+  `<code>...</code>` instead; `markout-output-formats` covers its cross-format behavior.
 - **`[MarkoutIgnoreInTable]` on non-tabular list properties** (`List<Metric>`, `List<Breakdown>`,
   `List<TreeNode>`, `List<Description>`, `Callout`) or they get mistreated as table columns.
+
+## Typed custom value formatters
+
+For transformations beyond a format string, keep the property strongly typed and implement
+`IMarkoutValueFormatter<T>`:
+
+```csharp
+public sealed class ByteSizeFormatter : IMarkoutValueFormatter<long>
+{
+    public string Format(long value) => value switch
+    {
+        >= 1_073_741_824 => $"{value / 1_073_741_824.0:0.#} GB",
+        >= 1_048_576 => $"{value / 1_048_576.0:0.#} MB",
+        >= 1_024 => $"{value / 1_024.0:0.#} KB",
+        _ => $"{value} B",
+    };
+}
+
+[MarkoutPropertyName("Package Size")]
+[MarkoutValueFormatter(typeof(ByteSizeFormatter))]
+public long PackageSizeBytes { get; set; }
+```
+
+Do not replace the numeric property with a string or format it in a getter. The generated
+serializer calls `Format(T)` through the attribute.
+
+## Context-wide options and table warnings
+
+Put defaults that apply to every serialization on the generated context:
+
+```csharp
+[MarkoutContextOptions(SuppressTableWarnings = true)]
+[MarkoutContext(typeof(Report))]
+[MarkoutContext(typeof(DependencyRow))]
+public partial class ReportContext : MarkoutSerializerContext { }
+```
+
+Use `SuppressTableWarnings` when registered dependency-owned types intentionally contain
+non-tabular properties that produce `MARKOUT001`. Do not mutate those types with
+`[MarkoutIgnoreInTable]`, add a pragma, or suppress the diagnostic in the project file.
 
 ## Most common workflow: JSON API → model → report
 
