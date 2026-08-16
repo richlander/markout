@@ -1,4 +1,4 @@
-# Markout — CT-24 workflow ladder (Markout 0.23.0)
+# Markout — CT-24 workflow ladder (Markout 0.35.2)
 #
 # 24 workflow/user-problem scenarios that exercise the base "markout" skill plus four domain
 # workflow skills. First 6 are the basics (floor); the remaining 18 rise in difficulty across
@@ -36,11 +36,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT01/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutContext .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Register the model with a Markout serializer context.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutContext .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the Markdown table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the project title and scalar Field | Value rows."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -72,11 +74,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT02/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutBoolFormat .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Use the serializer's boolean formatting attribute for Yes/No values.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutBoolFormat .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the Markdown table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the title and formatted download, date, and signed values."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -102,12 +106,14 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT03/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutPropertyName .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutIgnore .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Rename the field with the serializer's property-name attribute.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutPropertyName .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Hide the internal field with the serializer's ignore attribute.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutIgnore .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the Markdown table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render Total and Passed while omitting InternalRunId and TotalTests."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -133,11 +139,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT04/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSection .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Declare the dependencies list as a named serializer section.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSection .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the section table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the project title and Dependencies table with both rows."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -164,11 +172,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT05/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin PlainTextFormatter .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive both renderings through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Use the serializer's PlainTextFormatter for the plain-text rendering.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin PlainTextFormatter .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write either report table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the same release as Markdown and aligned ASCII plain text."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -195,12 +205,14 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT06/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin FieldLayout .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin DescriptionProperty .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Configure the serializer's inline field layout.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin FieldLayout .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Declare the summary as the serializer description property.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin DescriptionProperty .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write a Markdown field table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the title, summary paragraph, and Owner and Status inline."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -227,11 +239,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT07/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive both reports through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Gate the Deprecations section with ShowWhenProperty.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the conditional section table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render both package reports with Deprecations appearing exactly once."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -258,11 +272,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT08/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive both views through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Select the rendered sections with IncludeSections at serialization time.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the omitted or included section tables.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render a quiet view without sections and a full view with Incidents and Metrics."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -287,11 +303,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT09/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin TableMode .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive TSV output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Use the serializer table formatter in TSV TableMode.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin TableMode .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the TSV or a Markdown table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render a tab-delimited header and member rows without a Markdown pipe table."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -317,11 +335,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT10/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin UnicodeFormatter .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive terminal output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Render the serializer's metric and breakdown shapes with UnicodeFormatter.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin UnicodeFormatter .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the metric or breakdown rows.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render labeled timing bars and a coverage breakdown using block glyphs."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -347,11 +367,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT11/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutDelta .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive change-cell output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Annotate Change cells with the serializer's absolute MarkoutDelta.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutDelta .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the change rows.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render before and after values with signed absolute deltas."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -379,11 +401,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT12/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutIgnoreColumnWhen .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive both dependency reports through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Hide the uniform Optional column with MarkoutIgnoreColumnWhen.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutIgnoreColumnWhen .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write or imperatively gate the dependency tables.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render Optional only for the mixed dependency table."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -410,11 +434,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT13/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rqE --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty|IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive quiet and verbose reports through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Gate the declared detail sections with ShowWhenProperty or IncludeSections.", command_to_run: "grep", command_arguments: "-rqE --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty|IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the detail sections.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render quiet without details and verbose with Dependencies and Tags exactly once."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -440,11 +466,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT14/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin JsonTypedValues .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive JSONL output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Enable the serializer's typed JSON values for JSONL output.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin JsonTypedValues .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the JSONL.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render one JSON object per line with unquoted numeric values."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -470,11 +498,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT15/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin UnicodeFormatter .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive tree output through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Render the serializer's tree shape with UnicodeFormatter.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin UnicodeFormatter .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the tree indentation or rows.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render the dependency hierarchy with branch connectors and badges."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -493,7 +523,7 @@ scenarios:
       with a list of MetricChange rows (Failures 7 -> 0, Coverage 78 -> 85). Using the serializer, render a
       "## Gates" card as a Markdown table where each metric shows its before -> after change with the goal
       applied — Failures should be treated as "lower is better" and Coverage as "higher is better", and the
-      derived good/bad status should appear inline. Use the serializer's MetricChange card shape and goals rather
+      derived status should appear inline. Use the serializer's MetricChange card shape and goals rather
       than computing status by hand. Build and run to confirm.
     setup:
       files:
@@ -501,20 +531,20 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT16/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MetricChange .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin Goal .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive the card through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the metric card table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render goal and derived-status glyphs for Failures and Coverage."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
-        expected_std_output_matches: "(?=[\\s\\S]*Failures \\(-\\))(?=[\\s\\S]*7 → 0 \\(good\\))(?=[\\s\\S]*Coverage \\(\\+\\))(?=[\\s\\S]*85 \\(good\\))[\\s\\S]*"
+        expected_std_output_matches: "(?=[\\s\\S]*Failures ↓)(?=[\\s\\S]*7 → 0 ✓)(?=[\\s\\S]*Coverage ↑)(?=[\\s\\S]*78 → 85 ✓)[\\s\\S]*"
         command_timeout: 120
     rubric:
       - "Uses List<MetricChange<int>> with { Goal = Goal.Lower } / { Goal = Goal.Higher } to derive polarity"
-      - "Card shows the goal marker on the label ((-)/(+)) and an inline good/bad status per row"
+      - "Markdown card shows the goal glyph on the label (↓/↑) and an inline derived-status glyph per row"
       - "Does NOT compute status/direction by hand"
     timeout: 900
 
@@ -533,11 +563,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT17/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive both package reports through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Gate the same-name Signals section variants with ShowWhenProperty.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the Signals headings or tables.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render one Signals variant per package, showing both API and type tables overall."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -564,11 +596,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT18/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive all three views through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Select progressive verbosity sections with IncludeSections.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the omitted or included sections.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render quiet, normal, and detailed views with progressively added sections."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -595,12 +629,14 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT19/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MaxItems .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin TableMode .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive every format through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Apply the Markdown row cap with the serializer's MaxItems option.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MaxItems .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Select TSV and JSONL through the serializer's TableMode.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin TableMode .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write any output format.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render capped Markdown, tab-delimited TSV, and one-object-per-line JSONL."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -627,11 +663,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT20/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutIgnoreInTable .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive the advisory through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Keep the non-tabular serializer shape list out of table rendering with MarkoutIgnoreInTable.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutIgnoreInTable .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the alert, code fence, definitions, or table.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render a warning alert, csharp code fence, and definition-style terms."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -657,12 +695,12 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT21/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MultiSourceRow .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin Verdict .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive the comparison matrix through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the comparison matrix.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render metrics as rows with baseline and grounded columns and composite values."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -694,12 +732,14 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT22/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutIgnoreColumnWhen .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive the composed report through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Use ShowWhenProperty for conditional Deprecations and same-name Signals variants.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin ShowWhenProperty .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Use MarkoutIgnoreColumnWhen for the conditional Optional dependency column.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutIgnoreColumnWhen .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write the composed headings or tables.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render formatted fields and the ordered Deprecations, Dependencies, and Signals sections."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -726,11 +766,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT23/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutDelta .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive Markdown, TSV, and JSONL through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Annotate the Change cell with the serializer's percent MarkoutDelta.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutDelta .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write any of the three output formats.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render a dense Markdown change and decomposed TSV and JSONL change columns."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0
@@ -760,11 +802,13 @@ scenarios:
         - { path: Program.cs,    source: fixtures/ct/CT24/Program.cs }
     reject_tools: [web_search, web_fetch]
     assertions:
-      - { type: run_command_and_assert, command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: run_command_and_assert, command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
-      - { type: file_not_contains, path: "Program.cs", value: "| ---" }
+      - { type: run_command_and_assert, tier: satisfies, mini_prompt: "Build the project.", command_to_run: "dotnet", command_arguments: "build", expected_exit_code: 0, command_timeout: 600 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Drive all three views through MarkoutSerializer.Serialize.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: run_command_and_assert, tier: delivers, mini_prompt: "Target serializer sections by name with IncludeSections.", command_to_run: "grep", command_arguments: "-rq --include=*.cs --exclude-dir=obj --exclude-dir=bin IncludeSections .", expected_exit_code: 0, command_timeout: 30 }
+      - { type: file_not_contains, tier: delivers, mini_prompt: "Do not hand-write omitted or selected sections.", path: "Program.cs", value: "| ---" }
       - type: run_command_and_assert
+        tier: satisfies
+        mini_prompt: "Render quiet, Diagnostics-only, and detailed views with the requested section counts."
         command_to_run: "dotnet"
         command_arguments: "run --no-build"
         expected_exit_code: 0

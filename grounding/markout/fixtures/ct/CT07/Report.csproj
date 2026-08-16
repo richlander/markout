@@ -6,6 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Markout" Version="0.23.0" />
+    <PackageReference Include="Markout" Version="0.35.2" />
   </ItemGroup>
 </Project>
