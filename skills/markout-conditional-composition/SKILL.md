@@ -106,4 +106,6 @@ modes without branching in the writer. Set the gating bools when you build the m
 
 - Prefer declaration over imperative assembly: no `if`+`AppendLine`, no manual header/row rebuilding.
 - Keep predicates (`Has*`, `Terse`) as computed properties on the model, next to the data.
+- For same-name section variants, use mutually exclusive `ShowWhenProperty` gates rather than
+  relying on empty-list omission; the gates make the selected projection explicit.
 - Empty vs absent matters: `null` list omits a section; empty list + `EmptyText` shows the fallback.
