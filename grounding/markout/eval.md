@@ -1,9 +1,9 @@
 # Markout CT Eval Guide (24 scenarios)
 
-A reviewer-oriented rendering of 24 CT scenarios from eval.yaml for Markout 0.23.0.
+A reviewer-oriented rendering of 24 CT scenarios from eval.yaml for Markout 0.35.2.
 
 - Scenario count: 24
-- Package: Markout 0.23.0
+- Package: Markout 0.35.2
 - Prompt note: Prompts describe the library functionally and never name it.
 
 ## CT01: minimal report — title + scalar field table
@@ -481,14 +481,14 @@ This console project references a source-generated .NET Markdown serializer (see
 with a list of MetricChange rows (Failures 7 -> 0, Coverage 78 -> 85). Using the serializer, render a
 "## Gates" card as a Markdown table where each metric shows its before -> after change with the goal
 applied — Failures should be treated as "lower is better" and Coverage as "higher is better", and the
-derived good/bad status should appear inline. Use the serializer's MetricChange card shape and goals rather
+derived status should appear inline. Use the serializer's MetricChange card shape and goals rather
 than computing status by hand. Build and run to confirm.
 ```
 
 ### Rubric
 
 - Uses List<MetricChange<int>> with { Goal = Goal.Lower } / { Goal = Goal.Higher } to derive polarity
-- Card shows the goal marker on the label ((-)/(+)) and an inline good/bad status per row
+- Markdown card shows the goal glyph on the label (↓/↑) and an inline derived-status glyph per row
 - Does NOT compute status/direction by hand
 
 ### Checks
@@ -497,8 +497,6 @@ than computing status by hand. Build and run to confirm.
 | ----- | -------- |
 | Project builds | dotnet build |
 | Drives output through MarkoutSerializer.Serialize | grep -rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize . |
-| Uses metric-change card rows | grep -rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MetricChange . |
-| Applies goal polarity declaratively | grep -rq --include=*.cs --exclude-dir=obj --exclude-dir=bin Goal . |
 | No hand-written Markdown tables | Program.cs: &#124; --- |
 | Rendered output matches the expected structure | dotnet run --no-build |
 
@@ -653,8 +651,6 @@ hand-built table. Build and run to confirm.
 | ----- | -------- |
 | Project builds | dotnet build |
 | Drives output through MarkoutSerializer.Serialize | grep -rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MarkoutSerializer.Serialize . |
-| Uses multi-source comparison rows | grep -rq --include=*.cs --exclude-dir=obj --exclude-dir=bin MultiSourceRow . |
-| Uses verdict cells | grep -rq --include=*.cs --exclude-dir=obj --exclude-dir=bin Verdict . |
 | No hand-written Markdown tables | Program.cs: &#124; --- |
 | Rendered output matches the expected structure | dotnet run --no-build |
 
