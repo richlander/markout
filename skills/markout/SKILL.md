@@ -9,9 +9,10 @@ description: >-
   needs a generated MarkoutSerializerContext and Markout-specific attributes. Covers the required
   pattern: registered models, the partial context, scalar field shaping, typed value formatters,
   context-wide options, table diagnostics, semantic child rows, and serialization.
-  For TSV/JSONL or one model serving multiple formats, also invoke markout-output-formats.
-  Conditional composition, built-in shapes, and composite cells are covered separately. Don't
-  decompile the Markout assembly or web-search its API — every idiom you need is in the skills.
+  Route non-Markdown output to markout-output-formats; data-selected/filtered views to
+  markout-conditional-composition; and visual bars, trees, callouts, definitions, or code blocks
+  to markout-built-in-shapes. Composite cells are covered separately. Don't decompile the Markout
+  assembly or web-search its API — every idiom you need is in the skills.
 ---
 
 # Markout — structured output from objects
@@ -25,8 +26,13 @@ Markdown. Reach for Markout whenever a tool would otherwise build strings with
 > the core pattern; conditional composition, output formats, built-in shapes, and composite
 > cells are covered separately.
 >
-> **Routing gate:** if the task mentions TSV, JSONL, plain/pretty/ANSI output, or one model
-> serving multiple formats, invoke `markout-output-formats` before coding.
+> **Routing gate:** invoke the matching companion skill before coding:
+> - TSV, JSONL, plain text, Unicode/terminal, ANSI, pretty output, or multiple formats:
+>   `markout-output-formats`
+> - show/hide conditions, exactly-one section variants, selected sections, quiet/detail views:
+>   `markout-conditional-composition`
+> - bars, proportional breakdowns, trees, callouts, definitions, or code blocks:
+>   `markout-built-in-shapes`
 
 ## The required pattern (registration + serialization are mandatory)
 

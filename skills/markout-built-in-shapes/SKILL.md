@@ -5,8 +5,10 @@ description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn
   ASCII or manual Markdown. Markout ships these as data types (Metric, Breakdown/Slice, Callout,
-  TreeNode, Description, CodeSection, MarkoutTable) you attach as model properties.
-  Don't decompile the assembly or web-search the API — the shape types are here.
+  TreeNode, Description, CodeSection, MarkoutTable) you attach as model properties. If the task
+  requests terminal/Unicode, plain text, ANSI, or another non-Markdown sink, also invoke
+  markout-output-formats for the formatter call. Don't decompile the assembly or web-search the
+  API — the shape types are here.
 ---
 
 # Built-in shapes — declare the meaning, get the visual
@@ -29,6 +31,23 @@ public partial class DashboardContext : MarkoutSerializerContext { }
 
 MarkoutSerializer.Serialize(dashboard, Console.Out, DashboardContext.Default);
 ```
+
+## Route visual shapes to the requested sink
+
+Default serialization is Markdown. A request for terminal or Unicode bars needs the output-format
+companion skill and an explicit formatter:
+
+```csharp
+MarkoutSerializer.Serialize(
+    dashboard,
+    Console.Out,
+    new UnicodeFormatter(),
+    DashboardContext.Default);
+```
+
+Invoke `markout-output-formats` for plain text, ANSI, pretty tables, TSV/JSONL, or multi-format
+dispatch. Do not guess a `MarkoutWriterOptions.Format` property or add an ANSI package unless the
+requested sink specifically needs it.
 
 ## The shapes
 
