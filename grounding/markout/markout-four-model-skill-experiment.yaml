@@ -1,0 +1,29 @@
+name: markout-skills-four-model-ab
+evals:
+  - eval-valley.yaml
+
+matrix:
+  model:
+    path: /defaults/model
+    values: [claude-haiku-4.5, claude-sonnet-5, claude-opus-4.8, claude-opus-5]
+  skills:
+    path: /environment/skills
+    values:
+      - none: []
+      - matched:
+        - ../../skills/markout
+        - ../../skills/markout-conditional-composition
+        - ../../skills/markout-output-formats
+        - ../../skills/markout-built-in-shapes
+        - ../../skills/markout-composite-cells-cards
+
+baseline:
+  model: claude-haiku-4.5
+  skills: none
+
+overrides:
+  runs: 5
+  judge_model: claude-haiku-4.5
+
+execution:
+  workers: 20
