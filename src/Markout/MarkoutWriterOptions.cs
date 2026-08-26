@@ -200,8 +200,8 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
-    /// Which data rows tables emit, preserving headings and header rows.
-    /// Default is null (every row).
+    /// Gets the primary row window, or replaces the complete row selection,
+    /// preserving headings and header rows. Default is null (every row).
     ///
     /// <para>
     /// This is <em>selection</em>, not summarization, which is what separates it
@@ -213,9 +213,10 @@ public class MarkoutWriterOptions
     /// </para>
     ///
     /// <para>
-    /// Assigning this property replaces the complete selection, including any
-    /// constraints previously added through <see cref="IntersectRowWindow"/>.
-    /// Assigning null clears the selection.
+    /// The getter returns only the primary window. Assigning this property
+    /// replaces the complete selection, including any constraints previously
+    /// added through <see cref="IntersectRowWindow"/>. Assigning null clears the
+    /// selection, so reading and reassigning this property also clears intersections.
     /// </para>
     /// </summary>
     public MarkoutRowWindow? RowWindow

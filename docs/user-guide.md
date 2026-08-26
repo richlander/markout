@@ -698,13 +698,13 @@ var options = new MarkoutWriterOptions
 {
     RowWindow = MarkoutRowWindow.Tail(20)
 };
-options.IntersectRowWindow(MarkoutRowWindow.Range(50, 80));
+options.IntersectRowWindow(MarkoutRowWindow.Range(50, 85));
 ```
 
 Every window resolves against the table's original row count before the
 resolved ranges are intersected. Selection never renumbers between constraints:
-over 100 rows, `Tail(20)` intersects `Range(50, 80)` at row 80 only. The order
-of the two constraints does not change the result.
+over 100 rows, `Tail(20)` intersects `Range(50, 85)` at rows 81 through 85. The
+order of the two constraints does not change the result.
 
 Calling `IntersectRowWindow` with no current `RowWindow` establishes the primary
 window. Assigning `RowWindow` afterwards replaces the complete selection and
