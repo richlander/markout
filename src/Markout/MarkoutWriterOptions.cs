@@ -13,7 +13,7 @@ public class MarkoutWriterOptions
     private bool _boldFieldNames;
     private bool _prettyTables;
     private int? _maxItems;
-    private MarkoutRowWindow? _rowWindow;
+    private MarkoutRowSelection? _rowSelection;
     private HashSet<string>? _includeSections;
     private IReadOnlyList<string>? _sectionOrder;
     private MarkoutProjection? _projection;
@@ -44,7 +44,7 @@ public class MarkoutWriterOptions
         _boldFieldNames = source._boldFieldNames;
         _prettyTables = source._prettyTables;
         _maxItems = source._maxItems;
-        _rowWindow = source._rowWindow;
+        _rowSelection = source._rowSelection;
         _includeSections = source._includeSections;
         _sectionOrder = source._sectionOrder;
         _projection = source._projection;
@@ -211,16 +211,40 @@ public class MarkoutWriterOptions
     /// first and <see cref="MaxItems"/> then caps the selection, so any ellipsis
     /// reports only the rows the cap dropped.
     /// </para>
+    ///
+    /// <para>
+    /// Assigning this property replaces the complete selection, including any
+    /// constraints previously added through <see cref="IntersectRowWindow"/>.
+    /// Assigning null clears the selection.
+    /// </para>
     /// </summary>
     public MarkoutRowWindow? RowWindow
     {
-        get => _rowWindow;
+        get => _rowSelection?.Primary;
         set
         {
             ThrowIfReadOnly();
-            _rowWindow = value;
+            _rowSelection = value is { } window ? new MarkoutRowSelection(window) : null;
         }
     }
+
+    /// <summary>
+    /// Adds a row-window constraint to the current selection.
+    /// </summary>
+    /// <param name="window">The window to intersect with the current selection.</param>
+    /// <remarks>
+    /// Each window resolves independently against the table's original row count,
+    /// so intersection never renumbers rows selected by an earlier window. If
+    /// <see cref="RowWindow"/> is null, this method establishes the primary window.
+    /// Assigning <see cref="RowWindow"/> afterwards replaces the complete selection.
+    /// </remarks>
+    public void IntersectRowWindow(MarkoutRowWindow window)
+    {
+        ThrowIfReadOnly();
+        _rowSelection = _rowSelection?.Intersect(window) ?? new MarkoutRowSelection(window);
+    }
+
+    internal MarkoutRowSelection? RowSelection => _rowSelection;
 
     /// <summary>
     /// If set, only sections whose heading text matches are rendered.

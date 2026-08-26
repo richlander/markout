@@ -1931,6 +1931,24 @@ public class GeneratedTableTests
     }
 
     [Fact]
+    public void UnwrappedTables_ResolveIntersectionsIndependentlyPerSection()
+    {
+        var options = new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(2) };
+        options.IntersectRowWindow(MarkoutRowWindow.Range(2, 2));
+
+        var mdf = MarkoutSerializer.Serialize(
+            DynamicSample(),
+            DynamicMetadataContext.Default,
+            options);
+
+        Assert.Contains("| 0x8 | Object |", mdf, StringComparison.Ordinal);
+        Assert.DoesNotContain("| 0x1 | System |", mdf, StringComparison.Ordinal);
+        Assert.DoesNotContain("| 0x10 | String |", mdf, StringComparison.Ordinal);
+        Assert.Contains("| 0xC | 4 |", mdf, StringComparison.Ordinal);
+        Assert.DoesNotContain("| 0x0 | 12 |", mdf, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ComposedDocument_IsByteIdenticalToOneAssembledByHand()
     {
         // The whole point: a document whose sections come from a MarkoutTable model property must

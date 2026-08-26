@@ -507,6 +507,21 @@ public class GraphTests
     }
 
     [Fact]
+    public void TableGraph_HonorsIntersectedRowWindows()
+    {
+        var options = new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(1) };
+        options.IntersectRowWindow(MarkoutRowWindow.Range(1, 1));
+        var orch = MarkoutWriter.Create(new TableFormatter(), options);
+
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = orch.ToString();
+        Assert.DoesNotContain("A", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("B", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("C", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProjectedOutGraphTable_DoesNotMaterializeEdgeRows()
     {
         var nodes = Enumerable.Range(0, 10_001)

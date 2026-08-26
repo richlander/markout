@@ -70,6 +70,16 @@ public class RowWindowTests
     public static TheoryData<MarkoutTableMode> AllModes =>
         new(Enum.GetValues<MarkoutTableMode>());
 
+    private static MarkoutWriterOptions Select(
+        MarkoutTableMode mode,
+        params ReadOnlySpan<MarkoutRowWindow> windows)
+    {
+        var options = new MarkoutWriterOptions { TableMode = mode };
+        foreach (var window in windows)
+            options.IntersectRowWindow(window);
+        return options;
+    }
+
     public static TheoryData<MarkoutRowWindow, string[], string[]> MetricWindows =>
         new()
         {
@@ -164,6 +174,30 @@ public class RowWindowTests
             Assert.Contains(label, output, StringComparison.Ordinal);
         foreach (var label in excluded)
             Assert.DoesNotContain(label, output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MarkdownMetrics_HonorTheCompleteIntersection()
+    {
+        var options = Select(
+            default,
+            MarkoutRowWindow.Tail(3),
+            MarkoutRowWindow.Range(2, 3));
+        var writer = MarkoutWriter.Create(new MarkdownFormatter(), options);
+
+        writer.WriteMetrics(
+        [
+            new Metric("m1", 1),
+            new Metric("m2", 2),
+            new Metric("m3", 3),
+            new Metric("m4", 4)
+        ]);
+
+        var output = writer.Complete();
+        Assert.Contains("m2", output, StringComparison.Ordinal);
+        Assert.Contains("m3", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("m1", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("m4", output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -370,6 +404,71 @@ public class RowWindowTests
         Assert.DoesNotContain("r4", output);
     }
 
+    [Theory]
+    [MemberData(nameof(AllModes))]
+    public void EveryTableMode_IntersectsHeadAndRangeAgainstOriginalRows(MarkoutTableMode mode)
+    {
+        var output = Render(
+            Select(mode, MarkoutRowWindow.Head(4), MarkoutRowWindow.Range(3, 6)),
+            Rows(8));
+
+        Assert.DoesNotContain("r2", output);
+        Assert.Contains("r3", output);
+        Assert.Contains("r4", output);
+        Assert.DoesNotContain("r5", output);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllModes))]
+    public void EveryTableMode_IntersectsTailAndRangeAgainstOriginalRows(MarkoutTableMode mode)
+    {
+        var output = Render(
+            Select(mode, MarkoutRowWindow.Tail(4), MarkoutRowWindow.Range(3, 6)),
+            Rows(8));
+
+        Assert.DoesNotContain("r4", output);
+        Assert.Contains("r5", output);
+        Assert.Contains("r6", output);
+        Assert.DoesNotContain("r7", output);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllModes))]
+    public void DisjointAndZeroCountIntersections_EmitNoRows(MarkoutTableMode mode)
+    {
+        var disjoint = Render(
+            Select(mode, MarkoutRowWindow.Tail(3), MarkoutRowWindow.Range(1, 2)),
+            Rows(8));
+        var zero = Render(
+            Select(mode, MarkoutRowWindow.Head(0), MarkoutRowWindow.Range(1, null)),
+            Rows(8));
+
+        foreach (var row in Rows(8).Select(static row => row[0]))
+        {
+            Assert.DoesNotContain(row, disjoint);
+            Assert.DoesNotContain(row, zero);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(AllModes))]
+    public void Intersections_AreIndependentOfOperandOrder(MarkoutTableMode mode)
+    {
+        var tailThenRange = Select(
+            mode,
+            MarkoutRowWindow.Tail(4),
+            MarkoutRowWindow.Range(3, 6));
+        var rangeThenTail = Select(
+            mode,
+            MarkoutRowWindow.Range(3, 6),
+            MarkoutRowWindow.Tail(4));
+
+        Assert.Equal(Render(tailThenRange, Rows(8)), Render(rangeThenTail, Rows(8)));
+        Assert.Equal(
+            RenderStreaming(tailThenRange, Rows(8)),
+            RenderStreaming(rangeThenTail, Rows(8)));
+    }
+
     /// <summary>
     /// A window is selection, not summarization: its output has to stay
     /// machine-consumable. An ellipsis appended to JSONL is a malformed record,
@@ -451,6 +550,24 @@ public class RowWindowTests
         Assert.Contains("r2", output);
         Assert.DoesNotContain("r3", output);
         Assert.DoesNotContain("more", output);
+    }
+
+    [Fact]
+    public void MaxItems_CapsAfterTheCompleteIntersection()
+    {
+        var options = Select(
+            default,
+            MarkoutRowWindow.Tail(5),
+            MarkoutRowWindow.Range(3, 7));
+        options.MaxItems = 2;
+
+        var output = Render(options, Rows(8));
+
+        Assert.Contains("r4", output);
+        Assert.Contains("r5", output);
+        Assert.DoesNotContain("r3", output);
+        Assert.DoesNotContain("r6", output);
+        Assert.Contains("... and 2 more", output);
     }
 
     // ── The streaming seam ──
@@ -600,6 +717,44 @@ public class RowWindowTests
         }
     }
 
+    [Theory]
+    [MemberData(nameof(AllModes))]
+    public void StreamedRows_AgreeWithBatchedRowsForIntersectedWindows(MarkoutTableMode mode)
+    {
+        MarkoutRowWindow[][] selections =
+        [
+            [MarkoutRowWindow.Head(4), MarkoutRowWindow.Range(3, 6)],
+            [MarkoutRowWindow.Tail(4), MarkoutRowWindow.Range(3, 6)],
+            [MarkoutRowWindow.Tail(5), MarkoutRowWindow.Tail(2)],
+            [MarkoutRowWindow.Head(2), MarkoutRowWindow.Tail(2)],
+            [MarkoutRowWindow.Tail(3), MarkoutRowWindow.Range(1, 2)]
+        ];
+
+        foreach (var selection in selections)
+        {
+            var options = Select(mode, selection);
+            Assert.Equal(
+                Render(options, Rows(8)),
+                RenderStreaming(options, Rows(8)));
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(AllModes))]
+    public void PositionalIntersectionsWithMaxItems_AgreeAcrossStreamingAndBatch(
+        MarkoutTableMode mode)
+    {
+        var options = Select(
+            mode,
+            MarkoutRowWindow.Head(6),
+            MarkoutRowWindow.Range(3, 6));
+        options.MaxItems = 2;
+
+        Assert.Equal(
+            Render(options, Rows(8)),
+            RenderStreaming(options, Rows(8)));
+    }
+
     // ── Options plumbing ──
 
     [Fact]
@@ -609,6 +764,51 @@ public class RowWindowTests
         options.MakeReadOnly();
 
         Assert.Throws<InvalidOperationException>(() => options.RowWindow = MarkoutRowWindow.Head(1));
+        Assert.Throws<InvalidOperationException>(
+            () => options.IntersectRowWindow(MarkoutRowWindow.Tail(1)));
+    }
+
+    [Fact]
+    public void AssigningRowWindow_ReplacesTheCompleteSelection()
+    {
+        var options = Select(
+            default,
+            MarkoutRowWindow.Head(4),
+            MarkoutRowWindow.Range(3, 3));
+
+        options.RowWindow = MarkoutRowWindow.Tail(1);
+        var output = Render(options, Rows(5));
+
+        Assert.Equal(MarkoutRowWindow.Tail(1), options.RowWindow);
+        Assert.Contains("r5", output);
+        Assert.DoesNotContain("r3", output);
+    }
+
+    [Fact]
+    public void AssigningNull_ClearsTheCompleteSelection()
+    {
+        var options = Select(
+            default,
+            MarkoutRowWindow.Head(1),
+            MarkoutRowWindow.Range(3, 3));
+
+        options.RowWindow = null;
+        var output = Render(options, Rows(3));
+
+        Assert.Null(options.RowWindow);
+        Assert.Contains("r1", output);
+        Assert.Contains("r3", output);
+    }
+
+    [Fact]
+    public void IntersectingWithoutAPrimaryWindow_EstablishesIt()
+    {
+        var options = new MarkoutWriterOptions();
+        var window = MarkoutRowWindow.Range(2, 2);
+
+        options.IntersectRowWindow(window);
+
+        Assert.Equal(window, options.RowWindow);
     }
 
     /// <summary>
@@ -627,8 +827,9 @@ public class RowWindowTests
             new MarkoutWriterOptions
             {
                 TableMode = MarkoutTableMode.Jsonl,
-                RowWindow = MarkoutRowWindow.Tail(1)
+                RowWindow = MarkoutRowWindow.Tail(2)
             });
+        writer.Options.IntersectRowWindow(MarkoutRowWindow.Range(3, 3));
 
         writer.WriteCompositeTable(
             MarkoutCompositeRow.Scalar("first", "1"),
@@ -640,6 +841,7 @@ public class RowWindowTests
         Assert.Single(lines);
         Assert.Contains("third", lines[0]);
         Assert.DoesNotContain("first", lines[0]);
+        Assert.DoesNotContain("second", lines[0]);
     }
 
     [Fact]
@@ -794,6 +996,41 @@ public class RowWindowTests
         Assert.Contains("row:r1", sw.ToString());
     }
 
+    [Fact]
+    public void ATailRangeIntersection_UsesOriginalPositionsAfterBuffering()
+    {
+        var options = Select(
+            default,
+            MarkoutRowWindow.Tail(3),
+            MarkoutRowWindow.Range(1, 10));
+
+        var output = RenderStreamingOnly(options, Rows(100));
+
+        Assert.DoesNotContain("row:", output);
+        Assert.Contains("end:0", output);
+    }
+
+    [Fact]
+    public void AStreamingTable_SnapshotsItsCompleteSelection()
+    {
+        var options = Select(
+            default,
+            MarkoutRowWindow.Head(4),
+            MarkoutRowWindow.Range(2, 2));
+        var sw = new StringWriter();
+        var writer = new TableWriter(sw, new StreamingOnlyFormatter(), options);
+        writer.WriteTableStart(Header);
+
+        options.RowWindow = MarkoutRowWindow.Tail(1);
+        foreach (var row in Rows(5))
+            writer.WriteTableRow(row);
+        writer.WriteTableEnd();
+
+        var output = sw.ToString();
+        Assert.Contains("row:r2", output);
+        Assert.DoesNotContain("row:r5", output);
+    }
+
     /// <summary>
     /// A window that keeps nothing must cost nothing per row. Tail is the only kind
     /// that retains rows at all, so it is the only one that can get this wrong, and
@@ -855,13 +1092,41 @@ public class RowWindowTests
         Assert.Equal(Bound, alive);
     }
 
+    [Fact]
+    public void MultipleTailWindows_HoldTheSmallestBound()
+    {
+        const int Rows = 1000;
+        const int Bound = 7;
+        var options = new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(100) };
+        options.IntersectRowWindow(MarkoutRowWindow.Tail(Bound));
+
+        var (writer, tracked) = FillTail(Rows, options);
+
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+
+        var alive = tracked.Count(reference => reference.IsAlive);
+        GC.KeepAlive(writer);
+
+        Assert.Equal(Bound, alive);
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static (TableWriter Writer, WeakReference[] Tracked) FillTail(int rows, int bound)
+        => FillTail(
+            rows,
+            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(bound) });
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (TableWriter Writer, WeakReference[] Tracked) FillTail(
+        int rows,
+        MarkoutWriterOptions options)
     {
         var writer = new TableWriter(
             TextWriter.Null,
             new StreamingOnlyFormatter(),
-            new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(bound) });
+            options);
         writer.WriteTableStart(Header);
 
         var tracked = new WeakReference[rows];

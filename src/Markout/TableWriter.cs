@@ -22,8 +22,9 @@ public class TableWriter
     private int _tableRowCount;
     private int _tableRowsSkipped;
     private int _dataPosition;
-    private Queue<string[]>? _tailBuffer;
+    private Queue<(int Position, string[] Values)>? _tailBuffer;
     private int _tailBound;
+    private MarkoutRowSelection? _streamingSelection;
 
     /// <summary>
     /// Creates a table writer with a batch table formatter.
@@ -63,7 +64,7 @@ public class TableWriter
     {
         ValidateHeaders(headers, headerNames);
         var renderedHeaders = FormatHeaders(headers, headerNames);
-        var (selected, skipped) = SelectRows(rows);
+        var (selected, skipped) = SelectRows(rows, _options.RowSelection);
 
         if (_batchFormatter != null)
         {
@@ -106,12 +107,12 @@ public class TableWriter
         ValidateHeaders(headers, headerNames);
         var renderedHeaders = FormatHeaders(headers, headerNames);
 
-        var window = _options.RowWindow;
+        var selection = _options.RowSelection;
         var streamingDirect =
             _streamingFormatter != null &&
             _options.TableOptions == null &&
-            (window == null || window.Value.IsPositional);
-        Queue<string[]>? tailBuffer = null;
+            (selection == null || selection.IsPositional);
+        Queue<(int Position, string[] Values)>? tailBuffer = null;
         List<string[]>? streamingRows = null;
         var tailBound = 0;
 
@@ -119,10 +120,10 @@ public class TableWriter
         {
             _streamingFormatter!.BeginTable(_writer, renderedHeaders, _options);
         }
-        else if (window is { IsPositional: false } tail)
+        else if (selection is { IsPositional: false })
         {
-            tailBound = tail.RetentionBound;
-            tailBuffer = new Queue<string[]>(Math.Min(tailBound, 1024));
+            tailBound = selection.RetentionBound;
+            tailBuffer = new Queue<(int Position, string[] Values)>(Math.Min(tailBound, 1024));
         }
         else
         {
@@ -137,6 +138,7 @@ public class TableWriter
         _tailBound = tailBound;
         _streamingRows = streamingRows;
         _streamingHeaders = renderedHeaders;
+        _streamingSelection = selection;
     }
 
     private static void ValidateHeaders(
@@ -214,7 +216,8 @@ public class TableWriter
         // A positional window is asked about this row directly; it is the same type
         // that answers Resolve, so streaming does not get its own idea of what the
         // window means. A Tail window has no answer yet and is settled at the end.
-        if (_options.RowWindow is { IsPositional: true } window && !window.KeepsPosition(position))
+        if (_streamingSelection is { IsPositional: true } selection &&
+            !selection.KeepsPosition(position))
             return;
 
         // MaxItems caps the window's selection, so it counts selected rows. Under a
@@ -240,7 +243,7 @@ public class TableWriter
             {
                 while (_tailBuffer.Count >= _tailBound)
                     _tailBuffer.Dequeue();
-                _tailBuffer.Enqueue(values.ToArray());
+                _tailBuffer.Enqueue((position, values.ToArray()));
             }
         }
         else
@@ -266,10 +269,19 @@ public class TableWriter
             // MaxItems already capped what survived, so re-running SelectRows here
             // would apply the window a second time to rows that are only the window's
             // output. Only a Tail window still has both to settle.
-            var rows = (IList<string[]>)(_tailBuffer?.ToArray() ?? (IList<string[]>?)_streamingRows ?? []);
+            IList<string[]> rows;
             var skipped = _tableRowsSkipped;
-            if (_options.RowWindow is { IsPositional: false })
-                (rows, skipped) = SelectRows(rows);
+            if (_tailBuffer != null)
+            {
+                (rows, skipped) = SelectBufferedTailRows(
+                    _tailBuffer,
+                    _streamingSelection!,
+                    _dataPosition);
+            }
+            else
+            {
+                rows = _streamingRows ?? [];
+            }
 
             if (_batchFormatter != null)
             {
@@ -290,6 +302,7 @@ public class TableWriter
         _streamingRows = null;
         _tailBuffer = null;
         _streamingDirect = false;
+        _streamingSelection = null;
     }
 
     /// <summary>
@@ -297,18 +310,20 @@ public class TableWriter
     /// wait: capping on arrival would cap the rows that came first, not the rows the
     /// window selected.
     /// </summary>
-    private bool DefersMaxItems => _options.RowWindow is { IsPositional: false };
+    private bool DefersMaxItems => _streamingSelection is { IsPositional: false };
 
-    private (IList<string[]> rows, int skipped) SelectRows(IList<string[]> rows)
+    private (IList<string[]> rows, int skipped) SelectRows(
+        IList<string[]> rows,
+        MarkoutRowSelection? selection)
     {
         var selected = rows;
 
         // Selection runs before summarization: the window says which rows exist,
         // MaxItems then says how many of those to show. Resolving here — and only
         // here — is what keeps every table mode agreeing on what a row window means.
-        if (_options.RowWindow is { } window)
+        if (selection != null)
         {
-            var (keepStart, keepEnd) = window.Resolve(rows.Count);
+            var (keepStart, keepEnd) = selection.Resolve(rows.Count);
             if (keepStart != 0 || keepEnd != rows.Count)
             {
                 var kept = new List<string[]>(keepEnd - keepStart);
@@ -316,6 +331,25 @@ public class TableWriter
                     kept.Add(rows[i]);
                 selected = kept;
             }
+        }
+
+        if (_options.MaxItems is int max && selected.Count > max)
+            return (selected.Take(max).ToList(), selected.Count - max);
+
+        return (selected, 0);
+    }
+
+    private (IList<string[]> rows, int skipped) SelectBufferedTailRows(
+        IEnumerable<(int Position, string[] Values)> rows,
+        MarkoutRowSelection selection,
+        int dataCount)
+    {
+        var (keepStart, keepEnd) = selection.Resolve(dataCount);
+        var selected = new List<string[]>(Math.Min(selection.RetentionBound, keepEnd - keepStart));
+        foreach (var (position, values) in rows)
+        {
+            if (position >= keepStart && position < keepEnd)
+                selected.Add(values);
         }
 
         if (_options.MaxItems is int max && selected.Count > max)

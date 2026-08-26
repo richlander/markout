@@ -690,6 +690,27 @@ leaving `RowWindow` null, so a negative count — usually the result of a
 subtraction that slipped below zero — fails rather than silently widening the
 table to every row.
 
+Use `IntersectRowWindow` when selection has more than one independent
+constraint:
+
+```csharp
+var options = new MarkoutWriterOptions
+{
+    RowWindow = MarkoutRowWindow.Tail(20)
+};
+options.IntersectRowWindow(MarkoutRowWindow.Range(50, 80));
+```
+
+Every window resolves against the table's original row count before the
+resolved ranges are intersected. Selection never renumbers between constraints:
+over 100 rows, `Tail(20)` intersects `Range(50, 80)` at row 80 only. The order
+of the two constraints does not change the result.
+
+Calling `IntersectRowWindow` with no current `RowWindow` establishes the primary
+window. Assigning `RowWindow` afterwards replaces the complete selection and
+clears every intersection; assigning null clears selection entirely. Read-only
+options reject both assignment and intersection.
+
 The window is resolved once, at the writer seam, so every table mode agrees on
 what it means — including TSV and JSONL, where selection alone introduces no
 ellipsis row and leaves the output machine-consumable. (Adding `MaxItems` on top
@@ -711,10 +732,11 @@ so the reported overflow count describes only what the cap dropped:
 new MarkoutWriterOptions { RowWindow = MarkoutRowWindow.Tail(20), MaxItems = 5 }
 ```
 
-Streamed and batched output are identical. A `Tail` window buffers the rows it
-might still keep, because which rows those are is not known until the last row
-arrives; the other window kinds decide each row from its position and stream
-without buffering.
+Streamed and batched output are identical. A selection containing `Tail`
+buffers the rows it might still keep, because which rows those are is not known
+until the last row arrives. Multiple tail constraints retain only the smallest
+tail bound. Selections made entirely from `Head` and `Range` decide each row
+from its original position and stream without buffering.
 
 ### Section Level
 
