@@ -481,6 +481,7 @@ Markout was created for [dotnet-inspect](https://github.com/richlander/dotnet-in
 
 - **[User Guide](docs/user-guide.md)** — Complete tutorial with attribute reference
 - **[Shape System Design](docs/design/shape-system.md)** — Data projection model, shape tiers, admission criteria
+- **[Row-window Composition](docs/design/row-window-composition.md)** — Row selection interaction and evaluation order
 - **[Specification](docs/specification.md)** — Format grammar and type inference rules
 - **[Nested Lists Guide](docs/nested-lists-guide.md)** — Strategies for nested data structures
 
