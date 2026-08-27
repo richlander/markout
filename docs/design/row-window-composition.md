@@ -17,8 +17,9 @@ restrict output to original row addresses 3 through 6.
 Applying those windows sequentially is incorrect:
 
 1. `Tail(4)` over eight rows selects original rows 5 through 8.
-2. Applying `Range(3, 6)` to that result renumbers it and selects original rows
-   7 and 8.
+2. Treating that result as a new four-row table restarts its positions at 1.
+   Applying `Range(3, 6)` to those new positions selects the third and fourth
+   values: original rows 7 and 8.
 
 The intended result is original rows 5 and 6. Both windows must resolve against
 the same original table.
@@ -26,7 +27,7 @@ the same original table.
 ## Goals
 
 - Compose any number of `Head`, `Tail`, and `Range` constraints.
-- Preserve original row identity throughout selection.
+- Preserve original row selection coordinates throughout selection.
 - Define one calculation order for batch and streaming tables.
 - Preserve output order; composition only removes rows.
 - Keep row selection distinct from `MaxItems` summarization.
@@ -118,10 +119,11 @@ Markout evaluates a table in this order:
    is bypassed.
 2. **Check shape support.** Unsupported or suppressed shapes do not create a
    logical table.
-3. **Adapt the semantic shape.** A graph becomes edge rows, metrics become
-   metric rows, a breakdown becomes flattened slice rows, and a field-table
-   request applies field projection before producing rows. Producer-side
-   transformations, including `[MarkoutMaxItems]`, happen here.
+3. **Adapt the semantic shape.** A graph edge-table lowering emits edge rows in
+   graph edge order followed by isolated-node rows in graph node order. Metrics
+   become metric rows, a breakdown becomes flattened slice rows, and a
+   field-table request applies field projection before producing rows.
+   Producer-side transformations, including `[MarkoutMaxItems]`, happen here.
 4. **Resolve column projection.** A projection that matches columns may drop or
    reorder cells without changing rows. A column projection that matches no
    columns suppresses the table before row enumeration.
@@ -157,6 +159,59 @@ This design does not reorder that producer transformation; row windows resolve
 against the rows it supplies.
 
 ## Examples
+
+### LINQ-like reading
+
+The following notation is explanatory pseudocode, not the literal C# API.
+`Range[a, b]` and `Tail(n)` add constraints to one selection plan; they do not
+enumerate or renumber the sequence between calls.
+
+```text
+[1, 2, 3, 4, 5, 6, 7, 8]
+    .Range[3, 4]
+    .Tail(2)
+
+= Range[3, 4] over the original rows
+  intersected with
+  Tail(2) over the original rows
+
+= [3, 4] intersect [7, 8]
+= []
+```
+
+An overlapping example produces rows from the same original coordinate space:
+
+```text
+[1, 2, 3, 4, 5, 6, 7, 8]
+    .Range[3, 6]
+    .Tail(4)
+
+= [3, 4, 5, 6] intersect [5, 6, 7, 8]
+= [5, 6]
+```
+
+Constraint-call order does not change the result:
+
+```text
+rows.Range[3, 6].Tail(4)
+    == rows.Tail(4).Range[3, 6]
+    == [5, 6]
+```
+
+`MarkoutWriterOptions.MaxItems` is evaluated after that complete selection:
+
+```text
+rows.Range[2, 7].Tail(5)
+    == [4, 5, 6, 7]
+
+rows.Range[2, 7].Tail(5).MaxItems(2)
+    == [4, 5] with 2 skipped
+```
+
+This differs intentionally from ordinary sequential LINQ operators. If each
+call enumerated its receiver before the next call, `Range[3, 4].Tail(2)` would
+produce `[3, 4]`; Markout instead resolves both constraints against the original
+table and produces no rows.
 
 | Original rows | Constraints | Selected original rows |
 | --- | --- | --- |
@@ -241,32 +296,36 @@ Adding later constraints extends the immutable plan. Copies of writer options
 preserve the complete plan without sharing mutable collection state. Read-only
 options reject both replacement and intersection.
 
-### API representation decision
+### API representation
 
-The semantic contract does not require callers to observe the plan, but the
-public options surface should not silently appear to expose more state than it
-does. Three API shapes are available:
+The public API is:
 
-1. **Intersection method plus full-plan view (recommended).**
-   `IntersectRowWindow(MarkoutRowWindow)` composes constraints,
-   `RowWindow` remains the primary compatibility property, and a read-only
-   `RowWindows` snapshot exposes the effective plan in insertion order. This
-   keeps simple initialization simple and provides a lossless copy/restore path.
-2. **Intersection method only.** This is the smallest additive API, but the
-   singular `RowWindow` getter can return only the primary constraint. Reading
-   and reassigning it silently discards intersections.
-3. **Public selection value.** A public immutable `MarkoutRowSelection` makes
-   composition first-class, but introduces a second selection abstraction and
-   complicates the existing singular property.
+```csharp
+public MarkoutRowWindow? RowWindow { get; set; }
+public IReadOnlyList<MarkoutRowWindow> RowWindows { get; }
+public void IntersectRowWindow(MarkoutRowWindow window);
+```
 
-For option 1, assigning `RowWindow` replaces `RowWindows` with zero or one
-entry. `IntersectRowWindow` appends an entry and publishes a replacement
-immutable snapshot; a previously returned `RowWindows` value never changes.
-Copying and restoring the complete plan must use `RowWindows`, not the singular
-compatibility property.
+`RowWindow` remains the singular compatibility property. Its getter returns the
+first plan entry, or null when the plan is empty. `IntersectRowWindow` adds one
+constraint and returns no value. `RowWindows` is never null; it returns a
+read-only snapshot of every effective constraint in insertion order.
 
-The implementation must not proceed until the API choice is resolved in the
-design review.
+Assigning `RowWindow` replaces `RowWindows` with zero or one entry.
+`IntersectRowWindow` appends an entry and publishes a replacement immutable
+snapshot; a previously returned `RowWindows` value never changes. Read-only
+options reject both operations.
+
+Callers that inspect, copy, or restore composed state must use `RowWindows`, not
+the singular compatibility property. A caller restores a plan by replaying the
+snapshot through `IntersectRowWindow` on a fresh options instance. Built-in
+options-copy operations preserve the complete immutable plan directly.
+
+This keeps simple initialization source-compatible while avoiding hidden
+composed state. An intersection method without `RowWindows` was rejected because
+the singular getter would be lossy. A public `MarkoutRowSelection` value was
+rejected because it would add a second public selection abstraction and
+complicate the existing property without changing the semantic model.
 
 ## Implementation ownership
 
@@ -296,9 +355,16 @@ to tables must all pass through the same table-writer seam.
   preserving row identity, and a column-projection miss avoiding enumeration.
 - Independent resolution for multiple generated tables.
 - Independent resolution for adjacent JSONL tables with no visible boundary.
-- Table-shaped graph and metric lowering through the same selection seam.
+- Graph edge-table ordering, including trailing isolated-node rows, through the
+  same selection seam.
+- Table-shaped metric lowering through the same selection seam.
 - Flattened breakdown and filtered field-table lowering through the same seam.
 - Assignment, clearing, read-only options, and options-copy behavior.
+- A previously returned `RowWindows` snapshot remaining unchanged after later
+  intersections or replacement.
+- Batch and streaming tests that mutate or replace the plan after the table
+  snapshot point, proving the active table retains its plan and the next table
+  observes the replacement.
 - Stable consumer addresses preserved as row data without claiming Markout
   emits original ordinals.
 - A real consumer combining a semantic item window with an absolute row range.
