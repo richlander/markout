@@ -144,8 +144,9 @@ A valid mapped text diff satisfies all of the following:
    change.
 9. A final-line-terminator assertion is present only for a non-empty sequence.
 10. When both sequences are non-empty and exactly one asserts an `absent`
-    final line terminator, each final line is contained by a caller-issued
-    change. `present` and unknown are both non-marker-emitting states.
+    final line terminator, the final line on that side is contained by a
+    caller-issued change. `present` and unknown are both non-marker-emitting
+    states.
 11. Collection order is significant and preserved.
 
 Equal-cardinality gaps between changes are unchanged sequence ranges whose
@@ -235,7 +236,7 @@ Markdown and portable plain text support unified output:
 +        return 1;
 ```
 
-Unified output uses only:
+Changed sequence lines use only:
 
 - space for context;
 - `-` for Before lines; and
@@ -250,9 +251,8 @@ When an emitted final line has an `absent` final-line-terminator assertion, the
 lowering emits the conventional `\ No newline at end of file` marker
 immediately after that side's line. `present` and unknown assertions emit no
 marker. A shared final context line emits one marker only when both sides
-assert `absent`. Construction requires exactly-one-`absent` final lines to
-belong to a change, so a shared context line never has contradictory marker
-state.
+assert `absent`. The final line on an exactly-one-`absent` side must belong to
+a change, so a shared context line never has contradictory marker state.
 
 The Markdown renderer chooses a fence longer than any fence run in the content.
 Caller text never occupies the fence language or another structural syntax
@@ -283,10 +283,13 @@ A wide renderer may align the mapped ranges:
 4      return 0;    |  4      return 1;
 ```
 
-Unequal range lengths use empty display cells. A formatter does not infer
-additional line-to-line correspondence inside a many-to-many replacement.
-Caller-issued inner mappings may guide emphasis without asserting a complete
-line pairing.
+Each side's mapped range remains an independently addressed column.
+Top-aligning those range blocks and using empty display cells for unequal
+lengths is layout, not line correspondence: no row record or connector relates
+the two displayed lines. A formatter does not infer line-to-line
+correspondence inside a many-to-many replacement. Caller-issued inner mappings
+may relate specific lines and guide emphasis without asserting a complete line
+pairing.
 
 The model is informed by the public VS Code/Monaco diff surface:
 
@@ -419,6 +422,9 @@ inject a foreign fallback syntax.
 Reusable lowerings may adapt a diff to table rows or unified lines. They retain
 the provenance contract above, bypass generic table projection and row
 trimming, and do not return display strings without their source coordinates.
+The implementation updates user guidance that currently describes row windows
+as applying to every table-shaped lowering, because a mapped diff remains one
+semantic shape even when a formatter uses rows.
 
 ## Adopter evidence
 
