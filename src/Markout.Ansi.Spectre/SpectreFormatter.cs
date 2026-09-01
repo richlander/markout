@@ -196,33 +196,50 @@ public class SpectreFormatter : IMarkoutFormatter,
     private static string EscapeTextDiff(string value)
     {
         StringBuilder? builder = null;
-        for (var i = 0; i < value.Length; i++)
+        for (var i = 0; i < value.Length;)
         {
             var c = value[i];
-            string? replacement = c switch
+            var width = char.IsHighSurrogate(c) ? 2 : 1;
+            string? replacement;
+            if (width == 2)
             {
-                '\t' => "\\t",
-                '\r' => "\\r",
-                '\n' => "\\n",
-                _ when char.GetUnicodeCategory(c) is UnicodeCategory.Control
-                    or UnicodeCategory.Format
-                    or UnicodeCategory.LineSeparator
-                    or UnicodeCategory.ParagraphSeparator
-                    => $"\\u{(int)c:X4}",
-                _ => null
-            };
+                var rune = new Rune(c, value[i + 1]);
+                replacement = IsEscapedCategory(Rune.GetUnicodeCategory(rune))
+                    ? $"\\U{rune.Value:X8}"
+                    : null;
+            }
+            else
+            {
+                replacement = c switch
+                {
+                    '\t' => "\\t",
+                    '\r' => "\\r",
+                    '\n' => "\\n",
+                    _ when IsEscapedCategory(char.GetUnicodeCategory(c))
+                        => $"\\u{(int)c:X4}",
+                    _ => null
+                };
+            }
             if (replacement is null)
             {
                 if (builder is not null)
-                    builder.Append(c);
+                    builder.Append(value, i, width);
+                i += width;
                 continue;
             }
 
             builder ??= new StringBuilder(value.Length + 8).Append(value, 0, i);
             builder.Append(replacement);
+            i += width;
         }
         return builder?.ToString() ?? value;
     }
+
+    private static bool IsEscapedCategory(UnicodeCategory category)
+        => category is UnicodeCategory.Control
+            or UnicodeCategory.Format
+            or UnicodeCategory.LineSeparator
+            or UnicodeCategory.ParagraphSeparator;
 
     void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
     {

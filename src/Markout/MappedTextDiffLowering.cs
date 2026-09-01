@@ -292,28 +292,42 @@ internal static class TextDiffEscaping
         bool escapeTab)
     {
         StringBuilder? builder = null;
-        for (var i = 0; i < value.Length; i++)
+        for (var i = 0; i < value.Length;)
         {
             var c = value[i];
-            var replacement = Replacement(c, escapeBackslash, escapeTab);
+            var width = char.IsHighSurrogate(c) ? 2 : 1;
+            var replacement = Replacement(value, i, width, escapeBackslash, escapeTab);
             if (replacement is null)
             {
                 if (builder is not null)
-                    builder.Append(c);
+                    builder.Append(value, i, width);
+                i += width;
                 continue;
             }
 
             builder ??= new StringBuilder(value.Length + 8).Append(value, 0, i);
             builder.Append(replacement);
+            i += width;
         }
         return builder?.ToString() ?? value;
     }
 
     private static string? Replacement(
-        char c,
+        string value,
+        int index,
+        int width,
         bool escapeBackslash,
         bool escapeTab)
     {
+        if (width == 2)
+        {
+            var rune = new Rune(value[index], value[index + 1]);
+            return IsEscapedCategory(Rune.GetUnicodeCategory(rune))
+                ? $"\\U{rune.Value:X8}"
+                : null;
+        }
+
+        var c = value[index];
         if (escapeBackslash && c == '\\')
             return "\\\\";
         if (c == '\t')
@@ -323,12 +337,14 @@ internal static class TextDiffEscaping
         if (c == '\n')
             return "\\n";
 
-        var category = char.GetUnicodeCategory(c);
-        return category is UnicodeCategory.Control
-            or UnicodeCategory.Format
-            or UnicodeCategory.LineSeparator
-            or UnicodeCategory.ParagraphSeparator
+        return IsEscapedCategory(char.GetUnicodeCategory(c))
             ? $"\\u{(int)c:X4}"
             : null;
     }
+
+    private static bool IsEscapedCategory(UnicodeCategory category)
+        => category is UnicodeCategory.Control
+            or UnicodeCategory.Format
+            or UnicodeCategory.LineSeparator
+            or UnicodeCategory.ParagraphSeparator;
 }

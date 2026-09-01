@@ -581,13 +581,11 @@ public class MarkdownFormatter : IMarkoutFormatter,
             w.WriteLine(line);
         w.WriteLine(fence);
 
-        var wroteAnnotation = false;
         for (var address = 0; address < diff.Changes.Length; address++)
         {
             var change = diff.Changes[address];
             foreach (var annotation in change.Annotations)
             {
-                wroteAnnotation = true;
                 w.WriteLine();
                 w.Write("> **");
                 w.Write(annotation.Severity.ToString().ToUpperInvariant());
@@ -599,9 +597,6 @@ public class MarkdownFormatter : IMarkoutFormatter,
                 w.WriteLine();
             }
         }
-
-        if (wroteAnnotation)
-            w.WriteLine();
     }
 
     // ── ITreeFormatter ──

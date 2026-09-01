@@ -165,8 +165,9 @@ public partial class MappedTextDiffTests
     [Fact]
     public void MarkdownPreservesTabsAndContainsTerminalControls()
     {
+        var supplementaryFormat = char.ConvertFromUtf32(0xE0001);
         var diff = new MappedTextDiff(
-            new TextDiffSequence(["\told\u001b[31m\u202e\u2028"]),
+            new TextDiffSequence(["\told\u001b[31m\u202e\u2028" + supplementaryFormat]),
             new TextDiffSequence(["\tnew\u200b\u2029"]),
             [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
         var writer = MarkoutWriter.Create(
@@ -176,13 +177,14 @@ public partial class MappedTextDiffTests
         writer.WriteTextDiff(diff);
         var output = Normalize(writer.ToString());
 
-        Assert.Contains("-\told\\u001B[31m\\u202E\\u2028", output);
+        Assert.Contains("-\told\\u001B[31m\\u202E\\u2028\\U000E0001", output);
         Assert.Contains("+\tnew\\u200B\\u2029", output);
         Assert.True(output.IndexOf('\u001b') < 0, $"Raw ESC at {output.IndexOf('\u001b')}");
         Assert.True(output.IndexOf('\u202e') < 0, $"Raw bidi control at {output.IndexOf('\u202e')}");
         Assert.True(output.IndexOf('\u200b') < 0, $"Raw zero-width control at {output.IndexOf('\u200b')}");
         Assert.True(output.IndexOf('\u2028') < 0, $"Raw line separator at {output.IndexOf('\u2028')}");
         Assert.True(output.IndexOf('\u2029') < 0, $"Raw paragraph separator at {output.IndexOf('\u2029')}");
+        Assert.DoesNotContain(supplementaryFormat, output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -231,21 +233,19 @@ public partial class MappedTextDiffTests
     [Fact]
     public void MarkdownTerminatesDiffBeforeTheFollowingBlock()
     {
-        var diff = new MappedTextDiff(
-            new TextDiffSequence(["old"]),
-            new TextDiffSequence(["new"]),
-            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
         using var output = new StringWriter();
         var writer = new MarkoutWriter(
             output,
             new MarkdownFormatter(),
             new MarkoutWriterOptions { NewLine = "\n" });
 
-        writer.WriteTextDiff(diff);
+        writer.WriteTextDiff(Sample());
         writer.WriteHeading(2, "Following");
         writer.Flush();
 
-        Assert.Contains("```\n\n## Following", Normalize(output.ToString()));
+        var normalized = Normalize(output.ToString());
+        Assert.Contains("Includes zero\n\n## Following", normalized);
+        Assert.DoesNotContain("\n\n\n", normalized);
     }
 
     [Fact]
@@ -323,6 +323,26 @@ public partial class MappedTextDiffTests
     }
 
     [Fact]
+    public void UnicodeEscapesLiteralIntralineMarkerTokens()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["literal [-not mapped-]"]),
+            new TextDiffSequence(["literal {+not mapped+}"]),
+            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+        var writer = MarkoutWriter.Create(
+            new UnicodeFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 });
+
+        writer.WriteTextDiff(diff);
+        var output = writer.ToString();
+
+        Assert.Contains(@"literal \[-not mapped-]", output);
+        Assert.Contains(@"literal \{+not mapped+}", output);
+        Assert.DoesNotContain(" - literal [-", output);
+        Assert.DoesNotContain(" + literal {+", output);
+    }
+
+    [Fact]
     public void TableDiffIgnoresGenericProjectionAndRowLimits()
     {
         var writer = MarkoutWriter.Create(
@@ -376,8 +396,12 @@ public partial class MappedTextDiffTests
     public void StructuredDiffPreservesInlineSyntaxAndContainsNonGraphicText(
         MarkoutTableMode mode)
     {
+        var supplementaryFormat = char.ConvertFromUtf32(0xE0001);
         var longSuffix = new string('x', 4096);
-        var before = "<code>x</code>\t| \u001b \u202e \u200b \u2028 \u2029 " + longSuffix;
+        var before = "<code>x</code>\t| \u001b \u202e \u200b \u2028 \u2029 "
+            + supplementaryFormat
+            + " "
+            + longSuffix;
         var diff = new MappedTextDiff(
             new TextDiffSequence([before], "Before <code>"),
             new TextDiffSequence(["after"], "After |"),
@@ -398,7 +422,9 @@ public partial class MappedTextDiffTests
             : output;
 
         Assert.Contains(
-            "<code>x</code>\\t| \\u001B \\u202E \\u200B \\u2028 \\u2029 " + longSuffix,
+            "<code>x</code>\\t| \\u001B \\u202E \\u200B \\u2028 \\u2029 "
+            + "\\U000E0001 "
+            + longSuffix,
             visibleOutput);
         Assert.Contains("Before <code>", output);
         Assert.Contains("After |", output);
@@ -407,6 +433,7 @@ public partial class MappedTextDiffTests
         Assert.True(output.IndexOf('\u200b') < 0, $"Raw zero-width control at {output.IndexOf('\u200b')}");
         Assert.True(output.IndexOf('\u2028') < 0, $"Raw line separator at {output.IndexOf('\u2028')}");
         Assert.True(output.IndexOf('\u2029') < 0, $"Raw paragraph separator at {output.IndexOf('\u2029')}");
+        Assert.DoesNotContain(supplementaryFormat, output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -497,6 +524,23 @@ public partial class MappedTextDiffTests
         Assert.Contains("\u001b[32m", output);
         Assert.Contains("\u001b[7m<\u001b[27m", output);
         Assert.Contains("Includes zero", output);
+    }
+
+    [Fact]
+    public void SpectreContainsSupplementaryFormatScalars()
+    {
+        var supplementaryFormat = char.ConvertFromUtf32(0xE0001);
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["old" + supplementaryFormat]),
+            new TextDiffSequence(["new"]),
+            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+        var writer = MarkoutWriter.Create(NewSpectreFormatter());
+
+        writer.WriteTextDiff(diff);
+        var output = writer.ToString();
+
+        Assert.Contains("\\U000E0001", output);
+        Assert.DoesNotContain(supplementaryFormat, output, StringComparison.Ordinal);
     }
 
     [Fact]

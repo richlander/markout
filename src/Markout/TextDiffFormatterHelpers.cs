@@ -112,21 +112,24 @@ internal static class TextDiffFormatterHelpers
             .Where(span => span.Line == (line.BeforeLine ?? line.AfterLine) && !span.IsEmpty)
             .ToArray();
         if (spans.Length == 0)
-            return TextDiffEscaping.Human(raw);
+            return EscapeMarkedLiteral(raw, open);
 
         var writer = new StringWriter();
         var cursor = 0;
         foreach (var span in spans)
         {
-            writer.Write(TextDiffEscaping.Human(raw[cursor..span.Start]));
+            writer.Write(EscapeMarkedLiteral(raw[cursor..span.Start], open));
             writer.Write(open);
-            writer.Write(TextDiffEscaping.Human(raw[span.Start..span.End]));
+            writer.Write(EscapeMarkedLiteral(raw[span.Start..span.End], open));
             writer.Write(close);
             cursor = span.End;
         }
-        writer.Write(TextDiffEscaping.Human(raw[cursor..]));
+        writer.Write(EscapeMarkedLiteral(raw[cursor..], open));
         return writer.ToString();
     }
+
+    private static string EscapeMarkedLiteral(string value, string open)
+        => TextDiffEscaping.Human(value).Replace(open, "\\" + open);
 
     internal static string SideName(TextDiffSide side)
         => side switch

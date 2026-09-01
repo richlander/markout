@@ -396,6 +396,10 @@ apply context-appropriate containment.
 
 Sequence lines, labels, and annotation text are inert caller data. They cannot
 inject a header, hunk, record, annotation geometry, or formatter control.
+Containment classifies complete Unicode scalar values rather than individual
+UTF-16 code units. A textual rich renderer escapes any literal source token
+that would otherwise be indistinguishable from renderer-added intraline
+markup.
 
 The implementation must define and test:
 

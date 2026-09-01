@@ -1,4 +1,5 @@
 using Markout;
+using Markout.Formatting;
 
 namespace Markout.Demo;
 
@@ -16,10 +17,10 @@ public static class Demos
         ["nested"] = Nested,
         ["pivot"] = Pivot,
         ["tree"] = Tree,
-        ["text-diff"] = TextDiff,
-        ["text-diff-il"] = TextDiffIl,
-        ["text-diff-jsonl"] = TextDiffJsonl,
-        ["text-diff-unicode"] = TextDiffUnicode,
+        ["textdiff"] = TextDiff,
+        ["textdiffil"] = TextDiffIl,
+        ["textdiffjsonl"] = TextDiffJsonl,
+        ["textdiffunicode"] = TextDiffUnicode,
         ["schema"] = Schema,
     };
 
@@ -32,10 +33,10 @@ public static class Demos
         "nested",
         "pivot",
         "tree",
-        "text-diff",
-        "text-diff-il",
-        "text-diff-jsonl",
-        "text-diff-unicode",
+        "textdiff",
+        "textdiffil",
+        "textdiffjsonl",
+        "textdiffunicode",
         "schema"
     ];
 
@@ -191,6 +192,7 @@ public static class Demos
             output,
             new MarkdownFormatter(),
             new MarkoutWriterOptions { TextDiffContextLines = 0 });
+        writer.WriteHeading(1, "Mapped Text Diff");
         writer.WriteTextDiff(SampleDiff());
         writer.Flush();
     }
@@ -198,8 +200,11 @@ public static class Demos
     /// <summary>Mapped text diff demo: structured JSONL provenance records.</summary>
     private static void TextDiffJsonl(TextWriter output)
     {
-        var writer = new MarkoutWriter(
+        WriteEmbeddedDiff(
             output,
+            "Mapped Text Diff — JSONL",
+            "jsonl",
+            SampleDiff(),
             new TableFormatter(),
             new MarkoutWriterOptions
             {
@@ -207,8 +212,6 @@ public static class Demos
                 OmitEmptyJsonFields = true,
                 TextDiffContextLines = 0
             });
-        writer.WriteTextDiff(SampleDiff());
-        writer.Flush();
     }
 
     /// <summary>Mapped text diff demo: the same shape applied to IL instructions.</summary>
@@ -218,23 +221,44 @@ public static class Demos
             new TextDiffSequence(["IL_0000: ldc.i4.0", "IL_0001: ret"], "Before IL"),
             new TextDiffSequence(["IL_0000: ldc.i4.1", "IL_0001: ret"], "After IL"),
             [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
-        var writer = new MarkoutWriter(
+        WriteEmbeddedDiff(
             output,
+            "Mapped Text Diff — IL",
+            "text",
+            diff,
             new UnicodeFormatter(),
             new MarkoutWriterOptions { TextDiffContextLines = 1 });
-        writer.WriteTextDiff(diff);
-        writer.Flush();
     }
 
     /// <summary>Mapped text diff demo: rich Unicode terminal lowering.</summary>
     private static void TextDiffUnicode(TextWriter output)
     {
-        var writer = new MarkoutWriter(
+        WriteEmbeddedDiff(
             output,
+            "Mapped Text Diff — Unicode",
+            "text",
+            SampleDiff(),
             new UnicodeFormatter(),
             new MarkoutWriterOptions { TextDiffContextLines = 0 });
-        writer.WriteTextDiff(SampleDiff());
-        writer.Flush();
+    }
+
+    private static void WriteEmbeddedDiff(
+        TextWriter output,
+        string title,
+        string language,
+        MappedTextDiff diff,
+        IMarkoutFormatter formatter,
+        MarkoutWriterOptions options)
+    {
+        var rendered = MarkoutWriter.Create(formatter, options);
+        rendered.WriteTextDiff(diff);
+
+        var document = new MarkoutWriter(output, new MarkdownFormatter());
+        document.WriteHeading(1, title);
+        document.WriteCodeStart(language);
+        document.WriteParagraph(rendered.ToString());
+        document.WriteCodeEnd();
+        document.Flush();
     }
 
     private static MappedTextDiff SampleDiff() => new(

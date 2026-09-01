@@ -1004,6 +1004,10 @@ around each change. Set it to `null` to retain every unchanged line or to zero
 to show only changed lines. Context selection emits exact omission records and
 never discards a change or annotation.
 
+Human formatters visibly escape control and format scalars. The Unicode
+formatter also escapes literal `[-` and `{+` openings so caller text cannot
+imitate its intraline markers.
+
 A `MappedTextDiff` property is recognized directly by the source generator:
 
 ```csharp

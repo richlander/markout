@@ -214,17 +214,18 @@ compute a diff.
 formatters:
 
 ```bash
-dotnet run --project src/Markout.Demo -- text-diff
-dotnet run --project src/Markout.Demo -- text-diff-jsonl
-dotnet run --project src/Markout.Demo -- text-diff-unicode
-dotnet run --project src/Markout.Demo -- text-diff-il
+dotnet run --project src/Markout.Demo -- textdiff
+dotnet run --project src/Markout.Demo -- textdiffjsonl
+dotnet run --project src/Markout.Demo -- textdiffunicode
+dotnet run --project src/Markout.Demo -- textdiffil
 ```
 
-The first command emits a GNU-compatible fenced diff, the second emits
-structured provenance records, and the third adds line numbers, intraline
-markers, and the caller-issued annotation. The IL example applies the same
-shape to instructions, demonstrating that the contract has no source-language
-assumptions.
+Each command emits a lintable Markdown demo document. The first contains the
+GNU-compatible diff directly; the JSONL, Unicode, and IL commands embed the
+actual selected formatter output in code fences. The rich output adds line
+numbers, intraline markers, and the caller-issued annotation. The IL example
+applies the same shape to instructions, demonstrating that the contract has no
+source-language assumptions.
 
 ---
 
