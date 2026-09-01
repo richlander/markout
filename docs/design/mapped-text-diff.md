@@ -96,10 +96,19 @@ The range counts determine the change form:
 Replacement is a relation between ranges, not a `Changed` line kind. It may be
 one-to-one, one-to-many, many-to-one, or many-to-many.
 
-An inner mapping relates one side-local text span to another inside a
+A side-local text span identifies one sequence line and a half-open range of
+zero-based UTF-16 code-unit offsets within that line. It cannot cross a line or
+split a surrogate pair. Multi-line emphasis uses an ordered span on each
+affected line. Grapheme clusters may be subdivided because the coordinate
+contract follows .NET and editor text positions rather than display cells.
+Span positions order lexicographically by line coordinate, then UTF-16 offset.
+
+An inner mapping relates one Before text span to one After text span inside a
 replacement. An empty span on one side represents an intraline insertion or
-removal. Inner mappings provide display evidence only; Markout does not use
-them to validate or derive the enclosing line-range mapping.
+removal; two empty spans are invalid. The two line coordinates explicitly
+establish the line pairing for that mapping. Inner mappings provide display
+evidence only; Markout does not use them to validate or derive the enclosing
+line-range mapping.
 
 An annotation carries caller-issued text and targets either:
 
@@ -127,14 +136,16 @@ A valid mapped text diff satisfies all of the following:
 6. Every leading, intervening, and trailing gap has the same line count on
    Before and After. The sequence starts and ends act as implicit boundaries
    for this calculation.
-7. Inner mappings are valid only on replacements, are contained by their
-   declared side and enclosing change, and follow the same monotonic,
-   non-overlapping order on each side.
+7. Inner mappings are valid only on replacements, do not contain two empty
+   spans, are contained by their declared side and enclosing change, do not
+   split surrogate pairs, and follow the same monotonic, non-overlapping order
+   on each side.
 8. Every annotation target is contained by its declared side and enclosing
    change.
 9. A final-line-terminator assertion is present only for a non-empty sequence.
-10. When both sequences assert different final-line-terminator states, each
-    final line is contained by a caller-issued change.
+10. When both sequences are non-empty and exactly one asserts an `absent`
+    final line terminator, each final line is contained by a caller-issued
+    change. `present` and unknown are both non-marker-emitting states.
 11. Collection order is significant and preserved.
 
 Equal-cardinality gaps between changes are unchanged sequence ranges whose
@@ -154,7 +165,8 @@ Sequence lines retain their side and zero-based sequence position.
 Every lowering that expands one change into multiple physical rows or lines
 must retain enough provenance to answer:
 
-- which change produced this output;
+- which change produced this output, or that it is unchanged context or an
+  omission outside the change population;
 - whether the output belongs to Before, After, or both;
 - which sequence line or lines it presents; and
 - whether it is semantic content, annotation geometry, or an omission notice.
@@ -200,9 +212,9 @@ and `[MarkoutMaxItems]` do not trim records inside a selected diff. Section
 selection may omit the complete containing section, but it does not produce a
 partial diff.
 
-Output-size limiting is not part of context selection. If a host transport
-cannot carry every change and exact omission record, it rejects the rendering
-visibly rather than presenting a success-shaped truncated diff.
+Transport-level output-size limits are outside the mapped-diff shape.
+Markout's selected rendering is complete rather than success-shaped partial
+output.
 
 ## Formatter contract
 
@@ -237,9 +249,10 @@ and Git patch convention.
 When an emitted final line has an `absent` final-line-terminator assertion, the
 lowering emits the conventional `\ No newline at end of file` marker
 immediately after that side's line. `present` and unknown assertions emit no
-marker. Construction requires a side-specific final-line-termination
-difference to belong to a change, so a shared context line never has
-contradictory marker state.
+marker. A shared final context line emits one marker only when both sides
+assert `absent`. Construction requires exactly-one-`absent` final lines to
+belong to a change, so a shared context line never has contradictory marker
+state.
 
 The Markdown renderer chooses a fence longer than any fence run in the content.
 Caller text never occupies the fence language or another structural syntax
@@ -256,7 +269,10 @@ caller-issued inner mappings:
 ```
 
 The `~` and span delimiters above illustrate renderer chrome. They are not
-line kinds in the semantic model.
+line kinds in the semantic model. The renderer combines Before and After text
+on one display line only when caller-issued inner mappings establish that
+line pairing. Otherwise it presents the replacement sides separately rather
+than pairing lines by ordinal position.
 
 ### Side-by-side lowering
 
@@ -289,6 +305,7 @@ These are design precedents, not dependencies.
 Table, TSV, and JSONL lowerings expose fixed, unique fields sufficient to
 recover change and side provenance. The vocabulary includes:
 
+- record kind;
 - change address and form;
 - side;
 - side-local line coordinate;
@@ -298,14 +315,20 @@ recover change and side provenance. The vocabulary includes:
 - annotation target and text when present; and
 - final-line-terminator assertions when known.
 
+Change-derived records require a change address. Unchanged context records
+instead carry both corresponding side coordinates. Omission records carry
+their complete Before and After ranges and hidden count. Annotation records
+carry the address of their target change.
+
 The structured schema does not use rendered `-`, `+`, `~`, color, or spacing as
 data. Tabs, line breaks, and non-graphic text follow the formatter's existing
 machine-output containment rules.
 
-One change may lower to several side-line records. Every record carries the
-same change address, so consumers can regroup it without parsing display text.
-Mandatory provenance fields cannot be removed through generic table column
-projection, and generic row windows or caps cannot split or discard changes.
+One change may lower to several side-line records. Every record derived from
+that change carries the same change address, so consumers can regroup it
+without parsing display text. No mapped-diff record field is subject to generic
+table column projection, and generic row windows or caps cannot split or
+discard changes.
 
 ### ANSI lowering
 
@@ -366,6 +389,7 @@ inject a header, hunk, record, annotation geometry, or formatter control.
 The implementation must define and test:
 
 - malformed UTF-16;
+- text spans at valid and invalid surrogate boundaries;
 - embedded carriage returns and line feeds;
 - tabs and long lines;
 - Markdown fence runs and inline syntax;
