@@ -8,7 +8,7 @@ namespace Markout;
 /// Uses ─│├└╭╮╰╯ for borders, █▆▄▂ for bars, and other Unicode decorations.
 /// </summary>
 public class UnicodeFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IGlyphFormatter, IGraphFormatter
+    IDocumentFormatter, IMetricsFormatter, IGlyphFormatter, IGraphFormatter, ITextDiffFormatter
 {
     // ── IGraphFormatter ──
 
@@ -23,6 +23,64 @@ public class UnicodeFormatter : IMarkoutFormatter,
 
         ((ITreeFormatter)this).FormatTree(w, GraphLowering.ToTree(graph).AsSpan(), options);
     }
+
+    // ── ITextDiffFormatter ──
+
+    void ITextDiffFormatter.FormatTextDiff(
+        TextWriter w,
+        MappedTextDiff diff,
+        MarkoutWriterOptions options)
+    {
+        foreach (var line in MappedTextDiffLowering.ToDisplayLines(diff, options.TextDiffContextLines))
+        {
+            switch (line.Kind)
+            {
+                case TextDiffDisplayLineKind.Context:
+                    w.Write($"{line.BeforeLine!.Value + 1,4} {line.AfterLine!.Value + 1,4}   ");
+                    w.WriteLine(TextDiffEscaping.Human(line.BeforeText!));
+                    break;
+
+                case TextDiffDisplayLineKind.Removal:
+                    w.Write($"{line.BeforeLine!.Value + 1,4}      - ");
+                    w.WriteLine(TextDiffFormatterHelpers.FormatMarkedLine(diff, line, "[-", "-]"));
+                    break;
+
+                case TextDiffDisplayLineKind.Addition:
+                    w.Write($"     {line.AfterLine!.Value + 1,4} + ");
+                    w.WriteLine(TextDiffFormatterHelpers.FormatMarkedLine(diff, line, "{+", "+}"));
+                    break;
+
+                case TextDiffDisplayLineKind.Omission:
+                    w.Write("         … ");
+                    w.Write(line.BeforeRange!.Value.Count);
+                    w.Write(" unchanged lines (Before ");
+                    WriteRange(w, line.BeforeRange.Value);
+                    w.Write(", After ");
+                    WriteRange(w, line.AfterRange!.Value);
+                    w.WriteLine(")");
+                    break;
+
+                case TextDiffDisplayLineKind.Annotation:
+                    w.Write("         ↳ ");
+                    w.Write(line.Annotation!.Severity);
+                    w.Write(" — ");
+                    w.Write(TextDiffFormatterHelpers.AnnotationTarget(
+                        line.Annotation,
+                        line.ChangeAddress));
+                    w.Write(": ");
+                    w.WriteLine(TextDiffEscaping.Human(line.Annotation.Text));
+                    break;
+            }
+        }
+    }
+
+    private static void WriteRange(TextWriter w, TextDiffRange range)
+    {
+        w.Write(range.Start + 1);
+        w.Write('–');
+        w.Write(range.End);
+    }
+
     private const int ColumnGap = 2;
     private int _consoleWidth = 80;
 

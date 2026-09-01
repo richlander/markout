@@ -1812,6 +1812,35 @@ public class MarkoutWriter
         return true;
     }
 
+    // ── Mapped text diffs ──
+
+    /// <summary>
+    /// Writes caller-issued mappings between two ordered logical-line
+    /// sequences. The formatter chooses its own unified, structured, or rich
+    /// lowering.
+    /// </summary>
+    /// <returns>
+    /// <c>true</c> if rendered or filtered; <c>false</c> if the formatter does
+    /// not support mapped text diffs.
+    /// </returns>
+    public bool WriteTextDiff(MappedTextDiff diff)
+    {
+        ArgumentNullException.ThrowIfNull(diff);
+
+        if (diff.IsEmpty || _sectionExcluded)
+            return true;
+        if (_formatter is not ITextDiffFormatter formatter)
+            return false;
+
+        EnsureBlankLineIfNeeded();
+        formatter.FormatTextDiff(_writer, diff, _options);
+        _needsBlankLine = _formatter is TableFormatter
+            ? TableLeavesBlankLinePending
+            : true;
+        _hasContent = true;
+        return true;
+    }
+
     // ── Link definitions ──
 
     /// <summary>

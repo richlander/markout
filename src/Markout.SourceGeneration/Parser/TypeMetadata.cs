@@ -516,6 +516,7 @@ internal enum PropertyKind
     FieldCollection,
     Tree,
     Graph,
+    TextDiff,
     Metric,
     Description,
     CodeSection,

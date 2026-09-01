@@ -11,7 +11,7 @@ namespace Markout;
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter,
-    IGraphFormatter
+    IGraphFormatter, ITextDiffFormatter
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
@@ -564,6 +564,44 @@ public class MarkdownFormatter : IMarkoutFormatter,
             graph,
             node => node.Emphasized ? ((IEmphasisFormatter)this).Emphasize(node.Label) : node.Label);
         return true;
+    }
+
+    // ── ITextDiffFormatter ──
+
+    void ITextDiffFormatter.FormatTextDiff(
+        TextWriter w,
+        MappedTextDiff diff,
+        MarkoutWriterOptions options)
+    {
+        var lines = TextDiffFormatterHelpers.UnifiedLines(diff, options.TextDiffContextLines);
+        var fence = new string('`', Math.Max(3, TextDiffEscaping.LongestBacktickRun(lines) + 1));
+        w.Write(fence);
+        w.WriteLine("diff");
+        foreach (var line in lines)
+            w.WriteLine(line);
+        w.WriteLine(fence);
+
+        var wroteAnnotation = false;
+        for (var address = 0; address < diff.Changes.Length; address++)
+        {
+            var change = diff.Changes[address];
+            foreach (var annotation in change.Annotations)
+            {
+                wroteAnnotation = true;
+                w.WriteLine();
+                w.Write("> **");
+                w.Write(annotation.Severity.ToString().ToUpperInvariant());
+                w.Write(" — ");
+                w.Write(FormatHelper.EscapeMarkdownText(
+                    TextDiffFormatterHelpers.AnnotationTarget(annotation, address)));
+                w.Write(":** ");
+                w.Write(FormatHelper.EscapeMarkdownText(TextDiffEscaping.MarkdownInline(annotation.Text)));
+                w.WriteLine();
+            }
+        }
+
+        if (wroteAnnotation)
+            w.WriteLine();
     }
 
     // ── ITreeFormatter ──

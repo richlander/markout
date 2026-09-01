@@ -16,10 +16,28 @@ public static class Demos
         ["nested"] = Nested,
         ["pivot"] = Pivot,
         ["tree"] = Tree,
+        ["text-diff"] = TextDiff,
+        ["text-diff-il"] = TextDiffIl,
+        ["text-diff-jsonl"] = TextDiffJsonl,
+        ["text-diff-unicode"] = TextDiffUnicode,
         ["schema"] = Schema,
     };
 
-    private static readonly string[] _orderedNames = ["simple", "sections", "list", "table", "nested", "pivot", "tree", "schema"];
+    private static readonly string[] _orderedNames =
+    [
+        "simple",
+        "sections",
+        "list",
+        "table",
+        "nested",
+        "pivot",
+        "tree",
+        "text-diff",
+        "text-diff-il",
+        "text-diff-jsonl",
+        "text-diff-unicode",
+        "schema"
+    ];
 
     public static IEnumerable<string> List() => _orderedNames;
 
@@ -165,4 +183,87 @@ public static class Demos
         writer.WriteCodeEnd();
         writer.Flush();
     }
+
+    /// <summary>Mapped text diff demo: GNU-compatible Markdown lowering.</summary>
+    private static void TextDiff(TextWriter output)
+    {
+        var writer = new MarkoutWriter(
+            output,
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 });
+        writer.WriteTextDiff(SampleDiff());
+        writer.Flush();
+    }
+
+    /// <summary>Mapped text diff demo: structured JSONL provenance records.</summary>
+    private static void TextDiffJsonl(TextWriter output)
+    {
+        var writer = new MarkoutWriter(
+            output,
+            new TableFormatter(),
+            new MarkoutWriterOptions
+            {
+                TableMode = MarkoutTableMode.Jsonl,
+                OmitEmptyJsonFields = true,
+                TextDiffContextLines = 0
+            });
+        writer.WriteTextDiff(SampleDiff());
+        writer.Flush();
+    }
+
+    /// <summary>Mapped text diff demo: the same shape applied to IL instructions.</summary>
+    private static void TextDiffIl(TextWriter output)
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["IL_0000: ldc.i4.0", "IL_0001: ret"], "Before IL"),
+            new TextDiffSequence(["IL_0000: ldc.i4.1", "IL_0001: ret"], "After IL"),
+            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+        var writer = new MarkoutWriter(
+            output,
+            new UnicodeFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 1 });
+        writer.WriteTextDiff(diff);
+        writer.Flush();
+    }
+
+    /// <summary>Mapped text diff demo: rich Unicode terminal lowering.</summary>
+    private static void TextDiffUnicode(TextWriter output)
+    {
+        var writer = new MarkoutWriter(
+            output,
+            new UnicodeFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 });
+        writer.WriteTextDiff(SampleDiff());
+        writer.Flush();
+    }
+
+    private static MappedTextDiff SampleDiff() => new(
+        new TextDiffSequence(
+            ["if (value < 0)", "    return 0;"],
+            "Before",
+            TextDiffLineTerminator.Present),
+        new TextDiffSequence(
+            ["if (value <= 0)", "    return 1;"],
+            "After",
+            TextDiffLineTerminator.Present),
+        [
+            new TextDiffChange(
+                new TextDiffRange(0, 2),
+                new TextDiffRange(0, 2),
+                [
+                    new TextDiffInnerMapping(
+                        new TextDiffSpan(0, 10, 1),
+                        new TextDiffSpan(0, 10, 2)),
+                    new TextDiffInnerMapping(
+                        new TextDiffSpan(1, 11, 1),
+                        new TextDiffSpan(1, 11, 1))
+                ],
+                [
+                    TextDiffAnnotation.ForSpan(
+                        TextDiffSide.After,
+                        new TextDiffSpan(0, 10, 2),
+                        "Boundary now includes zero",
+                        CalloutSeverity.Warning)
+                ])
+        ]);
 }

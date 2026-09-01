@@ -128,6 +128,7 @@ These add meaning beyond raw document structure. They represent specific data re
 | **Callouts** | Attention | `WriteCallout` | `Callout` |
 | **Trees** | Hierarchy | `WriteTree` | `TreeNode` |
 | **Graphs** | Directed relationship | `WriteGraph` | `Graph` |
+| **Text diffs** | Correspondence between ordered sequences | `WriteTextDiff` | `MappedTextDiff` |
 
 ### Tier 3: Data Visualizations
 
@@ -245,7 +246,7 @@ Applying the admission criteria to candidates:
 | DefinitionItem | Description | ❌ #2: Same relationship as Description. | Use Description |
 | LinkItem | Reference | ⚠️ #2: Could be a format attribute on fields. | Attribute preferred |
 | OrderedList | Enumeration | ❌ #2: Visual variant of List. | Parameter on WriteArray |
-| Mapped text diff | Correspondence between ordered sequences | ✅ All five. | **Accepted design:** [Mapped text diff](mapped-text-diff.md) |
+| ~~Mapped text diff~~ | Correspondence between ordered sequences | ✅ All five. | **Shipped:** [Mapped text diff](mapped-text-diff.md) |
 | FlameGraph | Hierarchy + Measurement | ⚠️ #3: Hard to express in plain text. | Defer |
 | Gantt / Timeline | Measurement + Time | ⚠️ #3: Hard to express in plain text. | Defer |
 

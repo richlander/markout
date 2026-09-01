@@ -18,6 +18,9 @@ Markout is a source-generated .NET serializer for projecting object graphs into 
 - Markdown renders `Graph` as an edge table by default. Pass
   `MarkdownGraphMode.Mermaid` to `MarkdownFormatter` to embed the same graph as
   a fenced Mermaid diagram.
+- Mapped text diffs retain producer-issued correspondence. Markdown and plain
+  text use GNU-compatible unified form, rich formatters add display detail,
+  and table modes expose fixed provenance records.
 - `TableFormatter` renders compact table projections. `MarkoutTableMode.Pretty` uses display headers and space-padded columns. `MarkoutTableMode.Tsv` emits normalized TSV with stable snake_case headers.
 - Markdown table cell pipes are normalized to `&#124;`, not escaped as `\|`.
 - TSV cells never contain embedded tabs or newlines.

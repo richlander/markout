@@ -5,7 +5,7 @@ description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn
   ASCII or manual Markdown. Markout ships these as data types (Metric, Breakdown/Slice, Callout,
-  TreeNode, Description, CodeSection, MarkoutTable) you attach as model properties. If the task
+  TreeNode, Description, CodeSection, MarkoutTable, MappedTextDiff) you attach as model properties. If the task
   requests terminal/Unicode, plain text, ANSI, or another non-Markdown sink, also invoke
   markout-output-formats for the formatter call. Don't decompile the assembly or web-search the
   API — the shape types are here.
@@ -89,6 +89,11 @@ public class Dashboard
     [MarkoutSection(Name = "Metadata"), MarkoutIgnoreInTable]
     public MarkoutTable? Metadata { get; set; }
     // new MarkoutTable(["Property", "Value"], [["Machine", "Amd64"]])
+
+    // Caller-issued correspondence between complete ordered text sequences. Markout validates
+    // and presents the mapping; it never computes a diff.
+    [MarkoutSection(Name = "Source Diff"), MarkoutIgnoreInTable]
+    public MappedTextDiff? SourceDiff { get; set; }
 }
 ```
 
@@ -148,6 +153,8 @@ public class MetadataDocument
 - **`Callout` and `CodeSection` are value types** — declare them non-nullable and pair with
   `[MarkoutSkipDefault]` so an unset one disappears. `Callout?` / `CodeSection?` does not compile.
 - Do not hand-draw bars/trees; if you're building glyphs by hand you're using the wrong tool.
+- Do not ask `MappedTextDiff` to compare text. Supply complete `TextDiffSequence` values and
+  caller-owned `TextDiffChange` ranges; use `TextDiffContextLines` only to hide unchanged context.
 
 ## Shape cheat-sheet
 
@@ -160,3 +167,4 @@ public class MetadataDocument
 | `Description` | term + text | `new Description("API", "…")` |
 | `CodeSection` | fenced code block | `new CodeSection("csharp", "…")` |
 | `MarkoutTable` | runtime-column table | `new MarkoutTable(["Property", "Value"], [["Machine", "Amd64"]])` |
+| `MappedTextDiff` | mapped ordered text correspondence | `new MappedTextDiff(before, after, changes)` |

@@ -380,6 +380,11 @@ Both presentations retain the same target coordinates. The renderer may wrap
 annotation prose, but it may not move the target or silently omit the
 annotation.
 
+Human lowerings identify a change-level annotation by the owning change's
+one-based display number. An empty span is a valid static insertion-point
+target and renders as `insertion point at column N`, where `N` is the
+one-based form of the span's zero-based offset.
+
 Interactive selection, focus, hover, activation, annotation membership, and
 editor state are consumer concerns. This shape supplies static targets only.
 
@@ -401,6 +406,7 @@ The implementation must define and test:
 - Markdown fence runs and inline syntax;
 - table delimiters;
 - terminal escapes and non-graphic text;
+- Unicode line and paragraph separators;
 - bidirectional and zero-width controls;
 - empty sequences and files without a final line terminator; and
 - sequence labels and annotations containing syntax significant to each

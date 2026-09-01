@@ -58,6 +58,11 @@ public enum MarkoutShape
     /// </summary>
     Graphs = 16384,
 
+    /// <summary>
+    /// Mapped correspondence between two ordered logical-line sequences.
+    /// </summary>
+    TextDiffs = 32768,
+
     /// <summary>All shapes supported.</summary>
-    All = Headings | Paragraphs | Fields | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation | Graphs
+    All = Headings | Paragraphs | Fields | Tables | Lists | Trees | Code | Metrics | Descriptions | Callouts | Breakdowns | Quotation | Graphs | TextDiffs
 }

@@ -178,6 +178,8 @@ This demonstrates that when you need custom formatting, you project your data to
 
 **Approach:** **Custom projection** to `TreeNode`. Project data to `List<TreeNode>` where each node has a label and optional children. Markout's `WriteTree()` handles the connector logic (`├─`, `└─`, `│`).
 
+---
+
 ```csharp
 var tree = shoes.Select(s => new TreeNode(
     $"{s.Model} ({s.Category}, ${s.Price})",
@@ -200,6 +202,29 @@ writer.WriteTree(tree);
 ```
 
 This follows the same pattern as `list`: reshape data to a Markout-recognized type, serializer does the right thing.
+
+---
+
+### text-diff
+
+**Intent:** Present caller-issued correspondence without asking Markout to
+compute a diff.
+
+**Approach:** Build one `MappedTextDiff` and render it through several
+formatters:
+
+```bash
+dotnet run --project src/Markout.Demo -- text-diff
+dotnet run --project src/Markout.Demo -- text-diff-jsonl
+dotnet run --project src/Markout.Demo -- text-diff-unicode
+dotnet run --project src/Markout.Demo -- text-diff-il
+```
+
+The first command emits a GNU-compatible fenced diff, the second emits
+structured provenance records, and the third adds line numbers, intraline
+markers, and the caller-issued annotation. The IL example applies the same
+shape to instructions, demonstrating that the contract has no source-language
+assumptions.
 
 ---
 
