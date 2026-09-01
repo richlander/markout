@@ -143,10 +143,9 @@ A valid mapped text diff satisfies all of the following:
 8. Every annotation target is contained by its declared side and enclosing
    change.
 9. A final-line-terminator assertion is present only for a non-empty sequence.
-10. When both sequences are non-empty and exactly one asserts an `absent`
-    final line terminator, the final line on that side is contained by a
-    caller-issued change. `present` and unknown are both non-marker-emitting
-    states.
+10. A final line asserting an `absent` terminator is either contained by a
+    caller-issued change or corresponds through the trailing unchanged gap to
+    the other sequence's final line, which also asserts `absent`.
 11. Collection order is significant and preserved.
 
 Equal-cardinality gaps between changes are unchanged sequence ranges whose
@@ -251,8 +250,12 @@ When an emitted final line has an `absent` final-line-terminator assertion, the
 lowering emits the conventional `\ No newline at end of file` marker
 immediately after that side's line. `present` and unknown assertions emit no
 marker. A shared final context line emits one marker only when both sides
-assert `absent`. The final line on an exactly-one-`absent` side must belong to
-a change, so a shared context line never has contradictory marker state.
+assert `absent`. Construction permits an `absent` final line in unchanged
+context only when it corresponds to that shared final line, so context never
+has contradictory marker state.
+
+Appending after an unterminated final line therefore maps that former final
+line as changed in addition to mapping the appended lines, matching GNU diff.
 
 The Markdown renderer chooses a fence longer than any fence run in the content.
 Caller text never occupies the fence language or another structural syntax
