@@ -6,7 +6,7 @@ This document defines the Markout-owned presentation contract for mapped text
 diffs. It is proposed by
 [issue #218](https://github.com/richlander/markout/issues/218).
 
-Markout owns validation, formatter dispatch, context projection, provenance
+Markout owns validation, formatter dispatch, context selection, provenance
 through lowerings, and presentation of caller-issued mappings between two
 ordered text sequences.
 
@@ -59,20 +59,28 @@ and emphasis, but the shape itself is not a visualization.
 
 One diff contains:
 
-- a **Before sequence** with an optional label and ordered logical lines;
-- an **After sequence** with an optional label and ordered logical lines; and
+- a **Before sequence** with an optional label, ordered logical lines, and an
+  optional final-line-terminator assertion;
+- an **After sequence** with an optional label, ordered logical lines, and an
+  optional final-line-terminator assertion; and
 - an ordered **change population** mapping non-overlapping ranges between the
   sequences.
 
-Each line is one logical line without its line terminator. An empty string is a
-valid blank line. Sequence position is a zero-based document-local coordinate;
-human renderers normally display it as a one-based line number.
+Each line and sequence label is one logical line without its line terminator.
+An empty string is a valid blank line. Sequence position is a zero-based
+document-local coordinate; human renderers normally display it as a one-based
+line number.
+
+The optional final-line-terminator assertion is `present` or `absent` and is
+valid only for a non-empty sequence. It preserves the GNU-visible distinction
+between a terminated and unterminated final line when the producer knows it.
+It does not preserve the spelling of individual line terminators.
 
 Each change contains:
 
 - one half-open Before line range;
 - one half-open After line range;
-- zero or more caller-issued inner text mappings;
+- zero or more caller-issued inner text mappings when it is a replacement;
 - zero or more caller-issued annotations; and
 - its zero-based position in the change population.
 
@@ -108,20 +116,31 @@ bags are outside the shape.
 A valid mapped text diff satisfies all of the following:
 
 1. Both sequence and change collections are initialized immutable snapshots.
-2. Every line is well-formed text and contains no carriage return or line feed.
+2. Every line and sequence label is well-formed text and contains no carriage
+   return or line feed.
 3. Every change range is within its owning sequence.
 4. No change has two empty ranges.
-5. Changes are strictly ordered by both side-local start coordinates after
-   empty-range insertion points are accounted for.
-6. Before ranges do not overlap other Before ranges.
-7. After ranges do not overlap other After ranges.
-8. Every inner mapping and annotation target is contained by its declared side
-   and enclosing change.
-9. Collection order is significant and preserved.
+5. For each adjacent pair, the earlier change's Before end is less than or
+   equal to the later change's Before start, and its After end is less than or
+   equal to the later change's After start. Equality is valid; collection order
+   resolves ties at empty-range insertion points.
+6. Every leading, intervening, and trailing gap has the same line count on
+   Before and After. The sequence starts and ends act as implicit boundaries
+   for this calculation.
+7. Inner mappings are valid only on replacements, are contained by their
+   declared side and enclosing change, and follow the same monotonic,
+   non-overlapping order on each side.
+8. Every annotation target is contained by its declared side and enclosing
+   change.
+9. A final-line-terminator assertion is present only for a non-empty sequence.
+10. When both sequences assert different final-line-terminator states, each
+    final line is contained by a caller-issued change.
+11. Collection order is significant and preserved.
 
-Gaps between changes are unchanged sequence ranges. The constructor does not
-compare their text; accepting the caller's mapping is accepting the caller's
-claim that those gaps correspond.
+Equal-cardinality gaps between changes are unchanged sequence ranges whose
+lines correspond by position. The constructor validates their cardinality but
+does not compare their text; accepting the caller's mapping is accepting the
+caller's claim that those lines correspond.
 
 Construction rejects invalid input. It does not normalize, sort, trim, or
 repair caller data.
@@ -152,33 +171,43 @@ address and do not redefine cardinality.
 Wrapping, intraline spans, annotation rows, headings, and omission notices are
 presentation elements. They never create changes.
 
-## Projection and completeness
+## Context selection and completeness
 
 The input shape retains both complete sequences and every caller-issued change.
 Formatters may hide unchanged ranges, but they must not discard changes.
 
-A context projection selects unchanged lines around changes and produces
-explicit omitted-range records. Each omitted record names:
+A context selection selects unchanged lines around changes and produces
+explicit omission records. Each omitted record names:
 
 - its Before range;
 - its After range; and
 - the number of unchanged lines hidden.
 
-Static output renders an omission notice. An interactive consumer may make the
-same range revealable. Neither represents omitted content as an ambiguous
-literal `...` line.
+The ranges have equal cardinality because construction validates every
+unchanged gap. Static output renders an omission notice. An interactive
+consumer may make the same range revealable. Neither represents omitted
+content as an ambiguous literal `...` line.
 
-The caller or host chooses projection policy, including context-line and
-output-size limits. Markout owns applying that policy consistently and
-reporting its exact omissions.
+The caller or host chooses the context-line policy. Markout owns applying that
+policy consistently and reporting its exact omissions.
 
-Projection is presentation-only. It does not change the diff's exactness,
-change count, mappings, or annotations.
+Context selection is presentation-only. It does not change the complete input,
+change count, mappings, annotations, or final-line-terminator assertions.
+
+Mapped text diff is not a table even when a formatter internally lowers it to
+rows. `MarkoutProjection` column and field filters, `RowWindow`, `MaxItems`,
+and `[MarkoutMaxItems]` do not trim records inside a selected diff. Section
+selection may omit the complete containing section, but it does not produce a
+partial diff.
+
+Output-size limiting is not part of context selection. If a host transport
+cannot carry every change and exact omission record, it rejects the rendering
+visibly rather than presenting a success-shaped truncated diff.
 
 ## Formatter contract
 
 A formatter supporting mapped text diff consumes the validated shape and
-selected presentation projection. Layout is formatter policy.
+selected context. Layout is formatter policy.
 
 ### GNU-compatible unified lowering
 
@@ -204,6 +233,13 @@ A replacement expands to its removed lines followed by its added lines. This
 follows the
 [GNU unified format](https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html)
 and Git patch convention.
+
+When an emitted final line has an `absent` final-line-terminator assertion, the
+lowering emits the conventional `\ No newline at end of file` marker
+immediately after that side's line. `present` and unknown assertions emit no
+marker. Construction requires a side-specific final-line-termination
+difference to belong to a change, so a shared context line never has
+contradictory marker state.
 
 The Markdown renderer chooses a fence longer than any fence run in the content.
 Caller text never occupies the fence language or another structural syntax
@@ -258,8 +294,9 @@ recover change and side provenance. The vocabulary includes:
 - side-local line coordinate;
 - Before and After range coordinates;
 - text;
-- inner mapping coordinates when selected; and
-- annotation target and text when selected.
+- inner mapping coordinates when present;
+- annotation target and text when present; and
+- final-line-terminator assertions when known.
 
 The structured schema does not use rendered `-`, `+`, `~`, color, or spacing as
 data. Tabs, line breaks, and non-graphic text follow the formatter's existing
@@ -267,6 +304,8 @@ machine-output containment rules.
 
 One change may lower to several side-line records. Every record carries the
 same change address, so consumers can regroup it without parsing display text.
+Mandatory provenance fields cannot be removed through generic table column
+projection, and generic row windows or caps cannot split or discard changes.
 
 ### ANSI lowering
 
@@ -321,6 +360,9 @@ Mapped text diffs commonly present untrusted package, source, log, or generated
 content. Each formatter must keep caller data out of structural syntax and
 apply context-appropriate containment.
 
+Sequence lines, labels, and annotation text are inert caller data. They cannot
+inject a header, hunk, record, annotation geometry, or formatter control.
+
 The implementation must define and test:
 
 - malformed UTF-16;
@@ -331,7 +373,8 @@ The implementation must define and test:
 - terminal escapes and non-graphic text;
 - bidirectional and zero-width controls;
 - empty sequences and files without a final line terminator; and
-- annotations containing syntax significant to each formatter.
+- sequence labels and annotations containing syntax significant to each
+  formatter.
 
 The core shape and its validation remain reflection-free,
 NativeAOT-compatible, and Browser/Wasm-compatible. A formatter may have a
@@ -350,8 +393,8 @@ return unsupported through the existing capability contract; Markout does not
 inject a foreign fallback syntax.
 
 Reusable lowerings may adapt a diff to table rows or unified lines. They retain
-the provenance contract above and do not return display strings without their
-source coordinates.
+the provenance contract above, bypass generic table projection and row
+trimming, and do not return display strings without their source coordinates.
 
 ## Adopter evidence
 
@@ -395,7 +438,7 @@ expected output through a parallel template.
 
 - Computing line, word, syntax, or semantic differences.
 - Inferring replacement, movement, or correspondence.
-- Establishing whether two unchanged gaps are actually equal.
+- Establishing whether equal-cardinality unchanged gaps contain equal text.
 - Replacing caller-owned failure, Finding, provenance, or annotated-document
   models.
 - Defining an editor, merge operation, or web interaction state.
