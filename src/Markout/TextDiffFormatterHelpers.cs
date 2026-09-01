@@ -105,31 +105,35 @@ internal static class TextDiffFormatterHelpers
     {
         var raw = line.Side == TextDiffSide.Before ? line.BeforeText! : line.AfterText!;
         if (line.ChangeAddress is not { } address)
-            return TextDiffEscaping.Human(raw);
+            return EscapeIntralineMarkerLiterals(raw);
 
         var spans = diff.Changes[address].InnerMappings
             .Select(mapping => line.Side == TextDiffSide.Before ? mapping.Before : mapping.After)
             .Where(span => span.Line == (line.BeforeLine ?? line.AfterLine) && !span.IsEmpty)
             .ToArray();
         if (spans.Length == 0)
-            return EscapeMarkedLiteral(raw, open);
+            return EscapeIntralineMarkerLiterals(raw);
 
         var writer = new StringWriter();
         var cursor = 0;
         foreach (var span in spans)
         {
-            writer.Write(EscapeMarkedLiteral(raw[cursor..span.Start], open));
+            writer.Write(EscapeIntralineMarkerLiterals(raw[cursor..span.Start]));
             writer.Write(open);
-            writer.Write(EscapeMarkedLiteral(raw[span.Start..span.End], open));
+            writer.Write(EscapeIntralineMarkerLiterals(raw[span.Start..span.End]));
             writer.Write(close);
             cursor = span.End;
         }
-        writer.Write(EscapeMarkedLiteral(raw[cursor..], open));
+        writer.Write(EscapeIntralineMarkerLiterals(raw[cursor..]));
         return writer.ToString();
     }
 
-    private static string EscapeMarkedLiteral(string value, string open)
-        => TextDiffEscaping.Human(value).Replace(open, "\\" + open);
+    internal static string EscapeIntralineMarkerLiterals(string value)
+        => TextDiffEscaping.Human(value)
+            .Replace("[-", "\\[-")
+            .Replace("-]", "\\-]")
+            .Replace("{+", "\\{+")
+            .Replace("+}", "\\+}");
 
     internal static string SideName(TextDiffSide side)
         => side switch

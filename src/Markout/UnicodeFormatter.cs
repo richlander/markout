@@ -37,7 +37,7 @@ public class UnicodeFormatter : IMarkoutFormatter,
             {
                 case TextDiffDisplayLineKind.Context:
                     w.Write($"{line.BeforeLine!.Value + 1,4} {line.AfterLine!.Value + 1,4}   ");
-                    w.WriteLine(TextDiffEscaping.Human(line.BeforeText!));
+                    w.WriteLine(TextDiffFormatterHelpers.EscapeIntralineMarkerLiterals(line.BeforeText!));
                     break;
 
                 case TextDiffDisplayLineKind.Removal:

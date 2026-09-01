@@ -326,9 +326,45 @@ public partial class MappedTextDiffTests
     public void UnicodeEscapesLiteralIntralineMarkerTokens()
     {
         var diff = new MappedTextDiff(
-            new TextDiffSequence(["literal [-not mapped-]"]),
-            new TextDiffSequence(["literal {+not mapped+}"]),
-            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+            new TextDiffSequence(
+                [
+                    "context [-before-open-] -] {+after-open+} +}",
+                    "old [-before-open-] -] {+after-open+} +}"
+                ]),
+            new TextDiffSequence(
+                [
+                    "context [-before-open-] -] {+after-open+} +}",
+                    "new [-before-open-] -] {+after-open+} +}"
+                ]),
+            [new TextDiffChange(new TextDiffRange(1, 1), new TextDiffRange(1, 1))]);
+        var writer = MarkoutWriter.Create(
+            new UnicodeFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 1 });
+
+        writer.WriteTextDiff(diff);
+        var output = writer.ToString();
+
+        Assert.Contains(@"context \[-before-open\-] \-] \{+after-open\+} \+}", output);
+        Assert.Contains(@"old \[-before-open\-] \-] \{+after-open\+} \+}", output);
+        Assert.Contains(@"new \[-before-open\-] \-] \{+after-open\+} \+}", output);
+    }
+
+    [Fact]
+    public void UnicodeEscapesLiteralClosingTokensInsideIntralineMappings()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["value -] tail"]),
+            new TextDiffSequence(["value +} tail"]),
+            [
+                new TextDiffChange(
+                    new TextDiffRange(0, 1),
+                    new TextDiffRange(0, 1),
+                    [
+                        new TextDiffInnerMapping(
+                            new TextDiffSpan(0, 6, 2),
+                            new TextDiffSpan(0, 6, 2))
+                    ])
+            ]);
         var writer = MarkoutWriter.Create(
             new UnicodeFormatter(),
             new MarkoutWriterOptions { TextDiffContextLines = 0 });
@@ -336,10 +372,8 @@ public partial class MappedTextDiffTests
         writer.WriteTextDiff(diff);
         var output = writer.ToString();
 
-        Assert.Contains(@"literal \[-not mapped-]", output);
-        Assert.Contains(@"literal \{+not mapped+}", output);
-        Assert.DoesNotContain(" - literal [-", output);
-        Assert.DoesNotContain(" + literal {+", output);
+        Assert.Contains(@"value [-\-]-] tail", output);
+        Assert.Contains(@"value {+\+}+} tail", output);
     }
 
     [Fact]
