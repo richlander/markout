@@ -246,6 +246,12 @@ follows the
 [GNU unified format](https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html)
 and Git patch convention.
 
+When the final emitted plain-text unified line contains caller-significant
+trailing whitespace, in-memory completion preserves that line and its
+terminator instead of applying the writer's ordinary document-end trim. This
+includes a whitespace-only final context line; removing it would contradict
+the hunk's declared line count and produce an invalid patch.
+
 When an emitted final line has an `absent` final-line-terminator assertion, the
 lowering emits the conventional `\ No newline at end of file` marker
 immediately after that side's line. `present` and unknown assertions emit no

@@ -377,6 +377,165 @@ public partial class MappedTextDiffTests
     }
 
     [Fact]
+    public void UnicodeMarkerEscapingDistinguishesCallerBackslashes()
+    {
+        var mappedBackslash = new MappedTextDiff(
+            new TextDiffSequence([@"\\"]),
+            new TextDiffSequence([""]),
+            [
+                new TextDiffChange(
+                    new TextDiffRange(0, 1),
+                    new TextDiffRange(0, 1),
+                    [
+                        new TextDiffInnerMapping(
+                            new TextDiffSpan(0, 1, 1),
+                            new TextDiffSpan(0, 0, 0))
+                    ])
+            ]);
+        var literalMarkers = new MappedTextDiff(
+            new TextDiffSequence(["[--]"]),
+            new TextDiffSequence([""]),
+            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+        var options = new MarkoutWriterOptions { TextDiffContextLines = 0 };
+        var mappedWriter = MarkoutWriter.Create(new UnicodeFormatter(), options);
+        var literalWriter = MarkoutWriter.Create(new UnicodeFormatter(), options);
+
+        mappedWriter.WriteTextDiff(mappedBackslash);
+        literalWriter.WriteTextDiff(literalMarkers);
+
+        Assert.NotEqual(mappedWriter.ToString(), literalWriter.ToString());
+        Assert.Contains(@"\\[-\\-]", mappedWriter.ToString());
+        Assert.Contains(@"\[-\-]", literalWriter.ToString());
+    }
+
+    [Fact]
+    public void UnicodeEscapesMarkerTokensFormedAtMappedSpanBoundaries()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["]["]),
+            new TextDiffSequence(["}{"]),
+            [
+                new TextDiffChange(
+                    new TextDiffRange(0, 1),
+                    new TextDiffRange(0, 1),
+                    [
+                        new TextDiffInnerMapping(
+                            new TextDiffSpan(0, 0, 2),
+                            new TextDiffSpan(0, 0, 2))
+                    ])
+            ]);
+        var writer = MarkoutWriter.Create(
+            new UnicodeFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 });
+
+        writer.WriteTextDiff(diff);
+        var output = writer.ToString();
+
+        Assert.Contains(@"[-\]\[-]", output);
+        Assert.Contains(@"{+\}\{+}", output);
+    }
+
+    [Fact]
+    public void PlainTextCompletionPreservesFinalUnifiedLineWhitespace()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["alpha", "beta", "gamma", ""]),
+            new TextDiffSequence(["alpha", "BETA", "gamma", ""]),
+            [new TextDiffChange(new TextDiffRange(1, 1), new TextDiffRange(1, 1))]);
+        var writer = MarkoutWriter.Create(
+            new PlainTextFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 3, NewLine = "\n" });
+
+        writer.WriteTextDiff(diff);
+        var preview = writer.ToString();
+        var completed = writer.Complete();
+
+        Assert.Equal(preview, completed);
+        Assert.EndsWith(" \n", completed, StringComparison.Ordinal);
+        Assert.Contains("@@ -1,4 +1,4 @@", completed);
+    }
+
+    [Fact]
+    public void PlainTextCompletionTrimsAFollowingBlankWithoutTruncatingTheDiff()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["alpha", "beta", "gamma", ""]),
+            new TextDiffSequence(["alpha", "BETA", "gamma", ""]),
+            [new TextDiffChange(new TextDiffRange(1, 1), new TextDiffRange(1, 1))]);
+        var writer = MarkoutWriter.Create(
+            new PlainTextFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 3, NewLine = "\n" });
+
+        writer.WriteTextDiff(diff);
+        var diffOnly = writer.ToString();
+        writer.WriteBlankLine();
+
+        Assert.Equal(diffOnly, writer.ToString());
+        Assert.Equal(diffOnly, writer.Complete());
+    }
+
+    [Fact]
+    public void PlainTextCompletionPreservesTrailingCallerSpaces()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["old"]),
+            new TextDiffSequence(["new   "]),
+            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+        var writer = MarkoutWriter.Create(
+            new PlainTextFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0, NewLine = "\n" });
+
+        writer.WriteTextDiff(diff);
+
+        Assert.EndsWith("+new   \n", writer.Complete(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PlainTextCompletionStillTrimsAnOrdinaryFinalLine()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["old"]),
+            new TextDiffSequence(["new"]),
+            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+        var writer = MarkoutWriter.Create(
+            new PlainTextFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0, NewLine = "\n" });
+
+        writer.WriteTextDiff(diff);
+        var output = writer.Complete();
+
+        Assert.EndsWith("+new", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SectionOrderingPreservesWhitespaceWhenPlainTextDiffMovesLast()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["alpha", "beta", "gamma", ""]),
+            new TextDiffSequence(["alpha", "BETA", "gamma", ""]),
+            [new TextDiffChange(new TextDiffRange(1, 1), new TextDiffRange(1, 1))]);
+        var writer = MarkoutWriter.Create(
+            new PlainTextFormatter(),
+            new MarkoutWriterOptions
+            {
+                SectionOrder = ["Tail", "Diff"],
+                TextDiffContextLines = 3,
+                NewLine = "\n"
+            });
+
+        writer.WriteSectionStart(2, "Diff");
+        writer.WriteTextDiff(diff);
+        writer.WriteSectionStart(2, "Tail");
+        writer.WriteParagraph("tail");
+        var output = writer.Complete();
+
+        Assert.True(
+            output.IndexOf("tail", StringComparison.Ordinal) <
+            output.IndexOf("---", StringComparison.Ordinal));
+        Assert.EndsWith(" \n", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TableDiffIgnoresGenericProjectionAndRowLimits()
     {
         var writer = MarkoutWriter.Create(

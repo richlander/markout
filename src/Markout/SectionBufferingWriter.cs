@@ -86,6 +86,7 @@ internal sealed class SectionBufferingWriter : TextWriter
     private Chunk _preamble;
     private Chunk _current;
     private bool _emitted;
+    private int _emittedTrailingWhitespacePreservationLength;
 
     public SectionBufferingWriter(TextWriter target)
     {
@@ -134,6 +135,12 @@ internal sealed class SectionBufferingWriter : TextWriter
         /// itself from those.
         /// </summary>
         public bool ContainsContent { get; set; }
+
+        /// <summary>
+        /// The position through which document-end trimming must preserve this chunk.
+        /// Later whitespace in the same chunk remains ordinary trim candidates.
+        /// </summary>
+        public int TrailingWhitespacePreservationLength { get; set; }
 
         /// <summary>
         /// Whether <see cref="SeparatorNewLine"/> has been observed yet. The first
@@ -205,7 +212,15 @@ internal sealed class SectionBufferingWriter : TextWriter
     /// Records that the section now open holds content — something a block after it
     /// would separate itself from, as opposed to blank lines, which it would not.
     /// </summary>
-    public void NoteContent() => _current.ContainsContent = true;
+    public void NoteContent(bool preservesTrailingWhitespaceAtEnd)
+    {
+        _current.ContainsContent = true;
+        if (preservesTrailingWhitespaceAtEnd)
+        {
+            _current.TrailingWhitespacePreservationLength =
+                _current.Content.Length;
+        }
+    }
 
     /// <summary>
     /// Writes a blank line the caller asked for at a section seam, and records that the
@@ -403,9 +418,18 @@ internal sealed class SectionBufferingWriter : TextWriter
         if (_emitted)
             return;
 
-        if (!WriteOrdered(_target, order, endsNeedingBlankLine))
+        var targetLength = TargetLength();
+        if (!WriteOrdered(
+                _target,
+                order,
+                endsNeedingBlankLine,
+                out var relativePreservationLength))
             return;
 
+        _emittedTrailingWhitespacePreservationLength =
+            relativePreservationLength == 0
+                ? 0
+                : targetLength + relativePreservationLength;
         _emitted = true;
 
         // Drop the buffers rather than clearing them: StringBuilder.Clear allocates a
@@ -420,24 +444,45 @@ internal sealed class SectionBufferingWriter : TextWriter
     /// Renders the currently buffered document without emitting it or making the writer
     /// read-only. Used by <see cref="MarkoutWriter.ToString"/> for side-effect-free previews.
     /// </summary>
-    public string RenderOrdered(IReadOnlyList<string>? order, bool endsNeedingBlankLine)
+    public string RenderOrdered(
+        IReadOnlyList<string>? order,
+        bool endsNeedingBlankLine,
+        out int trailingWhitespacePreservationLength)
     {
         if (_emitted)
+        {
+            trailingWhitespacePreservationLength =
+                _emittedTrailingWhitespacePreservationLength;
             return "";
+        }
 
         var preview = new StringWriter(_target.FormatProvider)
         {
             NewLine = _target.NewLine
         };
-        WriteOrdered(preview, order, endsNeedingBlankLine);
+        WriteOrdered(
+            preview,
+            order,
+            endsNeedingBlankLine,
+            out var relativePreservationLength);
+        trailingWhitespacePreservationLength =
+            relativePreservationLength == 0
+                ? 0
+                : TargetLength() + relativePreservationLength;
         return preview.ToString();
     }
+
+    public int EmittedTrailingWhitespacePreservationLength
+        => _emittedTrailingWhitespacePreservationLength;
 
     private bool WriteOrdered(
         TextWriter output,
         IReadOnlyList<string>? order,
-        bool currentEndsNeedingBlankLine)
+        bool currentEndsNeedingBlankLine,
+        out int trailingWhitespacePreservationLength)
     {
+        trailingWhitespacePreservationLength = 0;
+        var outputLength = 0;
         var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         if (order != null)
         {
@@ -480,6 +525,7 @@ internal sealed class SectionBufferingWriter : TextWriter
                 if (blankLinePending)
                 {
                     output.Write(chunk.SeparatorNewLine);
+                    outputLength += chunk.SeparatorNewLine.Length;
                     blankLinePending = false;
                     emitted = true;
                 }
@@ -487,7 +533,14 @@ internal sealed class SectionBufferingWriter : TextWriter
 
             if (chunk.Content.Length > 0)
             {
+                if (chunk.TrailingWhitespacePreservationLength > 0)
+                {
+                    trailingWhitespacePreservationLength =
+                        outputLength + chunk.TrailingWhitespacePreservationLength;
+                }
+
                 output.Write(chunk.Content);
+                outputLength += chunk.Content.Length;
                 emitted = true;
             }
 
@@ -515,6 +568,9 @@ internal sealed class SectionBufferingWriter : TextWriter
 
         return emitted;
     }
+
+    private int TargetLength()
+        => _target is StringWriter sw ? sw.GetStringBuilder().Length : 0;
 
     private static IEnumerable<Chunk> Prepend(Chunk first, IEnumerable<Chunk> rest)
     {

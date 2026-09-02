@@ -1006,7 +1006,14 @@ never discards a change or annotation.
 
 Human formatters visibly escape control and format scalars. The Unicode
 formatter also escapes literal `[-`, `-]`, `{+`, and `+}` tokens so caller text
-cannot imitate or terminate its intraline markers.
+cannot imitate or terminate its intraline markers. Caller backslashes are
+doubled so the marker escapes remain unambiguous.
+
+When a plain-text mapped diff ends in caller-significant whitespace,
+`Complete()` and `ToString()` preserve that trailing line exactly. This keeps a
+whitespace-only final unified line, or caller-significant trailing spaces,
+consistent with the hunk header instead of applying the writer's ordinary
+document-end trim.
 
 A `MappedTextDiff` property is recognized directly by the source generator:
 

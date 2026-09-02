@@ -45,6 +45,17 @@ internal static class TextDiffFormatterHelpers
         return lines;
     }
 
+    internal static bool PlainTextEndsWithSignificantWhitespace(
+        MappedTextDiff diff,
+        int? contextLines)
+    {
+        if (diff.Changes.Any(change => !change.Annotations.IsEmpty))
+            return false;
+
+        var lines = UnifiedLines(diff, contextLines);
+        return lines.Count > 0 && char.IsWhiteSpace(lines[^1][^1]);
+    }
+
     internal static StructuredTextDiffTable StructuredTable(
         MappedTextDiff diff,
         int? contextLines)
@@ -120,7 +131,10 @@ internal static class TextDiffFormatterHelpers
         {
             writer.Write(EscapeIntralineMarkerLiterals(raw[cursor..span.Start]));
             writer.Write(open);
-            writer.Write(EscapeIntralineMarkerLiterals(raw[span.Start..span.End]));
+            writer.Write(EscapeMarkedPayload(
+                raw[span.Start..span.End],
+                open,
+                close));
             writer.Write(close);
             cursor = span.End;
         }
@@ -129,11 +143,24 @@ internal static class TextDiffFormatterHelpers
     }
 
     internal static string EscapeIntralineMarkerLiterals(string value)
-        => TextDiffEscaping.Human(value)
+        => TextDiffEscaping.Human(value.Replace("\\", "\\\\"))
             .Replace("[-", "\\[-")
             .Replace("-]", "\\-]")
             .Replace("{+", "\\{+")
             .Replace("+}", "\\+}");
+
+    private static string EscapeMarkedPayload(
+        string value,
+        string open,
+        string close)
+    {
+        var escaped = EscapeIntralineMarkerLiterals(value);
+        if (value[0] == close[^1])
+            escaped = "\\" + escaped;
+        if (value[^1] == open[0])
+            escaped = escaped[..^1] + "\\" + escaped[^1];
+        return escaped;
+    }
 
     internal static string SideName(TextDiffSide side)
         => side switch
