@@ -436,6 +436,56 @@ public partial class MappedTextDiffTests
     }
 
     [Fact]
+    public void RichFormattersRenderEmptyInnerSpanAtExactOffset()
+    {
+        var startAnchored = IntralineInsertion(beforeOffset: 0);
+        var endAnchored = IntralineInsertion(beforeOffset: 4);
+        var options = new MarkoutWriterOptions { TextDiffContextLines = 0 };
+        var startUnicode = MarkoutWriter.Create(new UnicodeFormatter(), options);
+        var endUnicode = MarkoutWriter.Create(new UnicodeFormatter(), options);
+        var startSpectre = MarkoutWriter.Create(NewSpectreFormatter(), options);
+        var endSpectre = MarkoutWriter.Create(NewSpectreFormatter(), options);
+
+        startUnicode.WriteTextDiff(startAnchored);
+        endUnicode.WriteTextDiff(endAnchored);
+        startSpectre.WriteTextDiff(startAnchored);
+        endSpectre.WriteTextDiff(endAnchored);
+
+        Assert.Contains("[--]aaaa", startUnicode.ToString());
+        Assert.Contains("aaaa[--]", endUnicode.ToString());
+        Assert.NotEqual(startUnicode.ToString(), endUnicode.ToString());
+        Assert.Contains("\u001b[7m\u001b[4m│\u001b[24m\u001b[27m", startSpectre.ToString());
+        Assert.NotEqual(startSpectre.ToString(), endSpectre.ToString());
+    }
+
+    [Fact]
+    public void RichFormattersRenderEmptyAfterSpan()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["Xaaaa"]),
+            new TextDiffSequence(["aaaa"]),
+            [
+                new TextDiffChange(
+                    new TextDiffRange(0, 1),
+                    new TextDiffRange(0, 1),
+                    [
+                        new TextDiffInnerMapping(
+                            new TextDiffSpan(0, 0, 1),
+                            new TextDiffSpan(0, 4, 0))
+                    ])
+            ]);
+        var options = new MarkoutWriterOptions { TextDiffContextLines = 0 };
+        var unicode = MarkoutWriter.Create(new UnicodeFormatter(), options);
+        var spectre = MarkoutWriter.Create(NewSpectreFormatter(), options);
+
+        unicode.WriteTextDiff(diff);
+        spectre.WriteTextDiff(diff);
+
+        Assert.Contains("aaaa{++}", unicode.ToString());
+        Assert.Contains("\u001b[7m\u001b[4m│\u001b[24m\u001b[27m", spectre.ToString());
+    }
+
+    [Fact]
     public void PlainTextCompletionPreservesFinalUnifiedLineWhitespace()
     {
         var diff = new MappedTextDiff(
@@ -777,6 +827,20 @@ public partial class MappedTextDiffTests
                         new TextDiffSpan(0, 10, 2),
                         "Includes zero",
                         CalloutSeverity.Warning)
+                ])
+        ]);
+
+    private static MappedTextDiff IntralineInsertion(int beforeOffset) => new(
+        new TextDiffSequence(["aaaa"]),
+        new TextDiffSequence(["aaaaX"]),
+        [
+            new TextDiffChange(
+                new TextDiffRange(0, 1),
+                new TextDiffRange(0, 1),
+                [
+                    new TextDiffInnerMapping(
+                        new TextDiffSpan(0, beforeOffset, 0),
+                        new TextDiffSpan(0, 4, 1))
                 ])
         ]);
 

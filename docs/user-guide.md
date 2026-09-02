@@ -1007,7 +1007,9 @@ never discards a change or annotation.
 Human formatters visibly escape control and format scalars. The Unicode
 formatter also escapes literal `[-`, `-]`, `{+`, and `+}` tokens so caller text
 cannot imitate or terminate its intraline markers. Caller backslashes are
-doubled so the marker escapes remain unambiguous.
+doubled so the marker escapes remain unambiguous. Empty mapped sides remain
+visible at their exact offsets: Unicode uses `[--]` or `{++}`, while Spectre
+uses an underlined inverse point marker.
 
 When a plain-text mapped diff ends in caller-significant whitespace,
 `Complete()` and `ToString()` preserve that trailing line exactly. This keeps a

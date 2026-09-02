@@ -120,7 +120,7 @@ internal static class TextDiffFormatterHelpers
 
         var spans = diff.Changes[address].InnerMappings
             .Select(mapping => line.Side == TextDiffSide.Before ? mapping.Before : mapping.After)
-            .Where(span => span.Line == (line.BeforeLine ?? line.AfterLine) && !span.IsEmpty)
+            .Where(span => span.Line == (line.BeforeLine ?? line.AfterLine))
             .ToArray();
         if (spans.Length == 0)
             return EscapeIntralineMarkerLiterals(raw);
@@ -131,10 +131,13 @@ internal static class TextDiffFormatterHelpers
         {
             writer.Write(EscapeIntralineMarkerLiterals(raw[cursor..span.Start]));
             writer.Write(open);
-            writer.Write(EscapeMarkedPayload(
-                raw[span.Start..span.End],
-                open,
-                close));
+            if (!span.IsEmpty)
+            {
+                writer.Write(EscapeMarkedPayload(
+                    raw[span.Start..span.End],
+                    open,
+                    close));
+            }
             writer.Write(close);
             cursor = span.End;
         }

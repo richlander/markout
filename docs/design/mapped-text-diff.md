@@ -283,6 +283,11 @@ on one display line only when caller-issued inner mappings establish that
 line pairing. Otherwise it presents the replacement sides separately rather
 than pairing lines by ordinal position.
 
+An empty side of an inner mapping remains visible at its exact UTF-16 offset.
+A textual renderer may use adjacent empty delimiters such as `[--]` or `{++}`;
+an ANSI renderer may use distinct point chrome. It does not omit the empty side
+or infer its position from the non-empty span.
+
 ### Side-by-side lowering
 
 A wide renderer may align the mapped ranges:

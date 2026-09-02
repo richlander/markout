@@ -83,6 +83,10 @@ public class SpectreFormatter : IMarkoutFormatter,
     private const int SgrMagenta = 35;
     private const int SgrBlue = 34;
     private const int SgrWhite = 37;
+    private const int SgrUnderline = 4;
+    private const int SgrUnderlineOff = 24;
+    private const int SgrInverse = 7;
+    private const int SgrInverseOff = 27;
 
     private static readonly int[] DistributionSgrColors = [SgrRed, SgrYellow, SgrCyan, SgrGreen, SgrMagenta, SgrBlue];
 
@@ -154,7 +158,7 @@ public class SpectreFormatter : IMarkoutFormatter,
         var spans = line.ChangeAddress is { } address
             ? diff.Changes[address].InnerMappings
                 .Select(mapping => line.Side == TextDiffSide.Before ? mapping.Before : mapping.After)
-                .Where(span => span.Line == (line.BeforeLine ?? line.AfterLine) && !span.IsEmpty)
+                .Where(span => span.Line == (line.BeforeLine ?? line.AfterLine))
                 .ToArray()
             : [];
         if (spans.Length == 0)
@@ -167,9 +171,18 @@ public class SpectreFormatter : IMarkoutFormatter,
         foreach (var span in spans)
         {
             w.Write(EscapeTextDiff(raw[cursor..span.Start]));
-            Sgr(w, 7);
-            w.Write(EscapeTextDiff(raw[span.Start..span.End]));
-            Sgr(w, 27);
+            Sgr(w, SgrInverse);
+            if (span.IsEmpty)
+            {
+                Sgr(w, SgrUnderline);
+                w.Write('│');
+                Sgr(w, SgrUnderlineOff);
+            }
+            else
+            {
+                w.Write(EscapeTextDiff(raw[span.Start..span.End]));
+            }
+            Sgr(w, SgrInverseOff);
             cursor = span.End;
         }
         w.Write(EscapeTextDiff(raw[cursor..]));
