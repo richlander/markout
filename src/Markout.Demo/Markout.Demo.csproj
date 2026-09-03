@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Markout.Ansi.Spectre\Markout.Ansi.Spectre.csproj" />
     <ProjectReference Include="..\Markout\Markout.csproj" />
     <ProjectReference Include="..\Markout.SourceGeneration\Markout.SourceGeneration.csproj"
                       OutputItemType="Analyzer"
