@@ -283,6 +283,7 @@ Each property on a model maps to a data relationship, not a visual element. Rend
 | **Measurement** | `List<Metric>` | Comparative quantities | `Label ████░░ 45` | Colored bars |
 | **Composition** | `List<Breakdown>` | Parts of a whole | `██▓▓▒░` stacked | Colored segments |
 | **Hierarchy** | `List<TreeNode>` | Parent-child structure | `├── node` | Box-drawing tree |
+| **Correspondence** | `MappedTextDiff` | Mapped ordered text sequences | GNU-compatible diff | Numbered rich diff |
 | **Quotation** | `CodeSection` | Verbatim content | ` ```code``` ` | Syntax display |
 | **Attention** | `Callout` | Important messages | `> [!WARNING]` | Colored label |
 
@@ -298,6 +299,7 @@ new Description("dotnet-inspect", "API surface inspection tool")  // term + expl
 new Breakdown("Jan 2025", [new("Critical", 1), new("High", 3)])  // proportional composition
 new Callout(CalloutSeverity.Warning, "3 vulnerabilities found")   // attention
 new CodeSection("csharp", "public class Foo { }")                 // verbatim content
+new MappedTextDiff(before, after, changes)                        // caller-issued text correspondence
 ```
 
 ## Renderers
@@ -306,10 +308,10 @@ Markout ships five formatters. The serializer writes through `MarkoutWriter` (th
 
 | Formatter | Output | Use case |
 |---|---|---|
-| **MarkdownFormatter** | GitHub-Flavored Markdown; graphs as edge tables or fenced Mermaid | Documentation, LLM tool output, rendered reports |
-| **PlainTextFormatter** | Plain text without markup | Minimal output, no syntax characters |
-| **UnicodeFormatter** | Box-drawing characters | Rich tables with borders, no color |
-| **TableFormatter** | Tables, lists, fields | Compact summaries, pretty tables, TSV/JSONL rows |
+| **MarkdownFormatter** | GitHub-Flavored Markdown; graphs and fenced GNU-compatible diffs | Documentation, LLM tool output, rendered reports |
+| **PlainTextFormatter** | Plain text and GNU-compatible diffs without Markdown fences | Minimal output, no syntax characters |
+| **UnicodeFormatter** | Box drawing and numbered rich diffs | Rich terminal output without color |
+| **TableFormatter** | Tables plus structured diff provenance | Compact summaries, pretty tables, TSV/JSONL rows |
 | **DiagramFormatter** | Trees and structural diagrams | Dependency graphs, file trees |
 
 Optional packages:

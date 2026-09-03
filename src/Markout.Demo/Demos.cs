@@ -1,4 +1,5 @@
 using Markout;
+using Markout.Formatting;
 
 namespace Markout.Demo;
 
@@ -16,10 +17,28 @@ public static class Demos
         ["nested"] = Nested,
         ["pivot"] = Pivot,
         ["tree"] = Tree,
+        ["textdiff"] = TextDiff,
+        ["textdiffil"] = TextDiffIl,
+        ["textdiffjsonl"] = TextDiffJsonl,
+        ["textdiffunicode"] = TextDiffUnicode,
         ["schema"] = Schema,
     };
 
-    private static readonly string[] _orderedNames = ["simple", "sections", "list", "table", "nested", "pivot", "tree", "schema"];
+    private static readonly string[] _orderedNames =
+    [
+        "simple",
+        "sections",
+        "list",
+        "table",
+        "nested",
+        "pivot",
+        "tree",
+        "textdiff",
+        "textdiffil",
+        "textdiffjsonl",
+        "textdiffunicode",
+        "schema"
+    ];
 
     public static IEnumerable<string> List() => _orderedNames;
 
@@ -165,4 +184,110 @@ public static class Demos
         writer.WriteCodeEnd();
         writer.Flush();
     }
+
+    /// <summary>Mapped text diff demo: GNU-compatible Markdown lowering.</summary>
+    private static void TextDiff(TextWriter output)
+    {
+        var writer = new MarkoutWriter(
+            output,
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 });
+        writer.WriteHeading(1, "Mapped Text Diff");
+        writer.WriteTextDiff(SampleDiff());
+        writer.Flush();
+    }
+
+    /// <summary>Mapped text diff demo: structured JSONL provenance records.</summary>
+    private static void TextDiffJsonl(TextWriter output)
+    {
+        WriteEmbeddedDiff(
+            output,
+            "Mapped Text Diff — JSONL",
+            "jsonl",
+            SampleDiff(),
+            new TableFormatter(),
+            new MarkoutWriterOptions
+            {
+                TableMode = MarkoutTableMode.Jsonl,
+                OmitEmptyJsonFields = true,
+                TextDiffContextLines = 0
+            });
+    }
+
+    /// <summary>Mapped text diff demo: the same shape applied to IL instructions.</summary>
+    private static void TextDiffIl(TextWriter output)
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["IL_0000: ldc.i4.0", "IL_0001: ret"], "Before IL"),
+            new TextDiffSequence(["IL_0000: ldc.i4.1", "IL_0001: ret"], "After IL"),
+            [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+        WriteEmbeddedDiff(
+            output,
+            "Mapped Text Diff — IL",
+            "text",
+            diff,
+            new UnicodeFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 1 });
+    }
+
+    /// <summary>Mapped text diff demo: rich Unicode terminal lowering.</summary>
+    private static void TextDiffUnicode(TextWriter output)
+    {
+        WriteEmbeddedDiff(
+            output,
+            "Mapped Text Diff — Unicode",
+            "text",
+            SampleDiff(),
+            new UnicodeFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 });
+    }
+
+    private static void WriteEmbeddedDiff(
+        TextWriter output,
+        string title,
+        string language,
+        MappedTextDiff diff,
+        IMarkoutFormatter formatter,
+        MarkoutWriterOptions options)
+    {
+        var rendered = MarkoutWriter.Create(formatter, options);
+        rendered.WriteTextDiff(diff);
+
+        var document = new MarkoutWriter(output, new MarkdownFormatter());
+        document.WriteHeading(1, title);
+        document.WriteCodeStart(language);
+        document.WriteParagraph(rendered.ToString());
+        document.WriteCodeEnd();
+        document.Flush();
+    }
+
+    private static MappedTextDiff SampleDiff() => new(
+        new TextDiffSequence(
+            ["if (value < 0)", "    return 0;"],
+            "Before",
+            TextDiffLineTerminator.Present),
+        new TextDiffSequence(
+            ["if (value <= 0)", "    return 1;"],
+            "After",
+            TextDiffLineTerminator.Present),
+        [
+            new TextDiffChange(
+                new TextDiffRange(0, 2),
+                new TextDiffRange(0, 2),
+                [
+                    new TextDiffInnerMapping(
+                        new TextDiffSpan(0, 10, 1),
+                        new TextDiffSpan(0, 10, 2)),
+                    new TextDiffInnerMapping(
+                        new TextDiffSpan(1, 11, 1),
+                        new TextDiffSpan(1, 11, 1))
+                ],
+                [
+                    TextDiffAnnotation.ForSpan(
+                        TextDiffSide.After,
+                        new TextDiffSpan(0, 10, 2),
+                        "Boundary now includes zero",
+                        CalloutSeverity.Warning)
+                ])
+        ]);
 }

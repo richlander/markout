@@ -9,7 +9,8 @@ namespace Markout;
 /// </summary>
 public class PlainTextFormatter : IMarkoutFormatter,
     IHeadingFormatter, IFieldFormatter, IBlockFormatter,
-    IListFormatter, ITableFormatter, ICodeBlockFormatter, ITreeFormatter, IGraphFormatter
+    IListFormatter, ITableFormatter, ICodeBlockFormatter, ITreeFormatter, IGraphFormatter,
+    ITextDiffFormatter
 {
     // ── IGraphFormatter ──
 
@@ -25,6 +26,30 @@ public class PlainTextFormatter : IMarkoutFormatter,
 
         ((ITreeFormatter)this).FormatTree(w, GraphLowering.ToTree(graph).AsSpan(), options);
     }
+
+    // ── ITextDiffFormatter ──
+
+    void ITextDiffFormatter.FormatTextDiff(
+        TextWriter w,
+        MappedTextDiff diff,
+        MarkoutWriterOptions options)
+    {
+        foreach (var line in TextDiffFormatterHelpers.UnifiedLines(diff, options.TextDiffContextLines))
+            w.WriteLine(line);
+
+        for (var address = 0; address < diff.Changes.Length; address++)
+        {
+            var change = diff.Changes[address];
+            foreach (var annotation in change.Annotations)
+            {
+                w.Write("Annotation (");
+                w.Write(TextDiffFormatterHelpers.AnnotationTarget(annotation, address));
+                w.Write("): ");
+                w.WriteLine(TextDiffEscaping.Human(annotation.Text));
+            }
+        }
+    }
+
     private const int ColumnGap = 2;
 
     // ── IHeadingFormatter ──

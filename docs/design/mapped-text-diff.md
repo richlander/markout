@@ -246,6 +246,12 @@ follows the
 [GNU unified format](https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html)
 and Git patch convention.
 
+When the final emitted plain-text unified line contains caller-significant
+trailing whitespace, in-memory completion preserves that line and its
+terminator instead of applying the writer's ordinary document-end trim. This
+includes a whitespace-only final context line; removing it would contradict
+the hunk's declared line count and produce an invalid patch.
+
 When an emitted final line has an `absent` final-line-terminator assertion, the
 lowering emits the conventional `\ No newline at end of file` marker
 immediately after that side's line. `present` and unknown assertions emit no
@@ -276,6 +282,11 @@ line kinds in the semantic model. The renderer combines Before and After text
 on one display line only when caller-issued inner mappings establish that
 line pairing. Otherwise it presents the replacement sides separately rather
 than pairing lines by ordinal position.
+
+An empty side of an inner mapping remains visible at its exact UTF-16 offset.
+A textual renderer may use adjacent empty delimiters such as `[--]` or `{++}`;
+an ANSI renderer may use distinct point chrome. It does not omit the empty side
+or infer its position from the non-empty span.
 
 ### Side-by-side lowering
 
@@ -380,6 +391,11 @@ Both presentations retain the same target coordinates. The renderer may wrap
 annotation prose, but it may not move the target or silently omit the
 annotation.
 
+Human lowerings identify a change-level annotation by the owning change's
+one-based display number. An empty span is a valid static insertion-point
+target and renders as `insertion point at column N`, where `N` is the
+one-based form of the span's zero-based offset.
+
 Interactive selection, focus, hover, activation, annotation membership, and
 editor state are consumer concerns. This shape supplies static targets only.
 
@@ -391,6 +407,10 @@ apply context-appropriate containment.
 
 Sequence lines, labels, and annotation text are inert caller data. They cannot
 inject a header, hunk, record, annotation geometry, or formatter control.
+Containment classifies complete Unicode scalar values rather than individual
+UTF-16 code units. A textual rich renderer escapes any literal source token
+that would otherwise be indistinguishable from renderer-added intraline
+markup.
 
 The implementation must define and test:
 
@@ -401,6 +421,7 @@ The implementation must define and test:
 - Markdown fence runs and inline syntax;
 - table delimiters;
 - terminal escapes and non-graphic text;
+- Unicode line and paragraph separators;
 - bidirectional and zero-width controls;
 - empty sequences and files without a final line terminator; and
 - sequence labels and annotations containing syntax significant to each

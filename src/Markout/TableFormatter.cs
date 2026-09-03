@@ -11,7 +11,7 @@ namespace Markout;
 /// space-padded table from the same row/column projection.
 /// </summary>
 public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatter, IListFormatter,
-    ICompositeCellFormatter, IGraphFormatter
+    ICompositeCellFormatter, IGraphFormatter, ITextDiffFormatter
 {
     // ── IGraphFormatter ──
 
@@ -34,6 +34,32 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
     {
         table = GraphLowering.ToDeferredEdgeTable(graph);
         return true;
+    }
+
+    // ── ITextDiffFormatter ──
+
+    void ITextDiffFormatter.FormatTextDiff(
+        TextWriter w,
+        MappedTextDiff diff,
+        MarkoutWriterOptions options)
+    {
+        var table = TextDiffFormatterHelpers.StructuredTable(
+            diff,
+            options.TextDiffContextLines);
+        var structuredOptions = options.WithJsonIdentityColumnIndices(
+            TextDiffFormatterHelpers.JsonStringColumnIndices);
+        switch (options.TableMode)
+        {
+            case MarkoutTableMode.Tsv:
+                WriteTsvTable(w, table.Headers.AsSpan(), table.Rows, skippedRows: 0, renderInline: false);
+                break;
+            case MarkoutTableMode.Jsonl:
+                WriteJsonlTable(w, table.Headers.AsSpan(), table.Rows, structuredOptions, renderInline: false);
+                break;
+            default:
+                WritePrettyTable(w, table.Headers.AsSpan(), table.Rows, skippedRows: 0, renderInline: false);
+                break;
+        }
     }
 
     private const int ColumnGap = 2;
@@ -106,41 +132,56 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
             w.WriteLine(FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(item)));
     }
 
-    private void WriteTsvTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows)
+    private void WriteTsvTable(
+        TextWriter w,
+        ReadOnlySpan<string> headers,
+        IList<string[]> rows,
+        int skippedRows,
+        bool renderInline = true)
     {
         if (_showHeader)
-            WriteTsvRow(w, headers);
+            WriteTsvRow(w, headers, renderInline);
 
         foreach (var row in rows)
-            WriteTsvRow(w, row);
+            WriteTsvRow(w, row, renderInline);
 
         if (skippedRows > 0)
             FormatHelper.WriteTruncationFooter(w, skippedRows);
     }
 
-    private void WritePrettyTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows)
+    private void WritePrettyTable(
+        TextWriter w,
+        ReadOnlySpan<string> headers,
+        IList<string[]> rows,
+        int skippedRows,
+        bool renderInline = true)
     {
         var widths = new int[headers.Length];
         for (int i = 0; i < headers.Length; i++)
-            widths[i] = FormatHelper.NormalizeTableCell(headers[i]).Length;
+            widths[i] = PrepareTableCell(headers[i], renderInline).Length;
 
         foreach (var row in rows)
         {
             for (int i = 0; i < Math.Min(row.Length, widths.Length); i++)
-                widths[i] = Math.Max(widths[i], FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(row[i])).Length);
+                widths[i] = Math.Max(widths[i], PrepareTableCell(row[i], renderInline).Length);
         }
 
         if (_showHeader)
-            WritePrettyRow(w, headers, widths);
+            WritePrettyRow(w, headers, widths, renderInline);
 
         foreach (var row in rows)
-            WritePrettyRow(w, row, widths);
+            WritePrettyRow(w, row, widths, renderInline);
 
         if (skippedRows > 0)
             FormatHelper.WriteTruncationFooter(w, skippedRows);
     }
 
-    private static void WriteJsonlTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, MarkoutWriterOptions options)
+    private static void WriteJsonlTable(
+        TextWriter w,
+        ReadOnlySpan<string> headers,
+        IList<string[]> rows,
+        MarkoutWriterOptions options,
+        bool renderInline = true)
     {
         foreach (var row in rows)
         {
@@ -149,7 +190,9 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
             json.WriteStartObject();
             for (int i = 0; i < headers.Length; i++)
             {
-                var value = i < row.Length ? FormatHelper.RenderInlinePlainText(row[i]) : "";
+                var value = i < row.Length
+                    ? PrepareJsonValue(row[i], renderInline)
+                    : "";
 
                 // Heterogeneous records: drop empty fields when opted in.
                 if (options.OmitEmptyJsonFields && string.IsNullOrEmpty(value))
@@ -257,33 +300,43 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         return i == n;
     }
 
-    private static void WriteTsvRow(TextWriter w, ReadOnlySpan<string> values)
+    private static void WriteTsvRow(
+        TextWriter w,
+        ReadOnlySpan<string> values,
+        bool renderInline)
     {
         for (int i = 0; i < values.Length; i++)
         {
             if (i > 0)
                 w.Write('\t');
-            w.Write(FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(values[i])));
+            w.Write(PrepareTableCell(values[i], renderInline));
         }
         w.WriteLine();
     }
 
-    private static void WriteTsvRow(TextWriter w, string[] values)
+    private static void WriteTsvRow(
+        TextWriter w,
+        string[] values,
+        bool renderInline)
     {
         for (int i = 0; i < values.Length; i++)
         {
             if (i > 0)
                 w.Write('\t');
-            w.Write(FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(values[i])));
+            w.Write(PrepareTableCell(values[i], renderInline));
         }
         w.WriteLine();
     }
 
-    private static void WritePrettyRow(TextWriter w, ReadOnlySpan<string> values, int[] widths)
+    private static void WritePrettyRow(
+        TextWriter w,
+        ReadOnlySpan<string> values,
+        int[] widths,
+        bool renderInline)
     {
         for (int i = 0; i < values.Length; i++)
         {
-            var value = FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(values[i]));
+            var value = PrepareTableCell(values[i], renderInline);
             if (i < values.Length - 1)
                 w.Write(value.PadRight(widths[i] + ColumnGap));
             else
@@ -292,11 +345,15 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         w.WriteLine();
     }
 
-    private static void WritePrettyRow(TextWriter w, string[] values, int[] widths)
+    private static void WritePrettyRow(
+        TextWriter w,
+        string[] values,
+        int[] widths,
+        bool renderInline)
     {
         for (int i = 0; i < values.Length; i++)
         {
-            var value = FormatHelper.NormalizeTableCell(FormatHelper.RenderInlinePlainText(values[i]));
+            var value = PrepareTableCell(values[i], renderInline);
             if (i < values.Length - 1)
                 w.Write(value.PadRight(widths[i] + ColumnGap));
             else
@@ -304,4 +361,11 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         }
         w.WriteLine();
     }
+
+    private static string PrepareTableCell(string? value, bool renderInline)
+        => FormatHelper.NormalizeTableCell(
+            renderInline ? FormatHelper.RenderInlinePlainText(value) : value ?? "");
+
+    private static string PrepareJsonValue(string? value, bool renderInline)
+        => renderInline ? FormatHelper.RenderInlinePlainText(value) : value ?? "";
 }

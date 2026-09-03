@@ -14,6 +14,8 @@ Markout is a source-generated .NET library that serializes objects to clean, rea
 - [Section Field Order](#section-field-order)
 - [Tables](#tables)
 - [Trees](#trees)
+- [Graphs](#graphs)
+- [Mapped Text Diffs](#mapped-text-diffs)
 - [Links](#links)
 - [Custom Value Formatters](#custom-value-formatters)
 - [Writer Options](#writer-options)
@@ -700,7 +702,10 @@ The window applies to tables written through the writer — `WriteTable`,
 Table-shaped formatter lowerings use the same pipeline: graph edge tables and
 Markdown metric and breakdown tables honor the window over their visible rows,
 and `MaxItems` caps those rows. Visual bar and diagram renderers are not tables,
-so row windows and table caps do not apply to them.
+so row windows and table caps do not apply to them. A mapped text diff is also
+one semantic shape rather than a table: its structured lowering bypasses
+generic row windows, item caps, and column projection so a selected diff never
+loses changes or provenance.
 
 When both are set, **the window selects and `MaxItems` then caps the selection**,
 so the reported overflow count describes only what the cap dropped:
@@ -937,6 +942,91 @@ sink with no way to express it renders the node unchanged.
 Construction is validated: a null node or edge element, a duplicate key, an edge naming a key with
 no node, an empty node label, or a `focusKey` naming no node all throw, so a malformed graph fails
 where it is built rather than rendering as a plausible-looking but wrong diagram.
+
+## Mapped Text Diffs
+
+Use `MappedTextDiff` when another component already owns comparison and
+correspondence. Markout validates and presents the supplied ranges; it never
+computes a line, word, syntax, semantic, replacement, or movement diff.
+
+```csharp
+var diff = new MappedTextDiff(
+    new TextDiffSequence(
+        ["if (value < 0)", "    return 0;"],
+        "Before",
+        TextDiffLineTerminator.Present),
+    new TextDiffSequence(
+        ["if (value <= 0)", "    return 1;"],
+        "After",
+        TextDiffLineTerminator.Present),
+    [
+        new TextDiffChange(
+            new TextDiffRange(0, 2),
+            new TextDiffRange(0, 2),
+            [
+                new TextDiffInnerMapping(
+                    new TextDiffSpan(0, 10, 1),
+                    new TextDiffSpan(0, 10, 2))
+            ],
+            [
+                TextDiffAnnotation.ForSpan(
+                    TextDiffSide.After,
+                    new TextDiffSpan(0, 10, 2),
+                    "Boundary now includes zero",
+                    CalloutSeverity.Warning)
+            ])
+    ]);
+
+writer.WriteTextDiff(diff);
+```
+
+Line ranges are zero-based and half-open. A change form is derived from range
+cardinality: empty Before means addition, empty After means removal, and two
+non-empty ranges mean replacement. Inner spans are single-line, half-open
+UTF-16 code-unit ranges and cannot split a surrogate pair.
+
+An empty annotation span marks an insertion point and human formatters spell it
+as `insertion point at column N`. Change-level annotations name their owning
+one-based change number so annotations remain unambiguous in a multi-hunk diff.
+
+Each formatter owns its lowering:
+
+| Formatter | Mapped-diff lowering |
+| --- | --- |
+| `MarkdownFormatter` | Dynamically fenced GNU-compatible unified diff |
+| `PlainTextFormatter` | GNU-compatible unified diff without a Markdown fence |
+| `TableFormatter` | Fixed provenance records in pretty, TSV, or JSONL form |
+| `UnicodeFormatter` | Line numbers, side markers, intraline markers, annotations |
+| `SpectreFormatter` | ANSI side color and intraline emphasis |
+
+`MarkoutWriterOptions.TextDiffContextLines` defaults to three unchanged lines
+around each change. Set it to `null` to retain every unchanged line or to zero
+to show only changed lines. Context selection emits exact omission records and
+never discards a change or annotation.
+
+Human formatters visibly escape control and format scalars. The Unicode
+formatter also escapes literal `[-`, `-]`, `{+`, and `+}` tokens so caller text
+cannot imitate or terminate its intraline markers. Caller backslashes are
+doubled so the marker escapes remain unambiguous. Empty mapped sides remain
+visible at their exact offsets: Unicode uses `[--]` or `{++}`, while Spectre
+uses an underlined inverse point marker.
+
+When a plain-text mapped diff ends in caller-significant whitespace,
+`Complete()` and `ToString()` preserve that trailing line exactly. This keeps a
+whitespace-only final unified line, or caller-significant trailing spaces,
+consistent with the hunk header instead of applying the writer's ordinary
+document-end trim.
+
+A `MappedTextDiff` property is recognized directly by the source generator:
+
+```csharp
+[MarkoutSection(Name = "Source Diff", EmptyText = "No changes.")]
+public MappedTextDiff? SourceDiff { get; set; }
+```
+
+A null value omits the section. A value with an empty change population uses
+`EmptyText`. Generic `Projection`, `RowWindow`, `MaxItems`, and
+`[MarkoutMaxItems]` do not trim records inside a selected mapped diff.
 
 ## Links
 

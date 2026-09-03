@@ -30,6 +30,7 @@ public class MarkoutWriterOptions
     private MarkoutGlyphs _glyphs = MarkoutGlyphs.Default;
     private Func<GlyphContext, string>? _composeGlyph;
     private string _newLine = Environment.NewLine;
+    private int? _textDiffContextLines = 3;
 
     /// <summary>Creates a new, writable options instance with default values.</summary>
     public MarkoutWriterOptions()
@@ -61,6 +62,7 @@ public class MarkoutWriterOptions
         _glyphs = source._glyphs;
         _composeGlyph = source._composeGlyph;
         _newLine = source._newLine;
+        _textDiffContextLines = source._textDiffContextLines;
     }
 
     /// <summary>
@@ -196,6 +198,24 @@ public class MarkoutWriterOptions
         {
             ThrowIfReadOnly();
             _maxItems = value;
+        }
+    }
+
+    /// <summary>
+    /// The number of unchanged lines retained on each side of a mapped text
+    /// diff change. Defaults to 3. Set to <c>null</c> to retain every unchanged
+    /// line. Unlike <see cref="MaxItems"/>, this hides only unchanged context
+    /// and produces exact omission records.
+    /// </summary>
+    public int? TextDiffContextLines
+    {
+        get => _textDiffContextLines;
+        set
+        {
+            ThrowIfReadOnly();
+            if (value < 0)
+                throw new ArgumentOutOfRangeException(nameof(value));
+            _textDiffContextLines = value;
         }
     }
 

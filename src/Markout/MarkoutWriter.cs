@@ -26,6 +26,10 @@ public class MarkoutWriter
     // State
     private bool _hasContentValue;
     private bool _needsBlankLine;
+    // Some shape output carries significant trailing whitespace. This floor lets
+    // document completion trim later whitespace without crossing that boundary.
+    private bool _preserveNextContentTrailingWhitespace;
+    private int _trailingWhitespacePreservationLength;
 
     private bool _inTable;
     private bool _inCode;
@@ -1812,6 +1816,42 @@ public class MarkoutWriter
         return true;
     }
 
+    // ── Mapped text diffs ──
+
+    /// <summary>
+    /// Writes caller-issued mappings between two ordered logical-line
+    /// sequences. The formatter chooses its own unified, structured, or rich
+    /// lowering.
+    /// </summary>
+    /// <returns>
+    /// <c>true</c> if rendered or filtered; <c>false</c> if the formatter does
+    /// not support mapped text diffs.
+    /// </returns>
+    public bool WriteTextDiff(MappedTextDiff diff)
+    {
+        ArgumentNullException.ThrowIfNull(diff);
+
+        if (diff.IsEmpty || _sectionExcluded)
+            return true;
+        if (_formatter is not ITextDiffFormatter formatter)
+            return false;
+
+        var preservesTrailingWhitespace =
+            _formatter is PlainTextFormatter
+            && TextDiffFormatterHelpers.PlainTextEndsWithSignificantWhitespace(
+                diff,
+                _options.TextDiffContextLines);
+
+        EnsureBlankLineIfNeeded();
+        formatter.FormatTextDiff(_writer, diff, _options);
+        _needsBlankLine = _formatter is TableFormatter
+            ? TableLeavesBlankLinePending
+            : true;
+        _preserveNextContentTrailingWhitespace = preservesTrailingWhitespace;
+        _hasContent = true;
+        return true;
+    }
+
     // ── Link definitions ──
 
     /// <summary>
@@ -1886,7 +1926,8 @@ public class MarkoutWriter
     }
 
     /// <summary>
-    /// Completes an in-memory document and returns its output, trimming trailing whitespace.
+    /// Completes an in-memory document and returns its output, trimming trailing whitespace
+    /// unless the final block requires exact trailing content.
     /// </summary>
     /// <remarks>
     /// Completion closes an open streaming table, reports an unsatisfied projection, and emits
@@ -1906,12 +1947,15 @@ public class MarkoutWriter
         }
 
         Flush();
-        return sw.ToString().TrimEnd();
+        var preservationLength = _sectionBuffer?.EmittedTrailingWhitespacePreservationLength
+            ?? _trailingWhitespacePreservationLength;
+        return CompleteInMemoryOutput(sw.ToString(), preservationLength);
     }
 
     /// <summary>
     /// Returns a side-effect-free preview of the output currently available from a
-    /// <see cref="StringWriter"/>-backed writer, trimming trailing whitespace.
+    /// <see cref="StringWriter"/>-backed writer, trimming trailing whitespace unless the final
+    /// block requires exact trailing content.
     /// </summary>
     /// <remarks>
     /// This method does not close an open table, report document-level projection diagnostics,
@@ -1932,8 +1976,26 @@ public class MarkoutWriter
         if (_target is not StringWriter sw)
             return base.ToString() ?? "";
 
-        var preview = _sectionBuffer?.RenderOrdered(_options.SectionOrder, _needsBlankLine);
-        return (sw.ToString() + preview).TrimEnd();
+        var preservationLength = _trailingWhitespacePreservationLength;
+        var preview = _sectionBuffer?.RenderOrdered(
+            _options.SectionOrder,
+            _needsBlankLine,
+            out preservationLength);
+        return CompleteInMemoryOutput(
+            sw.ToString() + preview,
+            preservationLength);
+    }
+
+    private static string CompleteInMemoryOutput(
+        string output,
+        int trailingWhitespacePreservationLength)
+    {
+        var length = output.Length;
+        var minimumLength = Math.Min(length, trailingWhitespacePreservationLength);
+        while (length > minimumLength && char.IsWhiteSpace(output[length - 1]))
+            length--;
+
+        return length == output.Length ? output : output[..length];
     }
 
     // ── Projection ──
@@ -2277,7 +2339,17 @@ public class MarkoutWriter
             _hasContentValue = value;
 
             if (value)
-                _sectionBuffer?.NoteContent();
+            {
+                if (_preserveNextContentTrailingWhitespace
+                    && _sectionBuffer is null
+                    && _target is StringWriter sw)
+                {
+                    _trailingWhitespacePreservationLength = sw.GetStringBuilder().Length;
+                }
+
+                _sectionBuffer?.NoteContent(_preserveNextContentTrailingWhitespace);
+                _preserveNextContentTrailingWhitespace = false;
+            }
         }
     }
 

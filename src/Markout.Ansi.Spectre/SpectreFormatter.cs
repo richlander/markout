@@ -1,5 +1,7 @@
 using Markout.Formatting;
 using Spectre.Console;
+using System.Globalization;
+using System.Text;
 
 namespace Markout.Ansi.Spectre;
 
@@ -7,7 +9,7 @@ namespace Markout.Ansi.Spectre;
 /// A formatter that renders output as rich ANSI terminal text using Spectre.Console.
 /// </summary>
 public class SpectreFormatter : IMarkoutFormatter,
-    IDocumentFormatter, IMetricsFormatter, IGlyphFormatter
+    IDocumentFormatter, IMetricsFormatter, IGlyphFormatter, ITextDiffFormatter
 {
     private const int ColumnGap = 2;
     private readonly IAnsiConsole _console;
@@ -81,8 +83,176 @@ public class SpectreFormatter : IMarkoutFormatter,
     private const int SgrMagenta = 35;
     private const int SgrBlue = 34;
     private const int SgrWhite = 37;
+    private const int SgrUnderline = 4;
+    private const int SgrUnderlineOff = 24;
+    private const int SgrInverse = 7;
+    private const int SgrInverseOff = 27;
 
     private static readonly int[] DistributionSgrColors = [SgrRed, SgrYellow, SgrCyan, SgrGreen, SgrMagenta, SgrBlue];
+
+    void ITextDiffFormatter.FormatTextDiff(
+        TextWriter w,
+        MappedTextDiff diff,
+        MarkoutWriterOptions options)
+    {
+        foreach (var line in MappedTextDiffLowering.ToDisplayLines(diff, options.TextDiffContextLines))
+        {
+            switch (line.Kind)
+            {
+                case TextDiffDisplayLineKind.Context:
+                    Sgr(w, SgrDarkGray);
+                    w.Write($"{line.BeforeLine!.Value + 1,4} {line.AfterLine!.Value + 1,4}   ");
+                    SgrReset(w);
+                    w.WriteLine(EscapeTextDiff(line.BeforeText!));
+                    break;
+
+                case TextDiffDisplayLineKind.Removal:
+                    Sgr(w, SgrDarkGray);
+                    w.Write($"{line.BeforeLine!.Value + 1,4}      ");
+                    Sgr(w, SgrRed);
+                    w.Write("- ");
+                    WriteDiffText(w, diff, line);
+                    SgrReset(w);
+                    w.WriteLine();
+                    break;
+
+                case TextDiffDisplayLineKind.Addition:
+                    Sgr(w, SgrDarkGray);
+                    w.Write($"     {line.AfterLine!.Value + 1,4} ");
+                    Sgr(w, SgrGreen);
+                    w.Write("+ ");
+                    WriteDiffText(w, diff, line);
+                    SgrReset(w);
+                    w.WriteLine();
+                    break;
+
+                case TextDiffDisplayLineKind.Omission:
+                    Sgr(w, SgrDarkGray);
+                    w.Write("         ... ");
+                    w.Write(line.BeforeRange!.Value.Count);
+                    w.WriteLine(" unchanged lines");
+                    SgrReset(w);
+                    break;
+
+                case TextDiffDisplayLineKind.Annotation:
+                    Sgr(w, SgrYellow);
+                    w.Write("         > ");
+                    w.Write(line.Annotation!.Severity);
+                    w.Write(" - ");
+                    w.Write(AnnotationTarget(line.Annotation, line.ChangeAddress));
+                    w.Write(": ");
+                    w.Write(EscapeTextDiff(line.Annotation.Text));
+                    SgrReset(w);
+                    w.WriteLine();
+                    break;
+            }
+        }
+    }
+
+    private static void WriteDiffText(
+        TextWriter w,
+        MappedTextDiff diff,
+        TextDiffDisplayLine line)
+    {
+        var raw = line.Side == TextDiffSide.Before ? line.BeforeText! : line.AfterText!;
+        var spans = line.ChangeAddress is { } address
+            ? diff.Changes[address].InnerMappings
+                .Select(mapping => line.Side == TextDiffSide.Before ? mapping.Before : mapping.After)
+                .Where(span => span.Line == (line.BeforeLine ?? line.AfterLine))
+                .ToArray()
+            : [];
+        if (spans.Length == 0)
+        {
+            w.Write(EscapeTextDiff(raw));
+            return;
+        }
+
+        var cursor = 0;
+        foreach (var span in spans)
+        {
+            w.Write(EscapeTextDiff(raw[cursor..span.Start]));
+            Sgr(w, SgrInverse);
+            if (span.IsEmpty)
+            {
+                Sgr(w, SgrUnderline);
+                w.Write('│');
+                Sgr(w, SgrUnderlineOff);
+            }
+            else
+            {
+                w.Write(EscapeTextDiff(raw[span.Start..span.End]));
+            }
+            Sgr(w, SgrInverseOff);
+            cursor = span.End;
+        }
+        w.Write(EscapeTextDiff(raw[cursor..]));
+    }
+
+    private static string AnnotationTarget(
+        TextDiffAnnotation annotation,
+        int? changeAddress)
+        => annotation.TargetKind switch
+        {
+            TextDiffAnnotationTargetKind.Change =>
+                changeAddress is { } address ? $"change {address + 1}" : "change",
+            TextDiffAnnotationTargetKind.Line =>
+                $"{annotation.Side} line {annotation.Line!.Value + 1}",
+            TextDiffAnnotationTargetKind.Span =>
+                annotation.Span!.Value.IsEmpty
+                    ? $"{annotation.Side} line {annotation.Span.Value.Line + 1}, "
+                        + $"insertion point at column {annotation.Span.Value.Start + 1}"
+                    : $"{annotation.Side} line {annotation.Span.Value.Line + 1}, "
+                        + $"columns {annotation.Span.Value.Start + 1}-{annotation.Span.Value.End}",
+            _ => "annotation"
+        };
+
+    private static string EscapeTextDiff(string value)
+    {
+        StringBuilder? builder = null;
+        for (var i = 0; i < value.Length;)
+        {
+            var c = value[i];
+            var width = char.IsHighSurrogate(c) ? 2 : 1;
+            string? replacement;
+            if (width == 2)
+            {
+                var rune = new Rune(c, value[i + 1]);
+                replacement = IsEscapedCategory(Rune.GetUnicodeCategory(rune))
+                    ? $"\\U{rune.Value:X8}"
+                    : null;
+            }
+            else
+            {
+                replacement = c switch
+                {
+                    '\t' => "\\t",
+                    '\r' => "\\r",
+                    '\n' => "\\n",
+                    _ when IsEscapedCategory(char.GetUnicodeCategory(c))
+                        => $"\\u{(int)c:X4}",
+                    _ => null
+                };
+            }
+            if (replacement is null)
+            {
+                if (builder is not null)
+                    builder.Append(value, i, width);
+                i += width;
+                continue;
+            }
+
+            builder ??= new StringBuilder(value.Length + 8).Append(value, 0, i);
+            builder.Append(replacement);
+            i += width;
+        }
+        return builder?.ToString() ?? value;
+    }
+
+    private static bool IsEscapedCategory(UnicodeCategory category)
+        => category is UnicodeCategory.Control
+            or UnicodeCategory.Format
+            or UnicodeCategory.LineSeparator
+            or UnicodeCategory.ParagraphSeparator;
 
     void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
     {
