@@ -1,6 +1,6 @@
 ---
 name: markout-output-formats
-version: 0.35.2
+version: 0.36.0
 description: >-
   Use when you need output other than default Markdown — plain text / Unicode, ANSI terminal
   (Spectre), pretty aligned tables, or TSV/JSONL exports — or when one model must serve several

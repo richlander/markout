@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.35.2</Version>
-    <PackageReleaseNotes>Includes Markdown graph edge-table and Mermaid rendering from 0.35.1. Fixes serializer and writer lifecycle, projection integrity, table completion, structured output keys, Unicode headers, configurable in-memory newlines, and source-generator diagnostics. ToString() now provides a non-committing preview; use Complete() to finalize and return in-memory output. JSONL sections now form one uninterrupted row stream without blank records.</PackageReleaseNotes>
+    <Version>0.36.0</Version>
+    <PackageReleaseNotes>Adds MappedTextDiff as a host-neutral presentation shape for caller-issued complete Before and After text sequences, exact line and UTF-16 intraline mappings, annotations, context selection, and Markdown, plain-text, structured, Unicode, and Spectre rendering.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
