@@ -1,6 +1,6 @@
 {
   "name": "markout",
-  "version": "0.35.2",
+  "version": "0.36.0",
   "description": "Markout library skills: one base skill, markout; four workflow-specific skills, markout-conditional-composition, markout-output-formats, markout-built-in-shapes, markout-composite-cells-cards. Each workflow-specific skill carries the required serializer-context setup so it works on its own; the base skill is the fuller treatment of the library.",
   "skills": ["."]
 }
