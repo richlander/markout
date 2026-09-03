@@ -352,8 +352,7 @@ public static class Demos
                     TextDiffAnnotation.ForSpan(
                         TextDiffSide.After,
                         new TextDiffSpan(0, 10, 2),
-                        "Boundary now includes zero",
-                        CalloutSeverity.Warning)
+                        "Boundary now includes zero")
                 ])
         ]);
 }
