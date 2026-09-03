@@ -581,12 +581,17 @@ public class MarkdownFormatter : IMarkoutFormatter,
             w.WriteLine(line);
         w.WriteLine(fence);
 
+        var wroteAnnotation = false;
         for (var address = 0; address < diff.Changes.Length; address++)
         {
             var change = diff.Changes[address];
             foreach (var annotation in change.Annotations)
             {
-                w.WriteLine();
+                if (wroteAnnotation)
+                    w.WriteLine(">");
+                else
+                    w.WriteLine();
+
                 w.Write("> **");
                 w.Write(annotation.Severity.ToString().ToUpperInvariant());
                 w.Write(" — ");
@@ -595,6 +600,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
                 w.Write(":** ");
                 w.Write(FormatHelper.EscapeMarkdownText(TextDiffEscaping.MarkdownInline(annotation.Text)));
                 w.WriteLine();
+                wroteAnnotation = true;
             }
         }
     }

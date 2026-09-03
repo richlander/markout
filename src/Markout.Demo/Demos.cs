@@ -329,11 +329,11 @@ public static class Demos
 
     private static MappedTextDiff SampleDiff() => new(
         new TextDiffSequence(
-            ["if (value < 0)", "    return 0;"],
+            ["if (value < 0)", "    return 0;", "", "Process(value);", "return value;"],
             "Before",
             TextDiffLineTerminator.Present),
         new TextDiffSequence(
-            ["if (value <= 0)", "    return 1;"],
+            ["if (value <= 0)", "    return 1;", "", "Process(value);", "Log(value);", "return value;"],
             "After",
             TextDiffLineTerminator.Present),
         [
@@ -352,8 +352,21 @@ public static class Demos
                     TextDiffAnnotation.ForSpan(
                         TextDiffSide.After,
                         new TextDiffSpan(0, 10, 2),
-                        "Boundary now includes zero",
-                        CalloutSeverity.Warning)
+                        "Boundary now includes zero"),
+                    TextDiffAnnotation.ForSpan(
+                        TextDiffSide.After,
+                        new TextDiffSpan(1, 11, 1),
+                        "Branch now returns one")
+                ]),
+            new TextDiffChange(
+                new TextDiffRange(4, 0),
+                new TextDiffRange(4, 1),
+                annotations:
+                [
+                    TextDiffAnnotation.ForLine(
+                        TextDiffSide.After,
+                        4,
+                        "Processed values are now logged")
                 ])
         ]);
 }
