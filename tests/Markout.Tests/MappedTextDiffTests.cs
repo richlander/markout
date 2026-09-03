@@ -216,6 +216,37 @@ public partial class MappedTextDiffTests
     }
 
     [Fact]
+    public void MarkdownKeepsMultipleAnnotationsInOneBlockquote()
+    {
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(["old"]),
+            new TextDiffSequence(["new"]),
+            [
+                new TextDiffChange(
+                    new TextDiffRange(0, 1),
+                    new TextDiffRange(0, 1),
+                    annotations:
+                    [
+                        TextDiffAnnotation.ForChange("first"),
+                        TextDiffAnnotation.ForChange("second", CalloutSeverity.Warning)
+                    ])
+            ]);
+        var writer = MarkoutWriter.Create(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { NewLine = "\n" });
+
+        writer.WriteTextDiff(diff);
+        var output = writer.ToString();
+
+        Assert.Contains(
+            "> **NOTE — change 1:** first\n>\n> **WARNING — change 1:** second",
+            output);
+        Assert.DoesNotContain(
+            "> **NOTE — change 1:** first\n\n> **WARNING — change 1:** second",
+            output);
+    }
+
+    [Fact]
     public void MarkdownChoosesAFenceLongerThanCallerContent()
     {
         var diff = new MappedTextDiff(
