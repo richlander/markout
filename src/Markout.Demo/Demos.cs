@@ -1,5 +1,7 @@
 using Markout;
+using Markout.Ansi.Spectre;
 using Markout.Formatting;
+using Spectre.Console;
 
 namespace Markout.Demo;
 
@@ -20,6 +22,10 @@ public static class Demos
         ["textdiff"] = TextDiff,
         ["textdiffil"] = TextDiffIl,
         ["textdiffjsonl"] = TextDiffJsonl,
+        ["textdiffplain"] = TextDiffPlain,
+        ["textdiffpretty"] = TextDiffPretty,
+        ["textdiffspectre"] = TextDiffSpectre,
+        ["textdifftsv"] = TextDiffTsv,
         ["textdiffunicode"] = TextDiffUnicode,
         ["schema"] = Schema,
     };
@@ -34,9 +40,13 @@ public static class Demos
         "pivot",
         "tree",
         "textdiff",
-        "textdiffil",
+        "textdiffplain",
+        "textdiffpretty",
+        "textdifftsv",
         "textdiffjsonl",
         "textdiffunicode",
+        "textdiffspectre",
+        "textdiffil",
         "schema"
     ];
 
@@ -197,6 +207,47 @@ public static class Demos
         writer.Flush();
     }
 
+    /// <summary>Mapped text diff demo: GNU-compatible plain-text lowering.</summary>
+    private static void TextDiffPlain(TextWriter output)
+    {
+        WriteEmbeddedDiff(
+            output,
+            "Mapped Text Diff — Plain Text",
+            "diff",
+            SampleDiff(),
+            new PlainTextFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 });
+    }
+
+    /// <summary>Mapped text diff demo: structured pretty-table provenance records.</summary>
+    private static void TextDiffPretty(TextWriter output)
+    {
+        WriteEmbeddedDiff(
+            output,
+            "Mapped Text Diff — Pretty Table",
+            "text",
+            SampleDiff(),
+            new TableFormatter(),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 });
+    }
+
+    /// <summary>Mapped text diff demo: structured TSV provenance records.</summary>
+    private static void TextDiffTsv(TextWriter output)
+    {
+        WriteEmbeddedDiff(
+            output,
+            "Mapped Text Diff — TSV",
+            "tsv",
+            SampleDiff(),
+            new TableFormatter(),
+            new MarkoutWriterOptions
+            {
+                TableMode = MarkoutTableMode.Tsv,
+                TextDiffContextLines = 0
+            },
+            static text => text.Replace("\t", "\\t", StringComparison.Ordinal));
+    }
+
     /// <summary>Mapped text diff demo: structured JSONL provenance records.</summary>
     private static void TextDiffJsonl(TextWriter output)
     {
@@ -242,13 +293,27 @@ public static class Demos
             new MarkoutWriterOptions { TextDiffContextLines = 0 });
     }
 
+    /// <summary>Mapped text diff demo: Spectre ANSI terminal lowering.</summary>
+    private static void TextDiffSpectre(TextWriter output)
+    {
+        WriteEmbeddedDiff(
+            output,
+            "Mapped Text Diff — Spectre ANSI",
+            "text",
+            SampleDiff(),
+            new SpectreFormatter(AnsiConsole.Console),
+            new MarkoutWriterOptions { TextDiffContextLines = 0 },
+            static text => text.Replace("\u001b", "\\e", StringComparison.Ordinal));
+    }
+
     private static void WriteEmbeddedDiff(
         TextWriter output,
         string title,
         string language,
         MappedTextDiff diff,
         IMarkoutFormatter formatter,
-        MarkoutWriterOptions options)
+        MarkoutWriterOptions options,
+        Func<string, string>? prepareForCodeFence = null)
     {
         var rendered = MarkoutWriter.Create(formatter, options);
         rendered.WriteTextDiff(diff);
@@ -256,7 +321,8 @@ public static class Demos
         var document = new MarkoutWriter(output, new MarkdownFormatter());
         document.WriteHeading(1, title);
         document.WriteCodeStart(language);
-        document.WriteParagraph(rendered.ToString());
+        var text = rendered.ToString();
+        document.WriteParagraph(prepareForCodeFence is null ? text : prepareForCodeFence(text));
         document.WriteCodeEnd();
         document.Flush();
     }

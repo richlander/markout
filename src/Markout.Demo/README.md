@@ -215,17 +215,23 @@ formatters:
 
 ```bash
 dotnet run --project src/Markout.Demo -- textdiff
+dotnet run --project src/Markout.Demo -- textdiffplain
+dotnet run --project src/Markout.Demo -- textdiffpretty
+dotnet run --project src/Markout.Demo -- textdifftsv
 dotnet run --project src/Markout.Demo -- textdiffjsonl
 dotnet run --project src/Markout.Demo -- textdiffunicode
+dotnet run --project src/Markout.Demo -- textdiffspectre
 dotnet run --project src/Markout.Demo -- textdiffil
 ```
 
-Each command emits a lintable Markdown demo document. The first contains the
-GNU-compatible diff directly; the JSONL, Unicode, and IL commands embed the
-actual selected formatter output in code fences. The rich output adds line
-numbers, intraline markers, and the caller-issued annotation. The IL example
-applies the same shape to instructions, demonstrating that the contract has no
-source-language assumptions.
+Each command emits a lintable Markdown demo document. Together they cover every
+mapped-diff output mode: fenced GNU-compatible Markdown, plain GNU-compatible
+text, structured pretty-table, TSV, and JSONL records, rich Unicode, and
+Spectre ANSI. Embedded TSV spells tab separators as `\t`, and embedded Spectre
+output spells the escape byte as `\e`, so both formats remain visible in the
+lintable Markdown artifacts. The IL example applies the Unicode lowering to
+instructions, demonstrating that the contract has no source-language
+assumptions.
 
 ---
 
