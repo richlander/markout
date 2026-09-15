@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.36.0</Version>
-    <PackageReleaseNotes>Adds MappedTextDiff as a host-neutral presentation shape for caller-issued complete Before and After text sequences, exact line and UTF-16 intraline mappings, annotations, context selection, and Markdown, plain-text, structured, Unicode, and Spectre rendering.</PackageReleaseNotes>
+    <Version>0.37.0</Version>
+    <PackageReleaseNotes>Defaults document sections to alphabetical order, adds an explicit data-order policy, and preserves SectionOrder as an ordered prefix override.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
