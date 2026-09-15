@@ -446,7 +446,7 @@ internal sealed class SectionBufferingWriter : TextWriter
 
         _emittedTrailingWhitespacePreservationLength =
             relativePreservationLength == 0
-                ? 0
+                ? _directTrailingWhitespacePreservationLength
                 : targetLength + relativePreservationLength;
         _emitted = true;
 
@@ -479,7 +479,7 @@ internal sealed class SectionBufferingWriter : TextWriter
         {
             NewLine = _target.NewLine
         };
-        var emitted = WriteOrdered(
+        WriteOrdered(
             preview,
             order,
             defaultOrder,
@@ -488,9 +488,7 @@ internal sealed class SectionBufferingWriter : TextWriter
         trailingWhitespacePreservationLength =
             relativePreservationLength > 0
                 ? TargetLength() + relativePreservationLength
-                : emitted
-                    ? 0
-                    : _directTrailingWhitespacePreservationLength;
+                : _directTrailingWhitespacePreservationLength;
         return preview.ToString();
     }
 

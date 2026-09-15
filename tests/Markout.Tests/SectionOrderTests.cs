@@ -209,6 +209,38 @@ public class SectionOrderTests
         Assert.True(PositionOf(output, "preamble") < PositionOf(output, "g1"));
     }
 
+    [Fact]
+    public void WhitespaceOnlySection_DoesNotTrimSignificantPreambleWhitespace()
+    {
+        static (string Preview, string Completed) RenderDiff(MarkoutSectionOrder order)
+        {
+            var writer = new MarkoutWriter(
+                new PlainTextFormatter(),
+                new MarkoutWriterOptions
+                {
+                    DefaultSectionOrder = order,
+                    TextDiffContextLines = 0,
+                    NewLine = "\n"
+                });
+            var diff = new MappedTextDiff(
+                new TextDiffSequence(["old"]),
+                new TextDiffSequence(["new   "]),
+                [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+
+            writer.WriteTextDiff(diff);
+            writer.WriteSectionStart(2, "Empty", headless: true);
+            writer.WriteBlankLine();
+            return (writer.ToString(), writer.Complete());
+        }
+
+        string expected = RenderDiff(MarkoutSectionOrder.Data).Completed;
+        var ordered = RenderDiff(MarkoutSectionOrder.Alphabetical);
+
+        Assert.EndsWith("+new   \n", expected, StringComparison.Ordinal);
+        Assert.Equal(expected, ordered.Preview);
+        Assert.Equal(expected, ordered.Completed);
+    }
+
     // ── Composition with section filtering ──
 
     [Fact]
