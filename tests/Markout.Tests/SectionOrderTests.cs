@@ -5,7 +5,8 @@ using Markout.Formatting;
 namespace Markout.Tests;
 
 /// <summary>
-/// Covers <see cref="MarkoutWriterOptions.SectionOrder"/>.
+/// Covers <see cref="MarkoutWriterOptions.DefaultSectionOrder"/> and
+/// <see cref="MarkoutWriterOptions.SectionOrder"/>.
 ///
 /// <para>
 /// The claim under test is not "sections can be reordered" — string surgery on rendered
@@ -58,6 +59,64 @@ public class SectionOrderTests
 
     // ── The ordering itself ──
 
+    [Theory]
+    [MemberData(nameof(AllModes))]
+    public void Sections_AreAlphabeticalByDefaultInEveryTableMode(MarkoutTableMode mode)
+    {
+        var options = new MarkoutWriterOptions { TableMode = mode };
+        var writer = new MarkoutWriter(new TableFormatter(), options);
+        WriteSections(writer, ["Gamma", "Alpha", "Beta"]);
+
+        var output = writer.Complete();
+
+        Assert.True(PositionOf(output, "alpha1") < PositionOf(output, "beta1"));
+        Assert.True(PositionOf(output, "beta1") < PositionOf(output, "gamma1"));
+    }
+
+    [Fact]
+    public void Sections_AreAlphabeticalByDefaultInMarkdown()
+    {
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+        WriteSections(writer, ["Gamma", "Alpha", "Beta"]);
+
+        var output = writer.Complete();
+
+        Assert.True(PositionOf(output, "alpha1") < PositionOf(output, "beta1"));
+        Assert.True(PositionOf(output, "beta1") < PositionOf(output, "gamma1"));
+    }
+
+    [Fact]
+    public void DataOrder_PreservesTheOrderSectionsWereWritten()
+    {
+        var writer = new MarkoutWriter(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { DefaultSectionOrder = MarkoutSectionOrder.Data });
+        WriteSections(writer, ["Gamma", "Alpha", "Beta"]);
+
+        var output = writer.Complete();
+
+        Assert.True(PositionOf(output, "gamma1") < PositionOf(output, "alpha1"));
+        Assert.True(PositionOf(output, "alpha1") < PositionOf(output, "beta1"));
+    }
+
+    [Fact]
+    public void ExplicitPrefix_WithDataOrderPreservesTheRemainingDataOrder()
+    {
+        var writer = new MarkoutWriter(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions
+            {
+                DefaultSectionOrder = MarkoutSectionOrder.Data,
+                SectionOrder = ["Beta"]
+            });
+        WriteSections(writer, ["Gamma", "Alpha", "Beta"]);
+
+        var output = writer.Complete();
+
+        Assert.True(PositionOf(output, "beta1") < PositionOf(output, "gamma1"));
+        Assert.True(PositionOf(output, "gamma1") < PositionOf(output, "alpha1"));
+    }
+
     [Fact]
     public void NamedSections_LeadInTheOrderGiven()
     {
@@ -83,7 +142,7 @@ public class SectionOrderTests
     }
 
     [Fact]
-    public void UnnamedSections_KeepTheOrderTheyWereWrittenIn()
+    public void UnnamedSections_FollowTheDefaultOrder()
     {
         var output = Render(new MarkoutWriterOptions { SectionOrder = ["Gamma"] });
 
@@ -150,6 +209,38 @@ public class SectionOrderTests
         Assert.True(PositionOf(output, "preamble") < PositionOf(output, "g1"));
     }
 
+    [Fact]
+    public void WhitespaceOnlySection_DoesNotTrimSignificantPreambleWhitespace()
+    {
+        static (string Preview, string Completed) RenderDiff(MarkoutSectionOrder order)
+        {
+            var writer = new MarkoutWriter(
+                new PlainTextFormatter(),
+                new MarkoutWriterOptions
+                {
+                    DefaultSectionOrder = order,
+                    TextDiffContextLines = 0,
+                    NewLine = "\n"
+                });
+            var diff = new MappedTextDiff(
+                new TextDiffSequence(["old"]),
+                new TextDiffSequence(["new   "]),
+                [new TextDiffChange(new TextDiffRange(0, 1), new TextDiffRange(0, 1))]);
+
+            writer.WriteTextDiff(diff);
+            writer.WriteSectionStart(2, "Empty", headless: true);
+            writer.WriteBlankLine();
+            return (writer.ToString(), writer.Complete());
+        }
+
+        string expected = RenderDiff(MarkoutSectionOrder.Data).Completed;
+        var ordered = RenderDiff(MarkoutSectionOrder.Alphabetical);
+
+        Assert.EndsWith("+new   \n", expected, StringComparison.Ordinal);
+        Assert.Equal(expected, ordered.Preview);
+        Assert.Equal(expected, ordered.Completed);
+    }
+
     // ── Composition with section filtering ──
 
     [Fact]
@@ -163,6 +254,20 @@ public class SectionOrderTests
 
         Assert.DoesNotContain("b1", output);
         Assert.True(PositionOf(output, "g1") < PositionOf(output, "a1"));
+    }
+
+    [Fact]
+    public void FilteringPreservesTheAlphabeticalOrderOfSurvivingSections()
+    {
+        var writer = new MarkoutWriter(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { IncludeSections = ["Beta", "Gamma"] });
+        WriteSections(writer, ["Gamma", "Alpha", "Beta"]);
+
+        var output = writer.Complete();
+
+        Assert.DoesNotContain("alpha1", output, StringComparison.Ordinal);
+        Assert.True(PositionOf(output, "beta1") < PositionOf(output, "gamma1"));
     }
 
     /// <summary>
@@ -289,6 +394,16 @@ public class SectionOrderTests
         Assert.Throws<InvalidOperationException>(() => options.SectionOrder = ["Gamma"]);
     }
 
+    [Fact]
+    public void DefaultSectionOrder_CannotBeSetOnFrozenOptions()
+    {
+        var options = new MarkoutWriterOptions();
+        options.MakeReadOnly();
+
+        Assert.Throws<InvalidOperationException>(
+            () => options.DefaultSectionOrder = MarkoutSectionOrder.Data);
+    }
+
     /// <summary>
     /// The JSONL composite-cell path copies options mid-write to resolve identity columns.
     /// Ordering is read from the writer's own options rather than that copy, so this pins
@@ -339,6 +454,23 @@ public class SectionOrderTests
         var output = writer.ToString();
         Assert.True(PositionOf(output, "r1") < PositionOf(output, "r2"));
         Assert.True(PositionOf(output, "r2") < PositionOf(output, "f1"));
+    }
+
+    [Fact]
+    public void AlphabeticalOrder_KeepsRepeatedNamesStable()
+    {
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+
+        writer.WriteSectionStart(2, "Repeat");
+        writer.WriteTable(["Name"], [["r1"]]);
+        writer.WriteSectionStart(2, "First");
+        writer.WriteTable(["Name"], [["f1"]]);
+        writer.WriteSectionStart(2, "Repeat");
+        writer.WriteTable(["Name"], [["r2"]]);
+
+        var output = writer.Complete();
+        Assert.True(PositionOf(output, "f1") < PositionOf(output, "r1"));
+        Assert.True(PositionOf(output, "r1") < PositionOf(output, "r2"));
     }
 
     /// <summary>
@@ -402,7 +534,10 @@ public class SectionOrderTests
         static string Write(bool buffered)
         {
             var target = new StringWriter { NewLine = "<A>" };
-            var options = new MarkoutWriterOptions();
+            var options = new MarkoutWriterOptions
+            {
+                DefaultSectionOrder = MarkoutSectionOrder.Data
+            };
             if (buffered)
                 options.SectionOrder = ["Alpha"];
 
@@ -508,7 +643,10 @@ public class SectionOrderTests
             bool markdown, bool preamble, string[]? order, string[] names,
             string opening, string closing, int openingBlankLines)
         {
-            var options = new MarkoutWriterOptions();
+            var options = new MarkoutWriterOptions
+            {
+                DefaultSectionOrder = MarkoutSectionOrder.Data
+            };
             if (order != null)
                 options.SectionOrder = order;
 
@@ -626,7 +764,11 @@ public class SectionOrderTests
 
         string Write(string[] order, string[]? sectionOrder)
         {
-            var options = new MarkoutWriterOptions { TableMode = mode };
+            var options = new MarkoutWriterOptions
+            {
+                TableMode = mode,
+                DefaultSectionOrder = MarkoutSectionOrder.Data
+            };
             if (sectionOrder != null)
                 options.SectionOrder = sectionOrder;
 
@@ -766,7 +908,10 @@ public class SectionOrderTests
         static string Write(string[]? order, IReadOnlyList<string> names, bool preamble)
         {
             var target = new StringWriter { NewLine = "<0>" };
-            var options = new MarkoutWriterOptions();
+            var options = new MarkoutWriterOptions
+            {
+                DefaultSectionOrder = MarkoutSectionOrder.Data
+            };
             if (order != null)
                 options.SectionOrder = order;
 
@@ -825,7 +970,10 @@ public class SectionOrderTests
     /// </summary>
     private static string WriteInterrupted(string kind, string[]? order)
     {
-        var options = new MarkoutWriterOptions();
+        var options = new MarkoutWriterOptions
+        {
+            DefaultSectionOrder = MarkoutSectionOrder.Data
+        };
         if (order != null)
             options.SectionOrder = order;
         if (kind == "projection")
@@ -1007,7 +1155,13 @@ public class SectionOrderTests
             new MarkoutWriterOptions { TableMode = mode, SectionOrder = order });
         WriteSections(ordered, Sections, preamble, uniformShapes);
 
-        var native = new MarkoutWriter(new TableFormatter(), new MarkoutWriterOptions { TableMode = mode });
+        var native = new MarkoutWriter(
+            new TableFormatter(),
+            new MarkoutWriterOptions
+            {
+                TableMode = mode,
+                DefaultSectionOrder = MarkoutSectionOrder.Data
+            });
         WriteSections(native, Reorder(order), preamble, uniformShapes);
 
         Assert.Equal(native.ToString(), ordered.ToString());
@@ -1023,7 +1177,9 @@ public class SectionOrderTests
         var ordered = new MarkoutWriter(new MarkdownFormatter(), new MarkoutWriterOptions { SectionOrder = order });
         WriteSections(ordered, Sections, preamble, uniformShapes);
 
-        var native = new MarkoutWriter(new MarkdownFormatter());
+        var native = new MarkoutWriter(
+            new MarkdownFormatter(),
+            new MarkoutWriterOptions { DefaultSectionOrder = MarkoutSectionOrder.Data });
         WriteSections(native, Reorder(order), preamble, uniformShapes);
 
         Assert.Equal(native.ToString(), ordered.ToString());
@@ -1079,7 +1235,9 @@ public class SectionOrderTests
     public void Flushing_ReachesTheTargetOnce(bool ordered)
     {
         var target = new CountingWriter();
-        var options = ordered ? new MarkoutWriterOptions { SectionOrder = ["Gamma"] } : new MarkoutWriterOptions();
+        var options = ordered
+            ? new MarkoutWriterOptions { SectionOrder = ["Gamma"] }
+            : new MarkoutWriterOptions { DefaultSectionOrder = MarkoutSectionOrder.Data };
         var writer = MarkoutWriter.Create(target, new MarkdownFormatter(), options);
         WriteSections(writer, Sections);
 
@@ -1127,8 +1285,9 @@ public class SectionOrderTests
 
     /// <summary>
     /// ToString is what a debugger calls, and against a target it cannot read from it
-    /// has nothing to return anyway. Emitting there would commit the document as a side
-    /// effect of being looked at.
+    /// has nothing to return anyway. The preamble streams because it cannot move, but
+    /// emitting buffered sections would commit the document as a side effect of being
+    /// looked at.
     /// </summary>
     [Fact]
     public void ReadingTheResultOfAWriterItCannotRead_DoesNotEmitAnything()
@@ -1141,7 +1300,8 @@ public class SectionOrderTests
         WriteSections(writer, Sections);
 
         _ = writer.ToString();
-        Assert.Equal(0, target.Written.Length);
+        Assert.Contains("preamble", target.Written.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("alpha1", target.Written.ToString(), StringComparison.Ordinal);
 
         writer.Flush();
         Assert.True(PositionOf(target.Written.ToString(), "gamma1") < PositionOf(target.Written.ToString(), "alpha1"));
@@ -1155,7 +1315,9 @@ public class SectionOrderTests
         static string Render(bool ordered)
         {
             var sw = new StringWriter();
-            var options = ordered ? new MarkoutWriterOptions { SectionOrder = ["Alpha"] } : new MarkoutWriterOptions();
+            var options = ordered
+                ? new MarkoutWriterOptions { SectionOrder = ["Alpha"] }
+                : new MarkoutWriterOptions { DefaultSectionOrder = MarkoutSectionOrder.Data };
             var writer = MarkoutWriter.Create(sw, new MarkdownFormatter(), options);
             sw.NewLine = "\r\n";
             WriteSections(writer, Sections);

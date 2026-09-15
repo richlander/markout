@@ -31,6 +31,7 @@ public class UnicodeFormatterTests
         var sw = new StringWriter();
         var orch = MarkoutWriter.Create(sw, new UnicodeFormatter());
         orch.WriteHeading(2, "Subtitle");
+        orch.Flush();
         var output = sw.ToString();
         Assert.Contains("Subtitle", output);
         // Level 2 should not have rule characters on the same line

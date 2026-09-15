@@ -1385,10 +1385,10 @@ public class SerializerTests
         Assert.Contains("## Dependencies", mdf);
         Assert.Contains("Dep1", mdf);
 
-        // Stats should come before Dependencies (declaration order)
+        // Sections use the default alphabetical order.
         var statsIdx = mdf.IndexOf("## Stats", StringComparison.Ordinal);
         var depsIdx = mdf.IndexOf("## Dependencies", StringComparison.Ordinal);
-        Assert.True(statsIdx < depsIdx);
+        Assert.True(depsIdx < statsIdx);
     }
 
     [Fact]

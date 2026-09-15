@@ -17,9 +17,10 @@ namespace Markout;
 /// </remarks>
 public class MarkoutWriter
 {
-    private readonly TextWriter _writer;
+    private TextWriter _writer;
     private readonly TextWriter _target;
-    private readonly SectionBufferingWriter? _sectionBuffer;
+    private SectionBufferingWriter? _sectionBuffer;
+    private readonly bool _ordersSections;
     private readonly IMarkoutFormatter _formatter;
     private readonly MarkoutWriterOptions _options;
 
@@ -55,10 +56,15 @@ public class MarkoutWriter
         var opts = options ?? new MarkoutWriterOptions();
 
         _target = writer;
-        // A requested order can put the last section written first, so ordering cannot
-        // be decided until the document is complete. Only pay for that when asked.
-        _sectionBuffer = opts.SectionOrder is { Count: > 0 } ? new SectionBufferingWriter(writer) : null;
-        _writer = _sectionBuffer ?? writer;
+        // Alphabetical or explicit ordering can put the last section written first, so
+        // ordering cannot be decided until the document is complete. Data order needs
+        // no buffer unless an explicit prefix was requested. The buffer is allocated
+        // lazily when the first section opens, so documents with no sections keep the
+        // allocation-free direct path.
+        _ordersSections =
+            opts.DefaultSectionOrder == MarkoutSectionOrder.Alphabetical
+            || opts.SectionOrder is { Count: > 0 };
+        _writer = writer;
         _formatter = formatter;
         _options = opts;
     }
@@ -1916,7 +1922,10 @@ public class MarkoutWriter
     {
         CompleteOpenTable();
         ThrowIfProjectionMatchedNothing();
-        _sectionBuffer?.EmitOrdered(_options.SectionOrder, _needsBlankLine);
+        _sectionBuffer?.EmitOrdered(
+            _options.SectionOrder,
+            _options.DefaultSectionOrder,
+            _needsBlankLine);
 
         // _writer is either _target or the buffering wrapper in front of it, and the
         // wrapper has nothing of its own to flush once it has emitted. Flushing both
@@ -1979,6 +1988,7 @@ public class MarkoutWriter
         var preservationLength = _trailingWhitespacePreservationLength;
         var preview = _sectionBuffer?.RenderOrdered(
             _options.SectionOrder,
+            _options.DefaultSectionOrder,
             _needsBlankLine,
             out preservationLength);
         return CompleteInMemoryOutput(
@@ -2250,8 +2260,25 @@ public class MarkoutWriter
             // should create neither a heading nor an orderable chunk, while surviving content
             // must open the chunk before either the heading or body is written.
             if (!deferSectionBoundary)
-                _sectionBuffer?.BeginSection(text, _needsBlankLine);
+                BeginOrderedSection(text);
         }
+    }
+
+    private void BeginOrderedSection(string name)
+    {
+        if (!_ordersSections)
+            return;
+
+        if (_sectionBuffer is null)
+        {
+            _sectionBuffer = new SectionBufferingWriter(
+                _target,
+                _hasContent,
+                _trailingWhitespacePreservationLength);
+            _writer = _sectionBuffer;
+        }
+
+        _sectionBuffer.BeginSection(name, _needsBlankLine);
     }
 
     private bool IsSectionIncluded()
@@ -2473,7 +2500,7 @@ public class MarkoutWriter
             return;
 
         if (frame.SectionName is not null)
-            _sectionBuffer?.BeginSection(frame.SectionName, _needsBlankLine);
+            BeginOrderedSection(frame.SectionName);
         frame.BoundaryOpened = true;
     }
 
