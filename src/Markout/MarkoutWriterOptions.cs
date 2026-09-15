@@ -15,6 +15,7 @@ public class MarkoutWriterOptions
     private int? _maxItems;
     private MarkoutRowWindow? _rowWindow;
     private HashSet<string>? _includeSections;
+    private MarkoutSectionOrder _defaultSectionOrder = MarkoutSectionOrder.Alphabetical;
     private IReadOnlyList<string>? _sectionOrder;
     private MarkoutProjection? _projection;
     private MarkoutShape _suppressedShapes;
@@ -47,6 +48,7 @@ public class MarkoutWriterOptions
         _maxItems = source._maxItems;
         _rowWindow = source._rowWindow;
         _includeSections = source._includeSections;
+        _defaultSectionOrder = source._defaultSectionOrder;
         _sectionOrder = source._sectionOrder;
         _projection = source._projection;
         _suppressedShapes = source._suppressedShapes;
@@ -257,15 +259,32 @@ public class MarkoutWriterOptions
     }
 
     /// <summary>
+    /// Controls the automatic order of sections not positioned by <see cref="SectionOrder"/>.
+    /// The default is <see cref="MarkoutSectionOrder.Alphabetical"/>. Set
+    /// <see cref="MarkoutSectionOrder.Data"/> to preserve the order in which the document
+    /// writes sections.
+    /// </summary>
+    public MarkoutSectionOrder DefaultSectionOrder
+    {
+        get => _defaultSectionOrder;
+        set
+        {
+            ThrowIfReadOnly();
+            _defaultSectionOrder = value;
+        }
+    }
+
+    /// <summary>
     /// If set, sections named here are emitted first, in this order; every other section
-    /// follows in the order it was written. Matching is case-insensitive, and naming a
-    /// section that the document never writes is not an error.
+    /// follows according to <see cref="DefaultSectionOrder"/>. Matching is case-insensitive,
+    /// and naming a section that the document never writes is not an error.
     ///
     /// <para>
     /// Ordering is applied at the writer seam rather than to rendered text, so it works
     /// for every format — including TSV and JSONL, whose output carries no heading to
     /// reorder. Setting it buffers the whole document, because the last section written
-    /// may be the first one emitted.
+    /// may be the first one emitted. This list is an override of the automatic policy,
+    /// not a replacement for it: an empty list behaves like no list.
     /// </para>
     /// </summary>
     public IReadOnlyList<string>? SectionOrder

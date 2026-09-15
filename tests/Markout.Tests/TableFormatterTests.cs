@@ -353,6 +353,7 @@ public class TableFormatterTests
         writer.WriteHeading(2, "Section 1", null);
         writer.WriteFields([new("Key1", "Value1")]);
         writer.WriteHeading(2, "Section 2", null);  // Should flush buffered fields
+        writer.Flush();
 
         var output = sw.ToString();
         Assert.Contains("Value1", output);

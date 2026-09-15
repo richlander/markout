@@ -86,12 +86,21 @@ internal sealed class SectionBufferingWriter : TextWriter
     private Chunk _preamble;
     private Chunk _current;
     private bool _emitted;
+    private int _directTrailingWhitespacePreservationLength;
     private int _emittedTrailingWhitespacePreservationLength;
 
-    public SectionBufferingWriter(TextWriter target)
+    public SectionBufferingWriter(
+        TextWriter target,
+        bool preambleContainsContent,
+        int preambleTrailingWhitespacePreservationLength)
     {
         _target = target;
-        _preamble = new Chunk(null, target.NewLine);
+        _preamble = new Chunk(null, target.NewLine)
+        {
+            ContainsContent = preambleContainsContent
+        };
+        _directTrailingWhitespacePreservationLength =
+            preambleTrailingWhitespacePreservationLength;
         _current = _preamble;
     }
 
@@ -217,8 +226,10 @@ internal sealed class SectionBufferingWriter : TextWriter
         _current.ContainsContent = true;
         if (preservesTrailingWhitespaceAtEnd)
         {
-            _current.TrailingWhitespacePreservationLength =
-                _current.Content.Length;
+            if (ReferenceEquals(_current, _preamble))
+                _directTrailingWhitespacePreservationLength = TargetLength();
+            else
+                _current.TrailingWhitespacePreservationLength = _current.Content.Length;
         }
     }
 
@@ -296,11 +307,13 @@ internal sealed class SectionBufferingWriter : TextWriter
     /// first content, so that is the newline it would have used — and the one to put
     /// back at flush, which may be reached long after the target's newline moved on.
     /// </summary>
-    private StringWriter Prepare()
+    private TextWriter Prepare()
     {
         ThrowIfEmitted();
         NoteSeparatorNewLine();
-        return _current.Buffer;
+        return ReferenceEquals(_current, _preamble)
+            ? _target
+            : _current.Buffer;
     }
 
     /// <inheritdoc/>
@@ -389,9 +402,9 @@ internal sealed class SectionBufferingWriter : TextWriter
     }
 
     /// <summary>
-    /// Emits the preamble followed by every buffered section, ordered by
-    /// <paramref name="order"/>. Sections named there come first in that order; the rest
-    /// follow in the order they were written. Matching is case-insensitive.
+    /// Emits the preamble followed by every buffered section. Sections named in
+    /// <paramref name="order"/> come first in that order; the rest follow
+    /// <paramref name="defaultOrder"/>. Matching is case-insensitive.
     ///
     /// <para>
     /// Separators are recomputed here rather than replayed, because which adjacencies
@@ -409,11 +422,15 @@ internal sealed class SectionBufferingWriter : TextWriter
     /// </para>
     /// </summary>
     /// <param name="order">The requested section order, or <c>null</c>.</param>
+    /// <param name="defaultOrder">How sections not named by <paramref name="order"/> are ordered.</param>
     /// <param name="endsNeedingBlankLine">
     /// Whether the last chunk left a blank line pending, for the same reason
     /// <see cref="BeginSection"/> takes it.
     /// </param>
-    public void EmitOrdered(IReadOnlyList<string>? order, bool endsNeedingBlankLine)
+    public void EmitOrdered(
+        IReadOnlyList<string>? order,
+        MarkoutSectionOrder defaultOrder,
+        bool endsNeedingBlankLine)
     {
         if (_emitted)
             return;
@@ -422,6 +439,7 @@ internal sealed class SectionBufferingWriter : TextWriter
         if (!WriteOrdered(
                 _target,
                 order,
+                defaultOrder,
                 endsNeedingBlankLine,
                 out var relativePreservationLength))
             return;
@@ -446,6 +464,7 @@ internal sealed class SectionBufferingWriter : TextWriter
     /// </summary>
     public string RenderOrdered(
         IReadOnlyList<string>? order,
+        MarkoutSectionOrder defaultOrder,
         bool endsNeedingBlankLine,
         out int trailingWhitespacePreservationLength)
     {
@@ -460,24 +479,30 @@ internal sealed class SectionBufferingWriter : TextWriter
         {
             NewLine = _target.NewLine
         };
-        WriteOrdered(
+        var emitted = WriteOrdered(
             preview,
             order,
+            defaultOrder,
             endsNeedingBlankLine,
             out var relativePreservationLength);
         trailingWhitespacePreservationLength =
-            relativePreservationLength == 0
-                ? 0
-                : TargetLength() + relativePreservationLength;
+            relativePreservationLength > 0
+                ? TargetLength() + relativePreservationLength
+                : emitted
+                    ? 0
+                    : _directTrailingWhitespacePreservationLength;
         return preview.ToString();
     }
 
     public int EmittedTrailingWhitespacePreservationLength
-        => _emittedTrailingWhitespacePreservationLength;
+        => _emitted
+            ? _emittedTrailingWhitespacePreservationLength
+            : _directTrailingWhitespacePreservationLength;
 
     private bool WriteOrdered(
         TextWriter output,
         IReadOnlyList<string>? order,
+        MarkoutSectionOrder defaultOrder,
         bool currentEndsNeedingBlankLine,
         out int trailingWhitespacePreservationLength)
     {
@@ -498,6 +523,12 @@ internal sealed class SectionBufferingWriter : TextWriter
         var ordered = _sections
             .Select((chunk, ordinal) => (chunk, ordinal))
             .OrderBy(s => s.chunk.Name is { } name && rank.TryGetValue(name, out var r) ? r : int.MaxValue)
+            .ThenBy(
+                s => defaultOrder == MarkoutSectionOrder.Alphabetical
+                    && (s.chunk.Name is not { } name || !rank.ContainsKey(name))
+                        ? s.chunk.Name
+                        : null,
+                StringComparer.OrdinalIgnoreCase)
             .ThenBy(s => s.ordinal)
             .Select(s => s.chunk);
 
@@ -587,7 +618,8 @@ internal sealed class SectionBufferingWriter : TextWriter
                 "The document was already emitted. Ordering sections requires buffering the " +
                 "whole document, so Flush() and Complete() finalize it: a section written " +
                 "afterwards could no longer be moved ahead of one already written out. " +
-                "Finish the document before flushing, or clear MarkoutWriterOptions.SectionOrder.");
+                "Finish the document before flushing, or use data order without an explicit " +
+                "MarkoutWriterOptions.SectionOrder.");
         }
     }
 }

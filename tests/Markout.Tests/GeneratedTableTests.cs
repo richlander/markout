@@ -1944,6 +1944,13 @@ public class GeneratedTableTests
         // A literal is the independent oracle that makes the equality mean something.
         Assert.Equal(
             """
+            ## Metadata: #Blob
+
+            | Address | Length |
+            | ------- | ------ |
+            | 0x0 | 12 |
+            | 0xC | 4 |
+
             ## Metadata: #Strings
 
             | Offset | Value |
@@ -1951,13 +1958,6 @@ public class GeneratedTableTests
             | 0x1 | System |
             | 0x8 | Object |
             | 0x10 | String |
-
-            ## Metadata: #Blob
-
-            | Address | Length |
-            | ------- | ------ |
-            | 0x0 | 12 |
-            | 0xC | 4 |
             """,
             viaModel.Replace("\r\n", "\n").TrimEnd('\n'));
 

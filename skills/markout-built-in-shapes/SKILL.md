@@ -101,8 +101,10 @@ public class Dashboard
 
 `MarkoutTable` carries headers and rows as runtime values, so the generator does not need to know
 the columns at compile time. It still flows through the serializer like a generated table —
-`SectionOrder`, `RowWindow`, `IncludeSections`, column projection, and TSV/JSONL decomposition all
-apply for free. Two things to know:
+alphabetical section order, `SectionOrder` overrides, `RowWindow`, `IncludeSections`, column
+projection, and TSV/JSONL decomposition all apply for free. Set
+`DefaultSectionOrder = MarkoutSectionOrder.Data` when runtime section order is meaningful. Two
+things to know:
 
 - **Projection is per table, checked per document.** A projection (`IncludeColumns`) that names none
   of a table's columns renders that table as nothing, because the same projection may be aimed at a

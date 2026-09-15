@@ -1122,9 +1122,24 @@ var options = new MarkoutWriterOptions
 
 ### Section Ordering
 
-`IncludeSections` chooses which sections appear; `SectionOrder` chooses the order
-they appear in. Sections named there lead, in that order, and every other section
-follows in the order it was written:
+Sections appear alphabetically by default, using an ordinal, case-insensitive
+comparison. This applies equally to generated sections and sections written
+through `MarkoutWriter`.
+
+Set `DefaultSectionOrder` to `Data` when the order in which the model or writer
+supplies sections is itself meaningful:
+
+```csharp
+var options = new MarkoutWriterOptions
+{
+    DefaultSectionOrder = MarkoutSectionOrder.Data
+};
+```
+
+`IncludeSections` chooses which sections appear. `SectionOrder` is the
+per-render override for sections that must lead in a particular order. Named
+sections lead in the supplied order, and every other section follows
+`DefaultSectionOrder`:
 
 ```csharp
 var options = new MarkoutWriterOptions
@@ -1144,13 +1159,15 @@ Ordering is applied at the writer seam rather than to rendered text, so it works
 for every format, **including TSV and JSONL**, whose output carries no heading to
 reorder. Asking for the order a document already had reproduces it byte for byte.
 
-Setting `SectionOrder` buffers the whole document, because the last section
-written may be the first one emitted. `Flush()` completes the document and writes
-the ordered sections to the target. `Complete()` does the same for a
+Alphabetical ordering and a non-empty `SectionOrder` buffer the whole document,
+because the last section written may be the first one emitted. `Flush()`
+completes the document and writes the ordered sections to the target.
+`Complete()` does the same for a
 `StringWriter`-backed writer and returns the resulting string. Writing again after
 a non-empty ordered document is completed throws, because a later section could
 no longer move ahead of one already emitted. Clearing `SectionOrder` does not
-lift that restriction — the buffer is installed when the writer is constructed.
+lift that restriction. To stream in data order without a buffer, set
+`DefaultSectionOrder` to `Data` and leave `SectionOrder` empty.
 
 A completion first closes any open streaming table and reports a projection that
 matched nothing. If there is still no ordered content to emit, the writer remains
@@ -1181,9 +1198,6 @@ pair it with `WriteSectionStart()` whenever a section may turn out empty. Empty,
 blank-line-only, unsupported, and projection-emptied sections then leave no
 heading or separator behind. Starting a supported streaming table counts as
 content even when the selected format ultimately emits no rows.
-
-Leaving `SectionOrder` unset costs nothing: no buffer is installed, and output
-goes straight to your writer as before.
 
 ### Heading Level Offset
 
