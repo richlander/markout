@@ -1,6 +1,6 @@
 ---
 name: markout-output-formats
-version: 0.37.0
+version: 0.38.0
 description: >-
   Use when you need output other than default Markdown — plain text / Unicode, ANSI terminal
   (Spectre), pretty aligned tables, or TSV/JSONL exports — or when one model must serve several
@@ -57,10 +57,17 @@ MarkoutSerializer.Serialize(r, Console.Out, new SpectreFormatter(AnsiConsole.Con
 
 `Markout.Ansi.Spectre` is a separate NuGet package; Markdown/plain/table/TSV/JSONL need only `Markout`.
 
-`Graph` sections become Markdown edge tables by default. To embed the same
-graph as Mermaid without rebuilding it, select the Markdown graph mode:
+`Graph` sections become Markdown edge tables by default. Select a Markdown
+graph mode to embed the same graph as a rooted text tree or Mermaid without
+rebuilding it:
 
 ```csharp
+MarkoutSerializer.Serialize(
+    report,
+    Console.Out,
+    new MarkdownFormatter(MarkdownGraphMode.FencedTree),
+    ctx);
+
 MarkoutSerializer.Serialize(
     report,
     Console.Out,

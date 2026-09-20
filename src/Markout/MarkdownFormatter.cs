@@ -527,7 +527,7 @@ public class MarkdownFormatter : IMarkoutFormatter,
     // ── IGraphFormatter ──
 
     /// <summary>
-    /// Renders the graph as either an edge table or a fenced Mermaid diagram.
+    /// Renders the graph as an edge table, fenced tree, or fenced Mermaid diagram.
     /// </summary>
     void IGraphFormatter.FormatGraph(TextWriter w, Graph graph, MarkoutWriterOptions options)
     {
@@ -539,6 +539,29 @@ public class MarkdownFormatter : IMarkoutFormatter,
             ((ICodeBlockFormatter)this).FormatCodeStart(w, "mermaid");
             ((IGraphFormatter)new MermaidFormatter()).FormatGraph(w, graph, options);
             ((ICodeBlockFormatter)this).FormatCodeEnd(w);
+            return;
+        }
+
+        if (_graphMode == MarkdownGraphMode.FencedTree)
+        {
+            using var treeWriter = new StringWriter
+            {
+                NewLine = w.NewLine,
+            };
+            ((ITreeFormatter)this).FormatTree(
+                treeWriter,
+                GraphLowering.ToTree(graph).AsSpan(),
+                options);
+            string tree = treeWriter.ToString();
+            string fence = new(
+                '`',
+                Math.Max(
+                    3,
+                    TextDiffEscaping.LongestBacktickRun([tree]) + 1));
+            w.Write(fence);
+            w.WriteLine("text");
+            w.Write(tree);
+            w.WriteLine(fence);
             return;
         }
 

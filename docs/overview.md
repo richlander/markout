@@ -16,8 +16,9 @@ Markout is a source-generated .NET serializer for projecting object graphs into 
 
 - Markdown is the primary readable document format.
 - Markdown renders `Graph` as an edge table by default. Pass
-  `MarkdownGraphMode.Mermaid` to `MarkdownFormatter` to embed the same graph as
-  a fenced Mermaid diagram.
+  `MarkdownGraphMode.FencedTree` to embed its rooted tree lowering in a `text`
+  fence, or `MarkdownGraphMode.Mermaid` to embed the same graph as a Mermaid
+  diagram.
 - Mapped text diffs retain producer-issued correspondence. Markdown and plain
   text use GNU-compatible unified form, rich formatters add display detail,
   and table modes expose fixed provenance records.

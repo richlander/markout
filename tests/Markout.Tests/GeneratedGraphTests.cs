@@ -65,6 +65,25 @@ public class GeneratedGraphTests
     }
 
     [Fact]
+    public void GraphProperty_ComposesAsAFencedTreeInMarkdown()
+    {
+        var sink = new StringWriter();
+        MarkoutSerializer.Serialize(
+            Sample(),
+            sink,
+            new MarkdownFormatter(MarkdownGraphMode.FencedTree),
+            GraphContext.Default);
+        var output = sink.ToString();
+
+        Assert.Contains("| Member | Run |", output, StringComparison.Ordinal);
+        Assert.Contains("## Call Graph", output, StringComparison.Ordinal);
+        Assert.Contains("```text", output, StringComparison.Ordinal);
+        Assert.Contains("└─ A", output, StringComparison.Ordinal);
+        Assert.Contains("   └─ B", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| From | To |", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GraphProperty_RendersAsADiagramWhenTheSinkDrawsOne()
     {
         var sink = new StringWriter();
