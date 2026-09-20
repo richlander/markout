@@ -456,6 +456,39 @@ public class GraphTests
     }
 
     [Fact]
+    public void Markdown_CanEmbedAFencedTreeGraph()
+    {
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(MarkdownGraphMode.FencedTree));
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = Normalize(orch.ToString());
+        Assert.StartsWith("```text\n└─ A\n", output, StringComparison.Ordinal);
+        Assert.Contains("   └─ B", output, StringComparison.Ordinal);
+        Assert.Contains("      └─ C", output, StringComparison.Ordinal);
+        Assert.EndsWith("```", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("| From | To |", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FencedTree_UsesAFenceLongerThanNodeBackticks()
+    {
+        var graph = new Graph(
+            [new GraphNode("a", "A ``` label")],
+            [],
+            focusKey: "a");
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(MarkdownGraphMode.FencedTree));
+
+        Assert.True(orch.WriteGraph(graph));
+
+        var output = Normalize(orch.ToString());
+        Assert.StartsWith("````text\n", output, StringComparison.Ordinal);
+        Assert.Contains("└─ A ``` label", output, StringComparison.Ordinal);
+        Assert.EndsWith("````", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MarkdownEdgeTable_HonorsTableProjectionAndRowLimits()
     {
         var orch = MarkoutWriter.Create(
@@ -490,6 +523,24 @@ public class GraphTests
         var output = Normalize(orch.ToString());
         Assert.Contains("n0 --> n1", output, StringComparison.Ordinal);
         Assert.Contains("n1 --> n2", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FencedTree_IgnoresTableProjectionAndRowLimits()
+    {
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(MarkdownGraphMode.FencedTree),
+            new MarkoutWriterOptions
+            {
+                MaxItems = 1,
+                Projection = new MarkoutProjection { IncludeColumns = ["To"] },
+            });
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        var output = Normalize(orch.ToString());
+        Assert.Contains("└─ A", output, StringComparison.Ordinal);
+        Assert.Contains("└─ B", output, StringComparison.Ordinal);
+        Assert.Contains("└─ C", output, StringComparison.Ordinal);
     }
 
     [Fact]
