@@ -10,7 +10,7 @@
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.38.0</Version>
-    <PackageReleaseNotes>Defaults document sections to alphabetical order, adds an explicit data-order policy, and preserves SectionOrder as an ordered prefix override.</PackageReleaseNotes>
+    <PackageReleaseNotes>Adds MarkdownGraphMode.FencedTree, which renders Graph sections as rooted trees inside dynamically sized text fences so they compose with headings and neighboring sections. Edge-table remains the default, Mermaid retains its published enum value and behavior, and fenced-tree output honors the configured newline.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
