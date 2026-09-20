@@ -544,7 +544,10 @@ public class MarkdownFormatter : IMarkoutFormatter,
 
         if (_graphMode == MarkdownGraphMode.FencedTree)
         {
-            using var treeWriter = new StringWriter();
+            using var treeWriter = new StringWriter
+            {
+                NewLine = w.NewLine,
+            };
             ((ITreeFormatter)this).FormatTree(
                 treeWriter,
                 GraphLowering.ToTree(graph).AsSpan(),

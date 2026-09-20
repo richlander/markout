@@ -10,6 +10,14 @@ public class GraphTests
         [new GraphNode("a", "A"), new GraphNode("b", "B"), new GraphNode("c", "C")],
         [new GraphEdge("a", "b"), new GraphEdge("b", "c")]);
 
+    [Fact]
+    public void MarkdownGraphMode_PreservesPublishedValues()
+    {
+        Assert.Equal(0, (int)MarkdownGraphMode.EdgeTable);
+        Assert.Equal(1, (int)MarkdownGraphMode.Mermaid);
+        Assert.Equal(2, (int)MarkdownGraphMode.FencedTree);
+    }
+
     // ── Shape validation ──
 
     [Fact]
@@ -486,6 +494,23 @@ public class GraphTests
         Assert.StartsWith("````text\n", output, StringComparison.Ordinal);
         Assert.Contains("└─ A ``` label", output, StringComparison.Ordinal);
         Assert.EndsWith("````", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FencedTree_UsesTheConfiguredNewLine()
+    {
+        var orch = MarkoutWriter.Create(
+            new MarkdownFormatter(MarkdownGraphMode.FencedTree),
+            new MarkoutWriterOptions { NewLine = "\r\n" });
+
+        Assert.True(orch.WriteGraph(SimpleChain()));
+
+        string output = orch.ToString();
+        Assert.Contains("```text\r\n", output, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "\n",
+            output.Replace("\r\n", "", StringComparison.Ordinal),
+            StringComparison.Ordinal);
     }
 
     [Fact]
