@@ -9,7 +9,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.37.0</Version>
+    <Version>0.38.0</Version>
     <PackageReleaseNotes>Defaults document sections to alphabetical order, adds an explicit data-order policy, and preserves SectionOrder as an ordered prefix override.</PackageReleaseNotes>
   </PropertyGroup>
 
