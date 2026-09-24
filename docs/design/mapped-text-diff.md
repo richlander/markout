@@ -81,7 +81,8 @@ Each change contains:
 - one half-open Before line range;
 - one half-open After line range;
 - zero or more caller-issued inner text mappings when it is a replacement;
-- zero or more caller-issued annotations; and
+- zero or more caller-issued annotations;
+- an optional caller-issued label (see [Change labels](#change-labels)); and
 - its zero-based position in the change population.
 
 The range counts determine the change form:
@@ -146,7 +147,9 @@ A valid mapped text diff satisfies all of the following:
 10. A final line asserting an `absent` terminator is either contained by a
     caller-issued change or corresponds through the trailing unchanged gap to
     the other sequence's final line, which also asserts `absent`.
-11. Collection order is significant and preserved.
+11. A change label's related address, when present, names another change in
+    range.
+12. Collection order is significant and preserved.
 
 Equal-cardinality gaps between changes are unchanged sequence ranges whose
 lines correspond by position. The constructor validates their cardinality but
@@ -329,8 +332,9 @@ recover change and side provenance. The vocabulary includes:
 - Before and After range coordinates;
 - text;
 - inner mapping coordinates when present;
-- annotation target and text when present; and
-- final-line-terminator assertions when known.
+- annotation target and text when present;
+- final-line-terminator assertions when known; and
+- change label text, emphasis, and related change when present.
 
 Change-derived records require a change address. Unchanged context records
 instead carry both corresponding side coordinates. Omission records carry
@@ -365,6 +369,48 @@ control text remains inert.
 capabilities can coexist with GNU/Git compatibility: syntax and word emphasis,
 side-by-side wrapping, line numbers, navigation, copy-friendly source, and
 moved-line styling are presentation choices over conventional diff data.
+
+## Change labels
+
+A change may carry one caller-issued label. The caller owns what the label
+says and when to issue it; Markout presents it and never derives one. The
+motivating adopter is dotnet-inspect's text whitespace and move
+characterization, which labels whitespace-only changes and the two ends of a
+moved block.
+
+A label contains:
+
+- **text**: one logical line of inert caller data;
+- **emphasis**: `Normal` or `Subdued`, a closed presentation vocabulary for
+  secondary changes, not a domain category;
+- **show whitespace**: whether rich formatters render spaces and tabs inside
+  the change's inner-mapping spans as visible glyphs; and
+- **related change**: an optional address of another change the caller relates
+  to this one, such as the other end of a moved block.
+
+Construction rejects label text containing a carriage return or line feed, a
+negative related address, and a related address that is out of range or names
+the change itself. Two labels are equal when all four parts are equal.
+
+Formatters apply labels as follows:
+
+- Hunk selection places two changes in one hunk only when their labels are
+  equal, in addition to the context rule. Changes with different labels start
+  separate hunks.
+- When a forced split leaves an unchanged gap that both hunks' context would
+  reach, the gap's lines are divided between the two hunks, the earlier hunk
+  taking the larger half, so no line appears in two hunks. Adjacent hunks that
+  share no line remain valid unified diff; GNU `patch` applies them.
+- Unified lowerings write the label text after the hunk header's closing `@@`,
+  the free-form slot Git uses for function context. Line text is unchanged,
+  so glyphs never appear in unified output.
+- Rich lowerings print a label line before the change's first record, render
+  `Subdued` changes with reduced emphasis, print the related change, and apply
+  visible whitespace glyphs (`·` for space, `→` for tab) only inside
+  inner-mapping spans of changes whose label requests them. Literal `·` and
+  `→` inside those spans are escaped.
+- Structured lowerings add `change_label`, `label_emphasis`, and
+  `related_change` fields to every record derived from a labeled change.
 
 ## Annotations
 

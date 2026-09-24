@@ -31,8 +31,17 @@ public class UnicodeFormatter : IMarkoutFormatter,
         MappedTextDiff diff,
         MarkoutWriterOptions options)
     {
+        int? labeledAddress = null;
         foreach (var line in MappedTextDiffLowering.ToDisplayLines(diff, options.TextDiffContextLines))
         {
+            if (line.ChangeAddress is { } address
+                && address != labeledAddress
+                && diff.Changes[address].Label is { } label)
+            {
+                WriteChangeLabel(w, address, label);
+                labeledAddress = address;
+            }
+
             switch (line.Kind)
             {
                 case TextDiffDisplayLineKind.Context:
@@ -72,6 +81,22 @@ public class UnicodeFormatter : IMarkoutFormatter,
                     break;
             }
         }
+    }
+
+    private static void WriteChangeLabel(TextWriter w, int address, TextDiffChangeLabel label)
+    {
+        w.Write(label.Emphasis == TextDiffLabelEmphasis.Subdued ? "         ◦ change " : "         ▸ change ");
+        w.Write(address + 1);
+        w.Write(": ");
+        w.Write(TextDiffEscaping.Human(label.Text));
+        if (label.RelatedChange is { } related)
+        {
+            w.Write(" (related change ");
+            w.Write(related + 1);
+            w.Write(')');
+        }
+
+        w.WriteLine();
     }
 
     private static void WriteRange(TextWriter w, TextDiffRange range)

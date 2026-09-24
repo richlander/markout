@@ -47,6 +47,12 @@ public static class MappedTextDiffLowering
         return records.ToImmutable();
     }
 
+    /// <summary>
+    /// Groups changes into hunks. Changes join one hunk when their unchanged gap fits within the
+    /// context on both sides and their labels are equal; changes with different labels always
+    /// start a new hunk. When such a forced split leaves a gap that both hunks' context would
+    /// reach, the gap's lines are divided between the two hunks so no line appears in both.
+    /// </summary>
     internal static ImmutableArray<TextDiffHunk> SelectHunks(
         MappedTextDiff diff,
         int? contextLines)
@@ -56,61 +62,74 @@ public static class MappedTextDiffLowering
         if (diff.IsEmpty)
             return [];
 
-        var hunks = ImmutableArray.CreateBuilder<TextDiffHunk>();
+        var groups = new List<(int First, int Last)>();
         var firstAddress = 0;
         while (firstAddress < diff.Changes.Length)
         {
             var lastAddress = firstAddress;
-            if (contextLines is null)
+            while (lastAddress + 1 < diff.Changes.Length)
             {
-                lastAddress = diff.Changes.Length - 1;
+                var current = diff.Changes[lastAddress];
+                var next = diff.Changes[lastAddress + 1];
+                if (!Equals(current.Label, next.Label))
+                    break;
+                var gap = next.Before.Start - current.Before.End;
+                if (contextLines is not null && (long)gap > (long)contextLines.Value * 2)
+                    break;
+                lastAddress++;
+            }
+
+            groups.Add((firstAddress, lastAddress));
+            firstAddress = lastAddress + 1;
+        }
+
+        // For each boundary between consecutive groups, the context each side takes.
+        var trailing = new int[groups.Count];
+        var leading = new int[groups.Count];
+        leading[0] = Clamp(diff.Changes[groups[0].First].Before.Start, contextLines);
+        trailing[^1] = Clamp(
+            diff.Before.Lines.Length - diff.Changes[groups[^1].Last].Before.End,
+            contextLines);
+        for (var index = 0; index + 1 < groups.Count; index++)
+        {
+            var gap = diff.Changes[groups[index + 1].First].Before.Start
+                - diff.Changes[groups[index].Last].Before.End;
+            if (contextLines is not null && (long)gap > (long)contextLines.Value * 2)
+            {
+                trailing[index] = contextLines.Value;
+                leading[index + 1] = contextLines.Value;
             }
             else
             {
-                while (lastAddress + 1 < diff.Changes.Length)
-                {
-                    var current = diff.Changes[lastAddress];
-                    var next = diff.Changes[lastAddress + 1];
-                    var gap = next.Before.Start - current.Before.End;
-                    if ((long)gap > (long)contextLines.Value * 2)
-                        break;
-                    lastAddress++;
-                }
+                trailing[index] = Clamp((gap + 1) / 2, contextLines);
+                leading[index + 1] = Clamp(gap - trailing[index], contextLines);
             }
+        }
 
-            var first = diff.Changes[firstAddress];
-            var last = diff.Changes[lastAddress];
-            var previousBeforeEnd = firstAddress == 0 ? 0 : diff.Changes[firstAddress - 1].Before.End;
-            var previousAfterEnd = firstAddress == 0 ? 0 : diff.Changes[firstAddress - 1].After.End;
-            var nextBeforeStart = lastAddress + 1 == diff.Changes.Length
-                ? diff.Before.Lines.Length
-                : diff.Changes[lastAddress + 1].Before.Start;
-            var nextAfterStart = lastAddress + 1 == diff.Changes.Length
-                ? diff.After.Lines.Length
-                : diff.Changes[lastAddress + 1].After.Start;
-
-            var leading = contextLines is null
-                ? first.Before.Start - previousBeforeEnd
-                : Math.Min(contextLines.Value, first.Before.Start - previousBeforeEnd);
-            var trailing = contextLines is null
-                ? nextBeforeStart - last.Before.End
-                : Math.Min(contextLines.Value, nextBeforeStart - last.Before.End);
+        var hunks = ImmutableArray.CreateBuilder<TextDiffHunk>(groups.Count);
+        for (var index = 0; index < groups.Count; index++)
+        {
+            var first = diff.Changes[groups[index].First];
+            var last = diff.Changes[groups[index].Last];
             var before = new TextDiffRange(
-                first.Before.Start - leading,
-                last.Before.End + trailing - (first.Before.Start - leading));
+                first.Before.Start - leading[index],
+                last.Before.End + trailing[index] - (first.Before.Start - leading[index]));
             var after = new TextDiffRange(
-                first.After.Start - leading,
-                last.After.End + trailing - (first.After.Start - leading));
+                first.After.Start - leading[index],
+                last.After.End + trailing[index] - (first.After.Start - leading[index]));
 
             hunks.Add(new TextDiffHunk(
                 before,
                 after,
-                BuildHunkLines(diff, firstAddress, lastAddress, before, after)));
-            firstAddress = lastAddress + 1;
+                BuildHunkLines(diff, groups[index].First, groups[index].Last, before, after),
+                first.Label));
         }
 
-        return hunks.ToImmutable();
+        return hunks.MoveToImmutable();
     }
+
+    private static int Clamp(int available, int? contextLines)
+        => contextLines is null ? available : Math.Min(contextLines.Value, available);
 
     private static ImmutableArray<TextDiffDisplayLine> BuildHunkLines(
         MappedTextDiff diff,
@@ -232,15 +251,18 @@ internal sealed class TextDiffHunk
     public TextDiffRange Before { get; }
     public TextDiffRange After { get; }
     public ImmutableArray<TextDiffDisplayLine> Lines { get; }
+    public TextDiffChangeLabel? Label { get; }
 
     public TextDiffHunk(
         TextDiffRange before,
         TextDiffRange after,
-        ImmutableArray<TextDiffDisplayLine> lines)
+        ImmutableArray<TextDiffDisplayLine> lines,
+        TextDiffChangeLabel? label = null)
     {
         Before = before;
         After = after;
         Lines = lines;
+        Label = label;
     }
 }
 

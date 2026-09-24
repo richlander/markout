@@ -16,7 +16,10 @@ internal static class TextDiffFormatterHelpers
 
         foreach (var hunk in MappedTextDiffLowering.SelectHunks(diff, contextLines))
         {
-            lines.Add($"@@ -{FormatRange(hunk.Before)} +{FormatRange(hunk.After)} @@");
+            var header = $"@@ -{FormatRange(hunk.Before)} +{FormatRange(hunk.After)} @@";
+            lines.Add(hunk.Label is { } label
+                ? header + " " + TextDiffEscaping.Human(label.Text)
+                : header);
             foreach (var line in hunk.Lines)
             {
                 switch (line.Kind)
@@ -83,6 +86,7 @@ internal static class TextDiffFormatterHelpers
                 row[BeforeLength] = mapping.Before.Count.ToString();
                 row[AfterOffset] = mapping.After.Start.ToString();
                 row[AfterLength] = mapping.After.Count.ToString();
+                SetChangeLabel(row, change.Label);
                 rows.Add(row);
             }
         }
@@ -133,10 +137,13 @@ internal static class TextDiffFormatterHelpers
             writer.Write(open);
             if (!span.IsEmpty)
             {
-                writer.Write(EscapeMarkedPayload(
+                var payload = EscapeMarkedPayload(
                     raw[span.Start..span.End],
                     open,
-                    close));
+                    close);
+                writer.Write(diff.Changes[address].Label?.ShowWhitespace == true
+                    ? ShowWhitespace(payload)
+                    : payload);
             }
             writer.Write(close);
             cursor = span.End;
@@ -151,6 +158,42 @@ internal static class TextDiffFormatterHelpers
             .Replace("-]", "\\-]")
             .Replace("{+", "\\{+")
             .Replace("+}", "\\+}");
+
+    /// <summary>
+    /// Renders spaces as <c>·</c> and tabs as <c>→</c> in already-escaped span text. Literal
+    /// <c>·</c> and <c>→</c> characters are escaped with a backslash so they stay distinct.
+    /// </summary>
+    internal static string ShowWhitespace(string escaped)
+    {
+        var writer = new StringWriter();
+        for (var i = 0; i < escaped.Length; i++)
+        {
+            var c = escaped[i];
+            if (c == '\\' && i + 1 < escaped.Length)
+            {
+                if (escaped[i + 1] == 't')
+                    writer.Write('→');
+                else
+                {
+                    writer.Write(c);
+                    writer.Write(escaped[i + 1]);
+                }
+
+                i++;
+                continue;
+            }
+
+            writer.Write(c switch
+            {
+                ' ' => "·",
+                '·' => "\\·",
+                '→' => "\\→",
+                _ => c.ToString(),
+            });
+        }
+
+        return writer.ToString();
+    }
 
     private static string EscapeMarkedPayload(
         string value,
@@ -199,6 +242,7 @@ internal static class TextDiffFormatterHelpers
             row[ChangeAddress] = address.ToString();
             row[ChangeForm] = Form(change.Form);
             SetRange(row, change.Before, change.After);
+            SetChangeLabel(row, change.Label);
         }
         if (line.BeforeLine is { } beforeLine)
             row[BeforeLine] = beforeLine.ToString();
@@ -247,6 +291,17 @@ internal static class TextDiffFormatterHelpers
         row[LineCount] = sequence.Lines.Length.ToString();
         row[Terminator] = sequence.FinalLineTerminator.ToString().ToLowerInvariant();
         rows.Add(row);
+    }
+
+    private static void SetChangeLabel(string[] row, TextDiffChangeLabel? label)
+    {
+        if (label is null)
+            return;
+
+        row[ChangeLabel] = TextDiffEscaping.Structured(label.Text);
+        row[LabelEmphasis] = label.Emphasis.ToString().ToLowerInvariant();
+        if (label.RelatedChange is { } related)
+            row[RelatedChange] = related.ToString();
     }
 
     private static void SetRange(
@@ -308,6 +363,9 @@ internal static class TextDiffFormatterHelpers
     private const int Label = 20;
     private const int LineCount = 21;
     private const int Terminator = 22;
+    private const int ChangeLabel = 23;
+    private const int LabelEmphasis = 24;
+    private const int RelatedChange = 25;
 
     private static readonly ImmutableArray<string> Headers =
     [
@@ -333,7 +391,10 @@ internal static class TextDiffFormatterHelpers
         "severity",
         "label",
         "line_count",
-        "terminator"
+        "terminator",
+        "change_label",
+        "label_emphasis",
+        "related_change"
     ];
 
     internal static readonly IReadOnlySet<int> JsonStringColumnIndices = new HashSet<int>
@@ -347,7 +408,9 @@ internal static class TextDiffFormatterHelpers
         Target,
         Severity,
         Label,
-        Terminator
+        Terminator,
+        ChangeLabel,
+        LabelEmphasis
     };
 }
 
