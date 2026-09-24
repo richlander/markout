@@ -290,6 +290,9 @@ public sealed class TextDiffChange
     /// <summary>The caller-issued annotations.</summary>
     public ImmutableArray<TextDiffAnnotation> Annotations { get; }
 
+    /// <summary>The caller-issued label, or <c>null</c> when the change is unlabeled.</summary>
+    public TextDiffChangeLabel? Label { get; }
+
     /// <summary>The form derived from the mapped range counts.</summary>
     public TextDiffChangeForm Form => Before.IsEmpty
         ? TextDiffChangeForm.Addition
@@ -302,7 +305,8 @@ public sealed class TextDiffChange
         TextDiffRange before,
         TextDiffRange after,
         IEnumerable<TextDiffInnerMapping>? innerMappings = null,
-        IEnumerable<TextDiffAnnotation>? annotations = null)
+        IEnumerable<TextDiffAnnotation>? annotations = null,
+        TextDiffChangeLabel? label = null)
     {
         if (before.IsEmpty && after.IsEmpty)
             throw new ArgumentException("A change cannot contain two empty ranges.");
@@ -311,6 +315,7 @@ public sealed class TextDiffChange
         After = after;
         InnerMappings = innerMappings is null ? [] : [.. innerMappings];
         Annotations = annotations is null ? [] : [.. annotations];
+        Label = label;
 
         for (var i = 0; i < InnerMappings.Length; i++)
         {
@@ -428,4 +433,67 @@ internal static class TextDiffValidation
                 || offset == value.Length
                 || !char.IsHighSurrogate(value[offset - 1])
                 || !char.IsLowSurrogate(value[offset]));
+}
+
+/// <summary>How a formatter emphasizes a labeled change.</summary>
+public enum TextDiffLabelEmphasis
+{
+    /// <summary>Ordinary change emphasis.</summary>
+    Normal,
+
+    /// <summary>
+    /// Reduced emphasis, for a change the caller classifies as secondary. Rich formatters may
+    /// render it muted; the change is still presented in full.
+    /// </summary>
+    Subdued,
+}
+
+/// <summary>
+/// A caller-issued label for one change. Markout presents the label; it never derives one.
+/// Unified formatters write the text after the hunk header's closing <c>@@</c>, and formatters
+/// never place two changes with different labels in one hunk.
+/// </summary>
+public sealed record TextDiffChangeLabel
+{
+    /// <summary>Creates a change label.</summary>
+    /// <param name="text">One logical line of inert caller text.</param>
+    /// <param name="emphasis">The emphasis rich formatters apply to the change.</param>
+    /// <param name="showWhitespace">
+    /// Whether rich formatters render spaces and tabs inside the change's inner-mapping spans as
+    /// visible glyphs. Unified formatters keep exact text.
+    /// </param>
+    /// <param name="relatedChange">
+    /// The zero-based address of another change the caller relates to this one, such as the
+    /// other end of a moved block, or <c>null</c>.
+    /// </param>
+    public TextDiffChangeLabel(
+        string text,
+        TextDiffLabelEmphasis emphasis = TextDiffLabelEmphasis.Normal,
+        bool showWhitespace = false,
+        int? relatedChange = null)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        TextDiffValidation.ValidateLogicalLine(text, nameof(text), "Change label");
+        if (!Enum.IsDefined(emphasis))
+            throw new ArgumentOutOfRangeException(nameof(emphasis));
+        if (relatedChange < 0)
+            throw new ArgumentOutOfRangeException(nameof(relatedChange));
+
+        Text = text;
+        Emphasis = emphasis;
+        ShowWhitespace = showWhitespace;
+        RelatedChange = relatedChange;
+    }
+
+    /// <summary>The label text.</summary>
+    public string Text { get; }
+
+    /// <summary>The emphasis rich formatters apply.</summary>
+    public TextDiffLabelEmphasis Emphasis { get; }
+
+    /// <summary>Whether rich formatters render whitespace in inner-mapping spans visibly.</summary>
+    public bool ShowWhitespace { get; }
+
+    /// <summary>The address of a related change, or <c>null</c>.</summary>
+    public int? RelatedChange { get; }
 }

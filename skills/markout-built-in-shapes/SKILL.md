@@ -1,6 +1,6 @@
 ---
 name: markout-built-in-shapes
-version: 0.38.0
+version: 0.39.0
 description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn
@@ -157,6 +157,9 @@ public class MetadataDocument
 - Do not hand-draw bars/trees; if you're building glyphs by hand you're using the wrong tool.
 - Do not ask `MappedTextDiff` to compare text. Supply complete `TextDiffSequence` values and
   caller-owned `TextDiffChange` ranges; use `TextDiffContextLines` only to hide unchanged context.
+- To classify a change (for example whitespace-only, or one end of a moved block), pass a
+  `TextDiffChangeLabel` on the `TextDiffChange`. Markout writes it after the hunk header's `@@`,
+  never groups differently labeled changes into one hunk, and never derives a label itself.
 
 ## Shape cheat-sheet
 

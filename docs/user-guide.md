@@ -1014,6 +1014,46 @@ doubled so the marker escapes remain unambiguous. Empty mapped sides remain
 visible at their exact offsets: Unicode uses `[--]` or `{++}`, while Spectre
 uses an underlined inverse point marker.
 
+### Change labels
+
+A change may carry a caller-issued `TextDiffChangeLabel`. Markout presents the
+label; it never derives one:
+
+```csharp
+new TextDiffChange(
+    new TextDiffRange(1, 1),
+    new TextDiffRange(1, 1),
+    [new TextDiffInnerMapping(new TextDiffSpan(1, 0, 8), new TextDiffSpan(1, 0, 0))],
+    label: new TextDiffChangeLabel(
+        "whitespace-only: blank-line content",
+        TextDiffLabelEmphasis.Subdued,
+        showWhitespace: true))
+```
+
+- Unified formatters write the label after the hunk header's closing `@@`,
+  the free-form slot Git uses for function context:
+  `@@ -5,3 +5,3 @@ whitespace-only: blank-line content`. Line text stays exact,
+  so the output remains a valid patch.
+- Changes with different labels never share a hunk, and no unchanged line
+  appears in two hunks: when a forced split leaves a short gap, its lines are
+  divided between the neighboring hunks. With a bounded context count, each
+  hunk keeps equal context on both sides so `patch` still applies it. With
+  `null` context every unchanged line is kept, so a split in the middle of
+  the text can leave uneven context that `git apply` accepts but GNU `patch`
+  may reject beyond its fuzz factor. When a split would leave a "no newline at end of file" marker
+  outside the last hunk, the changes from that point on share one hunk with
+  no label, because a marker in an earlier hunk makes the patch invalid.
+- The Unicode and Spectre formatters print a label line before the change.
+  `Subdued` emphasis renders muted in Spectre and with a `◦` marker in Unicode.
+  With `showWhitespace`, spaces and tabs inside the change's inner-mapping
+  spans render as `·` and `→`, and literal `·`, `→`, and backslash are
+  escaped with a backslash.
+- `relatedChange` names another change's address, such as the other end of a
+  moved block. Rich formatters print the relation, and structured output
+  carries it.
+- Structured formats add `change_label`, `label_emphasis`, and
+  `related_change` fields to every change-derived record.
+
 When a plain-text mapped diff ends in caller-significant whitespace,
 `Complete()` and `ToString()` preserve that trailing line exactly. This keeps a
 whitespace-only final unified line, or caller-significant trailing spaces,

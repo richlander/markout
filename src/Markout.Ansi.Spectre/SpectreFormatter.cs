@@ -87,6 +87,7 @@ public class SpectreFormatter : IMarkoutFormatter,
     private const int SgrUnderlineOff = 24;
     private const int SgrInverse = 7;
     private const int SgrInverseOff = 27;
+    private const int SgrFaint = 2;
 
     private static readonly int[] DistributionSgrColors = [SgrRed, SgrYellow, SgrCyan, SgrGreen, SgrMagenta, SgrBlue];
 
@@ -95,8 +96,27 @@ public class SpectreFormatter : IMarkoutFormatter,
         MappedTextDiff diff,
         MarkoutWriterOptions options)
     {
+        int? labeledAddress = null;
         foreach (var line in MappedTextDiffLowering.ToDisplayLines(diff, options.TextDiffContextLines))
         {
+            if (line.ChangeAddress is { } address
+                && address != labeledAddress
+                && diff.Changes[address].Label is { } label)
+            {
+                Sgr(w, SgrCyan);
+                if (label.Emphasis == TextDiffLabelEmphasis.Subdued)
+                    Sgr(w, SgrFaint);
+                w.Write("         # change ");
+                w.Write(address + 1);
+                w.Write(": ");
+                w.Write(EscapeTextDiff(label.Text));
+                if (label.RelatedChange is { } related)
+                    w.Write($" (related change {related + 1})");
+                SgrReset(w);
+                w.WriteLine();
+                labeledAddress = address;
+            }
+
             switch (line.Kind)
             {
                 case TextDiffDisplayLineKind.Context:
@@ -110,6 +130,7 @@ public class SpectreFormatter : IMarkoutFormatter,
                     Sgr(w, SgrDarkGray);
                     w.Write($"{line.BeforeLine!.Value + 1,4}      ");
                     Sgr(w, SgrRed);
+                    WriteSubdued(w, diff, line);
                     w.Write("- ");
                     WriteDiffText(w, diff, line);
                     SgrReset(w);
@@ -120,6 +141,7 @@ public class SpectreFormatter : IMarkoutFormatter,
                     Sgr(w, SgrDarkGray);
                     w.Write($"     {line.AfterLine!.Value + 1,4} ");
                     Sgr(w, SgrGreen);
+                    WriteSubdued(w, diff, line);
                     w.Write("+ ");
                     WriteDiffText(w, diff, line);
                     SgrReset(w);
@@ -146,6 +168,15 @@ public class SpectreFormatter : IMarkoutFormatter,
                     w.WriteLine();
                     break;
             }
+        }
+    }
+
+    private static void WriteSubdued(TextWriter w, MappedTextDiff diff, TextDiffDisplayLine line)
+    {
+        if (line.ChangeAddress is { } address
+            && diff.Changes[address].Label?.Emphasis == TextDiffLabelEmphasis.Subdued)
+        {
+            Sgr(w, SgrFaint);
         }
     }
 
@@ -180,7 +211,10 @@ public class SpectreFormatter : IMarkoutFormatter,
             }
             else
             {
-                w.Write(EscapeTextDiff(raw[span.Start..span.End]));
+                var payload = raw[span.Start..span.End];
+                w.Write(diff.Changes[line.ChangeAddress!.Value].Label?.ShowWhitespace == true
+                    ? ShowWhitespace(payload)
+                    : EscapeTextDiff(payload));
             }
             Sgr(w, SgrInverseOff);
             cursor = span.End;
@@ -205,6 +239,35 @@ public class SpectreFormatter : IMarkoutFormatter,
                         + $"columns {annotation.Span.Value.Start + 1}-{annotation.Span.Value.End}",
             _ => "annotation"
         };
+
+    /// <summary>
+    /// Escapes raw span text with spaces shown as <c>·</c> and tabs as <c>→</c>; caller backslashes
+    /// are doubled and literal <c>·</c>
+    /// and <c>→</c> characters are escaped with a backslash so they stay distinct.
+    /// </summary>
+    private static string ShowWhitespace(string raw)
+    {
+        var builder = new StringBuilder(raw.Length);
+        var segment = 0;
+        for (var i = 0; i < raw.Length; i++)
+        {
+            var glyph = raw[i] switch
+            {
+                ' ' => "·",
+                '\t' => "→",
+                '·' => "\\·",
+                '→' => "\\→",
+                _ => null,
+            };
+            if (glyph is null)
+                continue;
+
+            builder.Append(EscapeTextDiff(raw[segment..i].Replace("\\", "\\\\"))).Append(glyph);
+            segment = i + 1;
+        }
+
+        return builder.Append(EscapeTextDiff(raw[segment..].Replace("\\", "\\\\"))).ToString();
+    }
 
     private static string EscapeTextDiff(string value)
     {

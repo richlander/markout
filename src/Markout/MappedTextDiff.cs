@@ -74,6 +74,14 @@ public sealed class MappedTextDiff
 
             ValidateInnerMappings(change, address);
             ValidateAnnotations(change, address);
+            if (change.Label?.RelatedChange is { } related
+                && (related >= Changes.Length || related == address))
+            {
+                throw new ArgumentException(
+                    $"The label of change {address} relates to an invalid change address {related}.",
+                    nameof(Changes));
+            }
+
             beforeCursor = change.Before.End;
             afterCursor = change.After.End;
         }
