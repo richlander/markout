@@ -1,6 +1,6 @@
 ---
 name: markout-built-in-shapes
-version: 0.38.0
+version: 0.39.0
 description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn

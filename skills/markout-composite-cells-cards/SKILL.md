@@ -1,6 +1,6 @@
 ---
 name: markout-composite-cells-cards
-version: 0.38.0
+version: 0.39.0
 description: >-
   Use when a single value must render dense in Markdown but decompose into typed columns in
   TSV/JSONL — before/after changes, fractions, shares, percentages, segment breakdowns, deltas
