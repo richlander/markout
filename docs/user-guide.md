@@ -1036,11 +1036,15 @@ new TextDiffChange(
   so the output remains a valid patch.
 - Changes with different labels never share a hunk, and no unchanged line
   appears in two hunks: when a forced split leaves a short gap, its lines are
-  divided between the neighboring hunks.
+  divided between the neighboring hunks, and each hunk keeps equal context on
+  both sides so `patch` still applies it. One exception keeps the patch valid:
+  when a split would leave a "no newline at end of file" marker outside the
+  last hunk, the changes from that point on share one hunk with no label.
 - The Unicode and Spectre formatters print a label line before the change.
   `Subdued` emphasis renders muted in Spectre and with a `◦` marker in Unicode.
   With `showWhitespace`, spaces and tabs inside the change's inner-mapping
-  spans render as `·` and `→`, and literal `·` and `→` are escaped.
+  spans render as `·` and `→`, and literal `·`, `→`, and backslash are
+  escaped with a backslash.
 - `relatedChange` names another change's address, such as the other end of a
   moved block. Rich formatters print the relation, and structured output
   carries it.

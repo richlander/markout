@@ -398,17 +398,24 @@ Formatters apply labels as follows:
   equal, in addition to the context rule. Changes with different labels start
   separate hunks.
 - When a forced split leaves an unchanged gap that both hunks' context would
-  reach, the gap's lines are divided between the two hunks, the earlier hunk
-  taking the larger half, so no line appears in two hunks. Adjacent hunks that
-  share no line remain valid unified diff; GNU `patch` applies them.
+  reach, the gap's lines are divided between the two hunks so no line appears
+  in two hunks. Each hunk then keeps equal leading and trailing context, except
+  where it touches the start or end of the sequence. GNU `patch` reads unequal
+  context in a hunk as anchored to the start or end of the file, and rejects
+  it anywhere else.
+- A "no newline at end of file" marker must appear in the last hunk. When a
+  labeled split would put a change touching an unterminated final line in an
+  earlier hunk, that change's group and every later group form one hunk. A
+  hunk that holds changes with different labels shows no label.
 - Unified lowerings write the label text after the hunk header's closing `@@`,
   the free-form slot Git uses for function context. Line text is unchanged,
   so glyphs never appear in unified output.
 - Rich lowerings print a label line before the change's first record, render
   `Subdued` changes with reduced emphasis, print the related change, and apply
   visible whitespace glyphs (`·` for space, `→` for tab) only inside
-  inner-mapping spans of changes whose label requests them. Literal `·` and
-  `→` inside those spans are escaped.
+  inner-mapping spans of changes whose label requests them. Literal `·`, `→`,
+  and backslash inside those spans are escaped with a backslash, so the glyph
+  rendering stays reversible.
 - Structured lowerings add `change_label`, `label_emphasis`, and
   `related_change` fields to every record derived from a labeled change.
 

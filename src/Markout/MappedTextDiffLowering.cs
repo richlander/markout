@@ -62,7 +62,7 @@ public static class MappedTextDiffLowering
         if (diff.IsEmpty)
             return [];
 
-        var groups = new List<(int First, int Last)>();
+        var groups = new List<(int First, int Last, bool Mixed)>();
         var firstAddress = 0;
         while (firstAddress < diff.Changes.Length)
         {
@@ -79,11 +79,14 @@ public static class MappedTextDiffLowering
                 lastAddress++;
             }
 
-            groups.Add((firstAddress, lastAddress));
+            groups.Add((firstAddress, lastAddress, false));
             firstAddress = lastAddress + 1;
         }
 
-        // For each boundary between consecutive groups, the context each side takes.
+        MergeGroupsHoldingUnterminatedFinalLines(diff, groups);
+
+        // Context each hunk takes on each side. Natural hunk boundaries keep full context; a
+        // label split divides the gap so no line appears in two hunks.
         var trailing = new int[groups.Count];
         var leading = new int[groups.Count];
         leading[0] = Clamp(diff.Changes[groups[0].First].Before.Start, contextLines);
@@ -106,6 +109,21 @@ public static class MappedTextDiffLowering
             }
         }
 
+        // GNU patch reads a hunk whose leading and trailing context differ as anchored to the
+        // start or end of the file. Unequal context is kept only on the side that really touches
+        // the sequence start or end; otherwise both sides take the smaller amount, and any line
+        // that drops out is reported as an exact omission.
+        for (var index = 0; index < groups.Count; index++)
+        {
+            var startsSequence = diff.Changes[groups[index].First].Before.Start - leading[index] == 0;
+            var endsSequence = diff.Changes[groups[index].Last].Before.End + trailing[index]
+                == diff.Before.Lines.Length;
+            if (leading[index] < trailing[index] && !startsSequence)
+                trailing[index] = leading[index];
+            else if (trailing[index] < leading[index] && !endsSequence)
+                leading[index] = trailing[index];
+        }
+
         var hunks = ImmutableArray.CreateBuilder<TextDiffHunk>(groups.Count);
         for (var index = 0; index < groups.Count; index++)
         {
@@ -122,10 +140,50 @@ public static class MappedTextDiffLowering
                 before,
                 after,
                 BuildHunkLines(diff, groups[index].First, groups[index].Last, before, after),
-                first.Label));
+                groups[index].Mixed ? null : first.Label));
         }
 
         return hunks.MoveToImmutable();
+    }
+
+    /// <summary>
+    /// A unified hunk that marks an unterminated final line must be the last hunk, or GNU patch
+    /// cannot apply it. When a label split would leave such a line in an earlier hunk, the groups
+    /// from there to the end merge into one hunk. A merged hunk that holds different labels is
+    /// written without a header label, so a header never claims more than every change it holds.
+    /// </summary>
+    private static void MergeGroupsHoldingUnterminatedFinalLines(
+        MappedTextDiff diff,
+        List<(int First, int Last, bool Mixed)> groups)
+    {
+        var earliest = groups.Count;
+        for (var index = 0; index < groups.Count - 1; index++)
+        {
+            for (var address = groups[index].First; address <= groups[index].Last; address++)
+            {
+                var change = diff.Changes[address];
+                var holdsBefore = diff.Before.FinalLineTerminator == TextDiffLineTerminator.Absent
+                    && !change.Before.IsEmpty
+                    && change.Before.End == diff.Before.Lines.Length;
+                var holdsAfter = diff.After.FinalLineTerminator == TextDiffLineTerminator.Absent
+                    && !change.After.IsEmpty
+                    && change.After.End == diff.After.Lines.Length;
+                if (holdsBefore || holdsAfter)
+                    earliest = Math.Min(earliest, index);
+            }
+        }
+
+        if (earliest >= groups.Count - 1)
+            return;
+
+        var first = groups[earliest].First;
+        var last = groups[^1].Last;
+        var mixed = false;
+        for (var address = first + 1; address <= last; address++)
+            mixed |= !Equals(diff.Changes[address].Label, diff.Changes[first].Label);
+
+        groups.RemoveRange(earliest, groups.Count - earliest);
+        groups.Add((first, last, mixed));
     }
 
     private static int Clamp(int available, int? contextLines)

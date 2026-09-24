@@ -241,7 +241,8 @@ public class SpectreFormatter : IMarkoutFormatter,
         };
 
     /// <summary>
-    /// Escapes raw span text with spaces shown as <c>·</c> and tabs as <c>→</c>; literal <c>·</c>
+    /// Escapes raw span text with spaces shown as <c>·</c> and tabs as <c>→</c>; caller backslashes
+    /// are doubled and literal <c>·</c>
     /// and <c>→</c> characters are escaped with a backslash so they stay distinct.
     /// </summary>
     private static string ShowWhitespace(string raw)
@@ -261,11 +262,11 @@ public class SpectreFormatter : IMarkoutFormatter,
             if (glyph is null)
                 continue;
 
-            builder.Append(EscapeTextDiff(raw[segment..i])).Append(glyph);
+            builder.Append(EscapeTextDiff(raw[segment..i].Replace("\\", "\\\\"))).Append(glyph);
             segment = i + 1;
         }
 
-        return builder.Append(EscapeTextDiff(raw[segment..])).ToString();
+        return builder.Append(EscapeTextDiff(raw[segment..].Replace("\\", "\\\\"))).ToString();
     }
 
     private static string EscapeTextDiff(string value)
