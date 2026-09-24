@@ -146,6 +146,32 @@ public class MappedTextDiffLabelTests
     }
 
     [Fact]
+    public void FullContextKeepsEveryLineAroundInteriorSplits()
+    {
+        // Round 2 review: null context must retain every unchanged line even when a label split
+        // leaves hunks with unequal context in the middle of the sequence.
+        string[] before = [.. Enumerable.Range(1, 12).Select(i => $"l{i}")];
+        string[] after = [.. before];
+        after[3] = "L4";
+        after[8] = "L9";
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(before),
+            new TextDiffSequence(after),
+            [
+                new TextDiffChange(new TextDiffRange(3, 1), new TextDiffRange(3, 1), label: new TextDiffChangeLabel("whitespace-only")),
+                new TextDiffChange(new TextDiffRange(8, 1), new TextDiffRange(8, 1)),
+            ]);
+
+        Assert.DoesNotContain(
+            MappedTextDiffLowering.ToDisplayLines(diff, contextLines: null),
+            line => line.Kind == TextDiffDisplayLineKind.Omission);
+        string output = RenderMarkdown(diff, contextLines: null);
+        Assert.Contains("@@ -1,6 +1,6 @@ whitespace-only\n l1\n", output);
+        Assert.Contains("@@ -7,6 +7,6 @@\n", output);
+        Assert.Contains(" l12\n", output);
+    }
+
+    [Fact]
     public void MovedEndsRenderTheirRelation()
     {
         var diff = MovedBlock();
@@ -342,7 +368,10 @@ public class MappedTextDiffLabelTests
             }
 
             int? context = contexts[random.Next(contexts.Length)]?[0];
-            AssertGnuApplicable(RenderMarkdown(diff, context), before.Count);
+            if (context is null)
+                Assert.DoesNotContain(MappedTextDiffLowering.ToDisplayLines(diff, null), line => line.Kind == TextDiffDisplayLineKind.Omission);
+            else
+                AssertGnuApplicable(RenderMarkdown(diff, context), before.Count);
         }
     }
 

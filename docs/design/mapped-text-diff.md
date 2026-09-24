@@ -399,10 +399,15 @@ Formatters apply labels as follows:
   separate hunks.
 - When a forced split leaves an unchanged gap that both hunks' context would
   reach, the gap's lines are divided between the two hunks so no line appears
-  in two hunks. Each hunk then keeps equal leading and trailing context, except
-  where it touches the start or end of the sequence. GNU `patch` reads unequal
-  context in a hunk as anchored to the start or end of the file, and rejects
-  it anywhere else.
+  in two hunks. With bounded context, each hunk then keeps equal leading and
+  trailing context, except where it touches the start or end of the sequence.
+  GNU `patch` reads unequal context in a hunk as anchored to the start or end
+  of the file, and rejects it anywhere else. Every format shares this hunk
+  selection, so trimmed lines are reported as exact omissions everywhere.
+  Null context retains every unchanged line, and that contract takes
+  precedence: a split in the middle of the sequence then keeps unequal
+  context, which `git apply` accepts and GNU `patch` may reject beyond its
+  fuzz factor.
 - A "no newline at end of file" marker must appear in the last hunk. When a
   labeled split would put a change touching an unterminated final line in an
   earlier hunk, that change's group and every later group form one hunk. A

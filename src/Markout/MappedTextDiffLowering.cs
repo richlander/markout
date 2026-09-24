@@ -110,10 +110,11 @@ public static class MappedTextDiffLowering
         }
 
         // GNU patch reads a hunk whose leading and trailing context differ as anchored to the
-        // start or end of the file. Unequal context is kept only on the side that really touches
-        // the sequence start or end; otherwise both sides take the smaller amount, and any line
-        // that drops out is reported as an exact omission.
-        for (var index = 0; index < groups.Count; index++)
+        // start or end of the file. With bounded context, unequal context is kept only on the side
+        // that really touches the sequence start or end; otherwise both sides take the smaller
+        // amount, and any line that drops out is reported as an exact omission. Null context
+        // retains every unchanged line, which takes precedence over patch applicability.
+        for (var index = 0; contextLines is not null && index < groups.Count; index++)
         {
             var startsSequence = diff.Changes[groups[index].First].Before.Start - leading[index] == 0;
             var endsSequence = diff.Changes[groups[index].Last].Before.End + trailing[index]

@@ -1036,10 +1036,13 @@ new TextDiffChange(
   so the output remains a valid patch.
 - Changes with different labels never share a hunk, and no unchanged line
   appears in two hunks: when a forced split leaves a short gap, its lines are
-  divided between the neighboring hunks, and each hunk keeps equal context on
-  both sides so `patch` still applies it. One exception keeps the patch valid:
-  when a split would leave a "no newline at end of file" marker outside the
-  last hunk, the changes from that point on share one hunk with no label.
+  divided between the neighboring hunks. With a bounded context count, each
+  hunk keeps equal context on both sides so `patch` still applies it. With
+  `null` context every unchanged line is kept, so a split in the middle of
+  the text can leave uneven context that `git apply` accepts but GNU `patch`
+  may reject beyond its fuzz factor. When a split would leave a "no newline at end of file" marker
+  outside the last hunk, the changes from that point on share one hunk with
+  no label, because a marker in an earlier hunk makes the patch invalid.
 - The Unicode and Spectre formatters print a label line before the change.
   `Subdued` emphasis renders muted in Spectre and with a `◦` marker in Unicode.
   With `showWhitespace`, spaces and tabs inside the change's inner-mapping
