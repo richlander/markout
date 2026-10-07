@@ -302,6 +302,21 @@ new CodeSection("csharp", "public class Foo { }")                 // verbatim co
 new MappedTextDiff(before, after, changes)                        // caller-issued text correspondence
 ```
 
+Hierarchies can also be pushed without retaining a `TreeNode` graph. The
+producer identifies the last sibling; Markout owns all connectors, ancestor
+prefixes, and formatter-specific state:
+
+```csharp
+writer.WriteTree(tree =>
+{
+    tree.WriteNode("Root", isLastSibling: true, children =>
+    {
+        children.WriteNode("First", isLastSibling: false);
+        children.WriteNode("Last", isLastSibling: true);
+    });
+});
+```
+
 ## Renderers
 
 Markout ships five formatters. The serializer writes through `MarkoutWriter` (the orchestrator) — swap the formatter, change the output.

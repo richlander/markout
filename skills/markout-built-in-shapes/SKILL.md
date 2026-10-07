@@ -152,6 +152,9 @@ public class MetadataDocument
   terminal formatter this shows the group label + `█` bar, not per-slice table rows.
 - **Children go in a collection expression**, never as trailing constructor arguments:
   `new TreeNode("root", [new TreeNode("leaf")])`. `Badge` is an optional object-initializer property.
+- **Stream generated hierarchies with `MarkoutWriter.WriteTree(tree => ...)`.** Pass labels and
+  `isLastSibling`; nest child callbacks. Markout owns connector glyphs and ancestor prefixes, so never
+  construct `├─`, `└─`, or `│` in application code.
 - **`Callout` and `CodeSection` are value types** — declare them non-nullable and pair with
   `[MarkoutSkipDefault]` so an unset one disappears. `Callout?` / `CodeSection?` does not compile.
 - Do not hand-draw bars/trees; if you're building glyphs by hand you're using the wrong tool.

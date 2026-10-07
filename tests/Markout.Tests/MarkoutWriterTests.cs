@@ -307,12 +307,160 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void MarkdownFormatter_WriteStreamingTree_MatchesRetainedTree()
+    {
+        var options = new MarkoutWriterOptions { IncludeBadges = true };
+        var retained = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        retained.WriteTree(
+            new TreeNode("Root", [
+                new TreeNode("First"),
+                new TreeNode("Last", [
+                    new TreeNode("Grandchild")
+                    {
+                        State = TreeNodeState.Revisit,
+                    },
+                ])
+                {
+                    Badge = "B",
+                },
+            ]));
+
+        var streaming = MarkoutWriter.Create(new MarkdownFormatter(), options);
+        bool result = streaming.WriteTree(tree =>
+        {
+            tree.WriteNode("Root", isLastSibling: true, children =>
+            {
+                children.WriteNode("First", isLastSibling: false);
+                children.WriteNode(
+                    "Last",
+                    isLastSibling: true,
+                    grandchildren =>
+                    {
+                        grandchildren.WriteNode(
+                            "Grandchild",
+                            isLastSibling: true,
+                            state: TreeNodeState.Revisit);
+                    },
+                    badge: "B");
+            });
+        });
+
+        Assert.True(result);
+        Assert.Equal(retained.ToString(), streaming.ToString());
+    }
+
+    [Theory]
+    [InlineData("markdown")]
+    [InlineData("plaintext")]
+    [InlineData("unicode")]
+    [InlineData("diagram")]
+    public void WriteStreamingTree_BuiltInTextFormatterMatchesRetainedTree(
+        string formatterName)
+    {
+        static IMarkoutFormatter CreateFormatter(string name) =>
+            name switch
+            {
+                "markdown" => new MarkdownFormatter(),
+                "plaintext" => new PlainTextFormatter(),
+                "unicode" => new UnicodeFormatter(),
+                _ => new DiagramFormatter(),
+            };
+
+        var retained = MarkoutWriter.Create(CreateFormatter(formatterName));
+        retained.WriteTree(
+            new TreeNode("**Root**", [
+                new TreeNode("`Child`"),
+            ]));
+
+        var streaming =
+            MarkoutWriter.Create(
+                CreateFormatter(formatterName));
+        streaming.WriteTree(
+            tree =>
+                tree.WriteNode(
+                    "**Root**",
+                    isLastSibling: true,
+                    children =>
+                        children.WriteNode(
+                            "`Child`",
+                            isLastSibling: true)));
+
+        Assert.Equal(retained.ToString(), streaming.ToString());
+    }
+
+    [Fact]
+    public void MarkdownFormatter_WriteStreamingTree_WritesEachNodeImmediately()
+    {
+        var destination = new StringWriter();
+        var writer =
+            new MarkoutWriter(
+                destination,
+                new MarkdownFormatter());
+
+        writer.WriteTree(tree =>
+        {
+            tree.WriteNode("Root", isLastSibling: true);
+            Assert.Contains("Root", destination.ToString());
+        });
+    }
+
+    [Fact]
+    public void WriteStreamingTree_ExceptionUnwindsChildrenAndEndsTree()
+    {
+        var formatter =
+            new TrackingStreamingTreeFormatter();
+        var writer = MarkoutWriter.Create(formatter);
+
+        Assert.Throws<InvalidOperationException>(
+            () => writer.WriteTree(
+                tree =>
+                    tree.WriteNode(
+                        "Root",
+                        isLastSibling: true,
+                        _ => throw new InvalidOperationException("Stop"))));
+
+        Assert.Equal(0, formatter.Depth);
+        Assert.Equal(1, formatter.EndTreeCalls);
+    }
+
+    [Fact]
+    public void WriteStreamingTree_RejectsWritesAfterCallbackReturns()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter());
+        StreamingTreeWriter? captured = null;
+
+        writer.WriteTree(
+            tree =>
+            {
+                captured = tree;
+                tree.WriteNode("Root", isLastSibling: true);
+            });
+
+        Assert.Throws<InvalidOperationException>(
+            () => captured!.WriteNode(
+                "Late",
+                isLastSibling: true));
+    }
+
+    [Fact]
     public void MarkdownFormatter_WriteTreeNode_Renders()
     {
         var orch = MarkoutWriter.Create(new MarkdownFormatter());
         var result = orch.WriteTreeNode("node text", ">> ");
         Assert.True(result);
         Assert.Contains(">> node text", orch.ToString());
+    }
+
+    [Fact]
+    public void PlainTextFormatter_WriteTreeNode_PreservesCallerText()
+    {
+        var writer = MarkoutWriter.Create(new PlainTextFormatter());
+
+        writer.WriteTreeNode("**literal**", ">> ");
+
+        Assert.Equal(
+            ">> **literal**",
+            writer.ToString());
     }
 
     // ── TableFormatter formatter — subset renders ──
@@ -1276,6 +1424,10 @@ public class MarkoutWriterTests
         Assert.False(orch.WriteParagraph("text"));
         Assert.False(orch.WriteTreeNode("node"));
         Assert.False(orch.WriteTree(new TreeNode("root")));
+        bool callbackInvoked = false;
+        Assert.False(
+            orch.WriteTree(_ => callbackInvoked = true));
+        Assert.False(callbackInvoked);
     }
 
     // ── WriteFieldsTable ──
@@ -1669,4 +1821,36 @@ public class MarkoutWriterTests
     /// Used to test that all shapes return false.
     /// </summary>
     private class MinimalFormatter : IMarkoutFormatter { }
+
+    private sealed class TrackingStreamingTreeFormatter :
+        IMarkoutFormatter,
+        IStreamingTreeFormatter
+    {
+        public int Depth { get; private set; }
+
+        public int EndTreeCalls { get; private set; }
+
+        public void BeginTree(
+            TextWriter writer,
+            MarkoutWriterOptions options)
+        {
+        }
+
+        public void WriteNode(
+            TextWriter writer,
+            string text,
+            TreeNodeState state,
+            string? badge,
+            bool isLastSibling) =>
+            writer.WriteLine(text);
+
+        public void BeginChildren() =>
+            Depth++;
+
+        public void EndChildren() =>
+            Depth--;
+
+        public void EndTree(TextWriter writer) =>
+            EndTreeCalls++;
+    }
 }
