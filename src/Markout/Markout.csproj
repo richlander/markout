@@ -9,7 +9,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.39.0</Version>
+    <Version>0.40.0</Version>
     <PackageReleaseNotes>Adds caller-issued change labels to MappedTextDiff. A TextDiffChangeLabel carries inert one-line text, Normal or Subdued emphasis, an opt-in visible-whitespace flag, and an optional related-change address. Differently labeled changes never share a hunk or a line; unified output writes the label after the hunk header and stays applicable by GNU patch at bounded context; Unicode and Spectre print label lines, subdue secondary changes, and render spaces and tabs as visible glyphs inside inner-mapping spans; structured output adds change_label, label_emphasis, and related_change.</PackageReleaseNotes>
   </PropertyGroup>
 

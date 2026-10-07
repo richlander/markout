@@ -1590,8 +1590,8 @@ public class MarkoutWriterTests
     }
 
     /// <summary>
-    /// ToString() previews only what has reached the target, so an open table whose rows the
-    /// formatter is buffering is absent from the preview. Complete() is what renders it.
+    /// ToString() previews only what has reached the target, so an open pretty table whose rows
+    /// the formatter is buffering is absent from the preview. Complete() is what renders it.
     /// </summary>
     /// <remarks>
     /// This is documented rather than fixed because it is not a regression: the committing
@@ -1605,7 +1605,7 @@ public class MarkoutWriterTests
     [Fact]
     public void ToString_WithOpenBufferedTable_OmitsItAndCompleteRendersIt()
     {
-        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Pretty };
         var writer = MarkoutWriter.Create(new TableFormatter(), options);
 
         writer.WriteTableStart(["Col1"]);
@@ -1613,6 +1613,19 @@ public class MarkoutWriterTests
 
         Assert.DoesNotContain("Value1", writer.ToString(), StringComparison.Ordinal);
         Assert.Contains("Value1", writer.Complete(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ToString_WithOpenJsonlTable_IncludesStreamedRow()
+    {
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        var writer = MarkoutWriter.Create(new TableFormatter(), options);
+
+        writer.WriteTableStart(["Col1"]);
+        writer.WriteTableRow(["Value1"]);
+
+        Assert.Contains("{\"col1\":\"Value1\"}", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("{\"col1\":\"Value1\"}", writer.Complete(), StringComparison.Ordinal);
     }
 
     /// <summary>

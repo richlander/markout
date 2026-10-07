@@ -31,9 +31,11 @@ public class TableWriter
     public TableWriter(TextWriter writer, ITableFormatter formatter, MarkoutWriterOptions? options = null)
     {
         _writer = writer;
-        _batchFormatter = formatter;
-        _streamingFormatter = formatter as IStreamingTableFormatter;
         _options = options ?? new();
+        _batchFormatter = formatter;
+        _streamingFormatter = formatter is ITableStreamingSessionFactory factory
+            ? factory.CreateStreamingSession(_options)
+            : formatter as IStreamingTableFormatter;
     }
 
     /// <summary>
