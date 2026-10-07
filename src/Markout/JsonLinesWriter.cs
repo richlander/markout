@@ -37,7 +37,14 @@ public static class JsonLinesWriter
             json.Reset(buffer);
             JsonSerializer.Serialize(json, row, typeInfo);
             json.Flush();
-            output.Write(Encoding.UTF8.GetString(buffer.WrittenSpan));
+            string line = Encoding.UTF8.GetString(buffer.WrittenSpan);
+            if (line.AsSpan().IndexOfAny('\r', '\n') >= 0)
+            {
+                // Valid JSON can contain literal CR/LF only as structural whitespace.
+                line = line.Replace("\r", "").Replace("\n", "");
+            }
+
+            output.Write(line);
             output.WriteLine();
         }
     }

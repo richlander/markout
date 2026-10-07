@@ -54,12 +54,49 @@ public class JsonLinesWriterTests
 
         Assert.Equal("{\"name\":\"first\",\"count\":1,\"optional\":null}\n", output.ToString());
     }
+
+    [Fact]
+    public void RawValueConverterWhitespaceStillProducesOnePhysicalLinePerRecord()
+    {
+        var output = new StringWriter { NewLine = "\n" };
+
+        JsonLinesWriter.WriteRows(
+            output,
+            [new RawJsonLineTestRow("1.0.0")],
+            JsonLineTestContext.Default.RawJsonLineTestRow);
+
+        Assert.Equal("{\"version\":\"1.0.0\"}\n", output.ToString());
+    }
 }
 
 internal sealed record JsonLineTestRow(string Name, int Count, string? Optional);
+
+internal sealed record RawJsonLineTestRow(string Version);
+
+internal sealed class RawJsonLineTestRowConverter :
+    JsonConverter<RawJsonLineTestRow>
+{
+    public override RawJsonLineTestRow Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options) =>
+        throw new NotSupportedException();
+
+    public override void Write(
+        Utf8JsonWriter writer,
+        RawJsonLineTestRow value,
+        JsonSerializerOptions options) =>
+        writer.WriteRawValue(
+            $$"""
+            {
+              "version": "{{value.Version}}"
+            }
+            """);
+}
 
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(JsonLineTestRow))]
+[JsonSerializable(typeof(RawJsonLineTestRow), GenerationMode = JsonSourceGenerationMode.Metadata)]
 internal partial class JsonLineTestContext : JsonSerializerContext;
