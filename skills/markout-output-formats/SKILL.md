@@ -1,6 +1,6 @@
 ---
 name: markout-output-formats
-version: 0.39.0
+version: 0.40.0
 description: >-
   Use when you need output other than default Markdown — plain text / Unicode, ANSI terminal
   (Spectre), pretty aligned tables, or TSV/JSONL exports — or when one model must serve several
@@ -98,6 +98,23 @@ MarkoutSerializer.Serialize(report, Console.Out, new TableFormatter(), ctx, opts
   `... and {count} more`; JSONL omits the notice because every line must remain a data record.
   Apply the cap only to presentation options when TSV/JSONL exports must remain complete.
   (Or cap a property with `[MarkoutMaxItems(3)]` and an optional `EllipsisFormat`.)
+
+For rows produced incrementally, use the table stream on `MarkoutWriter`:
+
+```csharp
+var writer = new MarkoutWriter(
+    Console.Out,
+    new TableFormatter(),
+    new MarkoutWriterOptions { TableMode = MarkoutTableMode.Tsv });
+writer.WriteTableStart(["Display Name"], ["stable_name"]);
+foreach (var name in names)
+    writer.WriteTableRow(name);
+writer.WriteTableEnd();
+```
+
+With `TableFormatter`, TSV and JSONL rows reach the destination before
+`WriteTableEnd`. Pretty tables wait until the end to calculate column widths.
+Tail row windows and table ordering can also require buffering inside Markout.
 
 ## Central multi-format dispatch (the CLI `--format` pattern)
 
