@@ -174,6 +174,13 @@ Column width strategies vary by formatter:
   alignment without seeing all data)
 - **Full-width**: buffers all rows for perfect alignment (batch fallback)
 
+`TableFormatter` uses a per-table streaming session for TSV and JSONL: after
+`WriteTableStart`, each `WriteTableRow` reaches the destination before
+`WriteTableEnd`. Sessions keep JSONL column names separate when callers share a
+formatter instance. Pretty tables retain the full-width batch path, so their
+rows are buffered until the widths are known. Row windows that select from the
+tail and table ordering still use Markout's bounded or batch fallback.
+
 This design is informed by the streaming table model in
 [smooth-markdown-table](https://github.com/richlander/smooth-markdown-table),
 which demonstrated that column widths don't need all data upfront — they can

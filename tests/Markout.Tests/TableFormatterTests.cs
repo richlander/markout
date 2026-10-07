@@ -61,6 +61,64 @@ public class TableFormatterTests
             sw.ToString().ReplaceLineEndings("\n"));
     }
 
+    [Theory]
+    [InlineData(MarkoutTableMode.Tsv, "name\nfirst\n")]
+    [InlineData(MarkoutTableMode.Jsonl, "{\"name\":\"first\"}\n")]
+    public void StructuredTableStream_WritesEachRowBeforeEnd(
+        MarkoutTableMode mode,
+        string expectedBeforeEnd)
+    {
+        using var output = new StringWriter { NewLine = "\n" };
+        var writer = MarkoutWriter.Create(
+            output,
+            new TableFormatter(),
+            new MarkoutWriterOptions { TableMode = mode });
+
+        writer.WriteTableStart(["Name"], ["name"]);
+        writer.WriteTableRow("first");
+
+        Assert.Equal(expectedBeforeEnd, output.ToString());
+        writer.WriteTableRow("second");
+        writer.WriteTableEnd();
+        Assert.Contains("second", output.ToString());
+    }
+
+    [Fact]
+    public void PrettyTableStream_WaitsForWidthsBeforeWriting()
+    {
+        using var output = new StringWriter { NewLine = "\n" };
+        var writer = MarkoutWriter.Create(output, new TableFormatter());
+
+        writer.WriteTableStart("Name");
+        writer.WriteTableRow("a");
+        Assert.Equal("", output.ToString());
+
+        writer.WriteTableRow("a longer name");
+        writer.WriteTableEnd();
+        Assert.Contains("a longer name", output.ToString());
+    }
+
+    [Fact]
+    public void StructuredTableStreams_SharedFormatterKeepsHeadersSeparate()
+    {
+        var formatter = new TableFormatter();
+        var options = new MarkoutWriterOptions { TableMode = MarkoutTableMode.Jsonl };
+        using var firstOutput = new StringWriter { NewLine = "\n" };
+        using var secondOutput = new StringWriter { NewLine = "\n" };
+        var first = MarkoutWriter.Create(firstOutput, formatter, options);
+        var second = MarkoutWriter.Create(secondOutput, formatter, options);
+
+        first.WriteTableStart(["First"], ["first"]);
+        second.WriteTableStart(["Second"], ["second"]);
+        first.WriteTableRow("one");
+        second.WriteTableRow("two");
+
+        Assert.Equal("{\"first\":\"one\"}\n", firstOutput.ToString());
+        Assert.Equal("{\"second\":\"two\"}\n", secondOutput.ToString());
+        first.WriteTableEnd();
+        second.WriteTableEnd();
+    }
+
     [Fact]
     public void TableFormatter_TsvMode_CanUseDisplayHeaders()
     {

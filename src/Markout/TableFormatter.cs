@@ -11,7 +11,7 @@ namespace Markout;
 /// space-padded table from the same row/column projection.
 /// </summary>
 public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatter, IListFormatter,
-    ICompositeCellFormatter, IGraphFormatter, ITextDiffFormatter
+    ICompositeCellFormatter, IGraphFormatter, ITextDiffFormatter, ITableStreamingSessionFactory
 {
     // ── IGraphFormatter ──
 
@@ -80,6 +80,52 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
     public TableFormatter(bool showHeader = true)
     {
         _showHeader = showHeader;
+    }
+
+    IStreamingTableFormatter? ITableStreamingSessionFactory.CreateStreamingSession(
+        MarkoutWriterOptions options) => options.TableMode is MarkoutTableMode.Tsv or MarkoutTableMode.Jsonl
+            ? new StructuredStreamingSession(_showHeader, options)
+            : null;
+
+    private sealed class StructuredStreamingSession : IStreamingTableFormatter
+    {
+        private readonly bool _showHeader;
+        private readonly MarkoutWriterOptions _options;
+        private string[]? _headers;
+
+        internal StructuredStreamingSession(bool showHeader, MarkoutWriterOptions options)
+        {
+            _showHeader = showHeader;
+            _options = options;
+        }
+
+        public void BeginTable(TextWriter writer, ReadOnlySpan<string> headers, MarkoutWriterOptions options)
+        {
+            if (_options.TableMode == MarkoutTableMode.Tsv)
+            {
+                if (_showHeader)
+                    WriteTsvRow(writer, headers, renderInline: true);
+            }
+            else
+            {
+                _headers = headers.ToArray();
+            }
+        }
+
+        public void WriteRow(TextWriter writer, ReadOnlySpan<string> values)
+        {
+            if (_options.TableMode == MarkoutTableMode.Tsv)
+                WriteTsvRow(writer, values, renderInline: true);
+            else
+                WriteJsonlRow(writer, _headers!, values, _options, renderInline: true);
+        }
+
+        public void EndTable(TextWriter writer, int skippedRows)
+        {
+            if (_options.TableMode == MarkoutTableMode.Tsv && skippedRows > 0)
+                FormatHelper.WriteTruncationFooter(writer, skippedRows);
+            _headers = null;
+        }
     }
 
     void ITableFormatter.FormatTable(TextWriter w, ReadOnlySpan<string> headers, IList<string[]> rows, int skippedRows, MarkoutWriterOptions options)
@@ -184,33 +230,41 @@ public class TableFormatter : IMarkoutFormatter, ITableFormatter, IFieldFormatte
         bool renderInline = true)
     {
         foreach (var row in rows)
+            WriteJsonlRow(w, headers, row, options, renderInline);
+    }
+
+    private static void WriteJsonlRow(
+        TextWriter w,
+        ReadOnlySpan<string> headers,
+        ReadOnlySpan<string> row,
+        MarkoutWriterOptions options,
+        bool renderInline)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using var json = new Utf8JsonWriter(buffer, JsonWriterOptions);
+        json.WriteStartObject();
+        for (int i = 0; i < headers.Length; i++)
         {
-            var buffer = new ArrayBufferWriter<byte>();
-            using var json = new Utf8JsonWriter(buffer, JsonWriterOptions);
-            json.WriteStartObject();
-            for (int i = 0; i < headers.Length; i++)
-            {
-                var value = i < row.Length
-                    ? PrepareJsonValue(row[i], renderInline)
-                    : "";
+            var value = i < row.Length
+                ? PrepareJsonValue(row[i], renderInline)
+                : "";
 
-                // Heterogeneous records: drop empty fields when opted in.
-                if (options.OmitEmptyJsonFields && string.IsNullOrEmpty(value))
-                    continue;
+            // Heterogeneous records: drop empty fields when opted in.
+            if (options.OmitEmptyJsonFields && string.IsNullOrEmpty(value))
+                continue;
 
-                var key = headers[i] ?? "";
-                var isIdentity = options.JsonIdentityColumnIndices?.Contains(i) ?? false;
-                if (options.JsonTypedValues && !isIdentity)
-                    WriteTypedJsonValue(json, key, value);
-                else
-                    json.WriteString(key, value ?? "");
-            }
-            json.WriteEndObject();
-            json.Flush();
-
-            w.Write(Encoding.UTF8.GetString(buffer.WrittenSpan));
-            w.WriteLine();
+            var key = headers[i] ?? "";
+            var isIdentity = options.JsonIdentityColumnIndices?.Contains(i) ?? false;
+            if (options.JsonTypedValues && !isIdentity)
+                WriteTypedJsonValue(json, key, value);
+            else
+                json.WriteString(key, value ?? "");
         }
+        json.WriteEndObject();
+        json.Flush();
+
+        w.Write(Encoding.UTF8.GetString(buffer.WrittenSpan));
+        w.WriteLine();
     }
 
     /// <summary>
