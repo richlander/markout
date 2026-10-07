@@ -10,7 +10,7 @@
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.40.0</Version>
-    <PackageReleaseNotes>Adds caller-issued change labels to MappedTextDiff. A TextDiffChangeLabel carries inert one-line text, Normal or Subdued emphasis, an opt-in visible-whitespace flag, and an optional related-change address. Differently labeled changes never share a hunk or a line; unified output writes the label after the hunk header and stays applicable by GNU patch at bounded context; Unicode and Spectre print label lines, subdue secondary changes, and render spaces and tabs as visible glyphs inside inner-mapping spans; structured output adds change_label, label_emphasis, and related_change.</PackageReleaseNotes>
+    <PackageReleaseNotes>Adds caller-issued change labels to MappedTextDiff, including inert labels, emphasis, visible-whitespace control, related-change addresses, format-specific rendering, and structured provenance fields. Adds per-operation streaming sessions for TSV and JSONL tables and for Trees: rows and nodes reach the destination immediately without retaining the full shape; shared formatter instances keep table headers, ancestor state, and Mermaid node IDs isolated; pretty tables retain their width-aware buffered path; and retained and streamed Tree output remain byte-compatible across built-in formatters. Adds JsonLinesWriter.WriteRows&lt;T&gt; for incrementally serializing fixed-shape JSONL records with source-generated metadata. A state-carrying Tree node callback avoids per-parent closure allocations for hot adapters.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

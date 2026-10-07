@@ -98,4 +98,28 @@ public static class WriterUsage
         //       └─ Sales Rep
         #endregion
     }
+
+    /// <summary>
+    /// Shows how to stream a hierarchy without retaining a tree.
+    /// </summary>
+    public static void WriteStreamingTree()
+    {
+        #region WriteStreamingTree
+        var writer = new MarkoutWriter(new MarkdownFormatter());
+
+        writer.WriteTree(tree =>
+        {
+            tree.WriteNode("CEO", isLastSibling: true, reports =>
+            {
+                reports.WriteNode("VP Engineering", isLastSibling: false);
+                reports.WriteNode("VP Sales", isLastSibling: true);
+            });
+        });
+
+        Console.WriteLine(writer.Complete());
+        // └─ CEO
+        //    ├─ VP Engineering
+        //    └─ VP Sales
+        #endregion
+    }
 }

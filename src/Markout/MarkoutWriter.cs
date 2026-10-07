@@ -1787,6 +1787,60 @@ public class MarkoutWriter
         return true;
     }
 
+    /// <summary>
+    /// Streams one tree without retaining a <see cref="TreeNode"/> hierarchy.
+    /// </summary>
+    /// <param name="writeTree">
+    /// A synchronous callback that writes the tree through the supplied
+    /// <see cref="StreamingTreeWriter"/>.
+    /// </param>
+    /// <returns>
+    /// <c>true</c> if rendered or filtered; <c>false</c> if the formatter does
+    /// not support trees.
+    /// </returns>
+    public bool WriteTree(
+        Action<StreamingTreeWriter> writeTree)
+    {
+        ArgumentNullException.ThrowIfNull(writeTree);
+        if (_sectionExcluded)
+            return true;
+
+        ITreeStreamingSessionFactory? factory =
+            _formatter as ITreeStreamingSessionFactory;
+        IStreamingTreeFormatter? formatter =
+            factory is not null
+                ? factory.CreateStreamingSession(_options)
+                : _formatter as IStreamingTreeFormatter;
+        if (formatter is null
+            && factory is null
+            && _formatter is ITreeFormatter treeFormatter)
+        {
+            formatter =
+                new TextTreeStreamingSession(
+                    treeFormatter,
+                    _options);
+        }
+        if (formatter is null)
+            return false;
+
+        var tree = new StreamingTreeWriter(
+            () => _writer,
+            formatter,
+            _options,
+            () => EnsureBlankLineIfNeeded());
+        try
+        {
+            writeTree(tree);
+        }
+        finally
+        {
+            tree.Complete();
+            if (tree.HasContent)
+                _hasContent = true;
+        }
+        return true;
+    }
+
     // ── Graphs ──
 
     /// <summary>
