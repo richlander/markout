@@ -1821,7 +1821,7 @@ public class MarkoutWriter
             return false;
 
         var tree = new StreamingTreeWriter(
-            _writer,
+            () => _writer,
             formatter,
             _options,
             () => EnsureBlankLineIfNeeded());

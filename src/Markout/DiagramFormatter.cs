@@ -7,7 +7,8 @@ namespace Markout;
 /// Supports headings, trees, and metrics with plain-text rendering.
 /// </summary>
 public class DiagramFormatter : IMarkoutFormatter,
-    IHeadingFormatter, ITreeFormatter, IMetricsFormatter, IGraphFormatter
+    IHeadingFormatter, ITreeFormatter, IMetricsFormatter, IGraphFormatter,
+    ITreeNodeFormatter
 {
     // ── IGraphFormatter ──
 
@@ -48,17 +49,36 @@ public class DiagramFormatter : IMarkoutFormatter,
         w.WriteLine(FormatHelper.RenderInlinePlainText(text));
     }
 
-    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    void ITreeNodeFormatter.FormatTreeNode(
+        TextWriter w,
+        string text,
+        TreeNodeState state,
+        string? badge,
+        string prefix,
+        bool isLastSibling,
+        MarkoutWriterOptions options)
     {
         w.Write(prefix);
-        w.Write(isLast ? "└─ " : "├─ ");
-        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, this));
-        if (node.Badge != null && options.IncludeBadges)
+        w.Write(isLastSibling ? "└─ " : "├─ ");
+        w.Write(MarkoutGlyphs.NodeStatePrefix(state, options, this));
+        if (badge != null && options.IncludeBadges)
         {
-            w.Write(node.Badge);
+            w.Write(badge);
             w.Write(' ');
         }
-        w.WriteLine(FormatHelper.RenderInlinePlainText(node.Text));
+        w.WriteLine(FormatHelper.RenderInlinePlainText(text));
+    }
+
+    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    {
+        ((ITreeNodeFormatter)this).FormatTreeNode(
+            w,
+            node.Text,
+            node.State,
+            node.Badge,
+            prefix,
+            isLast,
+            options);
 
         if (node.Children is { Count: > 0 })
         {

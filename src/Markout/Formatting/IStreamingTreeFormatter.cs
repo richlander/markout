@@ -4,6 +4,12 @@ namespace Markout.Formatting;
 /// Capability interface for streaming tree nodes without retaining a
 /// <see cref="TreeNode"/> hierarchy.
 /// </summary>
+/// <remarks>
+/// Implement this interface directly when the formatter is stateless across
+/// one tree. Stateful formatters should implement
+/// <see cref="ITreeStreamingSessionFactory"/> so each tree receives isolated
+/// parent, id, and traversal state.
+/// </remarks>
 public interface IStreamingTreeFormatter
 {
     /// <summary>

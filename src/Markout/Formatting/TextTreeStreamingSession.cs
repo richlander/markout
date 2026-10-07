@@ -24,8 +24,19 @@ internal sealed class TextTreeStreamingSession(
         bool isLastSibling)
     {
         _currentNodeLastSibling = isLastSibling;
-        if (formatter is PlainTextFormatter)
-            text = FormatHelper.RenderInlinePlainText(text);
+        if (formatter is ITreeNodeFormatter nodeFormatter)
+        {
+            nodeFormatter.FormatTreeNode(
+                writer,
+                text,
+                state,
+                badge,
+                AncestorPrefix(),
+                isLastSibling,
+                options);
+            return;
+        }
+
         string label = MarkoutGlyphs.NodeStatePrefix(
             state,
             options,
@@ -37,7 +48,10 @@ internal sealed class TextTreeStreamingSession(
         formatter.FormatTreeNode(
             writer,
             label,
-            Prefix(isLastSibling));
+            AncestorPrefix()
+                + (isLastSibling
+                    ? "└─ "
+                    : "├─ "));
     }
 
     public void BeginChildren()
@@ -70,11 +84,11 @@ internal sealed class TextTreeStreamingSession(
         _currentNodeLastSibling = null;
     }
 
-    private string Prefix(bool isLastSibling)
+    private string AncestorPrefix()
     {
         var prefix =
             new StringBuilder(
-                (_ancestorLastSibling.Count + 1) * 3);
+                _ancestorLastSibling.Count * 3);
         for (int i = 0; i < _ancestorLastSibling.Count; i++)
         {
             prefix.Append(
@@ -82,10 +96,6 @@ internal sealed class TextTreeStreamingSession(
                     ? "   "
                     : "│  ");
         }
-        prefix.Append(
-            isLastSibling
-                ? "└─ "
-                : "├─ ");
         return prefix.ToString();
     }
 }

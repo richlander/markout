@@ -8,20 +8,21 @@ namespace Markout;
 /// </summary>
 public sealed class StreamingTreeWriter
 {
-    private readonly TextWriter _writer;
+    private readonly Func<TextWriter> _getWriter;
     private readonly IStreamingTreeFormatter _formatter;
     private readonly MarkoutWriterOptions _options;
     private readonly Action _beginOutput;
+    private TextWriter? _writer;
     private bool _started;
     private bool _completed;
 
     internal StreamingTreeWriter(
-        TextWriter writer,
+        Func<TextWriter> getWriter,
         IStreamingTreeFormatter formatter,
         MarkoutWriterOptions options,
         Action beginOutput)
     {
-        _writer = writer;
+        _getWriter = getWriter;
         _formatter = formatter;
         _options = options;
         _beginOutput = beginOutput;
@@ -60,7 +61,7 @@ public sealed class StreamingTreeWriter
 
         _completed = true;
         if (_started)
-            _formatter.EndTree(_writer);
+            _formatter.EndTree(_writer!);
     }
 
     private void WriteNodeCore(
@@ -79,7 +80,7 @@ public sealed class StreamingTreeWriter
         ArgumentNullException.ThrowIfNull(text);
         EnsureStarted();
         _formatter.WriteNode(
-            _writer,
+            _writer!,
             text,
             state,
             badge,
@@ -106,6 +107,7 @@ public sealed class StreamingTreeWriter
             return;
 
         _beginOutput();
+        _writer = _getWriter();
         _formatter.BeginTree(
             _writer,
             _options);

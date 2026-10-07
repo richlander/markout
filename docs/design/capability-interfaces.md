@@ -95,6 +95,7 @@ ITableFormatter         — batch tabular data (headers + all rows)
 IStreamingTableFormatter — streaming tabular data (Begin/Data/End)
 ITreeFormatter          — retained tree hierarchies
 IStreamingTreeFormatter — streaming tree nodes (Begin/Node/End)
+ITreeStreamingSessionFactory — isolated state for one streaming tree
 IListFormatter          — single-column lists and labeled arrays
 ICodeBlockFormatter     — fenced code blocks
 IBlockFormatter         — callouts, quotations, rules, descriptions
@@ -231,8 +232,10 @@ text lowering, and format-specific structure.
 Each node reaches the destination before the callback continues. A fresh
 per-tree streaming session owns mutable lowering state, such as Mermaid node
 ids and parent stacks, so sharing one formatter instance across writers cannot
-mix trees. Retained `WriteTree(TreeNode...)` remains the convenient batch path
-and lowers to the same bytes.
+mix trees. Stateful third-party formatters implement
+`ITreeStreamingSessionFactory`; stateless implementations may implement
+`IStreamingTreeFormatter` directly. Retained `WriteTree(TreeNode...)` remains
+the convenient batch path and lowers to the same bytes.
 
 ### Orchestrator dispatch for tables
 
