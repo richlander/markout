@@ -1805,11 +1805,14 @@ public class MarkoutWriter
         if (_sectionExcluded)
             return true;
 
+        ITreeStreamingSessionFactory? factory =
+            _formatter as ITreeStreamingSessionFactory;
         IStreamingTreeFormatter? formatter =
-            _formatter is ITreeStreamingSessionFactory factory
+            factory is not null
                 ? factory.CreateStreamingSession(_options)
                 : _formatter as IStreamingTreeFormatter;
         if (formatter is null
+            && factory is null
             && _formatter is ITreeFormatter treeFormatter)
         {
             formatter =

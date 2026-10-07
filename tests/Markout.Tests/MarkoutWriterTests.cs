@@ -457,6 +457,28 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void WriteStreamingTree_RejectedFactoryDoesNotUseRetainedFallback()
+    {
+        var formatter =
+            new RejectingStreamingTreeFactory();
+        var writer = MarkoutWriter.Create(formatter);
+        bool callbackInvoked = false;
+
+        bool rendered =
+            writer.WriteTree(
+                tree =>
+                {
+                    callbackInvoked = true;
+                    tree.WriteNode("Root", isLastSibling: true);
+                });
+
+        Assert.False(rendered);
+        Assert.False(callbackInvoked);
+        Assert.Equal(1, formatter.SessionRequests);
+        Assert.Equal(0, formatter.RetainedNodeWrites);
+    }
+
+    [Fact]
     public void MarkdownFormatter_WriteStreamingTree_WritesEachNodeImmediately()
     {
         var destination = new StringWriter();
@@ -1986,6 +2008,38 @@ public class MarkoutWriterTests
             public void EndTree(TextWriter writer)
             {
             }
+        }
+    }
+
+    private sealed class RejectingStreamingTreeFactory :
+        IMarkoutFormatter,
+        ITreeFormatter,
+        ITreeStreamingSessionFactory
+    {
+        public int SessionRequests { get; private set; }
+
+        public int RetainedNodeWrites { get; private set; }
+
+        public IStreamingTreeFormatter? CreateStreamingSession(
+            MarkoutWriterOptions options)
+        {
+            SessionRequests++;
+            return null;
+        }
+
+        public void FormatTree(
+            TextWriter writer,
+            ReadOnlySpan<TreeNode> nodes,
+            MarkoutWriterOptions options)
+        {
+        }
+
+        public void FormatTreeNode(
+            TextWriter writer,
+            string text,
+            string prefix)
+        {
+            RetainedNodeWrites++;
         }
     }
 }
