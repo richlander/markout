@@ -65,12 +65,13 @@ public class JsonLinesWriterTests
             [new RawJsonLineTestRow("1.0.0")],
             JsonLineTestContext.Default.RawJsonLineTestRow);
 
-        Assert.Equal("{\"version\":\"1.0.0\"}\n", output.ToString());
+        Assert.Equal("{  \"raw_version\": \"1.0.0\"}\n", output.ToString());
     }
 }
 
 internal sealed record JsonLineTestRow(string Name, int Count, string? Optional);
 
+[JsonConverter(typeof(RawJsonLineTestRowConverter))]
 internal sealed record RawJsonLineTestRow(string Version);
 
 internal sealed class RawJsonLineTestRowConverter :
@@ -89,7 +90,7 @@ internal sealed class RawJsonLineTestRowConverter :
         writer.WriteRawValue(
             $$"""
             {
-              "version": "{{value.Version}}"
+              "raw_version": "{{value.Version}}"
             }
             """);
 }
