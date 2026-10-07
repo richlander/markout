@@ -38,6 +38,22 @@ public class JsonLinesWriterTests
             JsonSerializer.Serialize(row, JsonLineTestContext.Default.JsonLineTestRow) + "\n",
             output.ToString());
     }
+
+    [Fact]
+    public void IndentedMetadataStillProducesOnePhysicalLinePerRecord()
+    {
+        var context = new JsonLineTestContext(new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true,
+        });
+        var output = new StringWriter { NewLine = "\n" };
+
+        JsonLinesWriter.WriteRows(output,
+            [new JsonLineTestRow("first", 1, null)], context.JsonLineTestRow);
+
+        Assert.Equal("{\"name\":\"first\",\"count\":1,\"optional\":null}\n", output.ToString());
+    }
 }
 
 internal sealed record JsonLineTestRow(string Name, int Count, string? Optional);
