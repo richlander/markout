@@ -181,6 +181,18 @@ formatter instance. Pretty tables retain the full-width batch path, so their
 rows are buffered until the widths are known. Row windows that select from the
 tail and table ordering still use Markout's bounded or batch fallback.
 
+For a fixed final JSON record shape, `JsonLinesWriter.WriteRows<T>` accepts
+`JsonTypeInfo<T>` and serializes each record before requesting the next. A
+caller can supply source-generated metadata without runtime type discovery.
+This path has no table headers or column selection; callers with
+runtime-selected columns use `TableFormatter` and its tabular rows. The
+metadata's serializer options determine JSON names, omission, and escaping.
+The motivating consumer is dotnet-inspect's version listing for the pinned
+`Newtonsoft.Json` 13.0.4 package: its final `version` and `listing` record is
+known before rendering. Dotnet-inspect adopts this API through its host-neutral
+Presentation adapter; a source-reference consumer build and focused output
+tests are the handoff evidence before the package release.
+
 This design is informed by the streaming table model in
 [smooth-markdown-table](https://github.com/richlander/smooth-markdown-table),
 which demonstrated that column widths don't need all data upfront — they can
