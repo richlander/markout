@@ -473,6 +473,30 @@ public class MarkoutWriterTests
     }
 
     [Fact]
+    public void MarkdownFormatter_WriteStreamingTree_PassesChildState()
+    {
+        var writer = MarkoutWriter.Create(new MarkdownFormatter());
+
+        writer.WriteTree(
+            tree =>
+                tree.WriteNode(
+                    "Root",
+                    isLastSibling: true,
+                    "Child",
+                    static (children, child) =>
+                        children.WriteNode(
+                            child,
+                            isLastSibling: true)));
+
+        Assert.Equal(
+            """
+            └─ Root
+               └─ Child
+            """.ReplaceLineEndings(),
+            writer.ToString());
+    }
+
+    [Fact]
     public void WriteStreamingTree_ExceptionUnwindsChildrenAndEndsTree()
     {
         var formatter =

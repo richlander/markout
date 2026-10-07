@@ -227,7 +227,9 @@ writer.WriteTree(tree =>
 The last-sibling fact is semantic input needed before a node can be written;
 the producer does not construct prefixes or choose glyphs. Markout owns
 ancestor continuation, `├─`/`└─` selection, state and badge spelling, inline
-text lowering, and format-specific structure.
+text lowering, and format-specific structure. Hot adapters can use the
+state-carrying `WriteNode<TState>` overload with a static callback to avoid one
+capturing delegate per parent node.
 
 Each node reaches the destination before the callback continues. A fresh
 per-tree streaming session owns mutable lowering state, such as Mermaid node

@@ -54,6 +54,45 @@ public sealed class StreamingTreeWriter
             isLastSibling,
             writeChildren);
 
+    /// <summary>
+    /// Writes one node and invokes a state-carrying child callback without
+    /// requiring a capturing delegate.
+    /// </summary>
+    /// <typeparam name="TState">The caller state passed to the child callback.</typeparam>
+    /// <param name="text">The node label.</param>
+    /// <param name="isLastSibling">Whether this is the last node in its sibling population.</param>
+    /// <param name="state">Caller state passed to <paramref name="writeChildren"/>.</param>
+    /// <param name="writeChildren">
+    /// A synchronous callback that writes this node's children before the
+    /// method returns.
+    /// </param>
+    /// <param name="nodeState">The structural state of the node.</param>
+    /// <param name="badge">An optional badge rendered before the label.</param>
+    public void WriteNode<TState>(
+        string text,
+        bool isLastSibling,
+        TState state,
+        Action<StreamingTreeWriter, TState> writeChildren,
+        TreeNodeState nodeState = TreeNodeState.Normal,
+        string? badge = null)
+    {
+        ArgumentNullException.ThrowIfNull(writeChildren);
+        WriteNodeHeader(
+            text,
+            nodeState,
+            badge,
+            isLastSibling);
+        _formatter.BeginChildren();
+        try
+        {
+            writeChildren(this, state);
+        }
+        finally
+        {
+            _formatter.EndChildren();
+        }
+    }
+
     internal void Complete()
     {
         if (_completed)
@@ -71,6 +110,32 @@ public sealed class StreamingTreeWriter
         bool isLastSibling,
         Action<StreamingTreeWriter>? writeChildren)
     {
+        WriteNodeHeader(
+            text,
+            state,
+            badge,
+            isLastSibling);
+
+        if (writeChildren is null)
+            return;
+
+        _formatter.BeginChildren();
+        try
+        {
+            writeChildren(this);
+        }
+        finally
+        {
+            _formatter.EndChildren();
+        }
+    }
+
+    private void WriteNodeHeader(
+        string text,
+        TreeNodeState state,
+        string? badge,
+        bool isLastSibling)
+    {
         if (_completed)
         {
             throw new InvalidOperationException(
@@ -86,19 +151,6 @@ public sealed class StreamingTreeWriter
             badge,
             isLastSibling);
         HasContent = true;
-
-        if (writeChildren is null)
-            return;
-
-        _formatter.BeginChildren();
-        try
-        {
-            writeChildren(this);
-        }
-        finally
-        {
-            _formatter.EndChildren();
-        }
     }
 
     private void EnsureStarted()
