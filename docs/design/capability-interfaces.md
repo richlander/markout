@@ -93,6 +93,9 @@ IHeadingFormatter       — headings (H1–H6)
 IFieldFormatter         — key-value fields (bold keys, colon separators)
 ITableFormatter         — batch tabular data (headers + all rows)
 IStreamingTableFormatter — streaming tabular data (Begin/Data/End)
+ITreeFormatter          — retained tree hierarchies
+IStreamingTreeFormatter — streaming tree nodes (Begin/Node/End)
+ITreeStreamingSessionFactory — isolated state for one streaming tree
 IListFormatter          — single-column lists and labeled arrays
 ICodeBlockFormatter     — fenced code blocks
 IBlockFormatter         — callouts, quotations, rules, descriptions
@@ -202,6 +205,39 @@ public interface IStreamingTableFormatter
     void EndTable(TextWriter writer, int skippedRows);
 }
 ```
+
+### Streaming trees
+
+`MarkoutWriter.WriteTree(Action<StreamingTreeWriter>)` is the push path for a
+hierarchy whose rows are produced incrementally. The producer supplies each
+label and whether the node is the last item in its sibling population. Nested
+callbacks delimit child populations:
+
+```csharp
+writer.WriteTree(tree =>
+{
+    tree.WriteNode("Root", isLastSibling: true, children =>
+    {
+        children.WriteNode("First", isLastSibling: false);
+        children.WriteNode("Last", isLastSibling: true);
+    });
+});
+```
+
+The last-sibling fact is semantic input needed before a node can be written;
+the producer does not construct prefixes or choose glyphs. Markout owns
+ancestor continuation, `├─`/`└─` selection, state and badge spelling, inline
+text lowering, and format-specific structure. Hot adapters can use the
+state-carrying `WriteNode<TState>` overload with a static callback to avoid one
+capturing delegate per parent node.
+
+Each node reaches the destination before the callback continues. A fresh
+per-tree streaming session owns mutable lowering state, such as Mermaid node
+ids and parent stacks, so sharing one formatter instance across writers cannot
+mix trees. Stateful third-party formatters implement
+`ITreeStreamingSessionFactory`; stateless implementations may implement
+`IStreamingTreeFormatter` directly. Retained `WriteTree(TreeNode...)` remains
+the convenient batch path and lowers to the same bytes.
 
 ### Orchestrator dispatch for tables
 

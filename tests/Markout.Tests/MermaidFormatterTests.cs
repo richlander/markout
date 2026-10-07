@@ -102,6 +102,84 @@ public class MermaidFormatterTests
     }
 
     [Fact]
+    public void WriteStreamingTree_MatchesRetainedTree()
+    {
+        var options = new MarkoutWriterOptions { IncludeBadges = true };
+        var retained =
+            MarkoutWriter.Create(
+                new MermaidFormatter(),
+                options);
+        retained.WriteTree(
+            new TreeNode("Root", [
+                new TreeNode("First"),
+                new TreeNode("Last", [
+                    new TreeNode("Grandchild")
+                    {
+                        State = TreeNodeState.Revisit,
+                    },
+                ])
+                {
+                    Badge = "B",
+                },
+            ]));
+
+        var streaming =
+            MarkoutWriter.Create(
+                new MermaidFormatter(),
+                options);
+        streaming.WriteTree(tree =>
+        {
+            tree.WriteNode("Root", isLastSibling: true, children =>
+            {
+                children.WriteNode("First", isLastSibling: false);
+                children.WriteNode(
+                    "Last",
+                    isLastSibling: true,
+                    grandchildren =>
+                    {
+                        grandchildren.WriteNode(
+                            "Grandchild",
+                            isLastSibling: true,
+                            state: TreeNodeState.Revisit);
+                    },
+                    badge: "B");
+            });
+        });
+
+        Assert.Equal(retained.ToString(), streaming.ToString());
+    }
+
+    [Fact]
+    public void WriteStreamingTree_SharedFormatterUsesIndependentSessions()
+    {
+        var formatter = new MermaidFormatter();
+        var outer = MarkoutWriter.Create(formatter);
+        var inner = MarkoutWriter.Create(formatter);
+
+        outer.WriteTree(tree =>
+        {
+            tree.WriteNode("Outer", isLastSibling: true, children =>
+            {
+                inner.WriteTree(
+                    innerTree =>
+                        innerTree.WriteNode(
+                            "Inner",
+                            isLastSibling: true));
+                children.WriteNode(
+                    "Outer child",
+                    isLastSibling: true);
+            });
+        });
+
+        Assert.Contains("n0[\"Outer\"]", outer.ToString());
+        Assert.Contains("n1[\"Outer child\"]", outer.ToString());
+        Assert.Contains("n0 --> n1", outer.ToString());
+        Assert.DoesNotContain("n2", outer.ToString());
+        Assert.Contains("n0[\"Inner\"]", inner.ToString());
+        Assert.DoesNotContain("n1", inner.ToString());
+    }
+
+    [Fact]
     public void WriteTree_MultipleRoots_RendersAll()
     {
         var orch = MarkoutWriter.Create(new MermaidFormatter());

@@ -10,10 +10,9 @@ namespace Markout;
 /// <c>MarkdownFormatter</c> via code blocks for embedded mermaid in markdown.
 /// </summary>
 public class MermaidFormatter : IMarkoutFormatter,
-    IHeadingFormatter, ITreeFormatter, IGraphFormatter
+    IHeadingFormatter, ITreeFormatter, ITreeStreamingSessionFactory,
+    IGraphFormatter
 {
-    private int _nextNodeId;
-
     // ── IHeadingFormatter ──
 
     void IHeadingFormatter.FormatHeading(TextWriter w, int level, string text, string? context)
@@ -39,11 +38,18 @@ public class MermaidFormatter : IMarkoutFormatter,
 
     void ITreeFormatter.FormatTree(TextWriter w, ReadOnlySpan<TreeNode> nodes, MarkoutWriterOptions options)
     {
-        _nextNodeId = 0;
-        w.WriteLine("graph TD");
-
+        var session =
+            new MermaidTreeStreamingSession(options);
+        session.BeginTree(w, options);
         for (int i = 0; i < nodes.Length; i++)
-            FormatSubgraph(w, nodes[i], parentId: null, options);
+        {
+            FormatSubgraph(
+                w,
+                session,
+                nodes[i],
+                i == nodes.Length - 1);
+        }
+        session.EndTree(w);
     }
 
     void ITreeFormatter.FormatTreeNode(TextWriter w, string text, string prefix)
@@ -60,40 +66,140 @@ public class MermaidFormatter : IMarkoutFormatter,
         w.WriteLine();
     }
 
-    private void FormatSubgraph(TextWriter w, TreeNode node, string? parentId, MarkoutWriterOptions options)
+    IStreamingTreeFormatter? ITreeStreamingSessionFactory.CreateStreamingSession(
+        MarkoutWriterOptions options) =>
+        new MermaidTreeStreamingSession(options);
+
+    private static void FormatSubgraph(
+        TextWriter writer,
+        IStreamingTreeFormatter session,
+        TreeNode node,
+        bool isLastSibling)
     {
-        var id = $"n{_nextNodeId++}";
-        var label = BuildLabel(node, options);
-
-        w.Write("    ");
-        w.Write(id);
-        w.Write("[\"");
-        w.Write(EscapeLabel(label));
-        w.Write("\"]");
-        w.WriteLine();
-
-        if (parentId != null)
-        {
-            w.Write("    ");
-            w.Write(parentId);
-            w.Write(" --> ");
-            w.Write(id);
-            w.WriteLine();
-        }
+        session.WriteNode(
+            writer,
+            node.Text,
+            node.State,
+            node.Badge,
+            isLastSibling);
 
         if (node.Children is { Count: > 0 })
         {
-            foreach (var child in node.Children)
-                FormatSubgraph(w, child, id, options);
+            session.BeginChildren();
+            try
+            {
+                for (int i = 0; i < node.Children.Count; i++)
+                {
+                    FormatSubgraph(
+                        writer,
+                        session,
+                        node.Children[i],
+                        i == node.Children.Count - 1);
+                }
+            }
+            finally
+            {
+                session.EndChildren();
+            }
         }
     }
 
-    private string BuildLabel(TreeNode node, MarkoutWriterOptions options)
+    private static string BuildLabel(
+        string text,
+        TreeNodeState state,
+        string? badge,
+        MarkoutWriterOptions options)
     {
-        var state = MarkoutGlyphs.NodeStatePrefix(node.State, options, this);
-        if (node.Badge != null && options.IncludeBadges)
-            return $"{state}{node.Badge} {node.Text}";
-        return state + node.Text;
+        var prefix =
+            MarkoutGlyphs.NodeStatePrefix(
+                state,
+                options,
+                glyphs: false);
+        if (badge != null && options.IncludeBadges)
+            return $"{prefix}{badge} {text}";
+        return prefix + text;
+    }
+
+    private sealed class MermaidTreeStreamingSession(
+        MarkoutWriterOptions options)
+        : IStreamingTreeFormatter
+    {
+        private readonly List<string> _parentIds = [];
+        private int _nextNodeId;
+        private string? _currentNodeId;
+
+        public void BeginTree(
+            TextWriter writer,
+            MarkoutWriterOptions writerOptions)
+        {
+            _nextNodeId = 0;
+            _parentIds.Clear();
+            _currentNodeId = null;
+            writer.WriteLine("graph TD");
+        }
+
+        public void WriteNode(
+            TextWriter writer,
+            string text,
+            TreeNodeState state,
+            string? badge,
+            bool isLastSibling)
+        {
+            string id = $"n{_nextNodeId++}";
+            writer.Write("    ");
+            writer.Write(id);
+            writer.Write("[\"");
+            writer.Write(
+                EscapeLabel(
+                    BuildLabel(
+                        text,
+                        state,
+                        badge,
+                        options)));
+            writer.Write("\"]");
+            writer.WriteLine();
+
+            if (_parentIds.Count > 0)
+            {
+                writer.Write("    ");
+                writer.Write(_parentIds[^1]);
+                writer.Write(" --> ");
+                writer.Write(id);
+                writer.WriteLine();
+            }
+
+            _currentNodeId = id;
+        }
+
+        public void BeginChildren()
+        {
+            if (_currentNodeId is null)
+            {
+                throw new InvalidOperationException(
+                    "A parent node must be written before its children begin.");
+            }
+
+            _parentIds.Add(_currentNodeId);
+            _currentNodeId = null;
+        }
+
+        public void EndChildren()
+        {
+            if (_parentIds.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "No streaming tree child population is open.");
+            }
+
+            _parentIds.RemoveAt(
+                _parentIds.Count - 1);
+        }
+
+        public void EndTree(TextWriter writer)
+        {
+            _parentIds.Clear();
+            _currentNodeId = null;
+        }
     }
 
     // ── IGraphFormatter ──

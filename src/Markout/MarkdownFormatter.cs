@@ -11,7 +11,7 @@ namespace Markout;
 /// </summary>
 public class MarkdownFormatter : IMarkoutFormatter,
     IDocumentFormatter, IMetricsFormatter, IStreamingTableFormatter, IGlyphFormatter, IEmphasisFormatter,
-    IGraphFormatter, ITextDiffFormatter
+    IGraphFormatter, ITextDiffFormatter, ITreeNodeFormatter
 {
     private const int CellPadding = 2; // leading space + trailing space
     private static readonly string[] HeadingPrefixes = ["", "#", "##", "###", "####", "#####", "######"];
@@ -642,17 +642,36 @@ public class MarkdownFormatter : IMarkoutFormatter,
         w.WriteLine(text);
     }
 
-    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    void ITreeNodeFormatter.FormatTreeNode(
+        TextWriter w,
+        string text,
+        TreeNodeState state,
+        string? badge,
+        string prefix,
+        bool isLastSibling,
+        MarkoutWriterOptions options)
     {
         w.Write(prefix);
-        w.Write(isLast ? "└─ " : "├─ ");
-        w.Write(MarkoutGlyphs.NodeStatePrefix(node.State, options, this));
-        if (node.Badge != null && options.IncludeBadges)
+        w.Write(isLastSibling ? "└─ " : "├─ ");
+        w.Write(MarkoutGlyphs.NodeStatePrefix(state, options, this));
+        if (badge != null && options.IncludeBadges)
         {
-            w.Write(node.Badge);
+            w.Write(badge);
             w.Write(' ');
         }
-        w.WriteLine(node.Text);
+        w.WriteLine(text);
+    }
+
+    private void FormatTreeNodeRecursive(TextWriter w, TreeNode node, string prefix, bool isLast, MarkoutWriterOptions options)
+    {
+        ((ITreeNodeFormatter)this).FormatTreeNode(
+            w,
+            node.Text,
+            node.State,
+            node.Badge,
+            prefix,
+            isLast,
+            options);
 
         if (node.Children is { Count: > 0 })
         {
