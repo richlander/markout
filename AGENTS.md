@@ -78,8 +78,8 @@ Consequences for maintainers:
   negotiating it. `dotnet pack` **fails** on a skill directory that is neither `markout` nor
   `markout-*`, or whose frontmatter `name` disagrees with its directory. See
   [authoring-principles.md](https://github.com/richlander/dotnet-package-skills/blob/main/docs/authoring-principles.md#naming-derive-every-skill-name-from-the-package-id).
-- The `version:` stamp in every `skills/*/SKILL.md` and in `skills/plugin.json` tracks the
-  **Markout package version**. `dotnet pack` **fails** if they disagree with `<Version>` in
+- The `version:` stamp in every `skills/*/SKILL.md` tracks the **Markout package version**.
+  `dotnet pack` **fails** if it disagrees with `<Version>` in
   `Markout.csproj`, because the shipped shelf must not misstate which release it describes.
 - `skills/` is globbed into the package, so **any file committed there ships**. Releases pack
   a clean CI checkout, so what is in git is exactly what consumers get. Keep it to skills.
