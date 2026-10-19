@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.40.0</Version>
-    <PackageReleaseNotes>Adds caller-issued change labels to MappedTextDiff, including inert labels, emphasis, visible-whitespace control, related-change addresses, format-specific rendering, and structured provenance fields. Adds per-operation streaming sessions for TSV and JSONL tables and for Trees: rows and nodes reach the destination immediately without retaining the full shape; shared formatter instances keep table headers, ancestor state, and Mermaid node IDs isolated; pretty tables retain their width-aware buffered path; and retained and streamed Tree output remain byte-compatible across built-in formatters. Adds JsonLinesWriter.WriteRows&lt;T&gt; for incrementally serializing fixed-shape JSONL records with source-generated metadata. A state-carrying Tree node callback avoids per-parent closure allocations for hot adapters.</PackageReleaseNotes>
+    <Version>0.40.1</Version>
+    <PackageReleaseNotes>Removes the unused skills/plugin.json manifest and its pack-time version check. The package continues to ship individually versioned skills under skills/&lt;name&gt;/.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -77,8 +77,6 @@
            Text="skills/%(_ShelfSkill.SkillName)/SKILL.md contains a standalone carriage return. Use LF or CRLF line endings so frontmatter validation cannot reinterpret malformed keys." />
     <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D%0A', '%0A').Contains('%0Aversion: $(Version)%0A'))"
            Text="skills/%(_ShelfSkill.SkillName)/SKILL.md does not carry 'version: $(Version)'. The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
-    <Error Condition="!$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\skills\plugin.json').Contains('&quot;version&quot;: &quot;$(Version)&quot;'))"
-           Text="skills/plugin.json does not carry version $(Version). The packed shelf would misstate which release it describes. Bump the stamp with &lt;Version&gt;." />
     <Error Condition="'%(_ShelfSkill.SkillName)' != 'markout' AND !$([System.String]::new('%(_ShelfSkill.SkillName)').StartsWith('markout-'))"
            Text="skills/%(_ShelfSkill.SkillName)/ is not named for the package. Skill names share one flat namespace in a consuming repo, so the base skill must be 'markout' and every workflow skill 'markout-&lt;domain&gt;'." />
     <Error Condition="!$([System.IO.File]::ReadAllText('%(_ShelfSkill.FullPath)').Replace('%0D%0A', '%0A').Contains('%0Aname: %(_ShelfSkill.SkillName)%0A'))"
