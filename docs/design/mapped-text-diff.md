@@ -394,13 +394,14 @@ the change itself. Two labels are equal when all four parts are equal.
 
 Formatters apply labels as follows:
 
-- Hunk selection places two changes in one hunk only when their labels are
-  equal, in addition to the context rule. Changes with different labels start
-  separate hunks when at least two unchanged lines separate them. Closer
-  changes share one hunk whose header shows no label: a hunk inside the
-  sequence needs one unchanged line on each side, because `git apply` rejects
-  a hunk without trailing context and `patch` one without leading context.
-  Zero requested context asks for context-free hunks and keeps every split.
+- Hunk selection places two changes with equal labels in one hunk by the
+  context rule. Changes with different labels start separate hunks when at
+  least two unchanged lines separate them. Closer changes share one hunk
+  whose header shows no label: a hunk inside the sequence needs one unchanged
+  line on each side, because `git apply` rejects a hunk without trailing
+  context and `patch` one without leading context. Zero requested context
+  asks for context-free hunks and keeps those splits; only the
+  unterminated-final-line rule below can still merge them.
 - When a forced split leaves an unchanged gap that both hunks' context would
   reach, the gap's lines are divided between the two hunks so no line appears
   in two hunks. With bounded context, each hunk then keeps equal leading and

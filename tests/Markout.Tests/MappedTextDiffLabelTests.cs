@@ -187,31 +187,51 @@ public class MappedTextDiffLabelTests
         for (var trial = 0; trial < 500; trial++)
         {
             int length = random.Next(4, 30);
-            string[] before = [.. Enumerable.Range(0, length).Select(i => $"l{i}")];
-            string[] after = [.. before];
+            var before = new List<string>();
+            var after = new List<string>();
             var changes = new List<TextDiffChange>();
             for (var line = 0; line < length; line++)
             {
-                if (random.Next(4) != 0)
+                // Replacements, removals, and additions, each with a random label.
+                int kind = random.Next(6);
+                if (kind > 2)
+                {
+                    before.Add($"l{line}");
+                    after.Add($"l{line}");
                     continue;
-                after[line] = $"L{line}";
+                }
+
                 TextDiffChangeLabel? label = random.Next(3) switch
                 {
                     0 => null,
                     1 => new TextDiffChangeLabel("whitespace-only"),
                     _ => new TextDiffChangeLabel("moved"),
                 };
-                changes.Add(new TextDiffChange(new TextDiffRange(line, 1), new TextDiffRange(line, 1), label: label));
+                int removed = kind == 2 ? 0 : 1;
+                int added = kind == 1 ? 0 : 1;
+                changes.Add(new TextDiffChange(
+                    new TextDiffRange(before.Count, removed),
+                    new TextDiffRange(after.Count, added),
+                    label: label));
+                if (removed == 1)
+                    before.Add($"b{line}");
+                if (added == 1)
+                    after.Add($"a{line}");
             }
             if (changes.Count == 0)
+                continue;
+
+            // Adjacent changes must leave an unchanged gap of equal size on both sides.
+            if (!changes.Zip(changes.Skip(1)).All(pair =>
+                    pair.Second.Before.Start - pair.First.Before.End == pair.Second.After.Start - pair.First.After.End))
                 continue;
 
             var diff = new MappedTextDiff(new TextDiffSequence(before), new TextDiffSequence(after), changes);
             string output = RenderMarkdown(diff, contextLines);
 
-            AssertGitApplicable(output, length);
+            AssertGitApplicable(output, before.Count);
             if (contextLines is not null)
-                AssertGnuApplicable(output, length);
+                AssertGnuApplicable(output, before.Count);
         }
     }
 
@@ -537,15 +557,18 @@ public class MappedTextDiffLabelTests
     /// </summary>
     static void AssertGitApplicable(string markdown, int beforeLineCount)
     {
-        var hunks = new List<(int OldStart, int OldCount, List<string> Body)>();
+        var hunks = new List<(int OldStart, int OldCount, int NewCount, List<string> Body)>();
         foreach (string line in markdown.Split('\n'))
         {
             if (line.StartsWith("@@ ", StringComparison.Ordinal))
             {
-                string[] parts = line.Split(' ')[1][1..].Split(',');
+                string[] fields = line.Split(' ');
+                string[] parts = fields[1][1..].Split(',');
                 int count = parts.Length > 1 ? int.Parse(parts[1]) : 1;
                 int start = int.Parse(parts[0]);
-                hunks.Add((count == 0 ? start : start - 1, count, []));
+                string[] newParts = fields[2][1..].Split(',');
+                int newCount = newParts.Length > 1 ? int.Parse(newParts[1]) : 1;
+                hunks.Add((count == 0 ? start : start - 1, count, newCount, []));
             }
             else if (hunks.Count > 0 && line.Length > 0 && line[0] is ' ' or '-' or '+')
             {
@@ -553,8 +576,10 @@ public class MappedTextDiffLabelTests
             }
         }
 
-        foreach (var (oldStart, oldCount, body) in hunks)
+        foreach (var (oldStart, oldCount, newCount, body) in hunks)
         {
+            Assert.Equal(oldCount, body.Count(line => line[0] is ' ' or '-'));
+            Assert.Equal(newCount, body.Count(line => line[0] is ' ' or '+'));
             int leading = body.TakeWhile(line => line[0] == ' ').Count();
             int trailing = body.AsEnumerable().Reverse().TakeWhile(line => line[0] == ' ').Count();
             if (oldStart > 0)
