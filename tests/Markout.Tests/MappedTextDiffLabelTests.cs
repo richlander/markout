@@ -93,7 +93,7 @@ public class MappedTextDiffLabelTests
     }
 
     [Fact]
-    public void AdjacentChangesWithDifferentLabelsAreSeparateHunks()
+    public void AdjacentChangesWithDifferentLabelsShareOneUnlabeledHunk()
     {
         var diff = new MappedTextDiff(
             new TextDiffSequence(["x", "class Foo {", "int x;", "y"]),
@@ -105,9 +105,134 @@ public class MappedTextDiffLabelTests
 
         string output = RenderMarkdown(diff, contextLines: 3);
 
-        // Each hunk takes equal context unless it touches the sequence start or end, so GNU
-        // patch does not misread uneven context as an anchor: here both sides drop to zero.
-        Assert.Contains("@@ -2 +2,2 @@ whitespace-only: line break\n-class Foo {\n+class Foo\n+{\n@@ -3 +4 @@\n-int x;\n+int y;", output);
+        // No unchanged line separates the changes, so splitting them would leave a hunk inside
+        // the sequence without context on one side, which git apply or patch rejects.
+        Assert.Contains("@@ -1,4 +1,5 @@\n x\n-class Foo {\n+class Foo\n+{\n-int x;\n+int y;\n y", output);
+        AssertGnuApplicable(output, diff.Before.Lines.Length);
+        AssertGitApplicable(output, diff.Before.Lines.Length);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(null)]
+    public void LabeledChangesOneUnchangedLineApartShareOneHunk(int? contextLines)
+    {
+        var diff = TwoLabeledChanges(gap: 1);
+
+        string output = RenderMarkdown(diff, contextLines);
+
+        Assert.Single(output.Split('\n'), line => line.StartsWith("@@ ", StringComparison.Ordinal));
+        Assert.DoesNotContain("@@ whitespace-only", output);
+        AssertGitApplicable(output, diff.Before.Lines.Length);
+    }
+
+    [Theory]
+    [InlineData(3, "@@ -6,3 +6,3 @@ whitespace-only\n l6\n-l7\n+L7\n l8\n@@ -9,3 +9,3 @@\n l9\n-l10\n+L10\n l11\n")]
+    [InlineData(null, "@@ -1,8 +1,8 @@ whitespace-only\n l1\n l2\n l3\n l4\n l5\n l6\n-l7\n+L7\n l8\n@@ -9,8 +9,8 @@\n l9\n-l10\n+L10\n l11\n l12\n l13\n l14\n l15\n l16")]
+    public void LabeledChangesTwoUnchangedLinesApartSplitWithContextOnBothSides(int? contextLines, string expected)
+    {
+        var diff = TwoLabeledChanges(gap: 2);
+
+        string output = RenderMarkdown(diff, contextLines);
+
+        Assert.Contains(expected, output);
+        AssertGitApplicable(output, diff.Before.Lines.Length);
+        if (contextLines is not null)
+            AssertGnuApplicable(output, diff.Before.Lines.Length);
+    }
+
+    [Fact]
+    public void UnlimitedContextLabelSplitStaysGitApplicable()
+    {
+        // markout#237: dotnet-inspect's detailed Source Diff of JsonSerializerOptions.GetTypeInfo.
+        string[] before =
+        [
+            "public JsonTypeInfo GetTypeInfo(Type type)", "{", "    ArgumentNullException.ThrowIfNull(type);", "",
+            "    if (JsonTypeInfo.IsInvalidForSerialization(type))", "    {",
+            "        ThrowHelper.ThrowArgumentException_CannotSerializeInvalidType(nameof(type), type, null, null);",
+            "    }", "", "    return GetTypeInfoInternal(type, resolveIfMutable: true);", "}",
+        ];
+        string[] after =
+        [
+            "public JsonTypeInfo GetTypeInfo(Type type)", "{", "    ArgumentNullException.ThrowIfNull(type, \"type\");",
+            "    if (JsonTypeInfo.IsInvalidForSerialization(type))", "    {",
+            "        ThrowHelper.ThrowArgumentException_CannotSerializeInvalidType(\"type\", type, null, null);",
+            "    }", "    return GetTypeInfoInternal(type, true, new Nullable<bool>(true), true);", "}",
+        ];
+        var lineBreaks = new TextDiffChangeLabel("whitespace-only: line breaks", TextDiffLabelEmphasis.Subdued, showWhitespace: true);
+        var diff = new MappedTextDiff(
+            new TextDiffSequence(before, finalLineTerminator: TextDiffLineTerminator.Absent),
+            new TextDiffSequence(after, finalLineTerminator: TextDiffLineTerminator.Absent),
+            [
+                new TextDiffChange(new TextDiffRange(2, 1), new TextDiffRange(2, 1)),
+                new TextDiffChange(new TextDiffRange(3, 1), new TextDiffRange(3, 0), label: lineBreaks),
+                new TextDiffChange(new TextDiffRange(6, 1), new TextDiffRange(5, 1)),
+                new TextDiffChange(new TextDiffRange(8, 1), new TextDiffRange(7, 0), label: lineBreaks),
+                new TextDiffChange(new TextDiffRange(9, 1), new TextDiffRange(7, 1)),
+            ]);
+
+        string output = RenderMarkdown(diff, contextLines: null);
+
+        AssertGitApplicable(output, before.Length);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void EveryLabeledSplitKeepsContextInsideTheSequence(int? contextLines)
+    {
+        var random = new Random(237);
+        for (var trial = 0; trial < 500; trial++)
+        {
+            int length = random.Next(4, 30);
+            var before = new List<string>();
+            var after = new List<string>();
+            var changes = new List<TextDiffChange>();
+            for (var line = 0; line < length; line++)
+            {
+                // Replacements, removals, and additions, each with a random label.
+                int kind = random.Next(6);
+                if (kind > 2)
+                {
+                    before.Add($"l{line}");
+                    after.Add($"l{line}");
+                    continue;
+                }
+
+                TextDiffChangeLabel? label = random.Next(3) switch
+                {
+                    0 => null,
+                    1 => new TextDiffChangeLabel("whitespace-only"),
+                    _ => new TextDiffChangeLabel("moved"),
+                };
+                int removed = kind == 2 ? 0 : 1;
+                int added = kind == 1 ? 0 : 1;
+                changes.Add(new TextDiffChange(
+                    new TextDiffRange(before.Count, removed),
+                    new TextDiffRange(after.Count, added),
+                    label: label));
+                if (removed == 1)
+                    before.Add($"b{line}");
+                if (added == 1)
+                    after.Add($"a{line}");
+            }
+            if (changes.Count == 0)
+                continue;
+
+            // Adjacent changes must leave an unchanged gap of equal size on both sides.
+            if (!changes.Zip(changes.Skip(1)).All(pair =>
+                    pair.Second.Before.Start - pair.First.Before.End == pair.Second.After.Start - pair.First.After.End))
+                continue;
+
+            var diff = new MappedTextDiff(new TextDiffSequence(before), new TextDiffSequence(after), changes);
+            string output = RenderMarkdown(diff, contextLines);
+
+            AssertGitApplicable(output, before.Count);
+            if (contextLines is not null)
+                AssertGnuApplicable(output, before.Count);
+        }
     }
 
     [Fact]
@@ -248,7 +373,7 @@ public class MappedTextDiffLabelTests
     }
 
     [Fact]
-    public void MidSequenceSplitGivesEachHunkEqualContext()
+    public void AdjacentMidSequenceChangesShareOneHunkWithEqualContext()
     {
         // Round 1 review repro A: adjacent differently labeled changes in the middle of a file.
         string[] before = [.. Enumerable.Range(1, 12).Select(i => $"l{i}")];
@@ -265,8 +390,9 @@ public class MappedTextDiffLabelTests
 
         string output = RenderMarkdown(diff, contextLines: 3);
 
-        Assert.Contains("@@ -8 +8 @@ whitespace-only\n-l8\n+L8\n@@ -9 +9 @@\n-l9\n+L9\n", output);
+        Assert.Contains("@@ -5,8 +5,8 @@\n l5\n l6\n l7\n-l8\n+L8\n-l9\n+L9\n l10\n l11\n l12\n", output);
         AssertGnuApplicable(output, diff.Before.Lines.Length);
+        AssertGitApplicable(output, diff.Before.Lines.Length);
     }
 
     [Fact]
@@ -422,6 +548,62 @@ public class MappedTextDiffLabelTests
                 Assert.DoesNotContain(body, line => line[0] == '\\');
         }
 
+    }
+
+    /// <summary>
+    /// Asserts the rule git apply and patch share: a hunk inside the sequence keeps at least one
+    /// context line on each side. git apply reads a hunk without trailing context as anchored to
+    /// the end, and patch one without leading context as anchored to the start.
+    /// </summary>
+    static void AssertGitApplicable(string markdown, int beforeLineCount)
+    {
+        var hunks = new List<(int OldStart, int OldCount, int NewCount, List<string> Body)>();
+        foreach (string line in markdown.Split('\n'))
+        {
+            if (line.StartsWith("@@ ", StringComparison.Ordinal))
+            {
+                string[] fields = line.Split(' ');
+                string[] parts = fields[1][1..].Split(',');
+                int count = parts.Length > 1 ? int.Parse(parts[1]) : 1;
+                int start = int.Parse(parts[0]);
+                string[] newParts = fields[2][1..].Split(',');
+                int newCount = newParts.Length > 1 ? int.Parse(newParts[1]) : 1;
+                hunks.Add((count == 0 ? start : start - 1, count, newCount, []));
+            }
+            else if (hunks.Count > 0 && line.Length > 0 && line[0] is ' ' or '-' or '+')
+            {
+                hunks[^1].Body.Add(line);
+            }
+        }
+
+        foreach (var (oldStart, oldCount, newCount, body) in hunks)
+        {
+            Assert.Equal(oldCount, body.Count(line => line[0] is ' ' or '-'));
+            Assert.Equal(newCount, body.Count(line => line[0] is ' ' or '+'));
+            int leading = body.TakeWhile(line => line[0] == ' ').Count();
+            int trailing = body.AsEnumerable().Reverse().TakeWhile(line => line[0] == ' ').Count();
+            if (oldStart > 0)
+                Assert.True(leading > 0, "a hunk inside the sequence has no leading context\n" + markdown);
+            if (oldStart + oldCount < beforeLineCount)
+                Assert.True(trailing > 0, "a hunk inside the sequence has no trailing context\n" + markdown);
+        }
+    }
+
+    /// <summary>Sixteen lines; a labeled change at line 7 and an unlabeled one <paramref name="gap"/> lines later.</summary>
+    static MappedTextDiff TwoLabeledChanges(int gap)
+    {
+        string[] before = [.. Enumerable.Range(1, 16).Select(i => $"l{i}")];
+        string[] after = [.. before];
+        int second = 7 + gap;
+        after[6] = "L7";
+        after[second] = $"L{second + 1}";
+        return new MappedTextDiff(
+            new TextDiffSequence(before),
+            new TextDiffSequence(after),
+            [
+                new TextDiffChange(new TextDiffRange(6, 1), new TextDiffRange(6, 1), label: new TextDiffChangeLabel("whitespace-only")),
+                new TextDiffChange(new TextDiffRange(second, 1), new TextDiffRange(second, 1)),
+            ]);
     }
 
     static MappedTextDiff MovedBlock() => new(
