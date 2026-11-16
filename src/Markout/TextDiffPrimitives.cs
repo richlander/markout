@@ -394,6 +394,103 @@ public sealed class TextDiffDisplayLine
     }
 }
 
+/// <summary>
+/// A caller-issued hunk heading candidate: a Before line that begins a declaration, and the
+/// text a unified header names it by. Markout never derives a candidate from line text.
+/// </summary>
+public sealed record TextDiffHeading
+{
+    /// <summary>Creates a heading candidate.</summary>
+    /// <param name="beforeLine">The zero-based Before line the declaration begins on.</param>
+    /// <param name="text">One non-empty logical line of inert caller text.</param>
+    public TextDiffHeading(int beforeLine, string text)
+    {
+        if (beforeLine < 0)
+            throw new ArgumentOutOfRangeException(nameof(beforeLine));
+        ArgumentNullException.ThrowIfNull(text);
+        TextDiffValidation.ValidateLogicalLine(text, nameof(text), "Heading");
+        if (text.Length == 0)
+            throw new ArgumentException("Heading text must not be empty.", nameof(text));
+
+        BeforeLine = beforeLine;
+        Text = text;
+    }
+
+    /// <summary>The zero-based Before line the declaration begins on.</summary>
+    public int BeforeLine { get; }
+
+    /// <summary>The heading text.</summary>
+    public string Text { get; }
+}
+
+/// <summary>
+/// Caller-issued hunk headings for a <see cref="MappedTextDiff"/>. Each hunk's heading is the
+/// last candidate that begins before the hunk's first Before line, as Git takes the function
+/// line that precedes a hunk on its old side; when none does, it is the fallback, such as the
+/// innermost declaration that encloses the whole Before sequence.
+/// </summary>
+public sealed class TextDiffHeadings
+{
+    /// <summary>Creates hunk headings.</summary>
+    /// <param name="candidates">Candidates in strictly increasing Before line order.</param>
+    /// <param name="fallback">
+    /// The heading of a hunk that no candidate precedes, or <c>null</c> for none.
+    /// </param>
+    public TextDiffHeadings(IEnumerable<TextDiffHeading> candidates, string? fallback = null)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+        Candidates = [.. candidates];
+        for (var i = 0; i < Candidates.Length; i++)
+        {
+            if (Candidates[i] is null)
+                throw new ArgumentException($"Heading at index {i} is null.", nameof(candidates));
+            if (i > 0 && Candidates[i].BeforeLine <= Candidates[i - 1].BeforeLine)
+            {
+                throw new ArgumentException(
+                    $"Heading at index {i} does not follow the previous heading's Before line.",
+                    nameof(candidates));
+            }
+        }
+
+        if (fallback is not null)
+        {
+            TextDiffValidation.ValidateLogicalLine(fallback, nameof(fallback), "Fallback heading");
+            if (fallback.Length == 0)
+                throw new ArgumentException("Fallback heading must not be empty.", nameof(fallback));
+        }
+
+        Fallback = fallback;
+    }
+
+    /// <summary>The candidates, in strictly increasing Before line order.</summary>
+    public ImmutableArray<TextDiffHeading> Candidates { get; }
+
+    /// <summary>The heading of a hunk that no candidate precedes, or <c>null</c>.</summary>
+    public string? Fallback { get; }
+
+    internal string? HeadingBefore(int beforeLine)
+    {
+        var low = 0;
+        var high = Candidates.Length - 1;
+        var found = -1;
+        while (low <= high)
+        {
+            var middle = low + ((high - low) / 2);
+            if (Candidates[middle].BeforeLine < beforeLine)
+            {
+                found = middle;
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle - 1;
+            }
+        }
+
+        return found >= 0 ? Candidates[found].Text : Fallback;
+    }
+}
+
 internal static class TextDiffValidation
 {
     public static void ValidateSingleSide(TextDiffSide side, string paramName)

@@ -17,9 +17,20 @@ internal static class TextDiffFormatterHelpers
         foreach (var hunk in MappedTextDiffLowering.SelectHunks(diff, contextLines))
         {
             var header = $"@@ -{FormatRange(hunk.Before)} +{FormatRange(hunk.After)} @@";
-            lines.Add(hunk.Label is { } label
-                ? header + " " + TextDiffEscaping.Human(label.Text)
-                : header);
+            if (diff.Headings is null)
+            {
+                lines.Add(hunk.Label is { } label
+                    ? header + " " + TextDiffEscaping.Human(label.Text)
+                    : header);
+            }
+            else
+            {
+                if (hunk.Heading is { } heading)
+                    header += " " + TextDiffEscaping.Heading(heading);
+                if (hunk.Label is { } headedLabel)
+                    header += " | " + TextDiffEscaping.HeadedLabel(headedLabel.Text);
+                lines.Add(header);
+            }
             foreach (var line in hunk.Lines)
             {
                 switch (line.Kind)

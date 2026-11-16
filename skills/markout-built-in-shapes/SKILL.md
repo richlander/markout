@@ -1,6 +1,6 @@
 ---
 name: markout-built-in-shapes
-version: 0.40.1
+version: 0.41.0
 description: >-
   Use when a report needs rich visual elements — bar charts, stacked/proportional bars, alert
   boxes, tree hierarchies, term/definition glossaries, or code blocks — instead of hand-drawn
@@ -164,6 +164,9 @@ public class MetadataDocument
   `TextDiffChangeLabel` on the `TextDiffChange`. Markout writes it after the hunk header's `@@`,
   groups differently labeled changes into one unlabeled hunk only when fewer than two unchanged
   lines separate them (so the patch stays applicable), and never derives a label itself.
+- To name the declaration around each hunk, pass `TextDiffHeadings` to `MappedTextDiff`: Before
+  lines that begin declarations, plus an optional fallback. Unified output writes the heading
+  after `@@`, as Git does, and a label after ` | `. Markout never derives a heading from text.
 
 ## Shape cheat-sheet
 

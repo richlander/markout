@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.40.1</Version>
-    <PackageReleaseNotes>Removes the unused skills/plugin.json manifest and its pack-time version check. The package continues to ship individually versioned skills under skills/&lt;name&gt;/.</PackageReleaseNotes>
+    <Version>0.41.0</Version>
+    <PackageReleaseNotes>Adds caller-issued hunk headings to MappedTextDiff and keeps labeled unified output applicable. TextDiffHeadings carries Before lines that begin declarations, each with heading text, and an optional fallback; unified output writes each hunk's heading after its closing @@ from the last candidate before the hunk's first Before line, as Git does, and a change label after " | ". Headings escape backslash and pipe, and labels in headed headers escape backslash, so heading and label are recoverable exactly; a diff without headings is written exactly as before. Unified output also keeps one unchanged line on each side of every hunk inside the text, because git apply rejects a hunk without trailing context and patch one without leading context: differently labeled changes separated by fewer than two unchanged lines now share one hunk whose header shows no label. This fixes labeled output that git apply rejected, at bounded and unlimited context.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

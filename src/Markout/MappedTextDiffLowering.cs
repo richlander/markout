@@ -162,7 +162,8 @@ public static class MappedTextDiffLowering
                 before,
                 after,
                 BuildHunkLines(diff, groups[index].First, groups[index].Last, before, after),
-                groups[index].Mixed ? null : first.Label));
+                groups[index].Mixed ? null : first.Label,
+                diff.Headings?.HeadingBefore(before.Start)));
         }
 
         return hunks.MoveToImmutable();
@@ -332,17 +333,20 @@ internal sealed class TextDiffHunk
     public TextDiffRange After { get; }
     public ImmutableArray<TextDiffDisplayLine> Lines { get; }
     public TextDiffChangeLabel? Label { get; }
+    public string? Heading { get; }
 
     public TextDiffHunk(
         TextDiffRange before,
         TextDiffRange after,
         ImmutableArray<TextDiffDisplayLine> lines,
-        TextDiffChangeLabel? label = null)
+        TextDiffChangeLabel? label = null,
+        string? heading = null)
     {
         Before = before;
         After = after;
         Lines = lines;
         Label = label;
+        Heading = heading;
     }
 }
 
@@ -353,6 +357,20 @@ internal static class TextDiffEscaping
 
     public static string Human(string value)
         => Escape(value, escapeBackslash: false, escapeTab: true);
+
+    /// <summary>
+    /// A hunk heading: a backslash and a pipe are escaped first, so the first unescaped pipe
+    /// in a header always begins its label.
+    /// </summary>
+    public static string Heading(string value)
+        => Human(value.Replace("\\", "\\\\").Replace("|", "\\|"));
+
+    /// <summary>
+    /// A change label in a header that carries headings: a backslash is escaped first, so a
+    /// literal escape sequence never collides with an escaped control scalar.
+    /// </summary>
+    public static string HeadedLabel(string value)
+        => Human(value.Replace("\\", "\\\\"));
 
     public static string Structured(string value)
         => Escape(value, escapeBackslash: true, escapeTab: true);
