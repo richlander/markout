@@ -9,8 +9,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>A source-generated Markdown serializer for .NET</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.40.1</Version>
-    <PackageReleaseNotes>Removes the unused skills/plugin.json manifest and its pack-time version check. The package continues to ship individually versioned skills under skills/&lt;name&gt;/.</PackageReleaseNotes>
+    <Version>0.40.2</Version>
+    <PackageReleaseNotes>Keeps unified mapped-diff output applicable when differently labeled changes are close together. A hunk inside the text now always keeps one unchanged line on each side, because git apply rejects a hunk without trailing context and patch one without leading context; differently labeled changes separated by fewer than two unchanged lines share one hunk whose header shows no label. This fixes output that git apply rejected, at bounded and unlimited context. Zero requested context is unchanged.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
