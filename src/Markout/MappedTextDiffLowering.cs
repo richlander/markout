@@ -48,10 +48,18 @@ public static class MappedTextDiffLowering
     }
 
     /// <summary>
+    /// The fewest unchanged lines between two differently labeled changes that still lets each
+    /// split hunk keep one context line on the side where they meet.
+    /// </summary>
+    const int MinimumLabelSplitGap = 2;
+
+    /// <summary>
     /// Groups changes into hunks. Changes join one hunk when their unchanged gap fits within the
-    /// context on both sides and their labels are equal; changes with different labels always
-    /// start a new hunk. When such a forced split leaves a gap that both hunks' context would
-    /// reach, the gap's lines are divided between the two hunks so no line appears in both.
+    /// context on both sides and their labels are equal. Changes with different labels start a
+    /// new hunk when at least two unchanged lines separate them; closer, they share one hunk
+    /// whose header shows no label, so every hunk inside the sequence keeps context on both
+    /// sides. When a forced split leaves a gap that both hunks' context would reach, the gap's
+    /// lines are divided between the two hunks so no line appears in both.
     /// </summary>
     internal static ImmutableArray<TextDiffHunk> SelectHunks(
         MappedTextDiff diff,
@@ -67,19 +75,32 @@ public static class MappedTextDiffLowering
         while (firstAddress < diff.Changes.Length)
         {
             var lastAddress = firstAddress;
+            var mixed = false;
             while (lastAddress + 1 < diff.Changes.Length)
             {
                 var current = diff.Changes[lastAddress];
                 var next = diff.Changes[lastAddress + 1];
-                if (!Equals(current.Label, next.Label))
-                    break;
                 var gap = next.Before.Start - current.Before.End;
-                if (contextLines is not null && (long)gap > (long)contextLines.Value * 2)
+                if (!Equals(current.Label, next.Label))
+                {
+                    // A split hunk inside the sequence needs one unchanged line on each side:
+                    // git apply rejects a hunk without trailing context, and patch one without
+                    // leading context. Fewer than two unchanged lines cannot give both, so the
+                    // changes share one hunk whose header shows no label. Zero requested
+                    // context asks for context-free hunks and keeps every split.
+                    if (contextLines == 0 || gap >= MinimumLabelSplitGap)
+                        break;
+                    mixed = true;
+                }
+                else if (contextLines is not null && (long)gap > (long)contextLines.Value * 2)
+                {
                     break;
+                }
+
                 lastAddress++;
             }
 
-            groups.Add((firstAddress, lastAddress, false));
+            groups.Add((firstAddress, lastAddress, mixed));
             firstAddress = lastAddress + 1;
         }
 

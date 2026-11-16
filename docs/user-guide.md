@@ -1034,9 +1034,12 @@ new TextDiffChange(
   the free-form slot Git uses for function context:
   `@@ -5,3 +5,3 @@ whitespace-only: blank-line content`. Line text stays exact,
   so the output remains a valid patch.
-- Changes with different labels never share a hunk, and no unchanged line
-  appears in two hunks: when a forced split leaves a short gap, its lines are
-  divided between the neighboring hunks. With a bounded context count, each
+- Changes with different labels share a hunk only when fewer than two
+  unchanged lines separate them; that hunk's header shows no label, because a
+  hunk inside the text needs one unchanged line on each side for `git apply`
+  and `patch` to accept it. No unchanged line appears in two hunks: when a
+  forced split leaves a short gap, its lines are divided between the
+  neighboring hunks. With a bounded context count, each
   hunk keeps equal context on both sides so `patch` still applies it. With
   `null` context every unchanged line is kept, so a split in the middle of
   the text can leave uneven context that `git apply` accepts but GNU `patch`
