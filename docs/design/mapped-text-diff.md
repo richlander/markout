@@ -458,7 +458,9 @@ Unified lowerings write headings as follows:
   writes `@@ … @@ | label`.
 - Heading text escapes a backslash as `\\` and a pipe as `\|` before the
   usual control-scalar escaping, so the first unescaped pipe always begins the
-  label, and the heading and the label are recoverable exactly.
+  label. Label text in such a header escapes a backslash as `\\` first, so a
+  literal escape sequence never collides with an escaped control scalar. The
+  heading and the label are therefore recoverable exactly.
 - A diff without headings writes exactly what it wrote before headings
   existed, including a label directly after `@@`.
 

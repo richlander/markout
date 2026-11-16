@@ -144,6 +144,10 @@ public class MappedTextDiffHeadingTests
     [InlineData("public int this[int index]", null)]
     [InlineData("public string Format(string pattern = \"a // b\")", "label")]
     [InlineData("public void Tab(string s = \"a\tb\\\\t\")", "x")]
+    [InlineData("public void Run()", "tab\there")]
+    [InlineData("public void Run()", "literal \\t and \\u001B")]
+    [InlineData("public void Run()", "escape \u001B char")]
+    [InlineData("trailing backslash \\", "label ending \\")]
     public void HeadingAndLabelAreRecoverableExactly(string heading, string? label)
     {
         var diff = new MappedTextDiff(
@@ -259,25 +263,52 @@ public class MappedTextDiffHeadingTests
         if (rest.Length == 0)
             return (null, null);
         if (rest.StartsWith(" | ", StringComparison.Ordinal))
-            return (null, rest[3..]);
+            return (null, Unescape(rest[3..]));
 
-        var heading = new StringBuilder();
         for (var i = 1; i < rest.Length; i++)
         {
-            char c = rest[i];
-            if (c == '\\' && i + 1 < rest.Length)
+            if (rest[i] == '\\')
             {
-                char next = rest[++i];
-                heading.Append(next switch { 't' => '\t', _ => next });
+                i++;
                 continue;
             }
 
-            if (c == '|')
-                return (heading.ToString(0, heading.Length - 1), rest[(i + 2)..]);
-            heading.Append(c);
+            if (rest[i] == '|')
+                return (Unescape(rest[1..(i - 1)]), Unescape(rest[(i + 2)..]));
         }
 
-        return (heading.ToString(), null);
+        return (Unescape(rest[1..]), null);
+    }
+
+    /// <summary>Reverses the header escapes: <c>\\</c>, <c>\|</c>, <c>\t</c>, and <c>\uXXXX</c>.</summary>
+    static string Unescape(string value)
+    {
+        var text = new StringBuilder();
+        for (var i = 0; i < value.Length; i++)
+        {
+            if (value[i] != '\\' || i + 1 == value.Length)
+            {
+                text.Append(value[i]);
+                continue;
+            }
+
+            char next = value[++i];
+            switch (next)
+            {
+                case 't':
+                    text.Append('\t');
+                    break;
+                case 'u':
+                    text.Append((char)Convert.ToInt32(value.Substring(i + 1, 4), 16));
+                    i += 4;
+                    break;
+                default:
+                    text.Append(next);
+                    break;
+            }
+        }
+
+        return text.ToString();
     }
 
     static string[] Headers(string output)

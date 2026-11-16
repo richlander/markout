@@ -28,7 +28,7 @@ internal static class TextDiffFormatterHelpers
                 if (hunk.Heading is { } heading)
                     header += " " + TextDiffEscaping.Heading(heading);
                 if (hunk.Label is { } headedLabel)
-                    header += " | " + TextDiffEscaping.Human(headedLabel.Text);
+                    header += " | " + TextDiffEscaping.HeadedLabel(headedLabel.Text);
                 lines.Add(header);
             }
             foreach (var line in hunk.Lines)

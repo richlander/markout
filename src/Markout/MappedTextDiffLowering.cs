@@ -344,6 +344,13 @@ internal static class TextDiffEscaping
     public static string Heading(string value)
         => Human(value.Replace("\\", "\\\\").Replace("|", "\\|"));
 
+    /// <summary>
+    /// A change label in a header that carries headings: a backslash is escaped first, so a
+    /// literal escape sequence never collides with an escaped control scalar.
+    /// </summary>
+    public static string HeadedLabel(string value)
+        => Human(value.Replace("\\", "\\\\"));
+
     public static string Structured(string value)
         => Escape(value, escapeBackslash: true, escapeTab: true);
 

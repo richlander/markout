@@ -1076,8 +1076,9 @@ var diff = new MappedTextDiff(
   hunk's first Before line, as Git does, and otherwise the fallback:
   `@@ -4,3 +4,3 @@ public void Run()`.
 - A label follows the heading after ` | `, or follows `@@` as `| label` when
-  the hunk has no heading. The heading escapes `\` and `|`, so the first
-  unescaped pipe always begins the label.
+  the hunk has no heading. The heading escapes `\` and `|`, and the label
+  escapes `\`, so the first unescaped pipe always begins the label and both
+  are recoverable exactly.
 - Headings change only header text and never hunk selection, so the output
   remains a valid patch. A diff without headings is written exactly as before.
 
