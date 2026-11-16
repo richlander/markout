@@ -1054,6 +1054,33 @@ new TextDiffChange(
 - Structured formats add `change_label`, `label_emphasis`, and
   `related_change` fields to every change-derived record.
 
+### Hunk headings
+
+A diff may carry caller-issued `TextDiffHeadings`, so unified output names the
+declaration around each hunk the way Git does:
+
+```csharp
+var diff = new MappedTextDiff(
+    before,
+    after,
+    changes,
+    new TextDiffHeadings(
+        [
+            new TextDiffHeading(0, "public class Widget"),
+            new TextDiffHeading(2, "public void Run()"),
+        ],
+        fallback: "namespace Example"));
+```
+
+- Each hunk takes the last candidate whose Before line is earlier than the
+  hunk's first Before line, as Git does, and otherwise the fallback:
+  `@@ -4,3 +4,3 @@ public void Run()`.
+- A label follows the heading after ` | `, or follows `@@` as `| label` when
+  the hunk has no heading. The heading escapes `\` and `|`, so the first
+  unescaped pipe always begins the label.
+- Headings change only header text and never hunk selection, so the output
+  remains a valid patch. A diff without headings is written exactly as before.
+
 When a plain-text mapped diff ends in caller-significant whitespace,
 `Complete()` and `ToString()` preserve that trailing line exactly. This keeps a
 whitespace-only final unified line, or caller-significant trailing spaces,

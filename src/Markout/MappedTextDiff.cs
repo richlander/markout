@@ -23,11 +23,34 @@ public sealed class MappedTextDiff
     /// <summary>Whether the canonical change population is empty.</summary>
     public bool IsEmpty => Changes.IsEmpty;
 
+    /// <summary>
+    /// Caller-issued hunk headings, or <c>null</c>. Unified formatters write a hunk's heading
+    /// after its header's closing <c>@@</c>; without headings, they write exactly what they
+    /// wrote before headings existed.
+    /// </summary>
+    public TextDiffHeadings? Headings { get; }
+
     /// <summary>Creates and validates a mapped text diff.</summary>
     public MappedTextDiff(
         TextDiffSequence before,
         TextDiffSequence after,
         IEnumerable<TextDiffChange> changes)
+        : this(before, after, changes, headings: null)
+    {
+    }
+
+    /// <summary>Creates and validates a mapped text diff with caller-issued hunk headings.</summary>
+    /// <param name="before">The Before sequence.</param>
+    /// <param name="after">The After sequence.</param>
+    /// <param name="changes">The ordered change population.</param>
+    /// <param name="headings">
+    /// Hunk headings whose candidates name Before lines, or <c>null</c> for none.
+    /// </param>
+    public MappedTextDiff(
+        TextDiffSequence before,
+        TextDiffSequence after,
+        IEnumerable<TextDiffChange> changes,
+        TextDiffHeadings? headings)
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
@@ -36,6 +59,16 @@ public sealed class MappedTextDiff
         Before = before;
         After = after;
         Changes = [.. changes];
+        Headings = headings;
+
+        if (headings is not null
+            && headings.Candidates.Length > 0
+            && headings.Candidates[^1].BeforeLine >= before.Lines.Length)
+        {
+            throw new ArgumentException(
+                "A heading candidate names a line beyond the Before sequence.",
+                nameof(headings));
+        }
 
         ValidateChanges();
         ValidateAbsentFinalLine(Before, After, TextDiffSide.Before);

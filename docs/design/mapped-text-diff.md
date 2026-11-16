@@ -62,9 +62,10 @@ One diff contains:
 - a **Before sequence** with an optional label, ordered logical lines, and an
   optional final-line-terminator assertion;
 - an **After sequence** with an optional label, ordered logical lines, and an
-  optional final-line-terminator assertion; and
+  optional final-line-terminator assertion;
 - an ordered **change population** mapping non-overlapping ranges between the
-  sequences.
+  sequences; and
+- optional caller-issued **hunk headings** (see [Hunk headings](#hunk-headings)).
 
 Each line and sequence label is one logical line without its line terminator.
 An empty string is a valid blank line. Sequence position is a zero-based
@@ -423,6 +424,52 @@ Formatters apply labels as follows:
   rendering stays reversible.
 - Structured lowerings add `change_label`, `label_emphasis`, and
   `related_change` fields to every record derived from a labeled change.
+
+## Hunk headings
+
+Git writes a hunk heading after the closing `@@`: the function line that
+precedes the hunk on the old side. A diff may carry caller-issued hunk
+headings so a unified lowering writes the same kind of heading from the
+caller's own structure. Markout never derives a heading from line text. The
+motivating adopter is dotnet-inspect's Member diff, whose structural
+declarations name each hunk.
+
+Hunk headings contain:
+
+- **candidates**: Before lines that begin a declaration, each with one
+  non-empty logical line of heading text, in strictly increasing Before line
+  order; and
+- an optional **fallback**: the heading of a hunk that no candidate precedes,
+  such as the innermost declaration that encloses the whole Before sequence.
+
+Construction rejects a candidate on a negative line or beyond the Before
+sequence, candidates out of order or on the same line, and empty or multi-line
+heading text.
+
+A hunk's heading is the last candidate whose Before line is earlier than the
+hunk's first Before line, as Git searches from the line before the hunk, and
+otherwise the fallback. A hunk with neither has no heading. Headings never
+affect hunk selection.
+
+Unified lowerings write headings as follows:
+
+- A heading follows `@@` after one space. When the hunk also has a label, the
+  label follows the heading after ` | `. A labeled hunk without a heading
+  writes `@@ … @@ | label`.
+- Heading text escapes a backslash as `\\` and a pipe as `\|` before the
+  usual control-scalar escaping, so the first unescaped pipe always begins the
+  label, and the heading and the label are recoverable exactly.
+- A diff without headings writes exactly what it wrote before headings
+  existed, including a label directly after `@@`.
+
+The pipe was chosen by
+[dotnet-inspect's printer trials](https://github.com/richlander/dotnet-inspect/pull/11221):
+fresh agents recovered pipe-separated and bracketed labels equally, and
+brackets occur in many declarations.
+
+Headings change only header text, so a headed diff applies as a patch exactly
+where the same diff without headings does. Rich, side-by-side, and structured
+lowerings do not present headings yet.
 
 ## Annotations
 
